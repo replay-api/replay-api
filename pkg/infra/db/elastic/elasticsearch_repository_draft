@@ -1,0 +1,87 @@
+package elastic
+
+import (
+	"context"
+	"encoding/json"
+
+	"github.com/olivere/elastic/v7"
+	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
+)
+
+// ... (other constants and types)
+
+type ElasticsearchRepository[T common.Entity] struct {
+	client       *elastic.Client
+	indexName    string
+	mappingCache map[string]CacheItem
+	// ... (other fields similar to MongoDBRepository)
+}
+
+// ... (builder and other methods similar to MongoDBRepository)
+
+func (r *ElasticsearchRepository[T]) Compile(ctx context.Context, searchParams []common.SearchAggregation, resultOptions common.SearchResultOptions) (*common.Search, error) {
+	// ... (Validation of search parameters and Elasticsearch fields)
+}
+
+func (r *ElasticsearchRepository[T]) Query(queryCtx context.Context, s common.Search) (*elastic.SearchResult, error) {
+	query := r.buildElasticsearchQuery(s)
+	// ... (Add sorting, pagination, and field selection based on s.ResultOptions)
+
+	result, err := r.client.Search().
+		Index(r.indexName).
+		Query(query).
+		// ... (Other search options).
+		Do(queryCtx)
+
+	return result, err
+}
+
+func (r *ElasticsearchRepository[T]) buildElasticsearchQuery(s common.Search) elastic.Query {
+	boolQuery := elastic.NewBoolQuery()
+
+	for _, aggregator := range s.SearchParams {
+		for _, p := range aggregator.Params {
+			for _, v := range p.ValueParams {
+				// Construct individual queries based on v.Operator and v.Values
+				// Example for 'equals' operator:
+				termQuery := elastic.NewTermQuery(v.Field, v.Values[0])
+				boolQuery.Must(termQuery)
+				// ... (Similar logic for other operators)
+			}
+			// ... (Handle DateParams, DurationParams)
+		}
+	}
+
+	return boolQuery
+}
+
+func (r *ElasticsearchRepository[T]) Create(ctx context.Context, entity T) (*T, error) {
+	// ... Use Elasticsearch client to index the entity
+}
+
+func (r *ElasticsearchRepository[T]) CreateMany(ctx context.Context, entities []T) error {
+	// ... Use Elasticsearch bulk API to index multiple entities
+}
+
+func (r *ElasticsearchRepository[T]) Search(ctx context.Context, s common.Search) ([]T, error) {
+	result, err := r.Query(ctx, s)
+	if err != nil {
+		return nil, err
+	}
+
+	var entities []T
+	for _, hit := range result.Hits.Hits {
+		var entity T
+		if err := json.Unmarshal(hit.Source, &entity); err != nil {
+			return nil, err
+		}
+		entities = append(entities, entity)
+	}
+	return entities, nil
+}
+
+func (r *ElasticsearchRepository[T]) Update(createCtx context.Context, entity T) (*T, error) {
+	// ... Use Elasticsearch client to update the entity
+}
+
+// ... (other methods)

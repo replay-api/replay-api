@@ -1,0 +1,4 @@
+hostname "My CS2 Server"
+rcon_password "your_strong_password"
+sv_password ""
+sv_lan 0

@@ -1,0 +1,1 @@
+# In case of possible game bug, must have an option to pause and watch/analyze and/or vote to restart the round

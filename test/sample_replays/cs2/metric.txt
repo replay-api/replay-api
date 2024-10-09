@@ -1,0 +1,70 @@
+
+2024/04/27 17:39:43 INFO Clutch won by Player: %v with score: %d Player="Pistolinha Ator" Score=24
+2024/04/27 17:39:46 INFO Clutch won by Player: %v with score: %d Player=sound Score=43
+2024/04/27 17:39:46 INFO Event type: %v, count: %v round_mvp=24
+2024/04/27 17:39:46 INFO Event type: %v, count: %v custom::clutch_end=24
+2024/04/27 17:39:46 INFO Event type: %v, count: %v generic_game_event=13478
+2024/04/27 17:39:46 INFO Event type: %v, count: %v begin_new_match=1
+2024/04/27 17:39:46 INFO Event type: %v, count: %v custom::clutch_start=24
+--- PASS: TestCS2ReplayAdapter_GetEvents (6.11s)
+
+
+
+/*
+begin_new_match=1
+
+round_start=10
+player_footstep=512
+player_jump=493
+item_pickup=512
+item_equip=2648
+
+round_mvp=9
+round_end=10
+*/
+
+
+2024/04/26 21:16:23 INFO %v events found at %s 6849=CS2ReplayAdapter.GetEvents
+2024/04/26 21:16:23 INFO Event type: %v, count: %v bomb_dropped=14
+2024/04/26 21:16:23 INFO Event type: %v, count: %v hegrenade_detonate=34
+2024/04/26 21:16:23 INFO Event type: %v, count: %v round_poststart=10
+2024/04/26 21:16:23 INFO Event type: %v, count: %v round_announce_match_start=1
+2024/04/26 21:16:23 INFO Event type: %v, count: %v other_death=40
+2024/04/26 21:16:23 INFO Event type: %v, count: %v round_end=10
+2024/04/26 21:16:23 INFO Event type: %v, count: %v round_officially_ended=9
+2024/04/26 21:16:23 INFO Event type: %v, count: %v buytime_ended=10
+2024/04/26 21:16:23 INFO Event type: %v, count: %v begin_new_match=1
+2024/04/26 21:16:23 INFO Event type: %v, count: %v cs_round_start_beep=27
+2024/04/26 21:16:23 INFO Event type: %v, count: %v round_freeze_end=9
+2024/04/26 21:16:23 INFO Event type: %v, count: %v weapon_fire=1590
+2024/04/26 21:16:23 INFO Event type: %v, count: %v weapon_reload=59
+2024/04/26 21:16:23 INFO Event type: %v, count: %v flashbang_detonate=48
+2024/04/26 21:16:23 INFO Event type: %v, count: %v player_spawn=99
+2024/04/26 21:16:23 INFO Event type: %v, count: %v player_blind=72
+2024/04/26 21:16:23 INFO Event type: %v, count: %v bomb_beginplant=9
+2024/04/26 21:16:23 INFO Event type: %v, count: %v round_mvp=9
+2024/04/26 21:16:23 INFO Event type: %v, count: %v bomb_begindefuse=1
+2024/04/26 21:16:23 INFO Event type: %v, count: %v round_start=10
+2024/04/26 21:16:23 INFO Event type: %v, count: %v smokegrenade_detonate=40
+2024/04/26 21:16:23 INFO Event type: %v, count: %v player_death=73
+2024/04/26 21:16:23 INFO Event type: %v, count: %v smokegrenade_expired=38
+2024/04/26 21:16:23 INFO Event type: %v, count: %v cs_win_panel_round=10
+2024/04/26 21:16:23 INFO Event type: %v, count: %v cs_round_final_beep=9
+2024/04/26 21:16:23 INFO Event type: %v, count: %v bomb_pickup=21
+2024/04/26 21:16:23 INFO Event type: %v, count: %v player_jump=493
+2024/04/26 21:16:23 INFO Event type: %v, count: %v bomb_planted=7
+2024/04/26 21:16:23 INFO Event type: %v, count: %v weapon_zoom=74
+2024/04/26 21:16:23 INFO Event type: %v, count: %v inferno_startburn=25
+2024/04/26 21:16:23 INFO Event type: %v, count: %v cs_win_panel_match=1
+2024/04/26 21:16:23 INFO Event type: %v, count: %v item_equip=2648
+2024/04/26 21:16:23 INFO Event type: %v, count: %v round_prestart=10
+2024/04/26 21:16:23 INFO Event type: %v, count: %v player_footstep=512
+2024/04/26 21:16:23 INFO Event type: %v, count: %v round_time_warning=1
+2024/04/26 21:16:23 INFO Event type: %v, count: %v inferno_expire=25
+2024/04/26 21:16:23 INFO Event type: %v, count: %v bomb_exploded=2
+2024/04/26 21:16:23 INFO Event type: %v, count: %v player_disconnect=10
+2024/04/26 21:16:23 INFO Event type: %v, count: %v cs_pre_restart=10
+2024/04/26 21:16:23 INFO Event type: %v, count: %v item_pickup=512
+2024/04/26 21:16:23 INFO Event type: %v, count: %v player_hurt=264
+2024/04/26 21:16:23 INFO Event type: %v, count: %v bomb_defused=1
+2024/04/26 21:16:23 INFO Event type: %v, count: %v hltv_versioninfo=1

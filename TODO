@@ -1,0 +1,284 @@
+[ ] ROTEADOR
+  [ ] GET /matches
+  [ ] GET /matches/{match_id}
+  [ ] POST /file
+[AUTH]
+  [ ] goth gh/steam/battlenet login
+[DEPLOY]
+  [ ] Atlas
+  [ ] Vercel
+  [ ] GHActions
+
+
+break down the possible variations of filtering and ordering, considering the dynamic nature of the sub-filtering.
+
+>>>
+
+**Understanding the Structure**
+
+Your filtering structure seems to follow a hierarchy:
+
+- **Team:** The root level, identifying a specific team.
+- **Match:** A specific match played by the team.
+- **Player (Optional):**  Filtering can be narrowed down to an individual player's perspective within a match.
+- **Round:** A specific round within the match.
+- **Event:** The final level, representing a specific event within the round.
+
+**Possible Variations**
+-- Page: /Files
+Nav=Filter(Toggle1-mag): autocomplete search 
+    Filter(Toggle2-eq): Map, Team, Player, Server, Group
+    Sort: Most Relevant, Most Recent, Etc: 
+View Options: List (Timeline), Catalog (Cards - FileCard), 
+
+  -- Filters sidebar
+    (Live: Optional -- future feature)
+    (In Files: optional)
+    FileTags: (Verified, Official, POV, Dathost, CS:2 Demo, Unverified)
+    Tags: ClutchSituation (counter) (selected, clear button)
+      Subtags: 1v5  (counter) (selected, clear button)
+
+-- Page: /Matches
+Nav=Filter(Toggle1-mag): autocomplete search 
+    Filter(Toggle2-eq): Map, Team, Player, Server, Group
+    Sort: Most Relevant, Most Recent, Etc: 
+View Options: List (Timeline), Catalog (Cards - MatchCard), 
+
+  -- Filters sidebar
+    (Live: Optional -- future feature)
+    (In Files: optional)
+    Tags: ClutchSituation (counter) (selected, clear button)
+      Subtags: 1v5  (counter) (selected, clear button)
+
+-- Page:  /Match/{MatchID}
+Nav=Tabs: (Files) Match / (Rounds) / Teams / Players 
+  ( File #1 > Match / (Rounds) / Teams / Players )
+  Subtabs: Highlights / Economy / Strategy / Utility / Positioning
+    SubContext: (Rounds / Teams ( >> CT / T) / Players >> Player)
+
+-- Page: Teams
+View Options: List (Headshots(MiniPhoto of each member + staff)+Stats,Stars,Files etc), Catalog (Cards - TeamCard), 
+
+-- Page: Players
+View Options: List (Headshots+Stats, KDA, KAST, +/-,Stars,Files, Teams, Matches etc), Catalog (Cards - PlayerCard), 
+
+-- Page: User > Profiles > Player #XYZ
+View Options: List (Headshots+Stats, KDA, KAST, +/-,Stars,Files, Teams, Matches etc), Catalog (Cards - PlayerCard), 
+  -- Toggle Profile
+  -- Create Profile
+    -- suggest from in-game playernames*
+  -- Edit Profile (Edit PlayerCard)
+    - Toggle display "Member Since yyyy"***
+    - Toggle display Activity* (contributions/grids/stats* (ie: NinjaDefuse, IE: Clutch 1v5 Won, mvp))
+    - Toggle display Vault Items
+    - Toggle display Metrics
+    - Toggle display Teams
+    - Toggle display Files
+    - Toggle display Matches
+    - Toggle display Matches
+  -- Delete Profile
+  -- Privacy & Visibility Settings
+    - Toggle Community Comments
+      - Allow/Deny
+        - Comments
+        - Mentions
+    - Toggle Profile Visibility
+      - Public (worldicon)
+      - Private (only me)
+      - Members 
+      - Custom
+        - UserIDs, GroupIDs, ClientIDs, TenantIDs ([1-Internet/Anonym,2-LXG,3-PRO,])
+
+-- Page: Account >
+View: Default > AccountCard
+ -- Subscriptions
+    -- Manage Subscriptions
+    -- Purchase History
+    -- Statement
+    -- Payment Options
+    -- (Cancel Subscription) / (Try Pro)
+ -- Vouchers
+ -- View Profiles
+ -- Security Settings
+    -- 2FA (Authenticator)
+ -- Privacy & Data Usage
+    -- (ALWAYS unchecked, disabled need to sign terms first) Help Improve Analytics & Telemetry (Anonymized Data)
+    -- <divider>
+    -- Storage
+      -- Private
+        -- Breakdown: Encrypted / Unencrypted
+      -- Privately Shared
+        -- Breakdown: Encrypted / Unencrypted
+        (.. list namespaces ..)
+      -- Public
+        (.. list files, configs etc ..)
+          -- Breakdown: list Groups/Teams
+    -- (Upgrade to Pro)
+      
+
+-- Page: Vault
+    -- Credits
+      -- LeetCloud Credits
+      -- 
+    -- Files (Go to Page: ReplayFiles)
+      -- Replay Files
+      -- Server Files
+    -- Configs/Crosshairs
+    -- Digital Items (Pass, Stickers, Vouchers, Gifts etc...)
+    -- Keys (Encryption Keys)
+
+
+
+
+
+-- Page: Highlights
+
+//////
+optionals
+////
+-- Page: Leaderboards, Rankings etc
+
+**1. Group/Order by Team:**
+
+- `/teams/{team_id}/matches/{match_id}/rounds/{round_id}/events/{event_id}` (Default)
+- `/teams/{team_id}/players/{player_id}/matches/{match_id}/rounds/{round_id}/events/{event_id}` (Optional Player Filter)
+
+**2. Group/Order by Match:**
+
+- `/matches/{match_id}/teams/{team_id}/rounds/{round_id}/events/{event_id}`
+- `/matches/{match_id}/players/{player_id}/teams/{team_id}/rounds/{round_id}/events/{event_id}` (Optional Player Filter)
+- `/matches/{match_id}/highlights/{highlight_id}/teams/{team_id}/players/{player_id}/rounds/{round_id}/events/{event_id}` (Optional Player, Team, Round, Event,)
+
+**3. Group/Order by Player:** (Requires Player Filter)
+
+- `/players/{player_id}/teams/{team_id}/matches/{match_id}/rounds/{round_id}/events/{event_id}`
+- `/players/{player_id}/matches/{match_id}/rounds/{round_id}/events/{event_id}`  
+
+**4. Group/Order by Round:**
+
+- `/rounds/{round_id}/teams/{team_id}/matches/{match_id}/events/{event_id}`
+- `/rounds/{round_id}/players/{player_id}/matches/{match_id}/events/{event_id}` (Optional Player Filter)
+
+**5. Group/Order by Event:**
+
+- `/events/{event_id}/teams/{team_id}/matches/{match_id}/rounds/{round_id}?q=sound&tags=[[ClutchSituation,1v5,1v3],[PistolRound,1st-half,2nd-half]]`
+- 'share'
+- `/events/{event_id}/players/{player_id}/matches/{match_id}/rounds/{round_id}` (Optional Player Filter)
+
+
+
+
+**Additional Considerations**
+
+* **Filtering:**  You might want to add filtering parameters to each variation. For example:
+    - `/teams/{team_id}/matches?map=dust2` (Filter matches by map)
+    - `/players/{player_id}/rounds?weapon=ak47` (Filter rounds by weapon used)
+    - 
+* **Pagination/Sorting:**  For larger datasets, consider adding pagination (e.g., `?limit=10&offset=20`) and sorting options (e.g., `?sort=round_time`).
+
+**Example Implementation (Go Pseudocode)**
+
+```go
+func handleRequest(resource string, filters map[string]string) {
+    switch resource {
+    case "teams":
+        // Handle team-based filtering and ordering
+    case "matches":
+        // Handle match-based filtering and ordering
+    case "players":
+        // Handle player-based filtering and ordering
+        // ... (and so on)
+    }
+}
+```
+
+
+
+
+**Understanding the Route Patterns**
+
+The routes have several characteristics:
+
+* **Dynamic Segments:** Parts of the path change based on data (e.g., `team_id`, `match_id`, `player_id`).
+* **Optional Segments:** The `player_id` segment is optional in some cases.
+* **Nested Structure:** The routes follow a hierarchical structure.
+
+**Next.js App Router Solution**
+
+The Next.js App Router, introduced in Next.js 13, is an excellent fit for this dynamic routing scenario. Here's the approach:
+
+1. **Folder Structure:**
+    ```
+    app/
+      teams/
+        [team_id]/
+          matches/
+            [match_id]/
+              rounds/
+                [round_id]/
+                  events/
+                    [event_id]/
+                      page.tsx
+              players/
+                [player_id]/
+                  rounds/
+                    [round_id]/
+                      events/
+                        [event_id]/
+                          page.tsx
+    ```
+
+2. **Route Parameters:**
+    - Each dynamic segment becomes a route parameter. In the corresponding `page.tsx` files, you can access these parameters using the `useParams` hook.
+
+3. **Optional Segments:**
+    - For the optional `player_id`, you'll create a separate `players` folder.  Within this folder, you can use the `not-found.tsx` file to handle cases where the `player_id` is not provided.
+
+**Code Example (Illustrative)**
+
+```typescript
+// app/teams/[team_id]/matches/[match_id]/rounds/[round_id]/events/[event_id]/page.tsx
+import { useParams } from 'next/navigation';
+
+export default function EventPage() {
+  const params = useParams();
+
+  return (
+    <div>
+      <h1>Team: {params.team_id}</h1>
+      <h2>Match: {params.match_id}</h2>
+      {/* ... display other event details */}
+    </div>
+  );
+}
+```
+
+**Additional Considerations**
+
+* **Loading Data:** Use `fetch` (in Server Components) or a data-fetching library (like SWR or React Query) to load the relevant data for each route based on the dynamic parameters.
+* **Route Groups:** If you have common layouts or data fetching requirements for certain segments (e.g., all routes under a specific match), consider using Route Groups.
+* **Search Parameters:** To handle additional filtering, you can use search parameters (e.g., `?map=dust2`) and access them using the `useSearchParams` hook.
+* **Layout Optimization:** For optimal performance, create custom layouts at different levels of your folder hierarchy to avoid unnecessary re-renders.
+* **Error Handling:** Consider using the `not-found.tsx` file to handle scenarios where a resource is not found or doesn't match the filtering criteria.
+
+**Alternative: `generateStaticParams`**
+
+If the possible values for your dynamic segments are known at build time, you can use `generateStaticParams` to pre-render all possible routes, leading to even faster page loads.
+
+----
+/search?q=entry frag
+/search?q=sound&tags=[[ClutchSituation,1v5,1v3],[PistolRound,1st-half,2nd-half]]
+/search?
+/search/ClutchSituation?types=[1v3,1v4,1v5]
+/search/ClutchSituation?types=[1v3]&status=clutch_won
+/search/PistolRound?types=1st-half&sort=date&page=2
+/search/Aim?types=AimDuel&status=Start
+
+
+-----
+ [Match] # ... <entry frag> ...
+ [Round] #1 (_Match 12313_) ... ENTRY FRAG
+ [Event] #1 (_match/12313_) ... ENTRY FRAG
+ [Player] _Sound_ has scored an entry frag ...
+ [Page]
+ [Comment]

@@ -1,0 +1,89 @@
+package ai
+
+import (
+	"bufio"
+	"encoding/json"
+	"log/slog"
+	"os"
+
+	"gonum.org/v1/gonum/mat" // For matrix operations (replace with your preferred library)
+)
+
+type PlayerTalentEvaluator struct {
+	model         *MLModel // Your ML model (implementation depends on your library)
+	signalWeights map[string]float64
+}
+
+// ... (constructor - loadModel remains a placeholder) ...
+
+func (pte *PlayerTalentEvaluator) EvaluateTalent(matchDataFilePath string) (map[int]float64, error) {
+	playerScores := make(map[int]float64)
+
+	file, err := os.Open(matchDataFilePath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		var roundData RoundState // Assuming RoundState is the structure of your JSON data
+
+		err := json.Unmarshal(scanner.Bytes(), &roundData)
+		if err != nil {
+			slog.Error("Error decoding round data:", "error", err)
+			continue // Skip this round and continue to the next one
+		}
+
+		pte.processRoundData(&roundData, playerScores)
+	}
+
+	return playerScores, nil
+}
+
+func (pte *PlayerTalentEvaluator) processRoundData(roundData *RoundState, playerScores map[int]float64) {
+	for _, highlight := range roundData.Highlights {
+		if highlight.Player != nil {
+			signalWeight := pte.signalWeights[highlight.Type]
+			playerScores[highlight.Player.UserID] += signalWeight * pte.evaluateHighlight(highlight)
+		}
+	}
+
+	// Evaluate economy stats for each team in the round
+	for _, teamData := range roundData.EconomyBreakdown {
+		for _, player := range teamData.Players {
+			// Calculate and accumulate economy-related features for the player
+			// ... (Your logic to update playerScores based on economy data)
+		}
+	}
+}
+
+func (pte *PlayerTalentEvaluator) evaluateHighlight(highlight *Highlight) float64 {
+	features := extractFeatures(highlight)
+
+	// Convert features to a Gonum matrix (or use your library's equivalent)
+	featureMatrix := mat.NewDense(1, len(features), features)
+
+	// Make prediction (implementation specific to your ML model)
+	prediction := pte.model.Predict(featureMatrix)
+	return prediction
+}
+
+func extractFeatures(highlight *Highlight) []float64 {
+	// Feature extraction logic (highly dependent on your specific model)
+	// Example:
+
+	features := []float64{
+		float64(highlight.Round),
+		float64(highlight.Tick),
+		boolToFloat(highlight.Type == "Clutch"), // 1.0 if Clutch, 0.0 otherwise
+		// ... (more features based on your model's input)
+	}
+
+	if highlight.Type == "Clutch" {
+		clutchType := highlight.AdditionalData["clutchType"].(string)
+		features = append(features, clutchTypeToFloat(clutchType)) // Convert clutch type to numerical representation
+	}
+
+	return features
+}

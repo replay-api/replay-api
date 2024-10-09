@@ -1,0 +1,96 @@
+name: Terraform Tencent Cloud Deployment
+
+on:
+  pull_request:
+    branches:
+      - dev
+
+jobs:
+  terraform-plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.0  
+
+      - name: Configure Tencent Cloud Credentials
+        uses: creds/tencent-cos-actions@main
+        with:
+          secret-id: ${{ secrets.TENCENT_SECRET_ID }}
+          secret-key: ${{ secrets.TENCENT_SECRET_KEY }}
+          
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -out=tfplan
+        continue-on-error: true
+
+      - name: Update Pull Request
+        uses: actions/github-script@v6
+        if: always() 
+        env:
+          PLAN: "terraform\n${{ steps.plan.outputs.stdout }}"
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const output = `#### Terraform Formatted Plan 
+            \`\`\`\n
+            ${process.env.PLAN}
+            \`\`\``
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+  terraform-apply:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+    needs: terraform-plan  # Only run after plan is successful
+    if: github.event.pull_request.merged == true # Run only when PR is merged
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+        
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.0
+
+      - name: Configure Tencent Cloud Credentials
+        uses: creds/tencent-cos-actions@main
+        with:
+          secret-id: ${{ secrets.TENCENT_SECRET_ID }}
+          secret-key: ${{ secrets.TENCENT_SECRET_KEY }}
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
+
+      - name: Update Pull Request 
+        uses: actions/github-script@v6
+        env:
+          PLAN: "Terraform apply succeeded!"
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+

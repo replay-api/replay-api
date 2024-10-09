@@ -1,0 +1,36 @@
+version: "3.8"
+
+services:
+  replay-api:
+    container_name: "replay-api"
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "4991:4991"
+    volumes:
+      - .blob:/app/replay_files
+    depends_on:
+      - mongodb
+    env_file:
+      - .env
+    environment:
+      - DEV_ENV="docker"
+      - MONGO_URI=mongodb://mongodb:37019/replay
+    networks:
+      - svc
+
+  mongodb:
+    container_name: "mongodb"
+    image: mongo:latest
+    ports:
+      - "37019:27017"
+    volumes:
+      - .mongodb:/data/db
+    networks:
+      - default
+      - svc
+
+networks:
+  svc:
+    driver: bridge

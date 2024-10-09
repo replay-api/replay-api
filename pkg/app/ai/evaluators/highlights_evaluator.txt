@@ -1,0 +1,91 @@
+package ai
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	// ... (import your ML library of choice)
+)
+
+type PlayerTalentEvaluator struct {
+	model                            // Your ML model (e.g., from TensorFlow, scikit-learn, etc.)
+	signalWeights map[string]float64 // Weights for each signal type
+}
+
+func NewPlayerTalentEvaluator(modelPath string, signalWeights map[string]float64) (*PlayerTalentEvaluator, error) {
+	// Load your pre-trained model
+	model, err := loadModel(modelPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PlayerTalentEvaluator{
+		model:         model,
+		signalWeights: signalWeights,
+	}, nil
+}
+
+func (pte *PlayerTalentEvaluator) EvaluateTalent(matchData *MatchState) (map[int]float64, error) {
+	playerScores := make(map[int]float64) // Map from player ID to talent score
+
+	for _, player := range matchData.AllPlayers() {
+		playerScore := 0.0
+
+		for _, round := range matchData.Rounds {
+			for _, highlight := range round.Highlights {
+				if highlight.Player != nil && highlight.Player.SteamID64 == player.SteamID64 {
+					signalWeight := pte.signalWeights[highlight.Type]
+					playerScore += signalWeight * pte.evaluateHighlight(highlight)
+				}
+			}
+		}
+
+		// Consider economy stats
+		// ... (Logic to evaluate economy stats based on matchData.EconomyBreakdown)
+
+		playerScores[player.UserID] = playerScore
+	}
+
+	return playerScores, nil
+}
+
+func (pte *PlayerTalentEvaluator) evaluateHighlight(highlight *Highlight) float64 {
+	// Feature extraction from highlight data
+	features := extractFeatures(highlight)
+
+	// Use your ML model to predict talent based on features
+	prediction, err := pte.model.Predict(features)
+	if err != nil {
+		return 0.0 // Handle error gracefully
+	}
+
+	return prediction
+}
+
+func extractFeatures(highlight *Highlight) []float64 {
+	// ... (Your feature extraction logic)
+
+	// Example features (you'll need to customize based on your model):
+	features := []float64{
+		float64(highlight.Round), // Round number
+		float64(highlight.Tick),  // Tick within the round
+		// ... (Other relevant features based on highlight type and additional data)
+	}
+
+	return features
+}
+
+func loadModel(modelPath string) (model, error) {
+	// Load your ML model from the specified file path
+	// (Implementation depends on your chosen ML library)
+}
+
+func LoadJSONFromFile(filename string, v interface{}) error {
+	file, err := os.Open(filename)
+	if err != nil {
+		return fmt.Errorf("error opening file: %w", err)
+	}
+	defer file.Close()
+
+	return json.NewDecoder(file).Decode(v)
+}
