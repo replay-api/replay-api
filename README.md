@@ -1,12 +1,10 @@
 ### Slack Relay:
 n3c8f5r9e8b0p0y3@leetgamingpro.slack.com
 
-### Go Go Contribute!
+### Contribute:
 Invites at https://join.slack.com/t/leetgamingpro/shared_invite/zt-2o0uze27m-InqqtOtZF3hjl_dhjzEiuA
 
 
+### JIRA (Project Management & Issue Tracking)
 
-
-## sobre repos mongodb
-
-// TODO: principalmente resource ownership, que é padronizado.// TODO: review ; (opcional: aqui a exceção se tornou a regra. deixar default o que está na annotation da prop.) talvez seja melhor refletir os tipos nas anotacoes json/bson// TODO: refatorar (+ bloating setup)
+[Project Documentation & Links at .docs folder](https://github.com/psavelis/replay-api/tree/main/.docs)
