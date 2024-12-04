@@ -68,3 +68,4 @@ $RECYCLE.BIN/
 .blob
 docker-compose.dev.yml
 ./docker-compose.dev.yml
+.env
