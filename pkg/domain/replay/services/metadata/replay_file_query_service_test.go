@@ -105,7 +105,7 @@ func TestReplayFileQueryService_Filter(t *testing.T) {
 			resultOptions:  common.SearchResultOptions{Limit: 10},
 			mockReader:     &mockReplayFileMetadataReader{replayFiles: sampleReplayFiles},
 			expectedOutput: nil,
-			expectedError:  fmt.Errorf("GetResourceOwner.IsMissingTenant: tenant_id missing in context context.Background.WithValue(type common.ContextKey, val 00000000-0000-0000-0000-000000000000)"),
+			expectedError:  fmt.Errorf("GetResourceOwner.IsMissingTenant: tenant_id missing in context context.Background.WithValue(common.ContextKey, 00000000-0000-0000-0000-000000000000)"),
 			contextValues:  map[interface{}]interface{}{common.TenantIDKey: uuid.Nil},
 		},
 	}
