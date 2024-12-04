@@ -5,12 +5,12 @@
 
 build-rest-api:
 	@echo "Building API"
-	@go build -o bin/rest-api cmd/rest-api/main.go
+	CGO_ENABLED=0 go build -o replay-api-http-service ./cmd/rest-api/main.go
 
 start-rest-api:
 	@echo "Running API"
 	@export DEV_ENV="true"
-	@./bin/rest-api
+	@./replay-api-http-service
 
 test-docker:
 	@echo "Running tests"
