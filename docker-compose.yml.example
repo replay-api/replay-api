@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   replay-api:
     container_name: "replay-api"
