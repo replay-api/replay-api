@@ -46,8 +46,9 @@ func TestResolveOnboardSteamUserCommand(t *testing.T) {
 	ctx = context.WithValue(ctx, common.UserIDKey, uuid.New())
 
 	steamUser := steam_entity.SteamUser{ID: uuid.New(),
+		VHash: "4ef1c47e874ec4425c5786cddadd9adfc908a530ada95a602742f49c32430185",
 		Steam: steam_entity.Steam{
-			ID: "8d2f508f233cea95b70b14ac0b7b9ae58d01ec3029ab8a08dac96234bc5f5746",
+			ID: "76561198169377459",
 		}}
 	err = command.Validate(ctx, steamUser)
 
