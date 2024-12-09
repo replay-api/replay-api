@@ -34,7 +34,7 @@ func (c *SteamController) OnboardSteamUser(apiContext context.Context) http.Hand
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
 		if r.Body == nil {
-			slog.ErrorContext(r.Context(), "no request body", "request", r)
+			slog.ErrorContext(r.Context(), "no request body", "request.Body", r.Body)
 			http.Error(w, "Bad Request", http.StatusBadRequest)
 			return
 		}
@@ -43,13 +43,15 @@ func (c *SteamController) OnboardSteamUser(apiContext context.Context) http.Hand
 		var steamUserParams steam_entity.SteamUser
 		err := decoder.Decode(&steamUserParams)
 
+		// slog.InfoContext(r.Context(), "SteamUser Received =>", "steam_entity.SteamUser", steamUserParams)
+
 		if err != nil {
-			slog.ErrorContext(r.Context(), "error decoding steam user from request", "err", err, "request", r)
+			slog.ErrorContext(r.Context(), "error decoding steam user from request", "err", err, "request.body", r.Body)
 			http.Error(w, "Bad Request", http.StatusBadRequest)
 			return
 		}
 
-		err = c.OnboardSteamUserCommand.Validate(r.Context(), steamUserParams.Steam.ID, steamUserParams.VHash)
+		err = c.OnboardSteamUserCommand.Validate(r.Context(), steamUserParams)
 
 		if err != nil {
 			slog.ErrorContext(r.Context(), "error validating steam user", "err", err, "steamUserParams", steamUserParams)
@@ -57,7 +59,7 @@ func (c *SteamController) OnboardSteamUser(apiContext context.Context) http.Hand
 			return
 		}
 
-		steamUser, err := c.OnboardSteamUserCommand.Exec(r.Context(), steamUserParams.Steam.ID, steamUserParams.VHash)
+		steamUser, err := c.OnboardSteamUserCommand.Exec(r.Context(), steamUserParams)
 
 		if err != nil {
 			slog.ErrorContext(r.Context(), "error onboarding steam user", "err", err, "steamUserParams.Steam.ID", steamUserParams.Steam.ID, "steamUserParams.VHash", steamUserParams.VHash)

@@ -45,13 +45,17 @@ func TestResolveOnboardSteamUserCommand(t *testing.T) {
 	ctx = context.WithValue(ctx, common.ClientIDKey, common.TeamPROAppClientID)
 	ctx = context.WithValue(ctx, common.UserIDKey, uuid.New())
 
-	err = command.Validate(ctx, "1", "8d2f508f233cea95b70b14ac0b7b9ae58d01ec3029ab8a08dac96234bc5f5746")
+	steamUser := steam_entity.SteamUser{ID: uuid.New(),
+		Steam: steam_entity.Steam{
+			ID: "8d2f508f233cea95b70b14ac0b7b9ae58d01ec3029ab8a08dac96234bc5f5746",
+		}}
+	err = command.Validate(ctx, steamUser)
 
 	if err != nil {
 		t.Fatalf("failed to validate OnboardSteamUserCommand: %v", err)
 	}
 
-	_, err = command.Exec(ctx, "1", "8d2f508f233cea95b70b14ac0b7b9ae58d01ec3029ab8a08dac96234bc5f5746")
+	_, err = command.Exec(ctx, steamUser)
 
 	if err != nil {
 		t.Fatalf("failed to validate OnboardSteamUserCommand: %v", err)

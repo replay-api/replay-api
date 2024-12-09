@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"time"
 
 	"github.com/google/uuid"
 	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
@@ -21,29 +20,29 @@ type OnboardSteamUserUseCase struct {
 	VHashWriter     steam_out.VHashWriter
 }
 
-func (usecase *OnboardSteamUserUseCase) Validate(ctx context.Context, steamID string, vHash string) error {
-	if steamID == "" {
-		slog.ErrorContext(ctx, "steamID is required", "steamID", steamID)
+func (usecase *OnboardSteamUserUseCase) Validate(ctx context.Context, steamUser steam_entity.SteamUser) error {
+	if steamUser.Steam.ID == "" {
+		slog.ErrorContext(ctx, "steamID is required", "steamID", steamUser.Steam.ID)
 		return steam.NewSteamIDRequiredError()
 	}
 
-	if vHash == "" {
-		slog.ErrorContext(ctx, "vHash is required", "vHash", vHash)
+	if steamUser.VHash == "" {
+		slog.ErrorContext(ctx, "vHash is required", "vHash", steamUser.VHash)
 		return steam.NewVHashRequiredError()
 	}
 
-	expectedVHash := usecase.VHashWriter.CreateVHash(ctx, steamID)
+	expectedVHash := usecase.VHashWriter.CreateVHash(ctx, steamUser.Steam.ID)
 
-	if vHash != expectedVHash {
-		slog.ErrorContext(ctx, "vHash does not match", "steamID", steamID, "vHash", vHash, "expectedVHash", expectedVHash)
-		return steam.NewInvalidVHashError(vHash)
+	if steamUser.VHash != expectedVHash {
+		slog.ErrorContext(ctx, "vHash does not match", "steamID", steamUser.Steam.ID, "vHash", steamUser.VHash, "expectedVHash", expectedVHash)
+		return steam.NewInvalidVHashError(steamUser.VHash)
 	}
 
 	return nil
 }
 
-func (usecase *OnboardSteamUserUseCase) Exec(ctx context.Context, steamID string, vHash string) (*steam_entity.SteamUser, error) {
-	vhashSearch := usecase.newSearchByVHash(ctx, vHash)
+func (usecase *OnboardSteamUserUseCase) Exec(ctx context.Context, steamUser steam_entity.SteamUser) (*steam_entity.SteamUser, error) {
+	vhashSearch := usecase.newSearchByVHash(ctx, steamUser.VHash)
 
 	steamUserResult, err := usecase.SteamUserReader.Search(ctx, vhashSearch)
 
@@ -54,41 +53,27 @@ func (usecase *OnboardSteamUserUseCase) Exec(ctx context.Context, steamID string
 	}
 
 	if len(steamUserResult) > 0 {
-		if steamID != steamUserResult[0].Steam.ID {
-			slog.ErrorContext(ctx, "steamID does not match", "steamID", steamID, "steamUser.Steam.ID", steamUserResult[0].Steam.ID)
-			return nil, steam.NewSteamIDMismatchError(steamID)
+		if steamUser.Steam.ID != steamUserResult[0].Steam.ID {
+			slog.ErrorContext(ctx, "steamID does not match", "steamID", steamUser.Steam.ID, "steamUser.Steam.ID", steamUserResult[0].Steam.ID)
+			return nil, steam.NewSteamIDMismatchError(steamUser.Steam.ID)
 		}
 
 		return &steamUserResult[0], nil
 	}
 
-	userID := uuid.New()
+	steamUser.ID = uuid.New()
 
-	// TODO: deprecated! apenas usar o display_name do common.User
-	user, err := usecase.SteamUserWriter.Create(ctx, steam_entity.SteamUser{
-		ID:    userID,
-		VHash: vHash,
-		Name:  "",                                                                                                                                                                                                                                                                             // TODO: deprecated! apenas usar o display_name do common.User                                                                                                                                                                                                                                                                          // TODO: deprecated! apenas usar o display_name do common.User                                                                                                                                                                                                                                                                             // TODO: deprecated! apenas usar o display_name do common.User
-		Email: "",                                                                                                                                                                                                                                                                             // TODO: deprecated! apenas usar o display_name do common.User                                                                                                                                                                                                                                                                         //
-		Image: "",                                                                                                                                                                                                                                                                             // rm
-		Steam: steam_entity.Steam{ID: steamID, CommunityVisibilityState: 0, ProfileState: 0, PersonaName: "", ProfileURL: "", Avatar: "", AvatarMedium: "", AvatarFull: "", AvatarHash: "", PersonaState: 0, RealName: "", PrimaryClanID: "", TimeCreated: time.Time{}, PersonaStateFlags: 0}, // TODO: TimeCreated talvez possa ser solicitado o consentimento do usuario para exibição
-		ResourceOwner: common.ResourceOwner{
-			TenantID: common.TeamPROTenantID,
-			UserID:   userID,
-			GroupID:  uuid.Nil,
-			ClientID: common.TeamPROAppClientID,
-		},
-	})
+	user, err := usecase.SteamUserWriter.Create(ctx, steamUser)
 
 	if err != nil {
 		slog.ErrorContext(ctx, "error creating steam user", "err", err)
-		return nil, steam.NewSteamUserCreationError(fmt.Sprintf("error creating steam user: %v", userID))
+		return nil, steam.NewSteamUserCreationError(fmt.Sprintf("error creating steam user: %v", steamUser.ID))
 	}
 
 	if user == nil {
 		slog.ErrorContext(ctx, "error creating steam user", "err",
 			err)
-		return nil, steam.NewSteamUserCreationError(fmt.Sprintf("unable to create steam user: %v", userID))
+		return nil, steam.NewSteamUserCreationError(fmt.Sprintf("unable to create steam user: %v", steamUser.ID))
 	}
 
 	return user, nil
