@@ -68,7 +68,7 @@ func expectStatus(t *testing.T, expected int, r *httptest.ResponseRecorder) {
 // 	expectStatus(t, http.StatusOK, response)
 // }
 
-func Test_Search_Player_Success(t *testing.T) {
+func Test_Search_Player_SuccessEmpty(t *testing.T) {
 	tester := NewTester()
 
 	req, _ := http.NewRequest("GET", strings.Replace(routing.Search, "{query:.*}", "players/123", 1), nil)
@@ -78,7 +78,7 @@ func Test_Search_Player_Success(t *testing.T) {
 
 	t.Logf("response: %v", res)
 
-	expectStatus(t, http.StatusOK, res)
+	expectStatus(t, http.StatusNoContent, res)
 }
 
 func Test_SteamOnboarding_BadRequest(t *testing.T) {
@@ -92,8 +92,7 @@ func Test_SteamOnboarding_BadRequest(t *testing.T) {
 
 	expectStatus(t, http.StatusBadRequest, response)
 }
-
-func Test_GameEventSearch_Success(t *testing.T) {
+func Test_GameEventSearch_SuccessEmpty(t *testing.T) {
 	tester := NewTester()
 
 	req, _ := http.NewRequest("GET", strings.Replace(routing.Search, "{query:.*}", "GameEvents", 1), nil)
@@ -102,7 +101,7 @@ func Test_GameEventSearch_Success(t *testing.T) {
 
 	t.Logf("response: %v", response)
 
-	expectStatus(t, http.StatusOK, response)
+	expectStatus(t, http.StatusNoContent, response)
 }
 
 func Test_SteamOnboarding_Success(t *testing.T) {
@@ -115,9 +114,11 @@ func Test_SteamOnboarding_Success(t *testing.T) {
 		t.Errorf("fail to resolve steam_out.VHashWriter %v", err)
 	}
 
-	vhash := vHashWriter.CreateVHash(context.Background(), "1")
+	mockSteamID := "12345"
 
-	steamUser := fmt.Sprintf(`{"steam": {"id": "1"}, "v_hash": "%s"}`, vhash)
+	vhash := vHashWriter.CreateVHash(context.Background(), mockSteamID)
+
+	steamUser := fmt.Sprintf(`{"steam": {"id": "%s"}, "v_hash": "%s"}`, mockSteamID, vhash)
 	reader := strings.NewReader(steamUser)
 
 	req, _ := http.NewRequest("POST", routing.OnboardSteam, reader)
