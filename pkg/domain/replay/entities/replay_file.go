@@ -16,9 +16,9 @@ const (
 	ReplayFileStatusCompleted  ReplayFileStatus = "Completed"
 )
 
-func NewReplayFile(gameID common.GameIDKey, networkID common.NetworkIDKey, size int, uri string, resourceOwner common.ResourceOwner) ReplayFile {
+func NewReplayFile(gameID common.GameIDKey, networkID common.NetworkIDKey, size int, uri string, resourceOwner common.ResourceOwner) *ReplayFile {
 	entity := common.NewEntity(resourceOwner)
-	return ReplayFile{
+	return &ReplayFile{
 		ID:            entity.ID,
 		GameID:        gameID,
 		NetworkID:     networkID,

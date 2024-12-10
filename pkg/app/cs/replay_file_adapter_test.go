@@ -26,18 +26,18 @@ func TestCS2ReplayAdapter_GetEvents(t *testing.T) {
 
 	adapter := cs2.NewCS2ReplayAdapter()
 
-	results := make([]e.GameEvent, 0)
+	results := make([]*e.GameEvent, 0)
 	types := make(map[common.EventIDKey]int)
 
 	clutchEventCountPerPlayerAndEvent := make(map[common.PlayerIDType]map[common.EventIDKey]int)
 
-	eventsChan := make(chan e.GameEvent)
+	eventsChan := make(chan *e.GameEvent)
 	mutex := &sync.Mutex{}
 
 	eventCount := 0
 	go func() {
 		for ge := range eventsChan {
-			slog.Info("Event: %v", "ge", ge)
+			// slog.Info("Event: %v", "ge", ge)
 			mutex.Lock()
 			eventCount++
 			results = append(results, ge)

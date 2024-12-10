@@ -51,7 +51,7 @@ func (c *SteamController) OnboardSteamUser(apiContext context.Context) http.Hand
 			return
 		}
 
-		err = c.OnboardSteamUserCommand.Validate(r.Context(), steamUserParams)
+		err = c.OnboardSteamUserCommand.Validate(r.Context(), &steamUserParams)
 
 		if err != nil {
 			slog.ErrorContext(r.Context(), "error validating steam user", "err", err, "steamUserParams", steamUserParams)
@@ -59,7 +59,7 @@ func (c *SteamController) OnboardSteamUser(apiContext context.Context) http.Hand
 			return
 		}
 
-		steamUser, err := c.OnboardSteamUserCommand.Exec(r.Context(), steamUserParams)
+		steamUser, err := c.OnboardSteamUserCommand.Exec(r.Context(), &steamUserParams)
 
 		if err != nil {
 			slog.ErrorContext(r.Context(), "error onboarding steam user", "err", err, "steamUserParams.Steam.ID", steamUserParams.Steam.ID, "steamUserParams.VHash", steamUserParams.VHash)

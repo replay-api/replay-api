@@ -7,6 +7,6 @@ import (
 )
 
 type OnboardSteamUserCommand interface {
-	Exec(ctx context.Context, steamUser e.SteamUser) (*e.SteamUser, error)
-	Validate(ctx context.Context, steamUser e.SteamUser) error
+	Exec(ctx context.Context, steamUser *e.SteamUser) (*e.SteamUser, error)
+	Validate(ctx context.Context, steamUser *e.SteamUser) error
 }

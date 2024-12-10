@@ -7,7 +7,7 @@ import (
 )
 
 type SteamUserWriter interface {
-	Create(ctx context.Context, user steam_entity.SteamUser) (*steam_entity.SteamUser, error)
+	Create(ctx context.Context, user *steam_entity.SteamUser) (*steam_entity.SteamUser, error)
 }
 
 type VHashWriter interface {

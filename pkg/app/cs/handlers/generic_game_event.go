@@ -11,7 +11,7 @@ import (
 	"github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
 )
 
-func GenericGameEvent(p dem.Parser, matchContext *state.CS2MatchContext, out chan entities.GameEvent) func(e evt.GenericGameEvent) {
+func GenericGameEvent(p dem.Parser, matchContext *state.CS2MatchContext, out chan *entities.GameEvent) func(e evt.GenericGameEvent) {
 	return func(event evt.GenericGameEvent) {
 		// slog.Info("GenericGameEvent: %v", event.Name, event.Data)
 

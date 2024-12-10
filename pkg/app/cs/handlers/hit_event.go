@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"log/slog"
 
 	dem "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs"
@@ -16,9 +15,9 @@ import (
 	cs_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/cs/entities"
 )
 
-func HitEvent(p dem.Parser, matchContext *state.CS2MatchContext, out chan entities.GameEvent) func(e evt.PlayerHurt) {
+func HitEvent(p dem.Parser, matchContext *state.CS2MatchContext, out chan *entities.GameEvent) func(e evt.PlayerHurt) {
 	return func(event evt.PlayerHurt) {
-		slog.Info(fmt.Sprintf("%s event", common.Event_HitID), "event", event)
+		// slog.Info(fmt.Sprintf("%s event", common.Event_HitID), "event", event)
 
 		gs := p.GameState()
 
@@ -62,6 +61,6 @@ func HitEvent(p dem.Parser, matchContext *state.CS2MatchContext, out chan entiti
 			return
 		}
 
-		out <- *gameEvent
+		out <- gameEvent
 	}
 }

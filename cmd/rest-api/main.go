@@ -19,11 +19,16 @@ func main() {
 
 	slog.SetDefault(logger)
 
-	c := ioc.NewContainerBuilder().WithEnvFile().With(ioc.InjectMongoDB).WithInboundPorts().Build()
+	builder := ioc.NewContainerBuilder()
+
+	c := builder.WithEnvFile().With(ioc.InjectMongoDB).WithInboundPorts().Build()
+
+	defer builder.Close(c)
 
 	router := routing.NewRouter(ctx, c)
 
 	slog.InfoContext(ctx, "Starting server on port 4991")
 
 	http.ListenAndServe(":4991", router)
+
 }

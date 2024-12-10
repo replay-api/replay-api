@@ -30,7 +30,7 @@ func (usecase *CreateRIDTokenUseCase) Exec(ctx context.Context, reso common.Reso
 
 	// TODO: verificar existencia, consistir usuario
 
-	token, err := usecase.RIDWriter.Create(ctx, iam_entity.RIDToken{
+	token, err := usecase.RIDWriter.Create(ctx, &iam_entity.RIDToken{
 		ID:               uuid.New(),
 		Key:              uuid.New(),
 		Source:           source,
