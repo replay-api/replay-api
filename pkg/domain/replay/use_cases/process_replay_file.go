@@ -84,9 +84,9 @@ func (usecase *ProcessReplayFileUseCase) Exec(ctx context.Context, replayFileID 
 
 	go func() {
 		for event := range eventsChan {
-			// if event.Type != common.Event_GenericGameEventID {
-			// 	match.Events = append(match.Events, event)
-			// }
+			if event.Type != common.Event_GenericGameEventID {
+				match.Events = append(match.Events, event)
+			}
 
 			gameEvents = append(gameEvents, event)
 
@@ -123,23 +123,11 @@ func (usecase *ProcessReplayFileUseCase) Exec(ctx context.Context, replayFileID 
 		// }()
 	}
 
-	// err = usecase.EventWriter.CreateMany(ctx, gameEvents)
+	err = usecase.EventWriter.CreateMany(ctx, gameEvents)
 
-	// if err != nil {
-	// 	slog.ErrorContext(ctx, "error writing GameEvents", "err", err, "len(gameEvents)", len(gameEvents))
-	// 	return nil, err
-	// }
-
-	for i, ge := range gameEvents {
-		slog.InfoContext(ctx, "@@@ inserting  ", "index", i, "ge", ge)
-		_, err = usecase.EventWriter.Create(ctx, ge)
-
-		if err != nil {
-			slog.ErrorContext(ctx, "error saving Generic replay events", "err", err)
-			return nil, err
-		}
-
-		gameEvents[i] = nil // deall
+	if err != nil {
+		slog.ErrorContext(ctx, "error writing GameEvents", "err", err, "len(gameEvents)", len(gameEvents))
+		return nil, err
 	}
 
 	// Update Metadata Status

@@ -6,15 +6,20 @@ import (
 
 	dem "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs"
 	evt "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs/events"
+	"github.com/psavelis/team-pro/replay-api/pkg/app/cs/builders"
 	event_factory "github.com/psavelis/team-pro/replay-api/pkg/app/cs/factories"
 	state "github.com/psavelis/team-pro/replay-api/pkg/app/cs/state"
 	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
+	cs_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/cs/entities"
 	"github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
 )
 
 type RoundMVPPayload struct {
 	NetworkPlayerID string
+	Name            string
 	Reason          string
+	ClanName        string
+	PlayerStats     *cs_entity.CSPlayerStats
 }
 
 func RoundMVP(p dem.Parser, matchContext *state.CS2MatchContext, out chan *entities.GameEvent) func(e evt.RoundMVPAnnouncement) {
@@ -45,7 +50,11 @@ func RoundMVP(p dem.Parser, matchContext *state.CS2MatchContext, out chan *entit
 
 		mvp := &RoundMVPPayload{
 			NetworkPlayerID: fmt.Sprintf("%d", event.Player.SteamID64),
+			Name:            event.Player.Name,
+			ClanName:        event.Player.ClanTag(),
 		}
+		roundIndex := gs.TotalRoundsPlayed()
+		stats := builders.NewCSMatchStatsBuilder(p, matchContext).WithRoundsStats(matchContext.RoundContexts).StatsFromPlayerWithRound(roundIndex+1, event.Player)
 
 		switch event.Reason {
 		case evt.MVPReasonMostEliminations:
@@ -55,6 +64,8 @@ func RoundMVP(p dem.Parser, matchContext *state.CS2MatchContext, out chan *entit
 		case evt.MVPReasonBombPlanted:
 			mvp.Reason = "Planted the bomb"
 		}
+
+		mvp.PlayerStats = stats
 
 		currentTick := common.TickIDType(gs.IngameTick())
 

@@ -18,6 +18,6 @@ type CSClutchStats struct {
 	RoundNumber     int
 	PlayerID        *uuid.UUID
 	NetworkPlayerID uint64
-	OpponentsStats  []CSPlayerStats
+	OpponentsStats  []*CSPlayerStats
 	Status          ClutchSituationStatusKey
 }

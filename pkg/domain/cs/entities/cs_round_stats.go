@@ -11,7 +11,7 @@ type CSRoundStats struct {
 	MatchID          uuid.UUID
 	RoundNumber      int
 	WinnerTeamID     TeamIDType
-	PlayerStats      []CSPlayerStats
+	PlayerStats      []*CSPlayerStats
 	TeamEconomyStats map[string]*CSTeamEconomyStats
 	ClutchStats      *CSClutchStats
 }

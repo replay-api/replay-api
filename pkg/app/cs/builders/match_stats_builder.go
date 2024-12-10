@@ -32,13 +32,13 @@ func (builder *CS2MatchStatsBuilder) WithRoundsStats(RoundContexts map[int]*stat
 	return builder
 }
 
-func (builder *CS2MatchStatsBuilder) StatsFromPlayerWithRound(roundNumber int, player cs2.Player) cs_entity.CSPlayerStats {
+func (builder *CS2MatchStatsBuilder) StatsFromPlayerWithRound(roundNumber int, player *cs2.Player) *cs_entity.CSPlayerStats {
 	// return e.CSPlayerStats{}
 
 	// TODO: IMPLEMENTAR CONTEXTO DE TRADE!
 	// trades := min(player.Kills(), player.Deaths(), player.Assists())
 
-	return cs_entity.CSPlayerStats{
+	return &cs_entity.CSPlayerStats{
 		NetworkPlayerID:   strconv.Itoa(player.UserID),
 		TimesFragged:      player.Kills(),
 		TimesEliminated:   player.Deaths(),
@@ -120,13 +120,13 @@ func (builder *CS2MatchStatsBuilder) GetTeamEconomyStats(r *state.CS2RoundContex
 	return teamEconomyStats
 }
 
-func (builder *CS2MatchStatsBuilder) GetPlayerStatsWithRound(r *state.CS2RoundContext) []cs_entity.CSPlayerStats {
+func (builder *CS2MatchStatsBuilder) GetPlayerStatsWithRound(r *state.CS2RoundContext) []*cs_entity.CSPlayerStats {
 	participants := builder.Parser.GameState().Participants().All()
 
-	playerStats := make([]cs_entity.CSPlayerStats, len(participants))
+	playerStats := make([]*cs_entity.CSPlayerStats, len(participants))
 
 	for i, player := range participants {
-		playerStats[i] = builder.StatsFromPlayerWithRound(r.RoundNumber, *player)
+		playerStats[i] = builder.StatsFromPlayerWithRound(r.RoundNumber, player)
 	}
 
 	return playerStats
@@ -141,11 +141,11 @@ func (builder *CS2MatchStatsBuilder) GetClutchStats(r *state.CS2RoundContext) *c
 			RoundNumber:     r.RoundNumber,
 			NetworkPlayerID: currentClutch.GetNetworkPlayerID(),
 			Status:          r.GetClutch().Status,
-			OpponentsStats:  make([]cs_entity.CSPlayerStats, len(currentClutch.GetOpponents())),
+			OpponentsStats:  make([]*cs_entity.CSPlayerStats, len(currentClutch.GetOpponents())),
 		}
 
 		for i, opponent := range r.GetClutch().GetOpponents() {
-			clutchStats.OpponentsStats[i] = builder.StatsFromPlayerWithRound(r.RoundNumber, opponent)
+			clutchStats.OpponentsStats[i] = builder.StatsFromPlayerWithRound(r.RoundNumber, &opponent)
 		}
 	} else {
 		clutchStats = &cs_entity.CSClutchStats{
@@ -163,11 +163,11 @@ func (builder *CS2MatchStatsBuilder) Build() cs_entity.CSMatchStats {
 
 func (builder *CS2MatchStatsBuilder) BuildWithHeader() *cs_entity.CSMatchStats {
 	return &cs_entity.CSMatchStats{
-		MatchID:       builder.MatchStats.MatchID,
-		GameState:     builder.MatchStats.GameState,
-		Rules:         builder.MatchStats.Rules,
-		RoundsStats:   builder.MatchStats.RoundsStats,
-		ResourceOwner: builder.MatchStats.ResourceOwner,
-		Header:        &builder.MatchContext.Header,
+		MatchID:     builder.MatchStats.MatchID,
+		GameState:   builder.MatchStats.GameState,
+		Rules:       builder.MatchStats.Rules,
+		RoundsStats: builder.MatchStats.RoundsStats,
+		// ResourceOwner: builder.MatchStats.ResourceOwner,
+		Header: &builder.MatchContext.Header,
 	}
 }
