@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"reflect"
-	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
 
@@ -26,6 +25,7 @@ func NewPlayerRepository(client *mongo.Client, dbName string, entityType replay_
 		collectionName:    collectionName,
 		entityName:        reflect.TypeOf(entityType).Name(),
 		queryableFields:   make(map[string]bool),
+		collection:        client.Database(dbName).Collection(collectionName),
 	}
 
 	repo.InitQueryableFields(map[string]bool{
@@ -88,14 +88,9 @@ func (r *PlayerRepository) Search(ctx context.Context, s common.Search) ([]repla
 }
 
 func (r *PlayerRepository) CreateMany(createCtx context.Context, events []interface{}) error {
-	collection := r.mongoClient.Database(r.dbName).Collection(r.collectionName)
-
-	queryCtx, cancel := context.WithTimeout(createCtx, 10*time.Second)
-	defer cancel()
-
-	_, err := collection.InsertMany(queryCtx, events)
+	_, err := r.collection.InsertMany(createCtx, events)
 	if err != nil {
-		slog.ErrorContext(queryCtx, err.Error())
+		slog.ErrorContext(createCtx, err.Error())
 		return err
 	}
 
@@ -103,20 +98,15 @@ func (r *PlayerRepository) CreateMany(createCtx context.Context, events []interf
 }
 
 func (r *PlayerRepository) Create(createCtx context.Context, events ...replay_entity.Player) error {
-	collection := r.mongoClient.Database(r.dbName).Collection(r.collectionName)
-
-	queryCtx, cancel := context.WithTimeout(createCtx, 10*time.Second)
-	defer cancel()
-
 	toInsert := make([]interface{}, len(events))
 
 	for i := range events {
 		toInsert[i] = events[i]
 	}
 
-	_, err := collection.InsertMany(queryCtx, toInsert)
+	_, err := r.collection.InsertMany(createCtx, toInsert)
 	if err != nil {
-		slog.ErrorContext(queryCtx, err.Error())
+		slog.ErrorContext(createCtx, err.Error())
 		return err
 	}
 

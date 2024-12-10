@@ -2,6 +2,7 @@ package use_cases
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	"github.com/google/uuid"
@@ -60,9 +61,16 @@ func (usecase *UpdateReplayFileHeaderUseCase) Exec(ctx context.Context, replayFi
 		slog.WarnContext(ctx, "replay file has more than one match", "events", events, "replayFile", file)
 	}
 
+	if len(events) == 0 {
+		slog.ErrorContext(ctx, "replay file header Event not found", "Type", common.Event_MatchStartID, "s", s, "events", events)
+		return nil, err
+	}
+
+	slog.InfoContext(ctx, fmt.Sprintf("@@@ UpdateReplayFileHeaderUseCase @@@: len(events): %v", len(events)))
+
 	file.Header = events[0].Payload
 
-	file, err = usecase.MetadataWriter.Update(ctx, *file)
+	file, err = usecase.MetadataWriter.Update(ctx, file)
 
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update replay file header", "err", err, "replayFile", file)

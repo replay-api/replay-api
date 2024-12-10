@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"os"
-	"time"
 
 	// env
 	"github.com/joho/godotenv"
@@ -443,11 +442,9 @@ func InjectMongoDB(c container.Container) error {
 			return nil, err
 		}
 
-		mongoOptions := options.Client().ApplyURI(config.MongoDB.URI)
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
+		mongoOptions := options.Client().ApplyURI(config.MongoDB.URI).SetMaxPoolSize(100)
 
-		client, err := mongo.Connect(ctx, mongoOptions)
+		client, err := mongo.Connect(context.TODO(), mongoOptions)
 
 		if err != nil {
 			slog.Error("Failed to connect to MongoDB.", "err", err)
@@ -479,7 +476,7 @@ func InjectMongoDB(c container.Container) error {
 			return &db.EventsRepository{}, err
 		}
 
-		repo := db.NewEventsRepository(client, config.MongoDB.DBName, replay_entity.GameEvent{}, "game_events")
+		repo := db.NewEventsRepository(client, config.MongoDB.DBName, &replay_entity.GameEvent{}, "game_events")
 
 		return repo, nil
 	})
@@ -962,4 +959,13 @@ func (b *ContainerBuilder) With(resolver interface{}) *ContainerBuilder {
 	}
 
 	return b
+}
+
+func (b *ContainerBuilder) Close(c container.Container) {
+	var client *mongo.Client
+	err := c.Resolve(&client)
+
+	if client != nil && err == nil {
+		client.Disconnect(context.TODO())
+	}
 }

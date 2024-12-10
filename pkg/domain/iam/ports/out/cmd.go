@@ -7,5 +7,5 @@ import (
 )
 
 type RIDTokenWriter interface {
-	Create(ctx context.Context, rid iam_entity.RIDToken) (*iam_entity.RIDToken, error)
+	Create(ctx context.Context, rid *iam_entity.RIDToken) (*iam_entity.RIDToken, error)
 }

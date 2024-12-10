@@ -7,7 +7,7 @@ import (
 	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
 )
 
-func RoundStart(p dem.Parser, matchContext *state.CS2MatchContext, out chan replay_entity.GameEvent) func(e evt.RoundStart) {
+func RoundStart(p dem.Parser, matchContext *state.CS2MatchContext, out chan *replay_entity.GameEvent) func(e evt.RoundStart) {
 	return func(event evt.RoundStart) {
 		gs := p.GameState()
 

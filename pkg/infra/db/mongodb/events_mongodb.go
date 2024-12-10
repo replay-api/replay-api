@@ -5,7 +5,6 @@ import (
 	"log"
 	"log/slog"
 	"reflect"
-	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -17,7 +16,7 @@ type EventsRepository struct {
 	MongoDBRepository[replay_entity.GameEvent]
 }
 
-func NewEventsRepository(client *mongo.Client, dbName string, entityType replay_entity.GameEvent, collectionName string) *EventsRepository {
+func NewEventsRepository(client *mongo.Client, dbName string, entityType *replay_entity.GameEvent, collectionName string) *EventsRepository {
 	repo := MongoDBRepository[replay_entity.GameEvent]{
 		mongoClient:       client,
 		dbName:            dbName,
@@ -91,18 +90,15 @@ func NewEventsRepository(client *mongo.Client, dbName string, entityType replay_
 // func (r *EventsRepository) CreateMany(createCtx context.Context, events []replay_entity.GameEvent) error {
 // 	collection := r.mongoClient.Database("replay").Collection("game_events")
 
-// 	queryCtx, cancel := context.WithTimeout(createCtx, 10*time.Second)
-// 	defer cancel()
-
 // 	toInsert := make([]interface{}, len(events))
 
 // 	for i := range events {
 // 		toInsert[i] = events[i]
 // 	}
 
-// 	_, err := collection.InsertMany(queryCtx, toInsert)
+// 	_, err := collection.InsertMany(createCtx, toInsert)
 // 	if err != nil {
-// 		slog.ErrorContext(queryCtx, err.Error())
+// 		slog.ErrorContext(createCtx, err.Error())
 // 		return err
 // 	}
 
@@ -111,9 +107,6 @@ func NewEventsRepository(client *mongo.Client, dbName string, entityType replay_
 
 func (r *EventsRepository) GetByGameIDAndMatchID(queryCtx context.Context, gameID string, matchID string) ([]replay_entity.GameEvent, error) {
 	collection := r.mongoClient.Database(r.dbName).Collection(r.collectionName)
-
-	queryCtx, cancel := context.WithTimeout(queryCtx, 10*time.Second)
-	defer cancel()
 
 	query := bson.D{
 		{Key: "game_id", Value: gameID},

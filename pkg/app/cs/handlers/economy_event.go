@@ -10,7 +10,7 @@ import (
 	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
 )
 
-func EconomyEvent(p dem.Parser, matchContext *state.CS2MatchContext, out chan replay_entity.GameEvent) func(e evt.RoundFreezetimeEnd) { // TODO: criar em RoundStart e RoundEnd para track do que foi comprado dps do freezetime
+func EconomyEvent(p dem.Parser, matchContext *state.CS2MatchContext, out chan *replay_entity.GameEvent) func(e evt.RoundFreezetimeEnd) { // TODO: criar em RoundStart e RoundEnd para track do que foi comprado dps do freezetime
 	return func(event evt.RoundFreezetimeEnd) {
 		gs := p.GameState()
 
@@ -24,7 +24,7 @@ func EconomyEvent(p dem.Parser, matchContext *state.CS2MatchContext, out chan re
 
 		b := builders.NewCSMatchStatsBuilder(p, matchContext).WithRoundsStats(matchContext.RoundContexts)
 
-		out <- replay_entity.GameEvent{
+		out <- &replay_entity.GameEvent{
 			ID:            uuid.New(),
 			MatchID:       matchContext.MatchID,
 			Type:          common.Event_Economy,

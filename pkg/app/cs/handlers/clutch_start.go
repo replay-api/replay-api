@@ -14,7 +14,7 @@ import (
 	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
 )
 
-func ClutchStart(p dem.Parser, matchContext *state.CS2MatchContext, out chan replay_entity.GameEvent) func(e evt.Kill) {
+func ClutchStart(p dem.Parser, matchContext *state.CS2MatchContext, out chan *replay_entity.GameEvent) func(e evt.Kill) {
 	return func(event evt.Kill) {
 		ct := make([]infocs.Player, 0)
 		t := make([]infocs.Player, 0)
@@ -73,7 +73,7 @@ func ClutchStart(p dem.Parser, matchContext *state.CS2MatchContext, out chan rep
 
 		b := builders.NewCSMatchStatsBuilder(p, matchContext).WithRoundsStats(matchContext.RoundContexts)
 
-		out <- replay_entity.GameEvent{
+		out <- &replay_entity.GameEvent{
 			ID:            uuid.New(),
 			MatchID:       matchContext.MatchID,
 			Type:          common.Event_ClutchStartID,

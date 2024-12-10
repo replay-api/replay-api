@@ -12,9 +12,9 @@ import (
 	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
 )
 
-func RoundEnd(p dem.Parser, matchContext *state.CS2MatchContext, out chan replay_entity.GameEvent) func(e infocs.RoundEnd) {
+func RoundEnd(p dem.Parser, matchContext *state.CS2MatchContext, out chan *replay_entity.GameEvent) func(e infocs.RoundEnd) {
 	return func(event infocs.RoundEnd) {
-		slog.Info("RoundEnd event: %v", "event", event)
+		// slog.Info("RoundEnd event: %v", "event", event)
 
 		gs := p.GameState()
 
@@ -42,6 +42,6 @@ func RoundEnd(p dem.Parser, matchContext *state.CS2MatchContext, out chan replay
 			return
 		}
 
-		out <- *gameEvent
+		out <- gameEvent
 	}
 }

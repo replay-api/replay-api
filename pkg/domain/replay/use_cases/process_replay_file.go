@@ -10,6 +10,8 @@ import (
 	replay_out "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/ports/out"
 )
 
+const CHUNK_SIZE = 10
+
 type ProcessReplayFileUseCase struct {
 	ReplayMetadataReader replay_out.ReplayFileMetadataReader
 	ReplayContentReader  replay_out.ReplayFileContentReader
@@ -47,7 +49,7 @@ func (usecase *ProcessReplayFileUseCase) Exec(ctx context.Context, replayFileID 
 
 	// Update Metadata Status
 	replayFile.Status = e.ReplayFileStatusProcessing
-	replayFile, err = usecase.ReplayMetadataWriter.Update(ctx, *replayFile)
+	replayFile, err = usecase.ReplayMetadataWriter.Update(ctx, replayFile)
 
 	if err != nil {
 		slog.ErrorContext(ctx, "error updating uploaded replay metadata", "replayFile", replayFile, "err", err)
@@ -61,7 +63,7 @@ func (usecase *ProcessReplayFileUseCase) Exec(ctx context.Context, replayFileID 
 		GameID:        replayFile.GameID,
 		ReplayFileID:  replayFile.ID,
 		ResourceOwner: replayFile.ResourceOwner,
-		Events:        make([]e.GameEvent, 0),
+		Events:        make([]*e.GameEvent, 0),
 	}
 
 	file, err := usecase.ReplayContentReader.GetByID(ctx, replayFileID)
@@ -73,18 +75,18 @@ func (usecase *ProcessReplayFileUseCase) Exec(ctx context.Context, replayFileID 
 
 	slog.InfoContext(ctx, "parsing replay file", "Size", replayFile.Size, "replayFileID", replayFileID)
 
-	eventsChan := make(chan e.GameEvent, 1)
+	eventsChan := make(chan *e.GameEvent, 1)
 	defer close(eventsChan)
 
 	var entitiesMap map[common.ResourceType][]interface{}
 
-	gameEvents := make([]e.GameEvent, 0)
+	gameEvents := make([]*e.GameEvent, 0)
 
 	go func() {
 		for event := range eventsChan {
-			if event.Type != common.Event_GenericGameEventID {
-				match.Events = append(match.Events, event)
-			}
+			// if event.Type != common.Event_GenericGameEventID {
+			// 	match.Events = append(match.Events, event)
+			// }
 
 			gameEvents = append(gameEvents, event)
 
@@ -103,28 +105,53 @@ func (usecase *ProcessReplayFileUseCase) Exec(ctx context.Context, replayFileID 
 		// go func() {
 		switch resourceKey {
 		case common.ResourceTypePlayer:
-			usecase.PlayerMetadataWriter.CreateMany(ctx, entities)
+			err = usecase.PlayerMetadataWriter.CreateMany(ctx, entities)
+
+			if err != nil {
+				slog.ErrorContext(ctx, "error writing PlayerMetadata entities", "err", err)
+				return nil, err
+			}
+
 		case common.ResourceTypeMatch:
-			usecase.MatchMetadataWriter.CreateMany(ctx, entities)
+			err = usecase.MatchMetadataWriter.CreateMany(ctx, entities)
+
+			if err != nil {
+				slog.ErrorContext(ctx, "error writing MatchMetadata entities", "err", err)
+				return nil, err
+			}
 		}
 		// }()
 	}
 
-	err = usecase.EventWriter.CreateMany(ctx, gameEvents)
+	// err = usecase.EventWriter.CreateMany(ctx, gameEvents)
 
-	if err != nil {
-		slog.ErrorContext(ctx, "error saving Generic replay events", "err", err)
-		return nil, err
+	// if err != nil {
+	// 	slog.ErrorContext(ctx, "error writing GameEvents", "err", err, "len(gameEvents)", len(gameEvents))
+	// 	return nil, err
+	// }
+
+	for i, ge := range gameEvents {
+		slog.InfoContext(ctx, "@@@ inserting  ", "index", i, "ge", ge)
+		_, err = usecase.EventWriter.Create(ctx, ge)
+
+		if err != nil {
+			slog.ErrorContext(ctx, "error saving Generic replay events", "err", err)
+			return nil, err
+		}
+
+		gameEvents[i] = nil // deall
 	}
 
 	// Update Metadata Status
 	replayFile.Status = e.ReplayFileStatusCompleted
-	replayFile, err = usecase.ReplayMetadataWriter.Update(ctx, *replayFile)
+	replayFile, err = usecase.ReplayMetadataWriter.Update(ctx, replayFile)
 
 	if err != nil {
 		slog.ErrorContext(ctx, "error updating uploaded replay metadata status to Completed", "replayFile", replayFile, "err", err)
 		return nil, err
 	}
+
+	slog.InfoContext(ctx, "Replay file processed", "ReplayFileID", replayFileID)
 
 	return match, nil
 }

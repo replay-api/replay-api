@@ -21,13 +21,13 @@ import (
 type args struct {
 	p            infocs.Parser
 	matchContext *state.CS2MatchContext
-	out          chan e.GameEvent
+	out          chan *e.GameEvent
 }
 
 type testMatrixArgs struct {
 	name         string
 	args         args
-	expectEvents []e.GameEvent
+	expectEvents []*e.GameEvent
 	eventInfo    evt.Kill
 }
 
@@ -191,7 +191,7 @@ func TestClutchStart(t *testing.T) {
 			)
 			defer close(tc.args.out)
 
-			receivedEvents := []e.GameEvent{}
+			receivedEvents := []*e.GameEvent{}
 
 			go func() {
 				for rec := range tc.args.out {
@@ -252,9 +252,9 @@ func getDefaultTestCaseArgs() testMatrixArgs {
 		args: args{
 			p:            p,
 			matchContext: matchCtx,
-			out:          make(chan e.GameEvent, 10),
+			out:          make(chan *e.GameEvent, 10),
 		},
-		expectEvents: []e.GameEvent{
+		expectEvents: []*e.GameEvent{
 			{
 				ID:            uuid.New(),
 				MatchID:       matchCtx.MatchID,
@@ -278,9 +278,9 @@ func getNotInClutchTestCaseArgs() testMatrixArgs {
 		args: args{
 			p:            p,
 			matchContext: matchCtx,
-			out:          make(chan e.GameEvent, 10),
+			out:          make(chan *e.GameEvent, 10),
 		},
-		expectEvents: []e.GameEvent{},
+		expectEvents: []*e.GameEvent{},
 		eventInfo:    evt.Kill{},
 	}
 }

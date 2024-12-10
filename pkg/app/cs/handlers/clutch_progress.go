@@ -1,8 +1,6 @@
 package handlers
 
 import (
-	"log/slog"
-
 	"github.com/google/uuid"
 	dem "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs"
 	csinfo "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs/common"
@@ -14,7 +12,7 @@ import (
 	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
 )
 
-func ClutchProgress(p dem.Parser, matchContext *state.CS2MatchContext, out chan replay_entity.GameEvent) func(e evt.Kill) {
+func ClutchProgress(p dem.Parser, matchContext *state.CS2MatchContext, out chan *replay_entity.GameEvent) func(e evt.Kill) {
 	return func(event evt.Kill) {
 		roundIndex := p.GameState().TotalRoundsPlayed()
 
@@ -55,9 +53,9 @@ func ClutchProgress(p dem.Parser, matchContext *state.CS2MatchContext, out chan 
 
 		b := builders.NewCSMatchStatsBuilder(p, matchContext).WithRoundsStats(matchContext.RoundContexts)
 
-		slog.Info("ClutchProgress event: %v", "event", event)
+		// slog.Info("ClutchProgress event: %v", "event", event)
 
-		out <- replay_entity.GameEvent{
+		out <- &replay_entity.GameEvent{
 			ID:            uuid.New(),
 			MatchID:       matchContext.MatchID,
 			Type:          common.Event_ClutchProgressID,

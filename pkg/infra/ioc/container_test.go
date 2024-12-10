@@ -45,7 +45,7 @@ func TestResolveOnboardSteamUserCommand(t *testing.T) {
 	ctx = context.WithValue(ctx, common.ClientIDKey, common.TeamPROAppClientID)
 	ctx = context.WithValue(ctx, common.UserIDKey, uuid.New())
 
-	steamUser := steam_entity.SteamUser{ID: uuid.New(),
+	steamUser := &steam_entity.SteamUser{ID: uuid.New(),
 		VHash: "4ef1c47e874ec4425c5786cddadd9adfc908a530ada95a602742f49c32430185",
 		Steam: steam_entity.Steam{
 			ID: "76561198169377459",
@@ -83,7 +83,7 @@ func TestResolverSteamUserReader(t *testing.T) {
 
 	reso := common.GetResourceOwner(ctx)
 
-	user := steam_entity.SteamUser{
+	user := &steam_entity.SteamUser{
 		ID:            reso.UserID,
 		Steam:         steamCommunityDetails,
 		ResourceOwner: reso,
@@ -130,7 +130,7 @@ func TestResolverSteamUserWriter(t *testing.T) {
 	ctx = context.WithValue(ctx, common.ClientIDKey, common.TeamPROAppClientID)
 	ctx = context.WithValue(ctx, common.UserIDKey, uuid.New())
 
-	user := steam_entity.SteamUser{
+	user := &steam_entity.SteamUser{
 		ID:    common.GetResourceOwner(ctx).UserID,
 		Steam: steam_entity.Steam{ID: "1"},
 	}

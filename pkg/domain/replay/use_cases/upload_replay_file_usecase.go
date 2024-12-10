@@ -48,7 +48,7 @@ func (usecase *UploadReplayFileUseCase) Exec(ctx context.Context, reader io.Read
 	if err != nil {
 		replayFile.Status = replay_entity.ReplayFileStatusFailed
 		replayFile.Error = err.Error()
-		usecase.MetadataWriter.Update(ctx, *replayFile)
+		usecase.MetadataWriter.Update(ctx, replayFile)
 		slog.ErrorContext(ctx, "error uploading replay data", "err", err, "replayFile", replayFile)
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func (usecase *UploadReplayFileUseCase) Exec(ctx context.Context, reader io.Read
 	// Update Metadata
 	replayFile.InternalURI = uri
 	replayFile.Status = replay_entity.ReplayFileStatusProcessing
-	replayFile, err = usecase.MetadataWriter.Update(ctx, *replayFile)
+	replayFile, err = usecase.MetadataWriter.Update(ctx, replayFile)
 
 	if err != nil {
 		slog.ErrorContext(ctx, "error updating uploaded replay metadata", "replayFile", replayFile, "err", err)

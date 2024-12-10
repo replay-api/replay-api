@@ -21,13 +21,15 @@ func NewFileController(container container.Container) *FileController {
 
 func (ctlr *FileController) UploadHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "localhost:4991") // todo: PARAMETRIZAR
+		w.Header().Set("Access-Control-Allow-Origin", "*") // todo: PARAMETRIZAR
 		w.Header().Set("Access-Control-Allow-Methods", "POST")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		// r.Body = http.MaxBytesReader(w, r.Body, 32<<20)
+		// r.Body = http.MaxBytesReader(w, r.Body, 32<<57)
 		r.ParseMultipartForm(32 << 50)
 
 		reqContext := context.WithValue(r.Context(), common.GameIDParamKey, r.FormValue("game_id"))
+
+		slog.InfoContext(reqContext, "Receiving file", string(common.GameIDParamKey), r.FormValue("game_id"))
 
 		file, _, err := r.FormFile("file")
 		if err != nil {

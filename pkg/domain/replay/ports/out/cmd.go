@@ -9,11 +9,12 @@ import (
 )
 
 type ReplayParser interface {
-	Parse(ctx context.Context, match uuid.UUID, content io.Reader, eventsChan chan replay_entity.GameEvent) error
+	Parse(ctx context.Context, match uuid.UUID, content io.Reader, eventsChan chan *replay_entity.GameEvent) error
 }
 
 type GameEventWriter interface {
-	CreateMany(createCtx context.Context, events []replay_entity.GameEvent) error
+	CreateMany(createCtx context.Context, events []*replay_entity.GameEvent) error
+	Create(createCtx context.Context, events *replay_entity.GameEvent) (*replay_entity.GameEvent, error)
 }
 
 type MatchMetadataWriter interface {
@@ -27,8 +28,8 @@ type PlayerMetadataWriter interface {
 }
 
 type ReplayFileMetadataWriter interface {
-	Create(createCtx context.Context, replayFile replay_entity.ReplayFile) (*replay_entity.ReplayFile, error)
-	Update(createCtx context.Context, replayFile replay_entity.ReplayFile) (*replay_entity.ReplayFile, error)
+	Create(createCtx context.Context, replayFile *replay_entity.ReplayFile) (*replay_entity.ReplayFile, error)
+	Update(createCtx context.Context, replayFile *replay_entity.ReplayFile) (*replay_entity.ReplayFile, error)
 }
 
 type ReplayFileContentWriter interface {

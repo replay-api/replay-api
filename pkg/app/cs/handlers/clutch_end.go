@@ -12,7 +12,7 @@ import (
 	e "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
 )
 
-func ClutchEnd(p dem.Parser, matchContext *state.CS2MatchContext, out chan e.GameEvent) func(e evt.RoundEnd) error {
+func ClutchEnd(p dem.Parser, matchContext *state.CS2MatchContext, out chan *e.GameEvent) func(e evt.RoundEnd) error {
 	return func(event evt.RoundEnd) error {
 		gs := p.GameState()
 		roundIndex := gs.TotalRoundsPlayed() - 1 // last round
@@ -47,7 +47,7 @@ func ClutchEnd(p dem.Parser, matchContext *state.CS2MatchContext, out chan e.Gam
 
 		b := builders.NewCSMatchStatsBuilder(p, matchContext).WithRoundsStats(matchContext.RoundContexts)
 
-		out <- e.GameEvent{
+		out <- &e.GameEvent{
 			ID:            uuid.New(),
 			MatchID:       matchContext.MatchID,
 			Type:          common.Event_ClutchEndID,

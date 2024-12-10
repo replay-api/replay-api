@@ -29,6 +29,7 @@ type GameEvent struct {
 
 func NewGameEvent[T any](matchID uuid.UUID, tickID common.TickIDType, gameTime time.Duration, eventType common.EventIDKey, payload T, entities map[common.ResourceType][]interface{}, stats map[common.StatType][]interface{}, res common.ResourceOwner) *GameEvent {
 	return &GameEvent{
+		ID:            uuid.New(),
 		GameID:        common.CS2_GAME_ID, // TODO: refact => quando aplicavel para go/vlr
 		MatchID:       matchID,
 		TickID:        tickID,

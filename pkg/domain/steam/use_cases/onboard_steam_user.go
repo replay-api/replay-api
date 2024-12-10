@@ -20,7 +20,7 @@ type OnboardSteamUserUseCase struct {
 	VHashWriter     steam_out.VHashWriter
 }
 
-func (usecase *OnboardSteamUserUseCase) Validate(ctx context.Context, steamUser steam_entity.SteamUser) error {
+func (usecase *OnboardSteamUserUseCase) Validate(ctx context.Context, steamUser *steam_entity.SteamUser) error {
 	if steamUser.Steam.ID == "" {
 		slog.ErrorContext(ctx, "steamID is required", "steamID", steamUser.Steam.ID)
 		return steam.NewSteamIDRequiredError()
@@ -41,7 +41,7 @@ func (usecase *OnboardSteamUserUseCase) Validate(ctx context.Context, steamUser 
 	return nil
 }
 
-func (usecase *OnboardSteamUserUseCase) Exec(ctx context.Context, steamUser steam_entity.SteamUser) (*steam_entity.SteamUser, error) {
+func (usecase *OnboardSteamUserUseCase) Exec(ctx context.Context, steamUser *steam_entity.SteamUser) (*steam_entity.SteamUser, error) {
 	vhashSearch := usecase.newSearchByVHash(ctx, steamUser.VHash)
 
 	steamUserResult, err := usecase.SteamUserReader.Search(ctx, vhashSearch)
@@ -52,11 +52,15 @@ func (usecase *OnboardSteamUserUseCase) Exec(ctx context.Context, steamUser stea
 		return nil, err
 	}
 
+	// slog.InfoContext(ctx, fmt.Sprintf("vhashSearch: %v, steamUserResult %v, len: %d", vhashSearch, steamUserResult, len(steamUserResult)))
+
 	if len(steamUserResult) > 0 {
 		if steamUser.Steam.ID != steamUserResult[0].Steam.ID {
 			slog.ErrorContext(ctx, "steamID does not match", "steamID", steamUser.Steam.ID, "steamUser.Steam.ID", steamUserResult[0].Steam.ID)
 			return nil, steam.NewSteamIDMismatchError(steamUser.Steam.ID)
 		}
+
+		// TODO: update with new data (!)
 
 		return &steamUserResult[0], nil
 	}

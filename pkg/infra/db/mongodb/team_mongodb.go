@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"reflect"
-	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
 
@@ -26,6 +25,7 @@ func NewTeamRepository(client *mongo.Client, dbName string, entityType replay_en
 		collectionName:    collectionName,
 		entityName:        reflect.TypeOf(entityType).Name(),
 		queryableFields:   make(map[string]bool),
+		collection:        client.Database(dbName).Collection(collectionName),
 	}
 
 	repo.InitQueryableFields(map[string]bool{
@@ -88,20 +88,15 @@ func (r *TeamRepository) Search(ctx context.Context, s common.Search) ([]replay_
 }
 
 func (r *TeamRepository) CreateMany(createCtx context.Context, events []replay_entity.Team) error {
-	collection := r.mongoClient.Database(r.dbName).Collection(r.collectionName)
-
-	queryCtx, cancel := context.WithTimeout(createCtx, 10*time.Second)
-	defer cancel()
-
 	toInsert := make([]interface{}, len(events))
 
 	for i := range events {
 		toInsert[i] = events[i]
 	}
 
-	_, err := collection.InsertMany(queryCtx, toInsert)
+	_, err := r.collection.InsertMany(createCtx, toInsert)
 	if err != nil {
-		slog.ErrorContext(queryCtx, err.Error())
+		slog.ErrorContext(createCtx, err.Error())
 		return err
 	}
 

@@ -24,7 +24,7 @@ type Match struct {
 	ReplayFileID  uuid.UUID            `json:"replay_file_id" bson:"replay_file_id"`
 	GameID        common.GameIDKey     `json:"game_id" bson:"game_id"`
 	Scoreboard    Scoreboard           `json:"scoreboard" bson:"scoreboard"`
-	Events        []GameEvent          `json:"game_events" bson:"game_events"`
+	Events        []*GameEvent         `json:"game_events" bson:"game_events"`
 	Visibility    MatchVisibility      `json:"visibility" bson:"visibility"`
 	ShareTokens   []ShareToken         `json:"share_tokens" bson:"share_tokens"`
 	ResourceOwner common.ResourceOwner `json:"resource_owner" bson:"resource_owner"`

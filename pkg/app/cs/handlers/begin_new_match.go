@@ -13,11 +13,13 @@ import (
 	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
 )
 
-func BeginNewMatch(p dem.Parser, matchContext *state.CS2MatchContext, out chan replay_entity.GameEvent) func(e evt.MatchStart) {
+func BeginNewMatch(p dem.Parser, matchContext *state.CS2MatchContext, out chan *replay_entity.GameEvent) func(e evt.MatchStart) {
 	return func(event evt.MatchStart) {
 		h := p.Header()
 
 		gs := p.GameState()
+
+		matchContext = matchContext.WithRound(0, gs)
 
 		matchContext.SetHeader(cs_entity.CSReplayFileHeader{
 			Filestamp:       h.Filestamp,
@@ -46,11 +48,13 @@ func BeginNewMatch(p dem.Parser, matchContext *state.CS2MatchContext, out chan r
 			payload,
 		)
 
+		slog.Info("MatchStart:", "gameEvent", gameEvent)
+
 		if err != nil {
 			slog.Error("unable to create new match event")
 			return
 		}
 
-		out <- *gameEvent
+		out <- gameEvent
 	}
 }

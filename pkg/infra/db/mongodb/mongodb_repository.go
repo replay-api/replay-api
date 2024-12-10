@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 	"reflect"
+	"runtime"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
@@ -31,6 +31,7 @@ type MongoDBRepository[T common.Entity] struct {
 	entityName        string
 	bsonFieldMappings map[string]string // Local mapping of field names
 	queryableFields   map[string]bool
+	collection        *mongo.Collection
 }
 
 type MongoDBRepositoryBuilder[T common.BaseEntity] struct {
@@ -42,6 +43,8 @@ func (r *MongoDBRepository[T]) InitQueryableFields(queryableFields map[string]bo
 	for k, v := range bsonFieldMappings {
 		r.bsonFieldMappings[k] = v
 	}
+
+	r.collection = r.mongoClient.Database(r.dbName).Collection(r.collectionName)
 }
 
 func (r *MongoDBRepository[T]) GetBSONFieldName(fieldName string) (string, error) {
@@ -372,36 +375,28 @@ func (r *MongoDBRepository[T]) GetBSONFieldNameFromSearchableValue(v common.Sear
 	return "", fmt.Errorf("field %s not found or not queryable in %s", v.Field, r.entityName)
 }
 
-func (r *MongoDBRepository[T]) Create(ctx context.Context, entity T) (*T, error) {
-	collection := r.mongoClient.Database(r.dbName).Collection(r.collectionName)
-
-	queryCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	_, err := collection.InsertOne(queryCtx, entity)
+func (r *MongoDBRepository[T]) Create(ctx context.Context, entity *T) (*T, error) {
+	_, err := r.collection.InsertOne(context.TODO(), entity)
 	if err != nil {
-		slog.ErrorContext(queryCtx, err.Error())
+		slog.ErrorContext(ctx, err.Error())
 		return nil, err
 	}
 
-	return &entity, nil
+	return entity, nil
 }
 
-func (r *MongoDBRepository[T]) CreateMany(ctx context.Context, entities []T) error {
-	collection := r.mongoClient.Database(r.dbName).Collection(r.collectionName)
-
-	queryCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
+func (r *MongoDBRepository[T]) CreateMany(ctx context.Context, entities []*T) error {
+	runtime.GC()
 	toInsert := make([]interface{}, len(entities))
+	defer runtime.GC()
 
 	for i, e := range entities {
 		toInsert[i] = e
 	}
 
-	_, err := collection.InsertMany(queryCtx, toInsert)
+	_, err := r.collection.InsertMany(context.TODO(), toInsert)
 	if err != nil {
-		slog.ErrorContext(queryCtx, err.Error())
+		slog.ErrorContext(ctx, err.Error())
 		return err
 	}
 
@@ -543,18 +538,13 @@ func (r *MongoDBRepository[T]) Search(ctx context.Context, s common.Search) ([]T
 }
 
 func (r *MongoDBRepository[T]) GetByID(queryCtx context.Context, id uuid.UUID) (*T, error) {
-	collection := r.mongoClient.Database(r.dbName).Collection("replay_file_metadata")
-
-	queryCtx, cancel := context.WithTimeout(queryCtx, 10*time.Second)
-	defer cancel()
-
 	var entity T
 
 	query := bson.D{
 		{Key: "_id", Value: id},
 	}
 
-	err := collection.FindOne(queryCtx, query).Decode(&entity)
+	err := r.collection.FindOne(queryCtx, query).Decode(&entity)
 	if err != nil {
 		slog.ErrorContext(queryCtx, err.Error())
 		return nil, err
@@ -563,17 +553,14 @@ func (r *MongoDBRepository[T]) GetByID(queryCtx context.Context, id uuid.UUID) (
 	return &entity, nil
 }
 
-func (r *MongoDBRepository[T]) Update(createCtx context.Context, entity T) (*T, error) {
-	collection := r.mongoClient.Database(r.dbName).Collection("replay_file_metadata")
+func (r *MongoDBRepository[T]) Update(createCtx context.Context, entity *T) (*T, error) {
+	id := (*entity).GetID()
 
-	queryCtx, cancel := context.WithTimeout(createCtx, 10*time.Second)
-	defer cancel()
-
-	_, err := collection.UpdateOne(queryCtx, bson.M{"_id": entity.GetID()}, bson.M{"$set": entity})
+	_, err := r.collection.UpdateOne(createCtx, bson.M{"_id": id}, bson.M{"$set": entity})
 	if err != nil {
-		slog.ErrorContext(queryCtx, err.Error(), "entity", entity)
+		slog.ErrorContext(createCtx, err.Error(), "entity", entity)
 		return nil, err
 	}
 
-	return &entity, nil
+	return entity, nil
 }
