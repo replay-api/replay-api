@@ -15,6 +15,16 @@ type User struct {
 	UpdatedAt     time.Time            `json:"updated_at" bson:"updated_at"`
 }
 
+func NewUser(name string, resourceOwner common.ResourceOwner) *User {
+	return &User{
+		ID:            uuid.New(),
+		Name:          name,
+		ResourceOwner: resourceOwner,
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
+	}
+}
+
 func (u User) GetID() uuid.UUID {
 	return u.ID
 }

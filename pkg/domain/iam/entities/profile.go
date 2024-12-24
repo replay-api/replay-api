@@ -17,6 +17,21 @@ type Profile struct {
 	UpdatedAt     time.Time              `json:"updated_at" bson:"updated_at"`
 }
 
+func NewProfile(userID uuid.UUID, groupID uuid.UUID, ridSource RIDSourceKey, sourceKey string, details map[string]interface{}, resourceOwner common.ResourceOwner) *Profile {
+	resourceOwner.UserID = userID
+	resourceOwner.GroupID = groupID
+
+	return &Profile{
+		ID:            uuid.New(),
+		RIDSource:     ridSource,
+		SourceKey:     sourceKey,
+		Details:       details,
+		ResourceOwner: resourceOwner,
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
+	}
+}
+
 func (p Profile) GetID() uuid.UUID {
 	return p.ID
 }

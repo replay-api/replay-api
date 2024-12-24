@@ -24,6 +24,19 @@ type Group struct {
 	UpdatedAt     time.Time            `json:"updated_at" bson:"updated_at"`
 }
 
+func NewGroup(userID uuid.UUID, name string, groupType GroupType, resourceOwner common.ResourceOwner) *Group {
+	resourceOwner.UserID = userID
+
+	return &Group{
+		ID:            uuid.New(),
+		Name:          name,
+		Type:          groupType,
+		ResourceOwner: resourceOwner,
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
+	}
+}
+
 func (e Group) GetID() uuid.UUID {
 	return e.ID
 }

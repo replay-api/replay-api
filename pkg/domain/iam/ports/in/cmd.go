@@ -19,6 +19,7 @@ type VerifyRIDKeyCommand interface {
 type OnboardOpenIDUserCommand struct {
 	Source iam_entity.RIDSourceKey `json:"rid_source" bson:"rid_source"`
 	Key    string                  `json:"key" bson:"key"`
+	Name   string                  `json:"name" bson:"name"`
 }
 
 type OnboardOpenIDUserCommandHandler interface {
