@@ -11,6 +11,14 @@ type RIDTokenReader interface {
 	Search(ctx context.Context, s common.Search) ([]iam_entity.RIDToken, error)
 }
 
+type ProfileReader interface {
+	Search(ctx context.Context, s common.Search) ([]iam_entity.Profile, error)
+}
+
+type UserReader interface {
+	Search(ctx context.Context, s common.Search) ([]iam_entity.User, error)
+}
+
 // type RIDTokenReader interface {
 // 	common.Searchable[iam_entity.RIDToken]
 // }

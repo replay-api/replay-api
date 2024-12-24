@@ -28,6 +28,10 @@ import (
 	// ports
 	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
 	metadata "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/services/metadata"
+	squad_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/entities"
+	squad_in "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/in"
+	squad_out "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/out"
+	squad_services "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/services"
 
 	replay_in "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/ports/in"
 	replay_out "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/ports/out"
@@ -395,6 +399,47 @@ func (b *ContainerBuilder) WithInboundPorts() *ContainerBuilder {
 	}
 
 	return b
+}
+
+func (b *ContainerBuilder) WithSquadAPI() *ContainerBuilder {
+	c := b.Container
+
+	// InboundPorts
+	err := c.Singleton(func() (squad_in.SquadSearchableReader, error) {
+		var squadReader squad_out.SquadReader
+		err := c.Resolve(&squadReader)
+		if err != nil {
+			slog.Error("Failed to resolve SquadSearchableReader for SquadQueryService.", "err", err)
+			return nil, err
+		}
+
+		return squad_services.NewSquadQueryService(squadReader), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load SquadSearchableReader.")
+		panic(err)
+	}
+
+	// // OutboundPorts
+	err = c.Singleton(func() (squad_out.SquadReader, error) {
+		var squadReader squad_out.SquadReader
+		err = c.Resolve(&squadReader)
+		if err != nil {
+			slog.Error("Failed to resolve SquadReader for SquadQueryService.", "err", err)
+			return nil, err
+		}
+
+		return squad_services.NewSquadQueryService(squadReader), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load SquadReader.")
+		panic(err)
+	}
+
+	return b
+
 }
 
 func (b *ContainerBuilder) WithKafkaConsumer() *ContainerBuilder {
@@ -945,6 +990,66 @@ func InjectMongoDB(c container.Container) error {
 		panic(err)
 	}
 
+	// Squad
+	err = c.Singleton(func() (*db.SquadRepository, error) {
+		var client *mongo.Client
+		err := c.Resolve(&client)
+		if err != nil {
+			slog.Error("Failed to resolve mongo.Client for NamedSingleton SquadRepository as generic MongoDBRepository.", "err", err)
+			return &db.SquadRepository{}, err
+		}
+
+		var config common.Config
+
+		err = c.Resolve(&config)
+		if err != nil {
+			slog.Error("Failed to resolve config for db.SquadRepository.", "err", err)
+			return nil, err
+		}
+
+		repo := db.NewSquadRepository(client, config.MongoDB.DBName, squad_entities.Squad{}, "squad")
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load NamedSingleton SquadRepository as generic MongoDBRepository.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (squad_out.SquadReader, error) {
+		var repo *db.SquadRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve SquadRepository for squad_out.SquadReader.", "err", err)
+			return nil, err
+		}
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load squad_out.SquadReader.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (squad_out.SquadWriter, error) {
+		var repo *db.SquadRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve SquadRepository for squad_out.SquadWriter.", "err", err)
+			return nil, err
+		}
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load squad_out.SquadWriter.", "err", err)
+		panic(err)
+	}
+
+	// -----
 	return nil
 }
 

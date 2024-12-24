@@ -65,6 +65,8 @@ func (usecase *OnboardSteamUserUseCase) Exec(ctx context.Context, steamUser *ste
 		return &steamUserResult[0], nil
 	}
 
+	// TODO: create User (link UserID)
+
 	steamUser.ID = uuid.New()
 
 	user, err := usecase.SteamUserWriter.Create(ctx, steamUser)
@@ -79,6 +81,8 @@ func (usecase *OnboardSteamUserUseCase) Exec(ctx context.Context, steamUser *ste
 			err)
 		return nil, steam.NewSteamUserCreationError(fmt.Sprintf("unable to create steam user: %v", steamUser.ID))
 	}
+
+	// TODO: update user profileMap steamID (futuramente conseguir unir as contas)
 
 	return user, nil
 }

@@ -15,3 +15,12 @@ type CreateRIDTokenCommand interface {
 type VerifyRIDKeyCommand interface {
 	Exec(ctx context.Context, key uuid.UUID) (common.ResourceOwner, error)
 }
+
+type OnboardOpenIDUserCommand struct {
+	Source iam_entity.RIDSourceKey `json:"rid_source" bson:"rid_source"`
+	Key    string                  `json:"key" bson:"key"`
+}
+
+type OnboardOpenIDUserCommandHandler interface {
+	Exec(ctx context.Context, cmd OnboardOpenIDUserCommand) error
+}
