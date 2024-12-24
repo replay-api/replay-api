@@ -17,7 +17,7 @@ type User struct {
 
 func NewUser(name string, resourceOwner common.ResourceOwner) *User {
 	return &User{
-		ID:            uuid.New(),
+		ID:            resourceOwner.UserID,
 		Name:          name,
 		ResourceOwner: resourceOwner,
 		CreatedAt:     time.Now(),

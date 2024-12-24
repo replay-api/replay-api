@@ -310,7 +310,7 @@ func (r *MongoDBRepository[T]) setMatchValues(queryCtx context.Context, params [
 
 			innerAggregate := bson.M{}
 			r.setMatchValues(queryCtx, v.Params, &innerAggregate)
-			(*aggregate)["$and"] = append((*aggregate)["$and"].([]bson.M), innerAggregate)
+			(*aggregate)["$and"] = append((*aggregate)["$and"].([]bson.M), innerAggregate) // TODO: (review) default to $and for now
 		}
 	}
 }

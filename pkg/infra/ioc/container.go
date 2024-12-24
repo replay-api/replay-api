@@ -39,6 +39,7 @@ import (
 	steam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/ports/in"
 	steam_out "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/ports/out"
 
+	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
 	iam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/in"
 	iam_out "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/out"
 
@@ -130,6 +131,50 @@ func (b *ContainerBuilder) WithInboundPorts() *ContainerBuilder {
 
 	if err != nil {
 		slog.Error("Failed to load EventsByGameReader.")
+		panic(err)
+	}
+
+	err = c.Singleton(func() (iam_in.OnboardOpenIDUserCommandHandler, error) {
+		var userReader iam_out.UserReader
+		err := c.Resolve(&userReader)
+		if err != nil {
+			slog.Error("Failed to resolve UserReader for OnboardOpenIDUserCommand.", "err", err)
+			return nil, err
+		}
+
+		var userWriter iam_out.UserWriter
+		err = c.Resolve(&userWriter)
+		if err != nil {
+			slog.Error("Failed to resolve UserWriter for OnboardOpenIDUserCommand.", "err", err)
+			return nil, err
+		}
+
+		var profileReader iam_out.ProfileReader
+		err = c.Resolve(&profileReader)
+		if err != nil {
+			slog.Error("Failed to resolve ProfileReader for OnboardOpenIDUserCommand.", "err", err)
+			return nil, err
+		}
+
+		var profileWriter iam_out.ProfileWriter
+		err = c.Resolve(&profileWriter)
+		if err != nil {
+			slog.Error("Failed to resolve ProfileWriter for OnboardOpenIDUserCommand.", "err", err)
+			return nil, err
+		}
+
+		var groupWriter iam_out.GroupWriter
+		err = c.Resolve(&groupWriter)
+		if err != nil {
+			slog.Error("Failed to resolve GroupWriter for OnboardOpenIDUserCommand.", "err", err)
+			return nil, err
+		}
+
+		return iam_use_cases.NewOnboardOpenIDUserUseCase(userReader, userWriter, profileReader, profileWriter, groupWriter), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load OnboardOpenIDUserCommand.")
 		panic(err)
 	}
 
@@ -344,7 +389,14 @@ func (b *ContainerBuilder) WithInboundPorts() *ContainerBuilder {
 			return nil, err
 		}
 
-		return steam_use_cases.NewOnboardSteamUserUseCase(steamUserWriter, steamUserReader, vHashWriter), nil
+		var onboardOpenIDUser iam_in.OnboardOpenIDUserCommandHandler
+		err = c.Resolve(&onboardOpenIDUser)
+		if err != nil {
+			slog.Error("Failed to resolve OnboardOpenIDUserCommandHandler for OnboardSteamUserCommand.", "err", err)
+			return nil, err
+		}
+
+		return steam_use_cases.NewOnboardSteamUserUseCase(steamUserWriter, steamUserReader, vHashWriter, onboardOpenIDUser), nil
 	})
 
 	if err != nil {
@@ -1007,7 +1059,7 @@ func InjectMongoDB(c container.Container) error {
 			return nil, err
 		}
 
-		repo := db.NewSquadRepository(client, config.MongoDB.DBName, squad_entities.Squad{}, "squad")
+		repo := db.NewSquadRepository(client, config.MongoDB.DBName, squad_entities.Squad{}, "squads")
 
 		return repo, nil
 	})
@@ -1050,6 +1102,190 @@ func InjectMongoDB(c container.Container) error {
 	}
 
 	// -----
+
+	// User
+	err = c.Singleton(func() (*db.UserRepository, error) {
+		var client *mongo.Client
+		err := c.Resolve(&client)
+		if err != nil {
+			slog.Error("Failed to resolve mongo.Client for NamedSingleton UserRepository as generic MongoDBRepository.", "err", err)
+			return &db.UserRepository{}, err
+		}
+
+		var config common.Config
+
+		err = c.Resolve(&config)
+		if err != nil {
+			slog.Error("Failed to resolve config for db.UserRepository.", "err", err)
+			return nil, err
+		}
+
+		repo := db.NewUserRepository(client, config.MongoDB.DBName, &iam_entities.User{}, "users")
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load NamedSingleton UserRepository as generic MongoDBRepository.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (iam_out.UserReader, error) {
+		var repo *db.UserRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve UserRepository for iam_out.UserReader.", "err", err)
+			return nil, err
+		}
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load iam_out.UserReader.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (iam_out.UserWriter, error) {
+		var repo *db.UserRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve UserRepository for iam_out.UserWriter.", "err", err)
+			return nil, err
+		}
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load iam_out.UserWriter.", "err", err)
+		panic(err)
+	}
+
+	// -----
+
+	// Group
+	err = c.Singleton(func() (*db.GroupRepository, error) {
+		var client *mongo.Client
+		err := c.Resolve(&client)
+		if err != nil {
+			slog.Error("Failed to resolve mongo.Client for NamedSingleton GroupRepository as generic MongoDBRepository.", "err", err)
+			return &db.GroupRepository{}, err
+		}
+
+		var config common.Config
+
+		err = c.Resolve(&config)
+		if err != nil {
+			slog.Error("Failed to resolve config for db.GroupRepository.", "err", err)
+			return nil, err
+		}
+
+		repo := db.NewGroupRepository(client, config.MongoDB.DBName, &iam_entities.Group{}, "groups")
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load NamedSingleton GroupRepository as generic MongoDBRepository.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (iam_out.GroupReader, error) {
+		var repo *db.GroupRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve GroupRepository for iam_out.GroupReader.", "err", err)
+			return nil, err
+		}
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load iam_out.GroupReader.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (iam_out.GroupWriter, error) {
+		var repo *db.GroupRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve GroupRepository for iam_out.GroupWriter.", "err", err)
+			return nil, err
+		}
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load iam_out.GroupWriter.", "err", err)
+		panic(err)
+	}
+
+	// -----
+
+	// Profile
+	err = c.Singleton(func() (*db.ProfileRepository, error) {
+		var client *mongo.Client
+		err := c.Resolve(&client)
+		if err != nil {
+			slog.Error("Failed to resolve mongo.Client for NamedSingleton ProfileRepository as generic MongoDBRepository.", "err", err)
+			return &db.ProfileRepository{}, err
+		}
+
+		var config common.Config
+
+		err = c.Resolve(&config)
+		if err != nil {
+			slog.Error("Failed to resolve config for db.ProfileRepository.", "err", err)
+			return nil, err
+		}
+
+		repo := db.NewProfileRepository(client, config.MongoDB.DBName, &iam_entities.Profile{}, "profiles")
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load NamedSingleton ProfileRepository as generic MongoDBRepository.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (iam_out.ProfileReader, error) {
+		var repo *db.ProfileRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve ProfileRepository for iam_out.ProfileReader.", "err", err)
+			return nil, err
+		}
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load iam_out.ProfileReader.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (iam_out.ProfileWriter, error) {
+		var repo *db.ProfileRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve ProfileRepository for iam_out.ProfileWriter.", "err", err)
+			return nil, err
+		}
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load iam_out.ProfileWriter.", "err", err)
+		panic(err)
+	}
+
+	// -----
+
 	return nil
 }
 

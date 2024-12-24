@@ -18,6 +18,16 @@ type OnboardOpenIDUserUseCase struct {
 	GroupWriter   iam_out.GroupWriter
 }
 
+func NewOnboardOpenIDUserUseCase(userReader iam_out.UserReader, userWriter iam_out.UserWriter, profileReader iam_out.ProfileReader, profileWriter iam_out.ProfileWriter, groupWriter iam_out.GroupWriter) *OnboardOpenIDUserUseCase {
+	return &OnboardOpenIDUserUseCase{
+		UserReader:    userReader,
+		UserWriter:    userWriter,
+		ProfileReader: profileReader,
+		ProfileWriter: profileWriter,
+		GroupWriter:   groupWriter,
+	}
+}
+
 func (uc *OnboardOpenIDUserUseCase) Exec(ctx context.Context, cmd iam_in.OnboardOpenIDUserCommand) (*iam_entities.Profile, error) {
 	profileSourceKeySearch := uc.newSearchByProfileSourceKey(ctx, cmd.Source, cmd.Key)
 
@@ -45,7 +55,7 @@ func (uc *OnboardOpenIDUserUseCase) Exec(ctx context.Context, cmd iam_in.Onboard
 		return nil, err
 	}
 
-	group := iam_entities.NewGroup(user.ID, "private:default", iam_entities.GroupTypeSystem, rxn)
+	group := iam_entities.NewGroup("private:default", iam_entities.GroupTypeSystem, rxn)
 
 	group, err = uc.GroupWriter.Create(ctx, group)
 
@@ -66,4 +76,46 @@ func (uc *OnboardOpenIDUserUseCase) Exec(ctx context.Context, cmd iam_in.Onboard
 	}
 
 	return profile, nil
+}
+
+func (uc *OnboardOpenIDUserUseCase) newSearchByProfileSourceKey(ctx context.Context, source iam_entities.RIDSourceKey, key string) common.Search {
+	params := []common.SearchAggregation{
+		{
+			Params: []common.SearchParameter{
+				{
+					Operator: common.EqualsOperator,
+					ValueParams: []common.SearchableValue{
+						{
+							Field: "RIDSource",
+							Values: []interface{}{
+								source,
+							},
+						},
+						{
+							Field: "SourceKey",
+							Values: []interface{}{
+								key,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	visibility := common.SearchVisibilityOptions{
+		RequestSource:    common.GetResourceOwner(ctx),
+		IntendedAudience: common.ClientApplicationAudienceIDKey,
+	}
+
+	result := common.SearchResultOptions{
+		Skip:  0,
+		Limit: 1,
+	}
+
+	return common.Search{
+		SearchParams:      params,
+		ResultOptions:     result,
+		VisibilityOptions: visibility,
+	}
 }

@@ -19,6 +19,10 @@ type UserReader interface {
 	Search(ctx context.Context, s common.Search) ([]iam_entity.User, error)
 }
 
+type GroupReader interface {
+	Search(ctx context.Context, s common.Search) ([]iam_entity.Group, error)
+}
+
 // type RIDTokenReader interface {
 // 	common.Searchable[iam_entity.RIDToken]
 // }

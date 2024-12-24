@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/google/uuid"
 	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
+	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
+	iam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/in"
 	"github.com/psavelis/team-pro/replay-api/pkg/domain/steam"
 	steam_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/entities"
 
@@ -15,9 +16,10 @@ import (
 )
 
 type OnboardSteamUserUseCase struct {
-	SteamUserWriter steam_out.SteamUserWriter
-	SteamUserReader steam_out.SteamUserReader
-	VHashWriter     steam_out.VHashWriter
+	SteamUserWriter   steam_out.SteamUserWriter
+	SteamUserReader   steam_out.SteamUserReader
+	VHashWriter       steam_out.VHashWriter
+	OnboardOpenIDUser iam_in.OnboardOpenIDUserCommandHandler
 }
 
 func (usecase *OnboardSteamUserUseCase) Validate(ctx context.Context, steamUser *steam_entity.SteamUser) error {
@@ -67,7 +69,19 @@ func (usecase *OnboardSteamUserUseCase) Exec(ctx context.Context, steamUser *ste
 
 	// TODO: create User (link UserID)
 
-	steamUser.ID = uuid.New()
+	profile, err := usecase.OnboardOpenIDUser.Exec(ctx, iam_in.OnboardOpenIDUserCommand{
+		Name:   steamUser.Steam.RealName,
+		Source: iam_entities.RIDSource_Steam,
+		Key:    steamUser.Steam.ID,
+	})
+
+	if err != nil {
+		slog.ErrorContext(ctx, "error creating user profile", "err", err)
+		return nil, steam.NewSteamUserCreationError(fmt.Sprintf("error creating user profile: %v", steamUser.Steam.ID))
+	}
+
+	ctx = context.WithValue(ctx, common.UserIDKey, profile.ResourceOwner.UserID)
+	ctx = context.WithValue(ctx, common.UserIDKey, profile.ResourceOwner.GroupID)
 
 	user, err := usecase.SteamUserWriter.Create(ctx, steamUser)
 
@@ -87,9 +101,9 @@ func (usecase *OnboardSteamUserUseCase) Exec(ctx context.Context, steamUser *ste
 	return user, nil
 }
 
-func NewOnboardSteamUserUseCase(steamUserWriter steam_out.SteamUserWriter, steamUserReader steam_out.SteamUserReader, vHashWriter steam_out.VHashWriter) steam_in.OnboardSteamUserCommand {
+func NewOnboardSteamUserUseCase(steamUserWriter steam_out.SteamUserWriter, steamUserReader steam_out.SteamUserReader, vHashWriter steam_out.VHashWriter, onboardOpenIDUser iam_in.OnboardOpenIDUserCommandHandler) steam_in.OnboardSteamUserCommand {
 	return &OnboardSteamUserUseCase{
-		SteamUserWriter: steamUserWriter, SteamUserReader: steamUserReader, VHashWriter: vHashWriter,
+		SteamUserWriter: steamUserWriter, SteamUserReader: steamUserReader, VHashWriter: vHashWriter, OnboardOpenIDUser: onboardOpenIDUser,
 	}
 }
 
