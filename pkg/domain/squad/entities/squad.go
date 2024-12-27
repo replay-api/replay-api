@@ -38,6 +38,10 @@ func NewSquad(groupID uuid.UUID, gameID common.GameIDKey, fullName, shortName, s
 	}
 }
 
+// func (e *Squad) GetID() uuid.UUID {
+// 	return e.ID
+// }
+
 func (e Squad) GetID() uuid.UUID {
 	return e.ID
 }

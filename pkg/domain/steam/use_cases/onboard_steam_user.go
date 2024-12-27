@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/google/uuid"
 	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
 	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
 	iam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/in"
@@ -67,7 +68,11 @@ func (usecase *OnboardSteamUserUseCase) Exec(ctx context.Context, steamUser *ste
 		return &steamUserResult[0], nil
 	}
 
-	// TODO: create User (link UserID)
+	// TODO: create consent request
+
+	if steamUser.ID == uuid.Nil {
+		steamUser.ID = uuid.New()
+	}
 
 	profile, err := usecase.OnboardOpenIDUser.Exec(ctx, iam_in.OnboardOpenIDUserCommand{
 		Name:   steamUser.Steam.RealName,
@@ -82,6 +87,8 @@ func (usecase *OnboardSteamUserUseCase) Exec(ctx context.Context, steamUser *ste
 
 	ctx = context.WithValue(ctx, common.UserIDKey, profile.ResourceOwner.UserID)
 	ctx = context.WithValue(ctx, common.UserIDKey, profile.ResourceOwner.GroupID)
+
+	steamUser.ResourceOwner = common.GetResourceOwner(ctx)
 
 	user, err := usecase.SteamUserWriter.Create(ctx, steamUser)
 

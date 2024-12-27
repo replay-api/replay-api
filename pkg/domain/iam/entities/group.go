@@ -24,9 +24,11 @@ type Group struct {
 	UpdatedAt     time.Time            `json:"updated_at" bson:"updated_at"`
 }
 
-func NewGroup(name string, groupType GroupType, resourceOwner common.ResourceOwner) *Group {
+func NewGroup(groupID uuid.UUID, name string, groupType GroupType, resourceOwner common.ResourceOwner) *Group {
+	resourceOwner.GroupID = groupID
+
 	return &Group{
-		ID:            resourceOwner.GroupID,
+		ID:            groupID,
 		Name:          name,
 		Type:          groupType,
 		ResourceOwner: resourceOwner,
@@ -34,6 +36,10 @@ func NewGroup(name string, groupType GroupType, resourceOwner common.ResourceOwn
 		UpdatedAt:     time.Now(),
 	}
 }
+
+// func (e *Group) GetID() uuid.UUID {
+// 	return e.ID
+// }
 
 func (e Group) GetID() uuid.UUID {
 	return e.ID

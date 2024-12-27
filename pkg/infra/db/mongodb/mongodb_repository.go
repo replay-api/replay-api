@@ -470,6 +470,7 @@ func ensureClientID(ctx context.Context, agg bson.M, s common.Search) (bson.M, e
 	}
 
 	agg["resource_owner.client_id"] = clientID
+
 	return agg, nil
 }
 
@@ -488,6 +489,7 @@ func ensureGroupID(ctx context.Context, agg bson.M, s common.Search) (bson.M, er
 	}
 
 	agg["resource_owner.group_id"] = groupID
+
 	return agg, nil
 }
 
@@ -506,6 +508,7 @@ func ensureUserID(ctx context.Context, agg bson.M, s common.Search) (bson.M, err
 	}
 
 	agg["resource_owner.user_id"] = userID
+
 	return agg, nil
 }
 

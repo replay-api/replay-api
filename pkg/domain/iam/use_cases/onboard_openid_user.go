@@ -2,8 +2,10 @@ package iam_use_cases
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
+	"github.com/google/uuid"
 	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
 	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
 	iam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/in"
@@ -45,9 +47,19 @@ func (uc *OnboardOpenIDUserUseCase) Exec(ctx context.Context, cmd iam_in.Onboard
 
 	rxn := common.GetResourceOwner(ctx)
 
-	user := iam_entities.NewUser(cmd.Name, rxn)
+	if rxn.UserID == uuid.Nil {
+		return nil, fmt.Errorf("invalid resource owner: no user id")
+	}
+
+	if rxn.GroupID == uuid.Nil {
+		return nil, fmt.Errorf("invalid resource owner: no group id")
+	}
+
+	user := iam_entities.NewUser(rxn.UserID, cmd.Name, rxn)
 
 	user, err = uc.UserWriter.Create(ctx, user)
+
+	rxn.UserID = user.ID
 
 	if err != nil {
 		slog.ErrorContext(ctx, "error creating user", "err",
@@ -55,7 +67,9 @@ func (uc *OnboardOpenIDUserUseCase) Exec(ctx context.Context, cmd iam_in.Onboard
 		return nil, err
 	}
 
-	group := iam_entities.NewGroup("private:default", iam_entities.GroupTypeSystem, rxn)
+	group := iam_entities.NewGroup(rxn.GroupID, "private:default", iam_entities.GroupTypeSystem, rxn)
+
+	rxn.GroupID = group.ID
 
 	group, err = uc.GroupWriter.Create(ctx, group)
 

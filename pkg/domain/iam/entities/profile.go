@@ -32,6 +32,10 @@ func NewProfile(userID uuid.UUID, groupID uuid.UUID, ridSource RIDSourceKey, sou
 	}
 }
 
+// func (p *Profile) GetID() uuid.UUID {
+// 	return p.ID
+// }
+
 func (p Profile) GetID() uuid.UUID {
 	return p.ID
 }

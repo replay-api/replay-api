@@ -43,6 +43,7 @@ func TestResolveOnboardSteamUserCommand(t *testing.T) {
 
 	ctx := context.WithValue(context.Background(), common.TenantIDKey, common.TeamPROTenantID)
 	ctx = context.WithValue(ctx, common.ClientIDKey, common.TeamPROAppClientID)
+	ctx = context.WithValue(ctx, common.GroupIDKey, uuid.New())
 	ctx = context.WithValue(ctx, common.UserIDKey, uuid.New())
 
 	steamUser := &steam_entity.SteamUser{ID: uuid.New(),

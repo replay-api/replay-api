@@ -1,10 +1,13 @@
 package db
 
 import (
+	"context"
+	"log/slog"
 	"reflect"
 
 	"go.mongodb.org/mongo-driver/mongo"
 
+	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
 	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
 )
 
@@ -45,4 +48,32 @@ func NewProfileRepository(client *mongo.Client, dbName string, entityType *iam_e
 	return &ProfileRepository{
 		repo,
 	}
+}
+
+func (r *ProfileRepository) Search(ctx context.Context, s common.Search) ([]iam_entities.Profile, error) {
+	cursor, err := r.Query(ctx, s)
+	if cursor != nil {
+		defer cursor.Close(ctx)
+	}
+
+	if err != nil {
+		slog.ErrorContext(ctx, "error querying user entity", "err", err)
+		return nil, err
+	}
+
+	profiles := make([]iam_entities.Profile, 0)
+
+	for cursor.Next(ctx) {
+		var p iam_entities.Profile
+		err := cursor.Decode(&p)
+
+		if err != nil {
+			slog.ErrorContext(ctx, "error decoding user entity", "err", err)
+			return nil, err
+		}
+
+		profiles = append(profiles, p)
+	}
+
+	return profiles, nil
 }
