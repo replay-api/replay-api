@@ -134,6 +134,29 @@ func (b *ContainerBuilder) WithInboundPorts() *ContainerBuilder {
 		panic(err)
 	}
 
+	err = c.Singleton(func() (iam_in.CreateRIDTokenCommand, error) {
+		var rIDWriter iam_out.RIDTokenWriter
+		err := c.Resolve(&rIDWriter)
+		if err != nil {
+			slog.Error("Failed to resolve RIDWriter for OnboardRIDCommand.", "err", err)
+			return nil, err
+		}
+
+		var rIDReader iam_out.RIDTokenReader
+		err = c.Resolve(&rIDReader)
+		if err != nil {
+			slog.Error("Failed to resolve RIDReader for OnboardRIDCommand.", "err", err)
+			return nil, err
+		}
+
+		return iam_use_cases.NewCreateRIDTokenUseCase(rIDWriter, rIDReader), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load iam_in.CreateRIDTokenCommand.")
+		panic(err)
+	}
+
 	err = c.Singleton(func() (iam_in.OnboardOpenIDUserCommandHandler, error) {
 		var userReader iam_out.UserReader
 		err := c.Resolve(&userReader)
@@ -170,7 +193,14 @@ func (b *ContainerBuilder) WithInboundPorts() *ContainerBuilder {
 			return nil, err
 		}
 
-		return iam_use_cases.NewOnboardOpenIDUserUseCase(userReader, userWriter, profileReader, profileWriter, groupWriter), nil
+		var createRIDTokenCommand iam_in.CreateRIDTokenCommand
+		err = c.Resolve(&createRIDTokenCommand)
+		if err != nil {
+			slog.Error("Failed to resolve CreateRIDTokenCommand for OnboardSteamUserCommand.", "err", err)
+			return nil, err
+		}
+
+		return iam_use_cases.NewOnboardOpenIDUserUseCase(userReader, userWriter, profileReader, profileWriter, groupWriter, createRIDTokenCommand), nil
 	})
 
 	if err != nil {
@@ -401,29 +431,6 @@ func (b *ContainerBuilder) WithInboundPorts() *ContainerBuilder {
 
 	if err != nil {
 		slog.Error("Failed to load OnboardSteamUserCommand.", "err", err)
-		panic(err)
-	}
-
-	err = c.Singleton(func() (iam_in.CreateRIDTokenCommand, error) {
-		var rIDWriter iam_out.RIDTokenWriter
-		err := c.Resolve(&rIDWriter)
-		if err != nil {
-			slog.Error("Failed to resolve RIDWriter for OnboardRIDCommand.", "err", err)
-			return nil, err
-		}
-
-		var rIDReader iam_out.RIDTokenReader
-		err = c.Resolve(&rIDReader)
-		if err != nil {
-			slog.Error("Failed to resolve RIDReader for OnboardRIDCommand.", "err", err)
-			return nil, err
-		}
-
-		return iam_use_cases.NewCreateRIDTokenUseCase(rIDWriter, rIDReader), nil
-	})
-
-	if err != nil {
-		slog.Error("Failed to load iam_in.CreateRIDTokenCommand.")
 		panic(err)
 	}
 

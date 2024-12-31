@@ -1,6 +1,7 @@
 package iam_entities
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -30,6 +31,20 @@ func NewProfile(userID uuid.UUID, groupID uuid.UUID, ridSource RIDSourceKey, sou
 		CreatedAt:     time.Now(),
 		UpdatedAt:     time.Now(),
 	}
+}
+
+func (p *Profile) GetContext(ctx context.Context) context.Context {
+	ctx = context.WithValue(ctx, common.GroupIDKey, p.ResourceOwner.GroupID)
+	ctx = context.WithValue(ctx, common.UserIDKey, p.ResourceOwner.UserID)
+
+	return ctx
+}
+
+func (p *Profile) GetResourceOwner(ctx context.Context) common.ResourceOwner {
+	ctx = context.WithValue(ctx, common.GroupIDKey, p.ResourceOwner.GroupID)
+	ctx = context.WithValue(ctx, common.UserIDKey, p.ResourceOwner.UserID)
+
+	return common.GetResourceOwner(ctx)
 }
 
 // func (p *Profile) GetID() uuid.UUID {

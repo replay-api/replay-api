@@ -13,24 +13,26 @@ import (
 )
 
 type OnboardOpenIDUserUseCase struct {
-	UserReader    iam_out.UserReader
-	UserWriter    iam_out.UserWriter
-	ProfileReader iam_out.ProfileReader
-	ProfileWriter iam_out.ProfileWriter
-	GroupWriter   iam_out.GroupWriter
+	UserReader     iam_out.UserReader
+	UserWriter     iam_out.UserWriter
+	ProfileReader  iam_out.ProfileReader
+	ProfileWriter  iam_out.ProfileWriter
+	GroupWriter    iam_out.GroupWriter
+	CreateRIDToken iam_in.CreateRIDTokenCommand
 }
 
-func NewOnboardOpenIDUserUseCase(userReader iam_out.UserReader, userWriter iam_out.UserWriter, profileReader iam_out.ProfileReader, profileWriter iam_out.ProfileWriter, groupWriter iam_out.GroupWriter) *OnboardOpenIDUserUseCase {
+func NewOnboardOpenIDUserUseCase(userReader iam_out.UserReader, userWriter iam_out.UserWriter, profileReader iam_out.ProfileReader, profileWriter iam_out.ProfileWriter, groupWriter iam_out.GroupWriter, createRIDToken iam_in.CreateRIDTokenCommand) *OnboardOpenIDUserUseCase {
 	return &OnboardOpenIDUserUseCase{
-		UserReader:    userReader,
-		UserWriter:    userWriter,
-		ProfileReader: profileReader,
-		ProfileWriter: profileWriter,
-		GroupWriter:   groupWriter,
+		UserReader:     userReader,
+		UserWriter:     userWriter,
+		ProfileReader:  profileReader,
+		ProfileWriter:  profileWriter,
+		GroupWriter:    groupWriter,
+		CreateRIDToken: createRIDToken,
 	}
 }
 
-func (uc *OnboardOpenIDUserUseCase) Exec(ctx context.Context, cmd iam_in.OnboardOpenIDUserCommand) (*iam_entities.Profile, error) {
+func (uc *OnboardOpenIDUserUseCase) Exec(ctx context.Context, cmd iam_in.OnboardOpenIDUserCommand) (*iam_entities.Profile, *iam_entities.RIDToken, error) {
 	profileSourceKeySearch := uc.newSearchByProfileSourceKey(ctx, cmd.Source, cmd.Key)
 
 	profiles, err := uc.ProfileReader.Search(ctx, profileSourceKeySearch)
@@ -38,21 +40,31 @@ func (uc *OnboardOpenIDUserUseCase) Exec(ctx context.Context, cmd iam_in.Onboard
 	if err != nil {
 		slog.ErrorContext(ctx, "error getting user profile", "err",
 			err)
-		return nil, err
+		return nil, nil, err
 	}
 
+	slog.InfoContext(ctx, fmt.Sprintf("profileSourceKeySearch: %v, profiles %v, len: %d", profileSourceKeySearch, profiles, len(profiles)))
+
 	if len(profiles) > 0 {
-		return &profiles[0], nil
+		ridToken, err := uc.CreateRIDToken.Exec(ctx, profiles[0].GetResourceOwner(ctx), cmd.Source, common.ClientApplicationAudienceIDKey)
+
+		if err != nil {
+			slog.ErrorContext(ctx, "error creating rid token", "err",
+				err)
+			return nil, nil, err
+		}
+
+		return &profiles[0], ridToken, nil
 	}
 
 	rxn := common.GetResourceOwner(ctx)
 
 	if rxn.UserID == uuid.Nil {
-		return nil, fmt.Errorf("invalid resource owner: no user id")
+		return nil, nil, fmt.Errorf("invalid resource owner: no user id")
 	}
 
 	if rxn.GroupID == uuid.Nil {
-		return nil, fmt.Errorf("invalid resource owner: no group id")
+		return nil, nil, fmt.Errorf("invalid resource owner: no group id")
 	}
 
 	user := iam_entities.NewUser(rxn.UserID, cmd.Name, rxn)
@@ -64,7 +76,7 @@ func (uc *OnboardOpenIDUserUseCase) Exec(ctx context.Context, cmd iam_in.Onboard
 	if err != nil {
 		slog.ErrorContext(ctx, "error creating user", "err",
 			err)
-		return nil, err
+		return nil, nil, err
 	}
 
 	group := iam_entities.NewGroup(rxn.GroupID, "private:default", iam_entities.GroupTypeSystem, rxn)
@@ -76,7 +88,7 @@ func (uc *OnboardOpenIDUserUseCase) Exec(ctx context.Context, cmd iam_in.Onboard
 	if err != nil {
 		slog.ErrorContext(ctx, "error creating group", "err",
 			err)
-		return nil, err
+		return nil, nil, err
 	}
 
 	profile := iam_entities.NewProfile(user.ID, group.ID, cmd.Source, cmd.Key, nil, rxn)
@@ -86,10 +98,24 @@ func (uc *OnboardOpenIDUserUseCase) Exec(ctx context.Context, cmd iam_in.Onboard
 	if err != nil {
 		slog.ErrorContext(ctx, "error creating user profile", "err",
 			err)
-		return nil, err
+		return nil, nil, err
 	}
 
-	return profile, nil
+	ridToken, err := uc.CreateRIDToken.Exec(ctx, profiles[0].GetResourceOwner(ctx), cmd.Source, common.ClientApplicationAudienceIDKey)
+
+	if err != nil {
+		slog.ErrorContext(ctx, "error creating rid token", "err",
+			err)
+		return nil, nil, err
+	}
+
+	if ridToken == nil {
+		return nil, nil, fmt.Errorf("failed to create rid token: token is nil")
+	}
+
+	slog.InfoContext(ctx, "onboarded user", "user", user, "group", group, "profile", profile, "ridToken", ridToken)
+
+	return profile, ridToken, nil
 }
 
 func (uc *OnboardOpenIDUserUseCase) newSearchByProfileSourceKey(ctx context.Context, source iam_entities.RIDSourceKey, key string) common.Search {

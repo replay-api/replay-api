@@ -23,5 +23,5 @@ type OnboardOpenIDUserCommand struct {
 }
 
 type OnboardOpenIDUserCommandHandler interface {
-	Exec(ctx context.Context, cmd OnboardOpenIDUserCommand) (*iam_entities.Profile, error)
+	Exec(ctx context.Context, cmd OnboardOpenIDUserCommand) (*iam_entities.Profile, *iam_entities.RIDToken, error)
 }

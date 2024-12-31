@@ -92,6 +92,7 @@ func Test_SteamOnboarding_BadRequest(t *testing.T) {
 
 	expectStatus(t, http.StatusBadRequest, response)
 }
+
 func Test_GameEventSearch_SuccessEmpty(t *testing.T) {
 	tester := NewTester()
 
