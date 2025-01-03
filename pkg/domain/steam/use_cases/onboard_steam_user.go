@@ -108,6 +108,10 @@ func (usecase *OnboardSteamUserUseCase) Exec(ctx context.Context, steamUser *ste
 		return nil, nil, steam.NewSteamUserCreationError(fmt.Sprintf("unable to create steam user: %v", steamUser.ID))
 	}
 
+	// slog.ErrorContext(ctx, "steam user created", "steamUser", user, "ridToken", ridToken)
+
+	// panic(ridToken)
+
 	// TODO: update user profileMap steamID (futuramente conseguir unir as contas)
 
 	return user, ridToken, nil

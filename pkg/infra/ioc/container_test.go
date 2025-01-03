@@ -60,39 +60,39 @@ func TestResolveOnboardSteamUserCommand(t *testing.T) {
 	steamUser, token, err := command.Exec(ctx, steamUser)
 
 	if err != nil {
-		t.Fatalf("failed to validate OnboardSteamUserCommand: %v", err)
+		t.Fatalf("failed to execute OnboardSteamUserCommand: %v", err)
 	}
 
 	if token == nil {
-		t.Fatalf("failed to validate OnboardSteamUserCommand: token is nil")
+		t.Fatalf("failed to execute OnboardSteamUserCommand: token is nil")
 	}
 
 	if token.ID == uuid.Nil {
-		t.Fatalf("failed to validate OnboardSteamUserCommand: token ID is nil")
+		t.Fatalf("failed to execute OnboardSteamUserCommand: token ID is nil")
 	}
 
 	if token.ResourceOwner.UserID == uuid.Nil {
-		t.Fatalf("failed to validate OnboardSteamUserCommand: token ResourceOwner UserID is nil")
+		t.Fatalf("failed to execute OnboardSteamUserCommand: token ResourceOwner UserID is nil")
 	}
 
 	if token.ResourceOwner.GroupID == uuid.Nil {
-		t.Fatalf("failed to validate OnboardSteamUserCommand: token ResourceOwner GroupID is nil")
+		t.Fatalf("failed to execute OnboardSteamUserCommand: token ResourceOwner GroupID is nil")
 	}
 
 	if token.ResourceOwner.ClientID == uuid.Nil {
-		t.Fatalf("failed to validate OnboardSteamUserCommand: token ResourceOwner ClientID is nil")
+		t.Fatalf("failed to execute OnboardSteamUserCommand: token ResourceOwner ClientID is nil")
 	}
 
 	if token.ResourceOwner.TenantID == uuid.Nil {
-		t.Fatalf("failed to validate OnboardSteamUserCommand: token ResourceOwner TenantID is nil")
+		t.Fatalf("failed to execute OnboardSteamUserCommand: token ResourceOwner TenantID is nil")
 	}
 
 	if token.CreatedAt.IsZero() {
-		t.Fatalf("failed to validate OnboardSteamUserCommand: token CreatedAt is zero")
+		t.Fatalf("failed to execute OnboardSteamUserCommand: token CreatedAt is zero")
 	}
 
 	if token.IntendedAudience == common.UserAudienceIDKey && token.ResourceOwner.UserID != steamUser.ResourceOwner.UserID {
-		t.Fatalf("failed to validate OnboardSteamUserCommand: token ResourceOwner UserID does not match steamUser ResourceOwner UserID")
+		t.Fatalf("failed to execute OnboardSteamUserCommand: token ResourceOwner UserID does not match steamUser ResourceOwner UserID")
 	}
 
 }

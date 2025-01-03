@@ -68,7 +68,7 @@ func (c *SteamController) OnboardSteamUser(apiContext context.Context) http.Hand
 		}
 
 		if ridToken == nil {
-			slog.ErrorContext(r.Context(), "error onboarding steam user", "err", "ridToken is nil", "steamUserParams.Steam.ID", steamUserParams.Steam.ID, "steamUserParams.VHash", steamUserParams.VHash)
+			slog.ErrorContext(r.Context(), "error onboarding steam user", "err", "controller: ridToken is nil", "steamUserParams.Steam.ID", steamUserParams.Steam.ID, "steamUserParams.VHash", steamUserParams.VHash)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}

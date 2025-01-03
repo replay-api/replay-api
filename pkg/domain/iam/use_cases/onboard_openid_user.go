@@ -12,6 +12,11 @@ import (
 	iam_out "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/out"
 )
 
+const (
+	DefaultUserGroupName = "private:default"
+	DefaultTokenAudience = common.UserAudienceIDKey
+)
+
 type OnboardOpenIDUserUseCase struct {
 	UserReader     iam_out.UserReader
 	UserWriter     iam_out.UserWriter
@@ -46,7 +51,8 @@ func (uc *OnboardOpenIDUserUseCase) Exec(ctx context.Context, cmd iam_in.Onboard
 	slog.InfoContext(ctx, fmt.Sprintf("profileSourceKeySearch: %v, profiles %v, len: %d", profileSourceKeySearch, profiles, len(profiles)))
 
 	if len(profiles) > 0 {
-		ridToken, err := uc.CreateRIDToken.Exec(ctx, profiles[0].GetResourceOwner(ctx), cmd.Source, common.ClientApplicationAudienceIDKey)
+		// TODO: check if profile, user and group is active, try reuse token
+		ridToken, err := uc.CreateRIDToken.Exec(ctx, profiles[0].GetResourceOwner(ctx), cmd.Source, DefaultTokenAudience) // ??? Or group Audience?
 
 		if err != nil {
 			slog.ErrorContext(ctx, "error creating rid token", "err",
@@ -79,7 +85,7 @@ func (uc *OnboardOpenIDUserUseCase) Exec(ctx context.Context, cmd iam_in.Onboard
 		return nil, nil, err
 	}
 
-	group := iam_entities.NewGroup(rxn.GroupID, "private:default", iam_entities.GroupTypeSystem, rxn)
+	group := iam_entities.NewGroup(rxn.GroupID, DefaultUserGroupName, iam_entities.GroupTypeSystem, rxn)
 
 	rxn.GroupID = group.ID
 
@@ -101,7 +107,7 @@ func (uc *OnboardOpenIDUserUseCase) Exec(ctx context.Context, cmd iam_in.Onboard
 		return nil, nil, err
 	}
 
-	ridToken, err := uc.CreateRIDToken.Exec(ctx, profiles[0].GetResourceOwner(ctx), cmd.Source, common.ClientApplicationAudienceIDKey)
+	ridToken, err := uc.CreateRIDToken.Exec(ctx, profile.GetResourceOwner(ctx), cmd.Source, DefaultTokenAudience)
 
 	if err != nil {
 		slog.ErrorContext(ctx, "error creating rid token", "err",
@@ -112,8 +118,6 @@ func (uc *OnboardOpenIDUserUseCase) Exec(ctx context.Context, cmd iam_in.Onboard
 	if ridToken == nil {
 		return nil, nil, fmt.Errorf("failed to create rid token: token is nil")
 	}
-
-	slog.InfoContext(ctx, "onboarded user", "user", user, "group", group, "profile", profile, "ridToken", ridToken)
 
 	return profile, ridToken, nil
 }
