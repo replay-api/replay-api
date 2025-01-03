@@ -53,7 +53,9 @@ func TestResolveOnboardSteamUserCommand(t *testing.T) {
 		VHash: "4ef1c47e874ec4425c5786cddadd9adfc908a530ada95a602742f49c32430185",
 		Steam: steam_entity.Steam{
 			ID: "76561198169377459",
-		}}
+		},
+		ResourceOwner: common.GetResourceOwner(ctx),
+	}
 	err = command.Validate(ctx, steamUser)
 
 	if err != nil {
