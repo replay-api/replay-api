@@ -41,26 +41,65 @@ func TestResolveOnboardSteamUserCommand(t *testing.T) {
 		t.Fatalf("failed to resolve OnboardSteamUserCommand: %v", err)
 	}
 
+	groupID := uuid.New()
+	userID := uuid.New()
+
 	ctx := context.WithValue(context.Background(), common.TenantIDKey, common.TeamPROTenantID)
 	ctx = context.WithValue(ctx, common.ClientIDKey, common.TeamPROAppClientID)
-	ctx = context.WithValue(ctx, common.UserIDKey, uuid.New())
+	ctx = context.WithValue(ctx, common.GroupIDKey, groupID)
+	ctx = context.WithValue(ctx, common.UserIDKey, userID)
 
-	steamUser := &steam_entity.SteamUser{ID: uuid.New(),
+	steamUser := &steam_entity.SteamUser{ID: userID,
 		VHash: "4ef1c47e874ec4425c5786cddadd9adfc908a530ada95a602742f49c32430185",
 		Steam: steam_entity.Steam{
 			ID: "76561198169377459",
-		}}
+		},
+		ResourceOwner: common.GetResourceOwner(ctx),
+	}
 	err = command.Validate(ctx, steamUser)
 
 	if err != nil {
 		t.Fatalf("failed to validate OnboardSteamUserCommand: %v", err)
 	}
 
-	_, err = command.Exec(ctx, steamUser)
+	steamUser, token, err := command.Exec(ctx, steamUser)
 
 	if err != nil {
-		t.Fatalf("failed to validate OnboardSteamUserCommand: %v", err)
+		t.Fatalf("failed to execute OnboardSteamUserCommand: %v", err)
 	}
+
+	if token == nil {
+		t.Fatalf("failed to execute OnboardSteamUserCommand: token is nil")
+	}
+
+	if token.ID == uuid.Nil {
+		t.Fatalf("failed to execute OnboardSteamUserCommand: token ID is nil")
+	}
+
+	if token.ResourceOwner.UserID == uuid.Nil {
+		t.Fatalf("failed to execute OnboardSteamUserCommand: token ResourceOwner UserID is nil")
+	}
+
+	if token.ResourceOwner.GroupID == uuid.Nil {
+		t.Fatalf("failed to execute OnboardSteamUserCommand: token ResourceOwner GroupID is nil")
+	}
+
+	if token.ResourceOwner.ClientID == uuid.Nil {
+		t.Fatalf("failed to execute OnboardSteamUserCommand: token ResourceOwner ClientID is nil")
+	}
+
+	if token.ResourceOwner.TenantID == uuid.Nil {
+		t.Fatalf("failed to execute OnboardSteamUserCommand: token ResourceOwner TenantID is nil")
+	}
+
+	if token.CreatedAt.IsZero() {
+		t.Fatalf("failed to execute OnboardSteamUserCommand: token CreatedAt is zero")
+	}
+
+	if token.IntendedAudience == common.UserAudienceIDKey && token.ResourceOwner.UserID != steamUser.ResourceOwner.UserID {
+		t.Fatalf("failed to execute OnboardSteamUserCommand: token ResourceOwner UserID does not match steamUser ResourceOwner UserID")
+	}
+
 }
 
 func TestResolverSteamUserReader(t *testing.T) {

@@ -1,4 +1,4 @@
-package use_cases
+package iam_use_cases
 
 import (
 	"context"

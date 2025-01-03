@@ -59,7 +59,7 @@ func (c *SteamController) OnboardSteamUser(apiContext context.Context) http.Hand
 			return
 		}
 
-		steamUser, err := c.OnboardSteamUserCommand.Exec(r.Context(), &steamUserParams)
+		steamUser, ridToken, err := c.OnboardSteamUserCommand.Exec(r.Context(), &steamUserParams)
 
 		if err != nil {
 			slog.ErrorContext(r.Context(), "error onboarding steam user", "err", err, "steamUserParams.Steam.ID", steamUserParams.Steam.ID, "steamUserParams.VHash", steamUserParams.VHash)
@@ -67,7 +67,15 @@ func (c *SteamController) OnboardSteamUser(apiContext context.Context) http.Hand
 			return
 		}
 
+		if ridToken == nil {
+			slog.ErrorContext(r.Context(), "error onboarding steam user", "err", "controller: ridToken is nil", "steamUserParams.Steam.ID", steamUserParams.Steam.ID, "steamUserParams.VHash", steamUserParams.VHash)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+
 		w.WriteHeader(http.StatusCreated)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("x-resource-owner-id", ridToken.GetID().String())
 		json.NewEncoder(w).Encode(steamUser)
 	}
 }

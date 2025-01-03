@@ -102,7 +102,6 @@ func (usecase *ProcessReplayFileUseCase) Exec(ctx context.Context, replayFileID 
 	}
 
 	for resourceKey, entities := range entitiesMap {
-		// go func() {
 		switch resourceKey {
 		case common.ResourceTypePlayer:
 			err = usecase.PlayerMetadataWriter.CreateMany(ctx, entities)
@@ -120,7 +119,6 @@ func (usecase *ProcessReplayFileUseCase) Exec(ctx context.Context, replayFileID 
 				return nil, err
 			}
 		}
-		// }()
 	}
 
 	err = usecase.EventWriter.CreateMany(ctx, gameEvents)

@@ -746,7 +746,7 @@ func (m *ResourceContextMiddleware) Handler(next http.Handler) http.Handler <spa
                 ctx = context.WithValue(ctx, common.GroupIDKey, uuid.New())
                 ctx = context.WithValue(ctx, common.UserIDKey, uuid.New())
 
-                rid := r.Header.Get("x-reso-id")
+                rid := r.Header.Get("x-resource-owner-id")
                 if rid == "" </span><span class="cov10" title="2">{
                         next.ServeHTTP(w, r.WithContext(ctx))
                         return
@@ -754,7 +754,7 @@ func (m *ResourceContextMiddleware) Handler(next http.Handler) http.Handler <spa
 
                 <span class="cov0" title="0">reso, err := m.VerifyRID.Exec(ctx, uuid.MustParse(rid))
                 if err != nil </span><span class="cov0" title="0">{
-                        slog.ErrorContext(ctx, "unable to verify rid", "x-reso-id", rid)
+                        slog.ErrorContext(ctx, "unable to verify rid", "x-resource-owner-id", rid)
                         http.Error(w, "unknown", http.StatusUnauthorized)
                 }</span>
 

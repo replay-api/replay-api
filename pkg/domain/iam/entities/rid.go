@@ -1,4 +1,4 @@
-package entities
+package iam_entities
 
 import (
 	"time"
