@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/google/uuid"
 	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
 	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
 	iam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/in"
@@ -65,13 +64,12 @@ func (usecase *OnboardSteamUserUseCase) Exec(ctx context.Context, steamUser *ste
 
 		// TODO: update with new data (!)
 
-		return &steamUserResult[0], nil, nil
-	}
+		// return &steamUserResult[0], nil, nil
 
-	// TODO: create consent request
+		steamUser = &steamUserResult[0]
 
-	if steamUser.ID == uuid.Nil {
-		steamUser.ID = uuid.New()
+		ctx = context.WithValue(ctx, common.UserIDKey, steamUser.ResourceOwner.UserID)
+		ctx = context.WithValue(ctx, common.GroupIDKey, steamUser.ResourceOwner.GroupID)
 	}
 
 	profile, ridToken, err := usecase.OnboardOpenIDUser.Exec(ctx, iam_in.OnboardOpenIDUserCommand{
@@ -91,26 +89,26 @@ func (usecase *OnboardSteamUserUseCase) Exec(ctx context.Context, steamUser *ste
 	}
 
 	ctx = context.WithValue(ctx, common.UserIDKey, profile.ResourceOwner.UserID)
-	ctx = context.WithValue(ctx, common.UserIDKey, profile.ResourceOwner.GroupID)
+	ctx = context.WithValue(ctx, common.GroupIDKey, profile.ResourceOwner.GroupID)
 
 	steamUser.ResourceOwner = common.GetResourceOwner(ctx)
 
-	user, err := usecase.SteamUserWriter.Create(ctx, steamUser)
+	user := steamUser
 
-	if err != nil {
-		slog.ErrorContext(ctx, "error creating steam user", "err", err)
-		return nil, nil, steam.NewSteamUserCreationError(fmt.Sprintf("error creating steam user: %v", steamUser.ID))
+	if len(steamUserResult) == 0 {
+		user, err = usecase.SteamUserWriter.Create(ctx, steamUser)
+
+		if err != nil {
+			slog.ErrorContext(ctx, "error creating steam user: error", "err", err)
+			return nil, nil, steam.NewSteamUserCreationError(fmt.Sprintf("error creating steam user: %v", steamUser.ID))
+		}
+
+		if user == nil {
+			slog.ErrorContext(ctx, "error creating steam user: user is nil", "err",
+				err)
+			return nil, nil, steam.NewSteamUserCreationError(fmt.Sprintf("unable to create steam user: %v", steamUser.ID))
+		}
 	}
-
-	if user == nil {
-		slog.ErrorContext(ctx, "error creating steam user", "err",
-			err)
-		return nil, nil, steam.NewSteamUserCreationError(fmt.Sprintf("unable to create steam user: %v", steamUser.ID))
-	}
-
-	// slog.ErrorContext(ctx, "steam user created", "steamUser", user, "ridToken", ridToken)
-
-	// panic(ridToken)
 
 	// TODO: update user profileMap steamID (futuramente conseguir unir as contas)
 
