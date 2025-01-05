@@ -13,6 +13,7 @@ import (
 	"github.com/psavelis/team-pro/replay-api/cmd/rest-api/routing"
 	ioc "github.com/psavelis/team-pro/replay-api/pkg/infra/ioc"
 
+	google_out "github.com/psavelis/team-pro/replay-api/pkg/domain/google/ports/out"
 	steam_out "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/ports/out"
 )
 
@@ -123,6 +124,32 @@ func Test_SteamOnboarding_Success(t *testing.T) {
 	reader := strings.NewReader(steamUser)
 
 	req, _ := http.NewRequest("POST", routing.OnboardSteam, reader)
+
+	response := tester.Exec(req)
+
+	t.Logf("response: %v", response)
+
+	expectStatus(t, http.StatusCreated, response)
+}
+
+func Test_GoogleOnboarding_Success(t *testing.T) {
+	tester := NewTester()
+
+	var vHashWriter google_out.VHashWriter
+	err := tester.Container.Resolve(&vHashWriter)
+
+	if err != nil {
+		t.Errorf("fail to resolve google_out.VHashWriter %v", err)
+	}
+
+	mockGoogleEmail := "testiwewkksdj@gmail.com"
+
+	vhash := vHashWriter.CreateVHash(context.Background(), mockGoogleEmail)
+
+	googleUser := fmt.Sprintf(`{"email": "%s", "v_hash": "%s"}`, mockGoogleEmail, vhash)
+	reader := strings.NewReader(googleUser)
+
+	req, _ := http.NewRequest("POST", routing.OnboardGoogle, reader)
 
 	response := tester.Exec(req)
 

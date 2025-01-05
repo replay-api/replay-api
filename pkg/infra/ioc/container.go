@@ -27,6 +27,9 @@ import (
 
 	// ports
 	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
+	google_in "github.com/psavelis/team-pro/replay-api/pkg/domain/google/ports/in"
+	google_out "github.com/psavelis/team-pro/replay-api/pkg/domain/google/ports/out"
+	google_use_cases "github.com/psavelis/team-pro/replay-api/pkg/domain/google/use_cases"
 	metadata "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/services/metadata"
 	squad_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/entities"
 	squad_in "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/in"
@@ -39,12 +42,12 @@ import (
 	steam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/ports/in"
 	steam_out "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/ports/out"
 
-	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
 	iam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/in"
 	iam_out "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/out"
 
 	// domain
-	iam_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
+	google_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/google/entities"
+	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
 	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
 	steam_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/entities"
 
@@ -431,6 +434,43 @@ func (b *ContainerBuilder) WithInboundPorts() *ContainerBuilder {
 
 	if err != nil {
 		slog.Error("Failed to load OnboardSteamUserCommand.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (google_in.OnboardGoogleUserCommand, error) {
+		var googleUserWriter google_out.GoogleUserWriter
+		err := c.Resolve(&googleUserWriter)
+		if err != nil {
+			slog.Error("Failed to resolve GoogleUserWriter for OnboardGoogleUserCommand.", "err", err)
+			return nil, err
+		}
+
+		var googleUserReader google_out.GoogleUserReader
+		err = c.Resolve(&googleUserReader)
+		if err != nil {
+			slog.Error("Failed to resolve GoogleUserReader for OnboardGoogleUserCommand.", "err", err)
+			return nil, err
+		}
+
+		var vHashWriter google_out.VHashWriter
+		err = c.Resolve(&vHashWriter)
+		if err != nil {
+			slog.Error("Failed to resolve VHashWriter for OnboardGoogleUserCommand.", "err", err)
+			return nil, err
+		}
+
+		var onboardOpenIDUser iam_in.OnboardOpenIDUserCommandHandler
+		err = c.Resolve(&onboardOpenIDUser)
+		if err != nil {
+			slog.Error("Failed to resolve OnboardOpenIDUserCommandHandler for OnboardGoogleUserCommand.", "err", err)
+			return nil, err
+		}
+
+		return google_use_cases.NewOnboardGoogleUserUseCase(googleUserWriter, googleUserReader, vHashWriter, onboardOpenIDUser), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load OnboardGoogleUserCommand.", "err", err)
 		panic(err)
 	}
 
@@ -990,6 +1030,84 @@ func InjectMongoDB(c container.Container) error {
 
 	// end-steam
 
+	// GOOGLE repo
+	err = c.Singleton(func() (*db.GoogleUserRepository, error) {
+		var client *mongo.Client
+		err := c.Resolve(&client)
+		if err != nil {
+			slog.Error("Failed to resolve mongo.Client for NamedSingleton GoogleUserRepository as generic MongoDBRepository.", "err", err)
+			return nil, err
+		}
+
+		var config common.Config
+
+		err = c.Resolve(&config)
+		if err != nil {
+			slog.Error("Failed to resolve config for db.GoogleUserRepository.", "err", err)
+			return nil, err
+		}
+
+		repo := db.NewGoogleUserMongoDBRepository(client, config.MongoDB.DBName, google_entities.GoogleUser{}, "steam_users")
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load NamedSingleton GoogleUserRepository as generic MongoDBRepository.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (google_out.GoogleUserWriter, error) {
+		var repo *db.GoogleUserRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve GoogleUserRepository for google_out.GoogleUserWriter.", "err", err)
+			return nil, err
+		}
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load GoogleUserWriter.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (google_out.GoogleUserReader, error) {
+		var repo *db.GoogleUserRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve GoogleUserRepository for google_out.GoogleUserReader.", "err", err)
+			return nil, err
+		}
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load GoogleUserReader.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (google_out.VHashWriter, error) {
+		var config common.Config
+
+		err := c.Resolve(&config)
+		if err != nil {
+			slog.Error("Failed to resolve config for google_out.VHashWriter.", "err", err)
+			return nil, err
+		}
+
+		return encryption.NewSHA256VHasherAdapter(config.Auth.SteamConfig.VHashSource), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load VHashWriter.", "err", err)
+		panic(err)
+	}
+
+	// end-google
+
 	// rid
 	err = c.Singleton(func() (*db.RIDTokenRepository, error) {
 		var client *mongo.Client
@@ -1007,7 +1125,7 @@ func InjectMongoDB(c container.Container) error {
 			return nil, err
 		}
 
-		repo := db.NewRIDTokenRepository(client, config.MongoDB.DBName, iam_entity.RIDToken{}, "rid")
+		repo := db.NewRIDTokenRepository(client, config.MongoDB.DBName, iam_entities.RIDToken{}, "rid")
 
 		return repo, nil
 	})

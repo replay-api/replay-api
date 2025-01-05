@@ -17,14 +17,15 @@ const (
 	Health string = "/health"
 	CI     string = "/coverage"
 
-	Match        string = "/games/{game_id}/match"
-	MatchDetail  string = "/games/{game_id}/match/{match_id}"
-	MatchEvent   string = "/games/{game_id}/match/{match_id}/events"
-	GameEvents   string = "/games/{game_id}/events"
-	Replay       string = "/games/{game_id}/replays"
-	ReplayDetail string = "/games/{game_id}/replay/{replay_file_id}"
-	Onboard      string = "/onboarding"
-	OnboardSteam string = "/onboarding/steam"
+	Match         string = "/games/{game_id}/match"
+	MatchDetail   string = "/games/{game_id}/match/{match_id}"
+	MatchEvent    string = "/games/{game_id}/match/{match_id}/events"
+	GameEvents    string = "/games/{game_id}/events"
+	Replay        string = "/games/{game_id}/replays"
+	ReplayDetail  string = "/games/{game_id}/replay/{replay_file_id}"
+	Onboard       string = "/onboarding"
+	OnboardSteam  string = "/onboarding/steam"
+	OnboardGoogle string = "/onboarding/google"
 
 	Search string = "/search/{query:.*}"
 )
@@ -37,6 +38,7 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	fileController := cmd_controllers.NewFileController(container)
 	healthController := controllers.NewHealthController(container)
 	steamController := controllers.NewSteamController(&container)
+	googleController := controllers.NewGoogleController(&container)
 	matchController := query_controllers.NewMatchQueryController(container)
 	eventController := query_controllers.NewEventQueryController(container)
 
@@ -67,6 +69,8 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 
 	// onboarding/steam
 	r.HandleFunc(OnboardSteam, steamController.OnboardSteamUser(ctx)).Methods("POST")
+
+	r.HandleFunc(OnboardGoogle, googleController.OnboardGoogleUser(ctx)).Methods("POST")
 
 	// Matches API
 	// r.HandleFunc(MatchEvent, metadataController.GetEventsByGameIDAndMatchID(ctx)).Methods("GET") // DEPRECATED
