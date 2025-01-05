@@ -1047,7 +1047,7 @@ func InjectMongoDB(c container.Container) error {
 			return nil, err
 		}
 
-		repo := db.NewGoogleUserMongoDBRepository(client, config.MongoDB.DBName, google_entities.GoogleUser{}, "steam_users")
+		repo := db.NewGoogleUserMongoDBRepository(client, config.MongoDB.DBName, google_entities.GoogleUser{}, "google_users")
 
 		return repo, nil
 	})
