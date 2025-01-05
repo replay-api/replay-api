@@ -46,7 +46,7 @@ func (c *GoogleController) OnboardGoogleUser(apiContext context.Context) http.Ha
 		// slog.InfoContext(r.Context(), "GoogleUser Received =>", "google_entity.GoogleUser", googleUserParams)
 
 		if err != nil {
-			slog.ErrorContext(r.Context(), "error decoding steam user from request", "err", err, "request.body", r.Body)
+			slog.ErrorContext(r.Context(), "error decoding google user from request", "err", err, "request.body", r.Body)
 			http.Error(w, "Bad Request", http.StatusBadRequest)
 			return
 		}
@@ -54,21 +54,21 @@ func (c *GoogleController) OnboardGoogleUser(apiContext context.Context) http.Ha
 		err = c.OnboardGoogleUserCommand.Validate(r.Context(), &googleUserParams)
 
 		if err != nil {
-			slog.ErrorContext(r.Context(), "error validating steam user", "err", err, "googleUserParams", googleUserParams)
+			slog.ErrorContext(r.Context(), "error validating google user", "err", err, "googleUserParams", googleUserParams)
 			http.Error(w, "Bad Request", http.StatusBadRequest)
 			return
 		}
 
-		steamUser, ridToken, err := c.OnboardGoogleUserCommand.Exec(r.Context(), &googleUserParams)
+		googleUser, ridToken, err := c.OnboardGoogleUserCommand.Exec(r.Context(), &googleUserParams)
 
 		if err != nil {
-			slog.ErrorContext(r.Context(), "error onboarding steam user", "err", err, "googleUserParams.Email", googleUserParams.Email, "googleUserParams.VHash", googleUserParams.VHash)
+			slog.ErrorContext(r.Context(), "error onboarding google user", "err", err, "googleUserParams.Email", googleUserParams.Email, "googleUserParams.VHash", googleUserParams.VHash)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
 
 		if ridToken == nil {
-			slog.ErrorContext(r.Context(), "error onboarding steam user", "err", "controller: ridToken is nil", "googleUserParams.Email", googleUserParams.Email, "googleUserParams.VHash", googleUserParams.VHash)
+			slog.ErrorContext(r.Context(), "error onboarding google user", "err", "controller: ridToken is nil", "googleUserParams.Email", googleUserParams.Email, "googleUserParams.VHash", googleUserParams.VHash)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
@@ -76,6 +76,6 @@ func (c *GoogleController) OnboardGoogleUser(apiContext context.Context) http.Ha
 		w.WriteHeader(http.StatusCreated)
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("x-resource-owner-id", ridToken.GetID().String())
-		json.NewEncoder(w).Encode(steamUser)
+		json.NewEncoder(w).Encode(googleUser)
 	}
 }
