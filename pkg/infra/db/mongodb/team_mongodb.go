@@ -50,7 +50,7 @@ func NewTeamRepository(client *mongo.Client, dbName string, entityType replay_en
 		"ResourceOwner.UserID":   "resource_owner.user_id",
 		"ResourceOwner.GroupID":  "resource_owner.group_id",
 		"ResourceOwner.ClientID": "resource_owner.client_id",
-		"CreatedAt":              "create_at",
+		"CreatedAt":              "created_at",
 		"UpdatedAt":              "updated_at",
 	})
 

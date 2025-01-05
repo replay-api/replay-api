@@ -1,4 +1,4 @@
-package entities
+package iam_entities
 
 import (
 	"time"
@@ -20,6 +20,7 @@ type RIDToken struct {
 	Source           RIDSourceKey               `json:"-" bson:"source"`
 	ResourceOwner    common.ResourceOwner       `json:"-" bson:"resource_owner"`
 	IntendedAudience common.IntendedAudienceKey `json:"-" bson:"intended_audience"`
+	GrantType        string                     `json:"-" bson:"grant_type"`
 	ExpiresAt        time.Time                  `json:"-" bson:"expires_at"`
 	CreatedAt        time.Time                  `json:"-" bson:"created_at"`
 	UpdatedAt        time.Time                  `json:"-" bson:"updated_at"`

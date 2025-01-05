@@ -108,7 +108,8 @@ func getClient() (*mongo.Client, error) {
 	var err error
 	if clientInstance == nil {
 		clientOnce.Do(func() {
-			opt := options.Client().ApplyURI("mongodb://127.0.0.1:37019/replay") // review: refactor (dry/config)
+			opt := options.Client().ApplyURI("mongodb://127.0.0.1:37019/replay")
+			// review: refactor (dry/config)
 			clientInstance, err = mongo.Connect(context.Background(), opt)
 		})
 	}

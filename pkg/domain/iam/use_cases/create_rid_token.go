@@ -1,4 +1,4 @@
-package use_cases
+package iam_use_cases
 
 import (
 	"context"
@@ -30,12 +30,21 @@ func (usecase *CreateRIDTokenUseCase) Exec(ctx context.Context, reso common.Reso
 
 	// TODO: verificar existencia, consistir usuario
 
+	var grantType string
+	switch aud {
+	case common.UserAudienceIDKey:
+		grantType = "authorization_code"
+	case common.ClientApplicationAudienceIDKey:
+		grantType = "client_credentials"
+	}
+
 	token, err := usecase.RIDWriter.Create(ctx, &iam_entity.RIDToken{
 		ID:               uuid.New(),
 		Key:              uuid.New(),
 		Source:           source,
 		ResourceOwner:    reso,
 		IntendedAudience: aud,
+		GrantType:        grantType,
 		ExpiresAt:        expiresAt,
 		CreatedAt:        time.Now(),
 	})

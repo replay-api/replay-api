@@ -310,7 +310,7 @@ func (r *MongoDBRepository[T]) setMatchValues(queryCtx context.Context, params [
 
 			innerAggregate := bson.M{}
 			r.setMatchValues(queryCtx, v.Params, &innerAggregate)
-			(*aggregate)["$and"] = append((*aggregate)["$and"].([]bson.M), innerAggregate)
+			(*aggregate)["$and"] = append((*aggregate)["$and"].([]bson.M), innerAggregate) // TODO: (review) default to $and for now
 		}
 	}
 }
@@ -436,6 +436,7 @@ func (r *MongoDBRepository[T]) EnsureTenancy(queryCtx context.Context, agg bson.
 	}
 
 	agg["resource_owner.tenant_id"] = tenantID
+	slog.InfoContext(queryCtx, "TENANCY.RequestSource: tenant_id", "tenant_id", tenantID)
 
 	switch s.VisibilityOptions.IntendedAudience {
 	case common.ClientApplicationAudienceIDKey:
@@ -448,9 +449,11 @@ func (r *MongoDBRepository[T]) EnsureTenancy(queryCtx context.Context, agg bson.
 		return ensureUserID(queryCtx, agg, s)
 
 	case common.TenantAudienceIDKey:
+		slog.WarnContext(queryCtx, "TENANCY.Admin: tenant audience is not allowed", "intendedAudience", s.VisibilityOptions.IntendedAudience)
 		return agg, fmt.Errorf("TENANCY.Admin: tenant audience is not allowed")
 
 	default:
+		slog.WarnContext(queryCtx, "TENANCY.Unknown: intended audience is invalid", "intendedAudience", s.VisibilityOptions.IntendedAudience)
 		return agg, fmt.Errorf("TENANCY.Unknown: intended audience %s is invalid in `common.Search`: %#v", s.VisibilityOptions.IntendedAudience, s)
 	}
 }
@@ -470,6 +473,9 @@ func ensureClientID(ctx context.Context, agg bson.M, s common.Search) (bson.M, e
 	}
 
 	agg["resource_owner.client_id"] = clientID
+
+	slog.InfoContext(ctx, "TENANCY.ApplicationLevel: client_id", "client_id", clientID)
+
 	return agg, nil
 }
 
@@ -488,6 +494,8 @@ func ensureGroupID(ctx context.Context, agg bson.M, s common.Search) (bson.M, er
 	}
 
 	agg["resource_owner.group_id"] = groupID
+	slog.InfoContext(ctx, "TENANCY.GroupLevel: group_id", "group_id", groupID)
+
 	return agg, nil
 }
 
@@ -506,6 +514,9 @@ func ensureUserID(ctx context.Context, agg bson.M, s common.Search) (bson.M, err
 	}
 
 	agg["resource_owner.user_id"] = userID
+
+	slog.InfoContext(ctx, "TENANCY.EndUser: user_id", "user_id", userID)
+
 	return agg, nil
 }
 
