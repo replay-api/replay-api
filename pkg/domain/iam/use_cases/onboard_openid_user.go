@@ -40,6 +40,8 @@ func NewOnboardOpenIDUserUseCase(userReader iam_out.UserReader, userWriter iam_o
 func (uc *OnboardOpenIDUserUseCase) Exec(ctx context.Context, cmd iam_in.OnboardOpenIDUserCommand) (*iam_entities.Profile, *iam_entities.RIDToken, error) {
 	profileSourceKeySearch := uc.newSearchByProfileSourceKey(ctx, cmd.Source, cmd.Key)
 
+	slog.InfoContext(ctx, fmt.Sprintf("profileSourceKeySearch: %v", profileSourceKeySearch))
+
 	profiles, err := uc.ProfileReader.Search(ctx, profileSourceKeySearch)
 
 	if err != nil {
@@ -52,6 +54,7 @@ func (uc *OnboardOpenIDUserUseCase) Exec(ctx context.Context, cmd iam_in.Onboard
 
 	if len(profiles) > 0 {
 		// TODO: check if profile, user and group is active, try reuse token
+		slog.InfoContext(ctx, fmt.Sprintf("attempt to reuse user profile and create RID Token: %v", profiles[0]))
 		ridToken, err := uc.CreateRIDToken.Exec(ctx, profiles[0].GetResourceOwner(ctx), cmd.Source, DefaultTokenAudience) // ??? Or group Audience?
 
 		if err != nil {
@@ -74,6 +77,8 @@ func (uc *OnboardOpenIDUserUseCase) Exec(ctx context.Context, cmd iam_in.Onboard
 	}
 
 	user := iam_entities.NewUser(rxn.UserID, cmd.Name, rxn)
+
+	slog.InfoContext(ctx, fmt.Sprintf("attempt to create user: %v", user))
 
 	user, err = uc.UserWriter.Create(ctx, user)
 
@@ -127,7 +132,7 @@ func (uc *OnboardOpenIDUserUseCase) newSearchByProfileSourceKey(ctx context.Cont
 		{
 			Params: []common.SearchParameter{
 				{
-					Operator: common.EqualsOperator,
+					// Operator: common.EqualsOperator,
 					ValueParams: []common.SearchableValue{
 						{
 							Field: "RIDSource",

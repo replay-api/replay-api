@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/google/uuid"
 	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
 	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
 	iam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/in"
@@ -93,17 +94,20 @@ func (usecase *OnboardSteamUserUseCase) Exec(ctx context.Context, steamUser *ste
 
 	steamUser.ResourceOwner = common.GetResourceOwner(ctx)
 
-	user := steamUser
+	if steamUser.ID == uuid.Nil {
+		steamUser.ID = profile.ResourceOwner.UserID
+	}
 
 	if len(steamUserResult) == 0 {
-		user, err = usecase.SteamUserWriter.Create(ctx, steamUser)
+		slog.InfoContext(ctx, fmt.Sprintf("attempt to create steam user: %v", steamUser))
+		steamUser, err = usecase.SteamUserWriter.Create(ctx, steamUser)
 
 		if err != nil {
 			slog.ErrorContext(ctx, "error creating steam user: error", "err", err)
 			return nil, nil, steam.NewSteamUserCreationError(fmt.Sprintf("error creating steam user: %v", steamUser.ID))
 		}
 
-		if user == nil {
+		if steamUser == nil {
 			slog.ErrorContext(ctx, "error creating steam user: user is nil", "err",
 				err)
 			return nil, nil, steam.NewSteamUserCreationError(fmt.Sprintf("unable to create steam user: %v", steamUser.ID))
@@ -112,7 +116,7 @@ func (usecase *OnboardSteamUserUseCase) Exec(ctx context.Context, steamUser *ste
 
 	// TODO: update user profileMap steamID (futuramente conseguir unir as contas)
 
-	return user, ridToken, nil
+	return steamUser, ridToken, nil
 }
 
 func NewOnboardSteamUserUseCase(steamUserWriter steam_out.SteamUserWriter, steamUserReader steam_out.SteamUserReader, vHashWriter steam_out.VHashWriter, onboardOpenIDUser iam_in.OnboardOpenIDUserCommandHandler) steam_in.OnboardSteamUserCommand {

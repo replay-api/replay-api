@@ -36,13 +36,17 @@ func NewProfileRepository(client *mongo.Client, dbName string, entityType *iam_e
 		"CreatedAt":     true,
 		"UpdatedAt":     true,
 	}, map[string]string{
-		"ID":            `json:"id" bson:"_id"`,
-		"RIDSource":     `json:"rid_source" bson:"rid_source"`,
-		"SourceKey":     `json:"source_key" bson:"source_key"`,
-		"Details":       `json:"details" bson:"details"`,
-		"ResourceOwner": `json:"resource_owner" bson:"resource_owner"`,
-		"CreatedAt":     `json:"created_at" bson:"created_at"`,
-		"UpdatedAt":     `json:"updated_at" bson:"updated_at"`,
+		"ID":                     "_id",
+		"RIDSource":              "rid_source",
+		"SourceKey":              "source_key",
+		"Details":                "details",
+		"ResourceOwner":          "resource_owner", // TODO: principalmente resource ownership, que é padronizado.
+		"ResourceOwner.TenantID": "resource_owner.tenant_id",
+		"ResourceOwner.UserID":   "resource_owner.user_id",
+		"ResourceOwner.GroupID":  "resource_owner.group_id",
+		"ResourceOwner.ClientID": "resource_owner.client_id",
+		"CreatedAt":              "created_at",
+		"UpdatedAt":              "updated_at",
 	})
 
 	return &ProfileRepository{
@@ -51,13 +55,14 @@ func NewProfileRepository(client *mongo.Client, dbName string, entityType *iam_e
 }
 
 func (r *ProfileRepository) Search(ctx context.Context, s common.Search) ([]iam_entities.Profile, error) {
+	slog.InfoContext(ctx, "searching profile entity", "search", s)
 	cursor, err := r.Query(ctx, s)
 	if cursor != nil {
 		defer cursor.Close(ctx)
 	}
 
 	if err != nil {
-		slog.ErrorContext(ctx, "error querying user entity", "err", err)
+		slog.ErrorContext(ctx, "error querying profile entity", "err", err)
 		return nil, err
 	}
 
@@ -68,7 +73,7 @@ func (r *ProfileRepository) Search(ctx context.Context, s common.Search) ([]iam_
 		err := cursor.Decode(&p)
 
 		if err != nil {
-			slog.ErrorContext(ctx, "error decoding user entity", "err", err)
+			slog.ErrorContext(ctx, "error decoding profile entity", "err", err)
 			return nil, err
 		}
 

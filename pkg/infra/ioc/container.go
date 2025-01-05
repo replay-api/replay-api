@@ -546,7 +546,7 @@ func InjectMongoDB(c container.Container) error {
 			return nil, err
 		}
 
-		mongoOptions := options.Client().ApplyURI(config.MongoDB.URI).SetMaxPoolSize(100)
+		mongoOptions := options.Client().ApplyURI(config.MongoDB.URI).SetRegistry(db.MongoRegistry).SetMaxPoolSize(100)
 
 		client, err := mongo.Connect(context.TODO(), mongoOptions)
 
