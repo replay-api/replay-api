@@ -75,7 +75,7 @@ func (c *SteamController) OnboardSteamUser(apiContext context.Context) http.Hand
 
 		w.WriteHeader(http.StatusCreated)
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("x-resource-owner-id", ridToken.GetID().String())
+		w.Header().Set("X-Resource-Owner-ID", ridToken.GetID().String())
 		json.NewEncoder(w).Encode(steamUser)
 	}
 }

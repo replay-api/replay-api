@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -55,6 +56,19 @@ func expectStatus(t *testing.T, expected int, r *httptest.ResponseRecorder) {
 	if expected != r.Code {
 		t.Errorf("Expected response code %d. Got %d\n Body=%v", expected, r.Code, r.Body)
 	}
+}
+
+func expectUUIDHeader(t *testing.T, key string, r *httptest.ResponseRecorder) {
+	if len(r.Header().Get(key)) == 0 {
+		t.Errorf("Expected response header %s to be a valid UUID. Got %s", key, r.Header().Get(key))
+	}
+
+	uuidRegEx := `^[\w\d]{8}-[\w\d]{4}-[\w\d]{4}-[\w\d]{4}-[\w\d]{12}$`
+
+	if !regexp.MustCompile(uuidRegEx).MatchString(r.Header().Get(key)) {
+		t.Errorf("Expected response header %s to be a UUID. Got %s", key, r.Header().Get(key))
+	}
+
 }
 
 // func Test_GetEvents(t *testing.T) {
@@ -130,6 +144,7 @@ func Test_SteamOnboarding_Success(t *testing.T) {
 	t.Logf("response: %v", response)
 
 	expectStatus(t, http.StatusCreated, response)
+	expectUUIDHeader(t, "X-Resource-Owner-ID", response)
 }
 
 func Test_GoogleOnboarding_Success(t *testing.T) {
@@ -156,6 +171,7 @@ func Test_GoogleOnboarding_Success(t *testing.T) {
 	t.Logf("response: %v", response)
 
 	expectStatus(t, http.StatusCreated, response)
+	expectUUIDHeader(t, "X-Resource-Owner-ID", response)
 }
 
 func LoadFile(path string) ([]byte, error) {
