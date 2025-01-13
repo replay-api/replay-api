@@ -59,16 +59,14 @@ func expectStatus(t *testing.T, expected int, r *httptest.ResponseRecorder) {
 }
 
 func expectUUIDHeader(t *testing.T, key string, r *httptest.ResponseRecorder) {
-	headerValue := r.Header().Get(key)
-
-	if len(headerValue) == 0 {
-		t.Errorf("Expected response header %s to be a valid UUID. Got %s", key, headerValue)
+	if len(r.Header().Get(key)) == 0 {
+		t.Errorf("Expected response header %s to be a valid UUID. Got %s", key, r.Header().Get(key))
 	}
 
 	uuidRegEx := `^[\w\d]{8}-[\w\d]{4}-[\w\d]{4}-[\w\d]{4}-[\w\d]{12}$`
 
-	if !regexp.MustCompile(uuidRegEx).MatchString(headerValue) {
-		t.Errorf("Expected response header %s to be a UUID. Got %s", key, headerValue)
+	if !regexp.MustCompile(uuidRegEx).MatchString(r.Header().Get(key)) {
+		t.Errorf("Expected response header %s to be a UUID. Got %s", key, r.Header().Get(key))
 	}
 
 }
