@@ -41,6 +41,7 @@ import (
 
 	steam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/ports/in"
 	steam_out "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/ports/out"
+	steam_query_services "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/services"
 
 	iam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/in"
 	iam_out "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/out"
@@ -434,6 +435,23 @@ func (b *ContainerBuilder) WithInboundPorts() *ContainerBuilder {
 
 	if err != nil {
 		slog.Error("Failed to load OnboardSteamUserCommand.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (steam_in.SteamUserReader, error) {
+		var steamUserReader steam_out.SteamUserReader
+		err := c.Resolve(&steamUserReader)
+
+		if err != nil {
+			slog.Error("Failed to resolve replay_out.SteamUserReader for replay_in.SteamUserReader.", "err", err)
+			return nil, err
+		}
+
+		return steam_query_services.NewSteamUserQueryService(steamUserReader), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to register replay_in.ReplayFileMetadataReader.")
 		panic(err)
 	}
 

@@ -7,6 +7,8 @@ import (
 	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
 )
 
+type UserIDKey uuid.UUID
+
 type User struct {
 	ID            uuid.UUID            `json:"-" bson:"_id"`
 	Name          string               `json:"name" bson:"name"`

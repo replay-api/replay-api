@@ -24,14 +24,18 @@ func NewSteamUserMongoDBRepository(client *mongo.Client, dbName string, entityTy
 	}
 
 	repo.InitQueryableFields(map[string]bool{
-		"ID":      true,
-		"VHash":   true,
-		"Steam.*": true,
+		"ID":                true,
+		"VHash":             true,
+		"Steam.*":           true,
+		"Steam.RealName":    true,
+		"Steam.PersonaName": true,
 	}, map[string]string{
-		"ID":       "_id",
-		"VHash":    "v_hash",
-		"Steam":    "steam",
-		"Steam.ID": "steam._id",
+		"ID":                "_id",
+		"VHash":             "v_hash",
+		"Steam":             "steam",
+		"Steam.ID":          "steam._id",
+		"Steam.RealName":    "steam.realname",
+		"Steam.PersonaName": "steam.personaname",
 	})
 
 	return &SteamUserRepository{

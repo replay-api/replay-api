@@ -59,14 +59,16 @@ func expectStatus(t *testing.T, expected int, r *httptest.ResponseRecorder) {
 }
 
 func expectUUIDHeader(t *testing.T, key string, r *httptest.ResponseRecorder) {
-	if len(r.Header().Get(key)) == 0 {
-		t.Errorf("Expected response header %s to be a valid UUID. Got %s", key, r.Header().Get(key))
+	headerValue := r.Header().Get(key)
+
+	if len(headerValue) == 0 {
+		t.Errorf("Expected response header %s to be a valid UUID. Got %s", key, headerValue)
 	}
 
 	uuidRegEx := `^[\w\d]{8}-[\w\d]{4}-[\w\d]{4}-[\w\d]{4}-[\w\d]{12}$`
 
-	if !regexp.MustCompile(uuidRegEx).MatchString(r.Header().Get(key)) {
-		t.Errorf("Expected response header %s to be a UUID. Got %s", key, r.Header().Get(key))
+	if !regexp.MustCompile(uuidRegEx).MatchString(headerValue) {
+		t.Errorf("Expected response header %s to be a UUID. Got %s", key, headerValue)
 	}
 
 }
@@ -112,6 +114,18 @@ func Test_GameEventSearch_SuccessEmpty(t *testing.T) {
 	tester := NewTester()
 
 	req, _ := http.NewRequest("GET", strings.Replace(routing.Search, "{query:.*}", "GameEvents", 1), nil)
+
+	response := tester.Exec(req)
+
+	t.Logf("response: %v", response)
+
+	expectStatus(t, http.StatusNoContent, response)
+}
+
+func Test_SearchSteamUserRealName_Success(t *testing.T) {
+	tester := NewTester()
+
+	req, _ := http.NewRequest("GET", strings.Replace(routing.Search, "{query:.*}", "steam_users/123/real_name", 1), nil)
 
 	response := tester.Exec(req)
 

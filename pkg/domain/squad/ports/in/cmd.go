@@ -3,7 +3,8 @@ package squad_in
 import (
 	"context"
 
-	"github.com/google/uuid"
+	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
+	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
 	squad_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/entities"
 )
 
@@ -12,13 +13,12 @@ import (
 // }
 
 type CreateSquadCommand struct {
-	FullName    string                                      `json:"full_name"`
-	ShortName   string                                      `json:"short_name"`
-	Symbol      string                                      `json:"symbol"`
-	Description string                                      `json:"description"`
-	GameID      uuid.UUID                                   `json:"game_id"`
-	AvatarURI   string                                      `json:"avatar_uri"`
-	Members     map[uuid.UUID]squad_entities.MembershipType `json:"members"`
+	Name        string                                                   `json:"name"`
+	Symbol      string                                                   `json:"symbol"`
+	Description string                                                   `json:"description"`
+	GameID      common.GameIDKey                                         `json:"game_id"`
+	AvatarURI   string                                                   `json:"avatar_uri"`
+	Members     map[iam_entities.UserIDKey]squad_entities.MembershipType `json:"members"`
 }
 
 type CreateSquadCommandHandler interface {
