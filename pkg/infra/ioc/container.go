@@ -41,9 +41,11 @@ import (
 
 	steam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/ports/in"
 	steam_out "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/ports/out"
+	steam_query_services "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/services"
 
 	iam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/in"
 	iam_out "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/out"
+	iam_query_services "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/services"
 
 	// domain
 	google_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/google/entities"
@@ -437,6 +439,23 @@ func (b *ContainerBuilder) WithInboundPorts() *ContainerBuilder {
 		panic(err)
 	}
 
+	err = c.Singleton(func() (steam_in.SteamUserReader, error) {
+		var steamUserReader steam_out.SteamUserReader
+		err := c.Resolve(&steamUserReader)
+
+		if err != nil {
+			slog.Error("Failed to resolve replay_out.SteamUserReader for replay_in.SteamUserReader.", "err", err)
+			return nil, err
+		}
+
+		return steam_query_services.NewSteamUserQueryService(steamUserReader), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to register replay_in.ReplayFileMetadataReader.")
+		panic(err)
+	}
+
 	err = c.Singleton(func() (google_in.OnboardGoogleUserCommand, error) {
 		var googleUserWriter google_out.GoogleUserWriter
 		err := c.Resolve(&googleUserWriter)
@@ -496,6 +515,18 @@ func (b *ContainerBuilder) WithInboundPorts() *ContainerBuilder {
 		slog.Error("Failed to load iam_in.CreateRIDTokenCommand.")
 		panic(err)
 	}
+
+	err = c.Singleton(func() (iam_in.ProfileReader, error) {
+		var profileReader iam_out.ProfileReader
+		err := c.Resolve(&profileReader)
+
+		if err != nil {
+			slog.Error("Failed to resolve iam_out.ProfileReader for iam_in.ProfileReader.", "err", err)
+			return nil, err
+		}
+
+		return iam_query_services.NewwProfileQueryService(profileReader), nil
+	})
 
 	return b
 }

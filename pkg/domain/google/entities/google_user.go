@@ -1,4 +1,4 @@
-package steam
+package google
 
 import (
 	"time"

@@ -62,7 +62,7 @@ func (uc *VerifyRIDUseCase) newSearchByValidKey(ctx context.Context, key uuid.UU
 				{
 					ValueParams: []common.SearchableValue{
 						{
-							Field: "Key",
+							Field: "ID",
 							Values: []interface{}{
 								key,
 							},

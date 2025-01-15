@@ -130,6 +130,8 @@ func (r *MongoDBRepository[T]) Query(queryCtx context.Context, s common.Search) 
 
 	pipe, err := r.GetPipeline(queryCtx, s)
 
+	slog.InfoContext(queryCtx, "Query: built pipeline", "pipeline", pipe)
+
 	if err != nil {
 		slog.ErrorContext(queryCtx, "unable to create query pipeline", "err", err)
 		return nil, err
@@ -213,7 +215,7 @@ func (r *MongoDBRepository[T]) addSort(pipe []bson.M, s common.Search) []bson.M 
 func (r *MongoDBRepository[T]) addMatch(queryCtx context.Context, pipe []bson.M, s common.Search) ([]bson.M, error) {
 	aggregate := bson.M{}
 	for _, aggregator := range s.SearchParams {
-		r.setMatchValues(queryCtx, aggregator.Params, &aggregate)
+		r.setMatchValues(queryCtx, aggregator.Params, &aggregate, aggregator.AggregationClause)
 	}
 
 	aggregate, err := r.EnsureTenancy(queryCtx, aggregate, s)
@@ -227,11 +229,12 @@ func (r *MongoDBRepository[T]) addMatch(queryCtx context.Context, pipe []bson.M,
 	return pipe, nil
 }
 
-func (r *MongoDBRepository[T]) setMatchValues(queryCtx context.Context, params []common.SearchParameter, aggregate *bson.M) {
+func (r *MongoDBRepository[T]) setMatchValues(queryCtx context.Context, params []common.SearchParameter, aggregate *bson.M, clause common.SearchAggregationClause) {
 	if r.queryableFields == nil {
 		panic(fmt.Errorf("queryableFields not initialized in MongoDBRepository of %s", r.entityName))
 	}
 
+	clauses := bson.A{}
 	for _, p := range params {
 		// Handle ValueParams
 		for _, v := range p.ValueParams {
@@ -250,15 +253,15 @@ func (r *MongoDBRepository[T]) setMatchValues(queryCtx context.Context, params [
 
 			filter := buildFilterForOperator(v.Operator, v.Values)
 			if filter == nil {
-				continue //Skip this value if not supported
+				continue // Skip this value if not supported
 			}
 
 			// Build filter based on operator (default to $in if not specified)
 			if strings.HasSuffix(v.Field, ".*") && strings.Contains(bsonFieldName, ".") {
 				// Nested field with wildcard: use $elemMatch
-				(*aggregate)[bsonFieldName] = bson.M{"$elemMatch": filter}
+				clauses = append(clauses, bson.M{bsonFieldName: bson.M{"$elemMatch": filter}})
 			} else {
-				(*aggregate)[bsonFieldName] = filter
+				clauses = append(clauses, bson.M{bsonFieldName: filter})
 			}
 
 			slog.InfoContext(queryCtx, "query: %v, value: %v", bsonFieldName, v.Values)
@@ -278,7 +281,7 @@ func (r *MongoDBRepository[T]) setMatchValues(queryCtx context.Context, params [
 			if d.Max != nil {
 				dateFilter["$lte"] = *d.Max
 			}
-			(*aggregate)[bsonFieldName] = dateFilter
+			clauses = append(clauses, bson.M{bsonFieldName: dateFilter})
 		}
 
 		// Handle DurationParams (similar to DateParams)
@@ -295,7 +298,7 @@ func (r *MongoDBRepository[T]) setMatchValues(queryCtx context.Context, params [
 			if dur.Max != nil {
 				durationFilter["$lte"] = *dur.Max
 			}
-			(*aggregate)[bsonFieldName] = durationFilter
+			clauses = append(clauses, bson.M{bsonFieldName: durationFilter})
 		}
 
 		if p.AggregationParams == nil {
@@ -309,8 +312,16 @@ func (r *MongoDBRepository[T]) setMatchValues(queryCtx context.Context, params [
 			}
 
 			innerAggregate := bson.M{}
-			r.setMatchValues(queryCtx, v.Params, &innerAggregate)
-			(*aggregate)["$and"] = append((*aggregate)["$and"].([]bson.M), innerAggregate) // TODO: (review) default to $and for now
+			r.setMatchValues(queryCtx, v.Params, &innerAggregate, clause)
+			clauses = append(clauses, innerAggregate)
+		}
+	}
+
+	if len(clauses) > 0 {
+		if clause == common.OrAggregationClause {
+			(*aggregate)["$or"] = clauses
+		} else {
+			(*aggregate)["$and"] = clauses
 		}
 	}
 }
@@ -531,7 +542,7 @@ func (r *MongoDBRepository[T]) Search(ctx context.Context, s common.Search) ([]T
 		return nil, err
 	}
 
-	filesMetadata := make([]T, 0)
+	records := make([]T, 0)
 
 	for cursor.Next(ctx) {
 		var entity T
@@ -542,10 +553,10 @@ func (r *MongoDBRepository[T]) Search(ctx context.Context, s common.Search) ([]T
 			return nil, err
 		}
 
-		filesMetadata = append(filesMetadata, entity)
+		records = append(records, entity)
 	}
 
-	return filesMetadata, nil
+	return records, nil
 }
 
 func (r *MongoDBRepository[T]) GetByID(queryCtx context.Context, id uuid.UUID) (*T, error) {

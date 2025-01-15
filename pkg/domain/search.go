@@ -18,6 +18,13 @@ const (
 
 type SearchOperator string
 
+type SearchAggregationClause string
+
+const (
+	AndAggregationClause SearchAggregationClause = "and"
+	OrAggregationClause  SearchAggregationClause = "or"
+)
+
 const (
 	EqualsOperator             SearchOperator = "eq"       // Exact match (default)
 	NotEqualsOperator          SearchOperator = "ne"       // Not equal
@@ -42,8 +49,6 @@ const (
 	GroupAudienceIDKey             IntendedAudienceKey = "GroupAudience"
 	UserAudienceIDKey              IntendedAudienceKey = "UserAudience"
 )
-
-type AggregationTypeKey string
 
 type SearchableValue struct {
 	Field    string
@@ -73,12 +78,12 @@ type SearchParameter struct {
 	DateParams        []SearchableDateRange     `json:"date" bson:"date_params"`
 	DurationParams    []SearchableDurationRange `json:"time" bson:"duration_params"`
 	AggregationParams []SearchAggregation       `json:"aggregate" bson:"aggregation_params"`
-	Operator          SearchOperator            `json:"operator" bson:"operator"` // if not provided, default to InOperator
+	AggregationClause SearchAggregationClause   `json:"clause" bson:"clause"` // if not provided, default to AndAggregationClause
 }
 
 type SearchAggregation struct {
-	Params    []SearchParameter  `json:"params" bson:"params"`
-	ParamType AggregationTypeKey `json:"type" bson:"type"` // REVIEW: redundant w/ "Operator" or use nested?
+	Params            []SearchParameter       `json:"params" bson:"params"`
+	AggregationClause SearchAggregationClause `json:"clause" bson:"clause"` // if not provided, default to AndAggregationClause
 }
 
 type SearchResultOptions struct {

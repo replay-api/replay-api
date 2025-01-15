@@ -45,6 +45,7 @@ const (
 	ResourceTypeChannel    ResourceType = "Channels"    // specification of user group
 	ResourceTypeLeague     ResourceType = "Leagues"     // specification of user group
 	ResourceTypeTournament ResourceType = "Tournaments" // specification of user group
+	ResourceTypeProfile    ResourceType = "Profiles"    // specification of user group
 	ResourceTypePage       ResourceType = "Pages"       //
 	ResourceTypeFriends    ResourceType = "Friends"
 	ResourceTypeList       ResourceType = "List" // recurse root resources (?)
@@ -69,6 +70,7 @@ var ResourceKeyMap = map[ResourceType]string{
 	ResourceTypeTeam:       "team_id",
 	ResourceTypeGroup:      "group_id",
 	ResourceTypeUser:       "user_id",
+	ResourceTypeProfile:    "profile_id",
 }
 
 func GetResourceFieldID(resourcePart string) (string, error) {

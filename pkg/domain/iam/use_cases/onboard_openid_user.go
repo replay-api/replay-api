@@ -102,7 +102,7 @@ func (uc *OnboardOpenIDUserUseCase) Exec(ctx context.Context, cmd iam_in.Onboard
 		return nil, nil, err
 	}
 
-	profile := iam_entities.NewProfile(user.ID, group.ID, cmd.Source, cmd.Key, nil, rxn)
+	profile := iam_entities.NewProfile(user.ID, group.ID, cmd.Source, cmd.Key, cmd.ProfileDetails, rxn)
 
 	profile, err = uc.ProfileWriter.Create(ctx, profile)
 

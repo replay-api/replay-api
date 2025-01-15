@@ -75,9 +75,10 @@ func (usecase *OnboardGoogleUserUseCase) Exec(ctx context.Context, googleUser *g
 	}
 
 	profile, ridToken, err := usecase.OnboardOpenIDUser.Exec(ctx, iam_in.OnboardOpenIDUserCommand{
-		Name:   fmt.Sprintf("%s %s", googleUser.GivenName, googleUser.FamilyName),
-		Source: iam_entities.RIDSource_Google,
-		Key:    googleUser.Email,
+		Name:           fmt.Sprintf("%s %s", googleUser.GivenName, googleUser.FamilyName),
+		Source:         iam_entities.RIDSource_Google,
+		Key:            googleUser.Email,
+		ProfileDetails: googleUser,
 	})
 
 	if err != nil {

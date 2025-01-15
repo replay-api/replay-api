@@ -74,9 +74,10 @@ func (usecase *OnboardSteamUserUseCase) Exec(ctx context.Context, steamUser *ste
 	}
 
 	profile, ridToken, err := usecase.OnboardOpenIDUser.Exec(ctx, iam_in.OnboardOpenIDUserCommand{
-		Name:   steamUser.Steam.RealName,
-		Source: iam_entities.RIDSource_Steam,
-		Key:    steamUser.Steam.ID,
+		Name:           steamUser.Steam.RealName,
+		Source:         iam_entities.RIDSource_Steam,
+		Key:            steamUser.Steam.ID,
+		ProfileDetails: steamUser.Steam,
 	})
 
 	if err != nil {
