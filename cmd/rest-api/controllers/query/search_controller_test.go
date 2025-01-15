@@ -68,6 +68,31 @@ func TestVectorGetResourceStringFromPath(t *testing.T) {
 			Name:             "Valid_Round_Root_With_QueryStrings_And_Ending_Slash",
 			ExpectedResource: "rounds",
 		},
+		{
+			Path:             fmt.Sprintf("%s/search/users?Steam.RealName=test&t=1", basePath),
+			Name:             "Valid_SteamUser_Root_With_QueryStrings",
+			ExpectedResource: "users",
+		},
+		{
+			Path:             fmt.Sprintf("%s/search/users/?Steam.RealName=test&t=1", basePath),
+			Name:             "Valid_SteamUser_Root_With_QueryStrings_And_Ending_Slash",
+			ExpectedResource: "users",
+		},
+		{
+			Path:             fmt.Sprintf("%s/search/users/1", basePath),
+			Name:             "Valid_SteamUser_Leaf",
+			ExpectedResource: "users",
+		},
+		{
+			Path:             fmt.Sprintf("%s/search/users/1?Steam.RealName=test&t=1", basePath),
+			Name:             "Valid_SteamUser_Leaf_With_QueryStrings",
+			ExpectedResource: "users",
+		},
+		{
+			Path:             fmt.Sprintf("%s/search/users/1/?Steam.RealName=test&t=1", basePath),
+			Name:             "Valid_SteamUser_Leaf_With_QueryStrings_And_Ending_Slash",
+			ExpectedResource: "users",
+		},
 	}
 
 	types := []common.ResourceType{

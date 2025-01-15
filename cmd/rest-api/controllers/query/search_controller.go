@@ -174,9 +174,6 @@ func NewBadgeSearchController(c *container.Container) *SearchController[replay_e
 }
 
 func GetSearchParams(r *http.Request) (*common.Search, error) {
-	// TODO: parsear parametros da query string: De acordo com a leaf desejada, parsear com base em um dictionary?
-	// params := mux.Vars(r)
-
 	sanitizedPath := strings.Join(strings.Split(strings.ToLower(r.URL.Path), "/search/"), "")
 	parts := strings.Split(sanitizedPath, "/") // test
 
@@ -218,6 +215,46 @@ func GetSearchParams(r *http.Request) (*common.Search, error) {
 			Params: params,
 		})
 	}
+
+	// TODO: parsear parametros da query string: De acordo com a leaf desejada, parsear com base em um dictionary?
+	// params := mux.Vars(r)
+	queryParams := r.URL.Query()
+	aggregation := common.SearchAggregation{
+		Params: []common.SearchParameter{},
+	}
+
+	joinParam := queryParams["x"]
+
+	if len(joinParam) > 0 {
+		switch joinParam[0] {
+		case "in":
+			aggregation.AggregationClause = common.AndAggregationClause
+		case "out":
+			aggregation.AggregationClause = common.OrAggregationClause
+		}
+	}
+
+	for key, values := range queryParams {
+		value := common.SearchableValue{
+			Field:    key,
+			Values:   make([]interface{}, len(values)),
+			Operator: common.EqualsOperator,
+		}
+
+		for i, v := range values {
+			value.Values[i] = v
+		}
+
+		param := common.SearchParameter{
+			ValueParams: []common.SearchableValue{
+				value,
+			},
+		}
+
+		aggregation.Params = append(aggregation.Params, param)
+	}
+
+	s.SearchParams = append(s.SearchParams, aggregation)
 
 	return &s, nil
 }
