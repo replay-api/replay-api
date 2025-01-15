@@ -45,6 +45,7 @@ import (
 
 	iam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/in"
 	iam_out "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/out"
+	iam_query_services "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/services"
 
 	// domain
 	google_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/google/entities"
@@ -514,6 +515,18 @@ func (b *ContainerBuilder) WithInboundPorts() *ContainerBuilder {
 		slog.Error("Failed to load iam_in.CreateRIDTokenCommand.")
 		panic(err)
 	}
+
+	err = c.Singleton(func() (iam_in.ProfileReader, error) {
+		var profileReader iam_out.ProfileReader
+		err := c.Resolve(&profileReader)
+
+		if err != nil {
+			slog.Error("Failed to resolve iam_out.ProfileReader for iam_in.ProfileReader.", "err", err)
+			return nil, err
+		}
+
+		return iam_query_services.NewwProfileQueryService(profileReader), nil
+	})
 
 	return b
 }

@@ -130,6 +130,8 @@ func (r *MongoDBRepository[T]) Query(queryCtx context.Context, s common.Search) 
 
 	pipe, err := r.GetPipeline(queryCtx, s)
 
+	slog.InfoContext(queryCtx, "Query: built pipeline", "pipeline", pipe)
+
 	if err != nil {
 		slog.ErrorContext(queryCtx, "unable to create query pipeline", "err", err)
 		return nil, err
@@ -540,7 +542,7 @@ func (r *MongoDBRepository[T]) Search(ctx context.Context, s common.Search) ([]T
 		return nil, err
 	}
 
-	filesMetadata := make([]T, 0)
+	records := make([]T, 0)
 
 	for cursor.Next(ctx) {
 		var entity T
@@ -551,10 +553,10 @@ func (r *MongoDBRepository[T]) Search(ctx context.Context, s common.Search) ([]T
 			return nil, err
 		}
 
-		filesMetadata = append(filesMetadata, entity)
+		records = append(records, entity)
 	}
 
-	return filesMetadata, nil
+	return records, nil
 }
 
 func (r *MongoDBRepository[T]) GetByID(queryCtx context.Context, id uuid.UUID) (*T, error) {

@@ -123,7 +123,7 @@ func Test_GameEventSearch_SuccessEmpty(t *testing.T) {
 func Test_SearchSteamUserRealName_Success(t *testing.T) {
 	tester := NewTester()
 
-	req, _ := http.NewRequest("GET", strings.Replace(routing.Search, "{query:.*}", "steam_users/123/real_name", 1), nil)
+	req, _ := http.NewRequest("GET", strings.Replace(routing.Search, "{query:.*}", "profiles", -1), nil)
 
 	response := tester.Exec(req)
 
@@ -157,6 +157,19 @@ func Test_SteamOnboarding_Success(t *testing.T) {
 
 	expectStatus(t, http.StatusCreated, response)
 	expectUUIDHeader(t, "X-Resource-Owner-ID", response)
+
+	// should query the profile
+	req = httptest.NewRequest("GET", strings.Replace(routing.Search, "{query:.*}", "profiles", -1), nil)
+	req.Header.Add("X-Resource-Owner-ID", response.Header().Get("X-Resource-Owner-ID"))
+
+	response = tester.Exec(req)
+
+	t.Logf("response: %v", response)
+
+	expectStatus(t, http.StatusOK, response)
+
+	// should query the steam user
+
 }
 
 func Test_GoogleOnboarding_Success(t *testing.T) {

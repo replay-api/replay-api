@@ -16,16 +16,16 @@ func NewSteamUserQueryService(eventReader steam_out.SteamUserReader) steam_in.St
 		"ID":                true,
 		"VHash":             common.DENY,
 		"Steam.*":           true,
-		"Steam.RealName":    true,
-		"Steam.PersonaName": true,
+		"Steam.realname":    true,
+		"Steam.personaname": true,
 	}
 
 	readableFields := map[string]bool{
 		"ID":                true,
 		"VHash":             common.DENY,
 		"Steam.*":           true,
-		"Steam.RealName":    true,
-		"Steam.PersonaName": true,
+		"Steam.realname":    true,
+		"Steam.personaname": true,
 	}
 
 	return &common.BaseQueryService[steam_entities.SteamUser]{

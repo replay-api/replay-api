@@ -93,6 +93,11 @@ func TestVectorGetResourceStringFromPath(t *testing.T) {
 			Name:             "Valid_SteamUser_Leaf_With_QueryStrings_And_Ending_Slash",
 			ExpectedResource: "users",
 		},
+		{
+			Path:             fmt.Sprintf("%s/search/profiles?RIDSource=steam&Details.realname=Test&filter=out", basePath),
+			Name:             "Valid_Profile_Root_With_QueryStrings",
+			ExpectedResource: "profiles",
+		},
 	}
 
 	types := []common.ResourceType{
@@ -109,6 +114,7 @@ func TestVectorGetResourceStringFromPath(t *testing.T) {
 		common.ResourceTypeTeam,
 		common.ResourceTypeTournament,
 		common.ResourceTypeUser,
+		common.ResourceTypeProfile,
 	}
 
 	for _, tc := range tcs {

@@ -9,6 +9,8 @@ import (
 
 	"github.com/golobby/container/v3"
 	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
+	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
+	iam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/in"
 	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
 	replay_in "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/ports/in"
 )
@@ -38,6 +40,7 @@ func NewSearchMux(c *container.Container) *SearchableResourceMultiplexer {
 	smux.Handlers[common.ResourceTypePlayer] = NewPlayerSearchController(c)
 
 	smux.Handlers[common.ResourceTypeGameEvent] = NewEventSearchController(c)
+	smux.Handlers[common.ResourceTypeProfile] = NewProfileSearchController(c)
 	// smux.Handlers[common.ResourceTypeTeam] = NewTeamSearchController(c)
 	smux.ResourceTypes = make([]common.ResourceType, len(smux.Handlers))
 
@@ -173,6 +176,20 @@ func NewBadgeSearchController(c *container.Container) *SearchController[replay_e
 	}
 }
 
+func NewProfileSearchController(c *container.Container) *SearchController[iam_entities.Profile] {
+	var s iam_in.ProfileReader
+	err := c.Resolve(&s)
+
+	if err != nil {
+		slog.Error("Cannot resolve iam_entities.ProfileReader for NewProfileSearchController", "err", err)
+		panic(err)
+	}
+
+	return &SearchController[iam_entities.Profile]{
+		Searchable: s,
+	}
+}
+
 func GetSearchParams(r *http.Request) (*common.Search, error) {
 	sanitizedPath := strings.Join(strings.Split(strings.ToLower(r.URL.Path), "/search/"), "")
 	parts := strings.Split(sanitizedPath, "/") // test
@@ -216,21 +233,23 @@ func GetSearchParams(r *http.Request) (*common.Search, error) {
 		})
 	}
 
-	// TODO: parsear parametros da query string: De acordo com a leaf desejada, parsear com base em um dictionary?
-	// params := mux.Vars(r)
 	queryParams := r.URL.Query()
 	aggregation := common.SearchAggregation{
 		Params: []common.SearchParameter{},
 	}
 
-	joinParam := queryParams["x"]
+	joinParam := queryParams["filter"]
+
+	var operator common.SearchOperator
 
 	if len(joinParam) > 0 {
 		switch joinParam[0] {
-		case "in":
-			aggregation.AggregationClause = common.AndAggregationClause
 		case "out":
+			aggregation.AggregationClause = common.AndAggregationClause
+			operator = common.EqualsOperator
+		case "in":
 			aggregation.AggregationClause = common.OrAggregationClause
+			operator = common.ContainsOperator
 		}
 	}
 
@@ -238,7 +257,7 @@ func GetSearchParams(r *http.Request) (*common.Search, error) {
 		value := common.SearchableValue{
 			Field:    key,
 			Values:   make([]interface{}, len(values)),
-			Operator: common.EqualsOperator,
+			Operator: operator,
 		}
 
 		for i, v := range values {
@@ -249,6 +268,7 @@ func GetSearchParams(r *http.Request) (*common.Search, error) {
 			ValueParams: []common.SearchableValue{
 				value,
 			},
+			AggregationClause: aggregation.AggregationClause,
 		}
 
 		aggregation.Params = append(aggregation.Params, param)
