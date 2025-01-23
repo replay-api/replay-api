@@ -16,7 +16,7 @@ const (
 
 type RIDToken struct {
 	ID               uuid.UUID                  `json:"-" bson:"_id"`
-	Key              uuid.UUID                  `json:"-" bson:"key"`
+	Key              uuid.UUID                  `json:"-" bson:"key"` // deprecated TODO: delete
 	Source           RIDSourceKey               `json:"-" bson:"source"`
 	ResourceOwner    common.ResourceOwner       `json:"-" bson:"resource_owner"`
 	IntendedAudience common.IntendedAudienceKey `json:"-" bson:"intended_audience"`

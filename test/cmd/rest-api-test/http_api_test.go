@@ -159,7 +159,7 @@ func Test_SteamOnboarding_Success(t *testing.T) {
 	expectUUIDHeader(t, "X-Resource-Owner-ID", response)
 
 	// should query the profile
-	req = httptest.NewRequest("GET", strings.Replace(routing.Search, "{query:.*}", "profiles", -1), nil)
+	req = httptest.NewRequest("GET", strings.Replace(routing.Search, "{query:.*}", "profiles?Type=steam&Details.ID=12345", -1), nil)
 	req.Header.Add("X-Resource-Owner-ID", response.Header().Get("X-Resource-Owner-ID"))
 
 	response = tester.Exec(req)

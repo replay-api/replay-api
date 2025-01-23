@@ -12,13 +12,13 @@ type ProfileQueryService struct {
 func NewwProfileQueryService(profileReader common.Searchable[iam_entities.Profile]) *ProfileQueryService {
 	queryableFields := map[string]bool{
 		"ID":                  true,
-		"RIDSource":           true,
-		"SourceKey":           true,
+		"RIDSource":           common.ALLOW,
+		"SourceKey":           common.ALLOW,
 		"Details.RealName":    common.ALLOW,
 		"Details.realname":    common.ALLOW,
 		"Details.given_name":  common.ALLOW,
 		"Details.family_name": common.ALLOW,
-		"ResourceOwner":       true,
+		"ResourceOwner":       common.ALLOW,
 		"CreatedAt":           true,
 		"UpdatedAt":           true,
 	}

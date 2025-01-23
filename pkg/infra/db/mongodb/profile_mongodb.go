@@ -38,8 +38,10 @@ func NewProfileRepository(client *mongo.Client, dbName string, entityType *iam_e
 	}, map[string]string{
 		"ID":                     "_id",
 		"RIDSource":              "rid_source",
+		"Type":                   "rid_source",
 		"SourceKey":              "source_key",
 		"Details":                "details",
+		"Details.ID":             "details._id",
 		"ResourceOwner":          "resource_owner", // TODO: principalmente resource ownership, que é padronizado.
 		"ResourceOwner.TenantID": "resource_owner.tenant_id",
 		"ResourceOwner.UserID":   "resource_owner.user_id",
