@@ -4,11 +4,10 @@ import (
 	"context"
 
 	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
-	iam_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
 )
 
 type RIDTokenWriter interface {
-	Create(ctx context.Context, rid *iam_entity.RIDToken) (*iam_entity.RIDToken, error)
+	Create(ctx context.Context, rid *iam_entities.RIDToken) (*iam_entities.RIDToken, error)
 }
 
 type UserWriter interface {
@@ -24,4 +23,9 @@ type GroupWriter interface {
 type ProfileWriter interface {
 	CreateMany(createCtx context.Context, events []*iam_entities.Profile) error
 	Create(createCtx context.Context, events *iam_entities.Profile) (*iam_entities.Profile, error)
+}
+
+type MembershipWriter interface {
+	CreateMany(createCtx context.Context, events []*iam_entities.Membership) error
+	Create(createCtx context.Context, events *iam_entities.Membership) (*iam_entities.Membership, error)
 }

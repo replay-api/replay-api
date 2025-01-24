@@ -18,22 +18,24 @@ const (
 )
 
 type OnboardOpenIDUserUseCase struct {
-	UserReader     iam_out.UserReader
-	UserWriter     iam_out.UserWriter
-	ProfileReader  iam_out.ProfileReader
-	ProfileWriter  iam_out.ProfileWriter
-	GroupWriter    iam_out.GroupWriter
-	CreateRIDToken iam_in.CreateRIDTokenCommand
+	UserReader       iam_out.UserReader
+	UserWriter       iam_out.UserWriter
+	ProfileReader    iam_out.ProfileReader
+	ProfileWriter    iam_out.ProfileWriter
+	GroupWriter      iam_out.GroupWriter
+	MembershipWriter iam_out.MembershipWriter
+	CreateRIDToken   iam_in.CreateRIDTokenCommand
 }
 
-func NewOnboardOpenIDUserUseCase(userReader iam_out.UserReader, userWriter iam_out.UserWriter, profileReader iam_out.ProfileReader, profileWriter iam_out.ProfileWriter, groupWriter iam_out.GroupWriter, createRIDToken iam_in.CreateRIDTokenCommand) *OnboardOpenIDUserUseCase {
+func NewOnboardOpenIDUserUseCase(userReader iam_out.UserReader, userWriter iam_out.UserWriter, profileReader iam_out.ProfileReader, profileWriter iam_out.ProfileWriter, groupWriter iam_out.GroupWriter, membershipWriter iam_out.MembershipWriter, createRIDToken iam_in.CreateRIDTokenCommand) *OnboardOpenIDUserUseCase {
 	return &OnboardOpenIDUserUseCase{
-		UserReader:     userReader,
-		UserWriter:     userWriter,
-		ProfileReader:  profileReader,
-		ProfileWriter:  profileWriter,
-		GroupWriter:    groupWriter,
-		CreateRIDToken: createRIDToken,
+		UserReader:       userReader,
+		UserWriter:       userWriter,
+		ProfileReader:    profileReader,
+		ProfileWriter:    profileWriter,
+		GroupWriter:      groupWriter,
+		MembershipWriter: membershipWriter,
+		CreateRIDToken:   createRIDToken,
 	}
 }
 
@@ -98,6 +100,16 @@ func (uc *OnboardOpenIDUserUseCase) Exec(ctx context.Context, cmd iam_in.Onboard
 
 	if err != nil {
 		slog.ErrorContext(ctx, "error creating group", "err",
+			err)
+		return nil, nil, err
+	}
+
+	membership := iam_entities.NewMembership(iam_entities.MembershipTypeOwner, rxn)
+
+	_, err = uc.MembershipWriter.Create(ctx, membership)
+
+	if err != nil {
+		slog.ErrorContext(ctx, "error creating membership", "err",
 			err)
 		return nil, nil, err
 	}

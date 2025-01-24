@@ -41,6 +41,7 @@ func NewSearchMux(c *container.Container) *SearchableResourceMultiplexer {
 
 	smux.Handlers[common.ResourceTypeGameEvent] = NewEventSearchController(c)
 	smux.Handlers[common.ResourceTypeProfile] = NewProfileSearchController(c)
+	smux.Handlers[common.ResourceTypeMembership] = NeMembershipSearchController(c)
 	// smux.Handlers[common.ResourceTypeTeam] = NewTeamSearchController(c)
 	smux.ResourceTypes = make([]common.ResourceType, len(smux.Handlers))
 
@@ -186,6 +187,20 @@ func NewProfileSearchController(c *container.Container) *SearchController[iam_en
 	}
 
 	return &SearchController[iam_entities.Profile]{
+		Searchable: s,
+	}
+}
+
+func NeMembershipSearchController(c *container.Container) *SearchController[iam_entities.Membership] {
+	var s iam_in.MembershipReader
+	err := c.Resolve(&s)
+
+	if err != nil {
+		slog.Error("Cannot resolve iam_entities.MembershipReader for NeMembershipSearchController", "err", err)
+		panic(err)
+	}
+
+	return &SearchController[iam_entities.Membership]{
 		Searchable: s,
 	}
 }

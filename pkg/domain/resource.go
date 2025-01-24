@@ -46,6 +46,7 @@ const (
 	ResourceTypeLeague     ResourceType = "Leagues"     // specification of user group
 	ResourceTypeTournament ResourceType = "Tournaments" // specification of user group
 	ResourceTypeProfile    ResourceType = "Profiles"    // specification of user group
+	ResourceTypeMembership ResourceType = "Memberships" // specification of user group
 	ResourceTypePage       ResourceType = "Pages"       //
 	ResourceTypeFriends    ResourceType = "Friends"
 	ResourceTypeList       ResourceType = "List" // recurse root resources (?)
