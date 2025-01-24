@@ -27,6 +27,9 @@ const (
 	OnboardSteam  string = "/onboarding/steam"
 	OnboardGoogle string = "/onboarding/google"
 
+	// IAM
+	Group string = "/groups"
+
 	Search string = "/search/{query:.*}"
 )
 
@@ -41,6 +44,7 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	googleController := controllers.NewGoogleController(&container)
 	matchController := query_controllers.NewMatchQueryController(container)
 	eventController := query_controllers.NewEventQueryController(container)
+	groupController := query_controllers.NewGroupController(&container)
 
 	// search controllers
 	searchMux := query_controllers.NewSearchMux(&container)
@@ -126,6 +130,9 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 
 	// Game API
 	// r.HandleFunc("/games/{game_id}", gameController.GetGameByID(ctx)).Methods("GET")
+
+	// IAM API
+	r.HandleFunc(Group, groupController.HandleListMemberGroups).Methods("GET")
 
 	return r
 }

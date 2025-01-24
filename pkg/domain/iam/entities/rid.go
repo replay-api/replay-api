@@ -14,6 +14,10 @@ const (
 	RIDSource_Google RIDSourceKey = "google"
 )
 
+const (
+	DefaultTokenAudience = common.UserAudienceIDKey
+)
+
 type RIDToken struct {
 	ID               uuid.UUID                  `json:"-" bson:"_id"`
 	Key              uuid.UUID                  `json:"-" bson:"key"` // deprecated TODO: delete

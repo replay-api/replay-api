@@ -14,6 +14,10 @@ const (
 	GroupTypeSystem GroupType = "System" // Public, Public(Anyone with the link, link/:slug-id route), Private, Namespace (directory/path trees), TagXyz, Friends, BugReport#1, Users(Region,Match, etc... ==> tag!! user-defined tag ())
 )
 
+const (
+	DefaultUserGroupName = "private:default"
+)
+
 type Group struct {
 	ID            uuid.UUID            `json:"id" bson:"_id"`
 	Name          string               `json:"name" bson:"name"`

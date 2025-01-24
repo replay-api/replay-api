@@ -10,13 +10,18 @@ import (
 	"strings"
 	"testing"
 
+	"encoding/json"
+
 	"github.com/golobby/container/v3"
+	"github.com/google/uuid"
 	"github.com/psavelis/team-pro/replay-api/cmd/rest-api/controllers"
 	"github.com/psavelis/team-pro/replay-api/cmd/rest-api/routing"
 	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
 	ioc "github.com/psavelis/team-pro/replay-api/pkg/infra/ioc"
 
 	google_out "github.com/psavelis/team-pro/replay-api/pkg/domain/google/ports/out"
+	iam_dtos "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/dtos"
+	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
 	steam_out "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/ports/out"
 )
 
@@ -183,7 +188,7 @@ func Test_SteamOnboarding_Success(t *testing.T) {
 
 	expectStatus(t, http.StatusOK, response)
 
-	// should query groups by listing memberships
+	// should query groups by listing memberships from search controller
 
 	req = httptest.NewRequest("GET", strings.Replace(routing.Search, "{query:.*}", "memberships", -1), nil)
 	req.Header.Add(controllers.ResourceOwnerIDHeaderKey, rid)
@@ -191,6 +196,50 @@ func Test_SteamOnboarding_Success(t *testing.T) {
 	t.Logf("response: %v", response)
 
 	expectStatus(t, http.StatusOK, response)
+
+	// should list groups details & memberships directly to /groups
+	req = httptest.NewRequest("GET", routing.Group, nil)
+	req.Header.Add(controllers.ResourceOwnerIDHeaderKey, rid)
+
+	response = tester.Exec(req)
+
+	t.Logf("response: %v", response)
+
+	expectStatus(t, http.StatusOK, response)
+
+	var groupMembershipDTOs map[uuid.UUID]iam_dtos.GroupMembershipDTO
+
+	if response.Body == nil {
+		t.Errorf("response body of GET /groups is nil")
+	}
+
+	err = json.NewDecoder(response.Body).Decode(&groupMembershipDTOs)
+
+	if err != nil {
+		t.Errorf("failed to decode response body %v", err)
+	}
+
+	if len(groupMembershipDTOs) == 0 {
+		t.Errorf("no groups found at GET /groups")
+	}
+
+	// validate private group content
+
+	var defaultPrivateGroup *iam_entities.Group
+
+	for _, groupMembershipDTO := range groupMembershipDTOs {
+		if groupMembershipDTO.Group.Name == iam_entities.DefaultUserGroupName {
+			defaultPrivateGroup = &groupMembershipDTO.Group
+		}
+	}
+
+	if defaultPrivateGroup == nil {
+		t.Errorf("no private group found")
+	} else {
+		if defaultPrivateGroup.Type != iam_entities.GroupTypeSystem {
+			t.Errorf("private group type is not user")
+		}
+	}
 
 }
 
