@@ -49,7 +49,13 @@ func (svc *BaseQueryService[T]) Compile(ctx context.Context, searchParams []Sear
 		return nil, fmt.Errorf("error validating result options: %v", err)
 	}
 
-	s := NewSearchByAggregation(ctx, searchParams, resultOptions, svc.Audience)
+	intendedAud := GetIntendedAudience(ctx)
+
+	if intendedAud == nil {
+		intendedAud = &svc.Audience
+	}
+
+	s := NewSearchByAggregation(ctx, searchParams, resultOptions, *intendedAud)
 
 	return &s, nil
 }

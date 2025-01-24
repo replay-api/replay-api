@@ -105,6 +105,15 @@ type Search struct {
 	VisibilityOptions SearchVisibilityOptions `json:"-" bson:"visibility_options"`
 }
 
+func GetIntendedAudience(ctx context.Context) *IntendedAudienceKey {
+	audience, ok := ctx.Value("aud").(IntendedAudienceKey)
+	if !ok {
+		return nil
+	}
+
+	return &audience
+}
+
 func NewSearchByID(ctx context.Context, id uuid.UUID, audienceLevel IntendedAudienceKey) Search {
 	v := []SearchableValue{
 		{

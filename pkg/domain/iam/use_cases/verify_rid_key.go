@@ -24,7 +24,7 @@ func NewVerifyRIDUseCase(rIDWriter iam_out.RIDTokenWriter, rIDReader iam_out.RID
 	}
 }
 
-func (usecase *VerifyRIDUseCase) Exec(ctx context.Context, key uuid.UUID) (common.ResourceOwner, error) {
+func (usecase *VerifyRIDUseCase) Exec(ctx context.Context, key uuid.UUID) (common.ResourceOwner, common.IntendedAudienceKey, error) {
 	s := usecase.newSearchByValidKey(ctx, key)
 
 	tokenResult, err := usecase.RIDReader.Search(ctx, s)
@@ -33,14 +33,14 @@ func (usecase *VerifyRIDUseCase) Exec(ctx context.Context, key uuid.UUID) (commo
 		slog.ErrorContext(ctx, "error getting rid token by key", "err",
 			err)
 
-		return common.ResourceOwner{}, err
+		return common.ResourceOwner{}, common.UserAudienceIDKey, err
 	}
 
 	if len(tokenResult) == 0 || tokenResult[0].ID == uuid.Nil {
 		err = fmt.Errorf("invalid rid key")
 		slog.ErrorContext(ctx, err.Error(), "key", key)
 
-		return common.ResourceOwner{}, err
+		return common.ResourceOwner{}, common.UserAudienceIDKey, err
 	}
 
 	if len(tokenResult) > 1 {
@@ -48,10 +48,10 @@ func (usecase *VerifyRIDUseCase) Exec(ctx context.Context, key uuid.UUID) (commo
 
 		// TODO: recovery: notificar conta, temp lock?, desabilitar refresh
 
-		return common.ResourceOwner{}, fmt.Errorf("invalid RID token")
+		return common.ResourceOwner{}, common.UserAudienceIDKey, fmt.Errorf("invalid RID token")
 	}
 
-	return tokenResult[0].ResourceOwner, nil
+	return tokenResult[0].ResourceOwner, tokenResult[0].IntendedAudience, nil
 }
 
 func (uc *VerifyRIDUseCase) newSearchByValidKey(ctx context.Context, key uuid.UUID) common.Search {

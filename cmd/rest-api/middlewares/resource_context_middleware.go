@@ -41,7 +41,7 @@ func (m *ResourceContextMiddleware) Handler(next http.Handler) http.Handler {
 			return
 		}
 
-		reso, err := m.VerifyRID.Exec(ctx, uuid.MustParse(rid))
+		reso, aud, err := m.VerifyRID.Exec(ctx, uuid.MustParse(rid))
 		if err != nil {
 			slog.ErrorContext(ctx, "unable to verify rid", "X-Resource-Owner-ID", rid)
 			http.Error(w, "unknown", http.StatusUnauthorized)
@@ -53,6 +53,7 @@ func (m *ResourceContextMiddleware) Handler(next http.Handler) http.Handler {
 
 		ctx = context.WithValue(ctx, common.GroupIDKey, reso.GroupID)
 		ctx = context.WithValue(ctx, common.UserIDKey, reso.UserID)
+		ctx = context.WithValue(ctx, common.AudienceKey, aud)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})

@@ -16,4 +16,6 @@ const (
 	// Request (ie: msg header, meta)
 	RequestIDKey            ContextKey = "x-request-id"
 	ResourceOwnerIDParamKey ContextKey = "X-Resource-Owner-ID"
+
+	AudienceKey ContextKey = "aud"
 )

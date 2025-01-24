@@ -13,7 +13,7 @@ type CreateRIDTokenCommand interface {
 }
 
 type VerifyRIDKeyCommand interface {
-	Exec(ctx context.Context, key uuid.UUID) (common.ResourceOwner, error)
+	Exec(ctx context.Context, key uuid.UUID) (common.ResourceOwner, common.IntendedAudienceKey, error)
 }
 
 type OnboardOpenIDUserCommand struct {
