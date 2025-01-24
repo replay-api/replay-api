@@ -7,6 +7,7 @@ import (
 
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
+	"github.com/psavelis/team-pro/replay-api/cmd/rest-api/controllers"
 	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
 	iam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/in"
 )
@@ -35,7 +36,7 @@ func (m *ResourceContextMiddleware) Handler(next http.Handler) http.Handler {
 		ctx = context.WithValue(ctx, common.GroupIDKey, uuid.New())
 		ctx = context.WithValue(ctx, common.UserIDKey, uuid.New())
 
-		rid := r.Header.Get("X-Resource-Owner-ID")
+		rid := r.Header.Get(controllers.ResourceOwnerIDHeaderKey)
 		if rid == "" {
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return
@@ -43,7 +44,7 @@ func (m *ResourceContextMiddleware) Handler(next http.Handler) http.Handler {
 
 		reso, aud, err := m.VerifyRID.Exec(ctx, uuid.MustParse(rid))
 		if err != nil {
-			slog.ErrorContext(ctx, "unable to verify rid", "X-Resource-Owner-ID", rid)
+			slog.ErrorContext(ctx, "unable to verify rid", controllers.ResourceOwnerIDHeaderKey, rid)
 			http.Error(w, "unknown", http.StatusUnauthorized)
 		}
 
