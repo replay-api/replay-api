@@ -106,7 +106,7 @@ type Search struct {
 }
 
 func GetIntendedAudience(ctx context.Context) *IntendedAudienceKey {
-	audience, ok := ctx.Value("aud").(IntendedAudienceKey)
+	audience, ok := ctx.Value(AudienceKey).(IntendedAudienceKey)
 	if !ok {
 		return nil
 	}

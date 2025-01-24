@@ -13,9 +13,5 @@ const (
 	GameIDParamKey  ContextKey = "game_id"
 	MatchIDParamKey ContextKey = "match_id"
 
-	// Request (ie: msg header, meta)
-	RequestIDKey            ContextKey = "x-request-id"
-	ResourceOwnerIDParamKey ContextKey = "X-Resource-Owner-ID"
-
 	AudienceKey ContextKey = "aud"
 )

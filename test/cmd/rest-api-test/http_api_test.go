@@ -11,7 +11,9 @@ import (
 	"testing"
 
 	"github.com/golobby/container/v3"
+	"github.com/psavelis/team-pro/replay-api/cmd/rest-api/controllers"
 	"github.com/psavelis/team-pro/replay-api/cmd/rest-api/routing"
+	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
 	ioc "github.com/psavelis/team-pro/replay-api/pkg/infra/ioc"
 
 	google_out "github.com/psavelis/team-pro/replay-api/pkg/domain/google/ports/out"
@@ -69,6 +71,16 @@ func expectUUIDHeader(t *testing.T, key string, r *httptest.ResponseRecorder) {
 		t.Errorf("Expected response header %s to be a UUID. Got %s", key, r.Header().Get(key))
 	}
 
+}
+
+func expectHeader(t *testing.T, key string, r *httptest.ResponseRecorder, aud common.IntendedAudienceKey) {
+	if len(r.Header().Get(key)) == 0 {
+		t.Errorf("Expected response header %s to be a valid UUID. Got %s", key, r.Header().Get(key))
+	}
+
+	if r.Header().Get(key) != string(aud) {
+		t.Errorf("Expected response header %s to be a UUID. Got %s", key, r.Header().Get(key))
+	}
 }
 
 // func Test_GetEvents(t *testing.T) {
@@ -156,11 +168,12 @@ func Test_SteamOnboarding_Success(t *testing.T) {
 	t.Logf("response: %v", response)
 
 	expectStatus(t, http.StatusCreated, response)
-	expectUUIDHeader(t, "X-Resource-Owner-ID", response)
+	expectUUIDHeader(t, controllers.ResourceOwnerIDHeaderKey, response)
+	expectHeader(t, controllers.ResourceOwnerAudTypeHeaderKey, response, common.UserAudienceIDKey)
 
 	// should query the profile
 	req = httptest.NewRequest("GET", strings.Replace(routing.Search, "{query:.*}", "profiles?Type=steam&Details.ID=12345", -1), nil)
-	req.Header.Add("X-Resource-Owner-ID", response.Header().Get("X-Resource-Owner-ID"))
+	req.Header.Add(controllers.ResourceOwnerIDHeaderKey, response.Header().Get(controllers.ResourceOwnerIDHeaderKey))
 
 	response = tester.Exec(req)
 
@@ -196,7 +209,7 @@ func Test_GoogleOnboarding_Success(t *testing.T) {
 	t.Logf("response: %v", response)
 
 	expectStatus(t, http.StatusCreated, response)
-	expectUUIDHeader(t, "X-Resource-Owner-ID", response)
+	expectUUIDHeader(t, controllers.ResourceOwnerIDHeaderKey, response)
 }
 
 func LoadFile(path string) ([]byte, error) {
