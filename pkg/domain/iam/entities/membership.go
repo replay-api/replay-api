@@ -17,10 +17,22 @@ const (
 
 type Membership struct {
 	ID            uuid.UUID            `json:"id" bson:"_id"`
-	GroupID       uuid.UUID            `json:"group_id" bson:"group_id"`
-	UserID        uuid.UUID            `json:"user_id" bson:"user_id"`
 	Type          MembershipType       `json:"type" bson:"type"`
 	ResourceOwner common.ResourceOwner `json:"resource_owner" bson:"resource_owner"`
 	CreatedAt     time.Time            `json:"created_at" bson:"created_at"`
 	UpdatedAt     time.Time            `json:"updated_at" bson:"updated_at"`
+}
+
+func (m Membership) GetID() uuid.UUID {
+	return m.ID
+}
+
+func NewMembership(membershipType MembershipType, resourceOwner common.ResourceOwner) *Membership {
+	return &Membership{
+		ID:            uuid.New(),
+		Type:          membershipType,
+		ResourceOwner: resourceOwner,
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
+	}
 }

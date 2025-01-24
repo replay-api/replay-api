@@ -198,6 +198,13 @@ func (b *ContainerBuilder) WithInboundPorts() *ContainerBuilder {
 			return nil, err
 		}
 
+		var membershipWriter iam_out.MembershipWriter
+		err = c.Resolve(&membershipWriter)
+		if err != nil {
+			slog.Error("Failed to resolve MembershipWriter for OnboardOpenIDUserCommand.", "err", err)
+			return nil, err
+		}
+
 		var createRIDTokenCommand iam_in.CreateRIDTokenCommand
 		err = c.Resolve(&createRIDTokenCommand)
 		if err != nil {
@@ -205,7 +212,7 @@ func (b *ContainerBuilder) WithInboundPorts() *ContainerBuilder {
 			return nil, err
 		}
 
-		return iam_use_cases.NewOnboardOpenIDUserUseCase(userReader, userWriter, profileReader, profileWriter, groupWriter, createRIDTokenCommand), nil
+		return iam_use_cases.NewOnboardOpenIDUserUseCase(userReader, userWriter, profileReader, profileWriter, groupWriter, membershipWriter, createRIDTokenCommand), nil
 	})
 
 	if err != nil {
@@ -527,6 +534,28 @@ func (b *ContainerBuilder) WithInboundPorts() *ContainerBuilder {
 
 		return iam_query_services.NewwProfileQueryService(profileReader), nil
 	})
+
+	if err != nil {
+		slog.Error("Failed to register iam_in.ProfileReader.")
+		panic(err)
+	}
+
+	err = c.Singleton(func() (iam_in.MembershipReader, error) {
+		var MembershipReader iam_out.MembershipReader
+		err := c.Resolve(&MembershipReader)
+
+		if err != nil {
+			slog.Error("Failed to resolve iam_out.MembershipReader for iam_in.MembershipReader.", "err", err)
+			return nil, err
+		}
+
+		return iam_query_services.NewwMembershipQueryService(MembershipReader), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to register iam_in.MembershipReader.")
+		panic(err)
+	}
 
 	return b
 }
@@ -1437,6 +1466,67 @@ func InjectMongoDB(c container.Container) error {
 
 	if err != nil {
 		slog.Error("Failed to load iam_out.ProfileWriter.", "err", err)
+		panic(err)
+	}
+
+	// -----
+
+	// Membership
+	err = c.Singleton(func() (*db.MembershipRepository, error) {
+		var client *mongo.Client
+		err := c.Resolve(&client)
+		if err != nil {
+			slog.Error("Failed to resolve mongo.Client for NamedSingleton MembershipRepository as generic MongoDBRepository.", "err", err)
+			return &db.MembershipRepository{}, err
+		}
+
+		var config common.Config
+
+		err = c.Resolve(&config)
+		if err != nil {
+			slog.Error("Failed to resolve config for db.MembershipRepository.", "err", err)
+			return nil, err
+		}
+
+		repo := db.NewMembershipRepository(client, config.MongoDB.DBName, &iam_entities.Membership{}, "memberships")
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load NamedSingleton MembershipRepository as generic MongoDBRepository.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (iam_out.MembershipReader, error) {
+		var repo *db.MembershipRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve MembershipRepository for iam_out.MembershipReader.", "err", err)
+			return nil, err
+		}
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load iam_out.MembershipReader.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (iam_out.MembershipWriter, error) {
+		var repo *db.MembershipRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve MembershipRepository for iam_out.MembershipWriter.", "err", err)
+			return nil, err
+		}
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load iam_out.MembershipWriter.", "err", err)
 		panic(err)
 	}
 

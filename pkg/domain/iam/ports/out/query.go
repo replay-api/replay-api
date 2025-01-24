@@ -15,6 +15,10 @@ type ProfileReader interface {
 	common.Searchable[iam_entity.Profile]
 }
 
+type MembershipReader interface {
+	common.Searchable[iam_entity.Membership]
+}
+
 type UserReader interface {
 	Search(ctx context.Context, s common.Search) ([]iam_entity.User, error)
 }

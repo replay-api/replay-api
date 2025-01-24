@@ -8,3 +8,7 @@ import (
 type ProfileReader interface {
 	common.Searchable[iam_entities.Profile]
 }
+
+type MembershipReader interface {
+	common.Searchable[iam_entities.Membership]
+}

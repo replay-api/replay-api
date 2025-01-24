@@ -172,8 +172,10 @@ func Test_SteamOnboarding_Success(t *testing.T) {
 	expectHeader(t, controllers.ResourceOwnerAudTypeHeaderKey, response, common.UserAudienceIDKey)
 
 	// should query the profile
+
+	rid := response.Header().Get(controllers.ResourceOwnerIDHeaderKey)
 	req = httptest.NewRequest("GET", strings.Replace(routing.Search, "{query:.*}", "profiles?Type=steam&Details.ID=12345", -1), nil)
-	req.Header.Add(controllers.ResourceOwnerIDHeaderKey, response.Header().Get(controllers.ResourceOwnerIDHeaderKey))
+	req.Header.Add(controllers.ResourceOwnerIDHeaderKey, rid)
 
 	response = tester.Exec(req)
 
@@ -181,7 +183,14 @@ func Test_SteamOnboarding_Success(t *testing.T) {
 
 	expectStatus(t, http.StatusOK, response)
 
-	// should query the steam user
+	// should query groups by listing memberships
+
+	req = httptest.NewRequest("GET", strings.Replace(routing.Search, "{query:.*}", "memberships", -1), nil)
+	req.Header.Add(controllers.ResourceOwnerIDHeaderKey, rid)
+	response = tester.Exec(req)
+	t.Logf("response: %v", response)
+
+	expectStatus(t, http.StatusOK, response)
 
 }
 
