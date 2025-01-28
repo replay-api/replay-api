@@ -22,7 +22,6 @@ type Group struct {
 	ID            uuid.UUID            `json:"id" bson:"_id"`
 	Name          string               `json:"name" bson:"name"`
 	Type          GroupType            `json:"type" bson:"type"`
-	ParentGroupID *uuid.UUID           `json:"parent_group_id" bson:"parent_group_id"` // (REVIEW: already has a parent in the resource_owner)
 	ResourceOwner common.ResourceOwner `json:"resource_owner" bson:"resource_owner"`
 	CreatedAt     time.Time            `json:"created_at" bson:"created_at"`
 	UpdatedAt     time.Time            `json:"updated_at" bson:"updated_at"`

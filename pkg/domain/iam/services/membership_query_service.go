@@ -75,7 +75,7 @@ func (s *MembershipQueryService) ListMemberGroups(ctx context.Context, search *c
 	search.SearchParams = append(search.SearchParams, searchAggregations...)
 	search.ResultOptions = resultOptions
 
-	if search.VisibilityOptions.IntendedAudience == "" {
+	if search.VisibilityOptions.IntendedAudience == 0 {
 		search.VisibilityOptions = common.SearchVisibilityOptions{
 			RequestSource:    common.GetResourceOwner(ctx),
 			IntendedAudience: common.UserAudienceIDKey,
@@ -90,7 +90,7 @@ func (s *MembershipQueryService) ListMemberGroups(ctx context.Context, search *c
 	groupMemberships := make(map[uuid.UUID]iam_dtos.GroupMembershipDTO)
 	for _, membership := range memberships {
 		groupID := membership.ResourceOwner.GroupID
-		groupSearch := common.Search{
+		getGroupByID := common.Search{
 			SearchParams: []common.SearchAggregation{
 				{
 					Params: []common.SearchParameter{
@@ -115,7 +115,7 @@ func (s *MembershipQueryService) ListMemberGroups(ctx context.Context, search *c
 			},
 		}
 
-		groups, err := s.GroupReader.Search(ctx, groupSearch)
+		groups, err := s.GroupReader.Search(ctx, getGroupByID)
 		if err != nil {
 			return nil, err
 		}

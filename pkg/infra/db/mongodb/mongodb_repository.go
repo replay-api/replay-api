@@ -465,7 +465,7 @@ func (r *MongoDBRepository[T]) EnsureTenancy(queryCtx context.Context, agg bson.
 
 	default:
 		slog.WarnContext(queryCtx, "TENANCY.Unknown: intended audience is invalid", "intendedAudience", s.VisibilityOptions.IntendedAudience)
-		return agg, fmt.Errorf("TENANCY.Unknown: intended audience %s is invalid in `common.Search`: %#v", s.VisibilityOptions.IntendedAudience, s)
+		return agg, fmt.Errorf("TENANCY.Unknown: intended audience %s is invalid in `common.Search`: %#v", string(s.VisibilityOptions.IntendedAudience), s)
 	}
 }
 

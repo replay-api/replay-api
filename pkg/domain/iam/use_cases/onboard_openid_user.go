@@ -99,7 +99,7 @@ func (uc *OnboardOpenIDUserUseCase) Exec(ctx context.Context, cmd iam_in.Onboard
 		return nil, nil, err
 	}
 
-	membership := iam_entities.NewMembership(iam_entities.MembershipTypeOwner, rxn)
+	membership := iam_entities.NewMembership(iam_entities.MembershipTypeOwner, iam_entities.MembershipStatusActive, rxn)
 
 	_, err = uc.MembershipWriter.Create(ctx, membership)
 

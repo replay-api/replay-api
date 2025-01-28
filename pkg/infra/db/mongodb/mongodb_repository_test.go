@@ -632,7 +632,7 @@ func TestGetBSONFieldNameFromSearchableValue(t *testing.T) {
 			name:            "Nonexistent Field",
 			searchableValue: common.SearchableValue{Field: "NonexistentField", Values: []interface{}{"value"}},
 			expectedName:    "",
-			expectedError:   fmt.Errorf("field NonexistentField not found or not queryable in ReplayFile"),
+			expectedError:   fmt.Errorf("field NonexistentField not found or not queryable in Entity: ReplayFile (Collection: replay_files. Queryable Fields: map[CreatedAt:true Error:true GameID:true Header:true Header.Filestamp:true ID:true InternalURI:true NetworkID:true ResourceOwner:true Size:true Status:true UpdatedAt:true])"),
 		},
 		{
 			name:            "Time/Date Value",
@@ -650,13 +650,13 @@ func TestGetBSONFieldNameFromSearchableValue(t *testing.T) {
 			name:            "Invalid Nested Field",
 			searchableValue: common.SearchableValue{Field: "Invalid.Nested", Values: []interface{}{"value"}},
 			expectedName:    "",
-			expectedError:   fmt.Errorf("field Invalid.Nested not found or not queryable in ReplayFile"),
+			expectedError:   fmt.Errorf("field Invalid.Nested not found or not queryable in Entity: ReplayFile (Collection: replay_files. Queryable Fields: map[CreatedAt:true Error:true GameID:true Header:true Header.Filestamp:true ID:true InternalURI:true NetworkID:true ResourceOwner:true Size:true Status:true UpdatedAt:true])"),
 		},
 		{
 			name:            "Invalid Subfield",
 			searchableValue: common.SearchableValue{Field: "GameID.Invalid", Values: []interface{}{"value"}},
 			expectedName:    "",
-			expectedError:   fmt.Errorf("field GameID.Invalid not found or not queryable in ReplayFile"),
+			expectedError:   fmt.Errorf("field GameID.Invalid not found or not queryable in Entity: ReplayFile (Collection: replay_files. Queryable Fields: map[CreatedAt:true Error:true GameID:true Header:true Header.Filestamp:true ID:true InternalURI:true NetworkID:true ResourceOwner:true Size:true Status:true UpdatedAt:true])"),
 		},
 		{
 			name:            "Empty Field Name",
