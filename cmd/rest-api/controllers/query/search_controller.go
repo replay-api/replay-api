@@ -41,7 +41,7 @@ func NewSearchMux(c *container.Container) *SearchableResourceMultiplexer {
 
 	smux.Handlers[common.ResourceTypeGameEvent] = NewEventSearchController(c)
 	smux.Handlers[common.ResourceTypeProfile] = NewProfileSearchController(c)
-	smux.Handlers[common.ResourceTypeMembership] = NeMembershipSearchController(c)
+	smux.Handlers[common.ResourceTypeMembership] = NewMembershipSearchController(c)
 	// smux.Handlers[common.ResourceTypeTeam] = NewTeamSearchController(c)
 	smux.ResourceTypes = make([]common.ResourceType, len(smux.Handlers))
 
@@ -191,7 +191,7 @@ func NewProfileSearchController(c *container.Container) *SearchController[iam_en
 	}
 }
 
-func NeMembershipSearchController(c *container.Container) *SearchController[iam_entities.Membership] {
+func NewMembershipSearchController(c *container.Container) *SearchController[iam_entities.Membership] {
 	var s iam_in.MembershipReader
 	err := c.Resolve(&s)
 
@@ -205,19 +205,10 @@ func NeMembershipSearchController(c *container.Container) *SearchController[iam_
 	}
 }
 
-func GetSearchParams(r *http.Request) (*common.Search, error) {
+func GetPathParams(r *http.Request, s *common.Search) (*common.Search, error) {
 	sanitizedPath := strings.Join(strings.Split(strings.ToLower(r.URL.Path), "/search/"), "")
 	parts := strings.Split(sanitizedPath, "/") // test
 
-	s := common.Search{
-		SearchParams: make([]common.SearchAggregation, 0),
-		VisibilityOptions: common.SearchVisibilityOptions{
-			RequestSource:    common.GetResourceOwner(r.Context()),
-			IntendedAudience: common.UserAudienceIDKey,
-		},
-	}
-
-	// TODO: refact
 	for i := range parts {
 		if i <= 1 || i%2 != 0 {
 			continue
@@ -248,6 +239,48 @@ func GetSearchParams(r *http.Request) (*common.Search, error) {
 		})
 	}
 
+	return s, nil
+}
+
+func InitializeSearch(r *http.Request) *common.Search {
+	requestContext := r.Context()
+
+	requestedAudience := common.GetIntendedAudience(requestContext)
+
+	var intendedAudience common.IntendedAudienceKey
+
+	if requestedAudience == nil {
+		slog.WarnContext(requestContext, "Missing Requested Audience on r.Context, using Intented Audience on User level", "request", r)
+		intendedAudience = common.UserAudienceIDKey
+	} else {
+		intendedAudience = *requestedAudience
+	}
+
+	s := common.Search{
+		SearchParams: make([]common.SearchAggregation, 0),
+		VisibilityOptions: common.SearchVisibilityOptions{
+			RequestSource:    common.GetResourceOwner(requestContext),
+			IntendedAudience: intendedAudience,
+		},
+	}
+	return &s
+}
+
+func GetSearchParams(r *http.Request) (*common.Search, error) {
+	s := InitializeSearch(r)
+
+	s, err := GetPathParams(r, s)
+
+	if err != nil {
+		return nil, err
+	}
+
+	s = GetQueryParams(r, s)
+
+	return s, nil
+}
+
+func GetQueryParams(r *http.Request, s *common.Search) *common.Search {
 	queryParams := r.URL.Query()
 	aggregation := common.SearchAggregation{
 		Params: []common.SearchParameter{},
@@ -291,7 +324,7 @@ func GetSearchParams(r *http.Request) (*common.Search, error) {
 
 	s.SearchParams = append(s.SearchParams, aggregation)
 
-	return &s, nil
+	return s
 }
 
 func (c *SearchController[T]) HandleSearchRequest(w http.ResponseWriter, r *http.Request) {

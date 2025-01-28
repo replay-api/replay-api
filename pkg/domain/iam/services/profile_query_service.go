@@ -9,7 +9,7 @@ type ProfileQueryService struct {
 	common.BaseQueryService[iam_entities.Profile]
 }
 
-func NewwProfileQueryService(profileReader common.Searchable[iam_entities.Profile]) *ProfileQueryService {
+func NewProfileQueryService(profileReader common.Searchable[iam_entities.Profile]) *ProfileQueryService {
 	queryableFields := map[string]bool{
 		"ID":                  true,
 		"RIDSource":           common.ALLOW,

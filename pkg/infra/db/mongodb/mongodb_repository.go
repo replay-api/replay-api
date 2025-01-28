@@ -383,7 +383,7 @@ func (r *MongoDBRepository[T]) GetBSONFieldNameFromSearchableValue(v common.Sear
 		return "", fmt.Errorf("empty field not allowed. cant query")
 	}
 
-	return "", fmt.Errorf("field %s not found or not queryable in %s", v.Field, r.entityName)
+	return "", fmt.Errorf("field %s not found or not queryable in Entity: %s (Collection: %s. Queryable Fields: %v)", v.Field, r.entityName, r.collectionName, r.queryableFields)
 }
 
 func (r *MongoDBRepository[T]) Create(ctx context.Context, entity *T) (*T, error) {

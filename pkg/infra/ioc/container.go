@@ -532,7 +532,7 @@ func (b *ContainerBuilder) WithInboundPorts() *ContainerBuilder {
 			return nil, err
 		}
 
-		return iam_query_services.NewwProfileQueryService(profileReader), nil
+		return iam_query_services.NewProfileQueryService(profileReader), nil
 	})
 
 	if err != nil {
@@ -541,15 +541,23 @@ func (b *ContainerBuilder) WithInboundPorts() *ContainerBuilder {
 	}
 
 	err = c.Singleton(func() (iam_in.MembershipReader, error) {
-		var MembershipReader iam_out.MembershipReader
-		err := c.Resolve(&MembershipReader)
+		var membershipReader iam_out.MembershipReader
+		err := c.Resolve(&membershipReader)
 
 		if err != nil {
 			slog.Error("Failed to resolve iam_out.MembershipReader for iam_in.MembershipReader.", "err", err)
 			return nil, err
 		}
 
-		return iam_query_services.NewwMembershipQueryService(MembershipReader), nil
+		var groupReader iam_out.GroupReader
+		err = c.Resolve(&groupReader)
+
+		if err != nil {
+			slog.Error("Failed to resolve iam_out.GroupReader for iam_in.MembershipReader.", "err", err)
+			return nil, err
+		}
+
+		return iam_query_services.NewMembershipQueryService(membershipReader, groupReader), nil
 	})
 
 	if err != nil {
