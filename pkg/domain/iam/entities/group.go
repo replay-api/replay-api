@@ -10,8 +10,9 @@ import (
 type GroupType string
 
 const (
-	GroupTypeUser   GroupType = "User"   // Team*, Profile*, Channel*, Page*, Friends*, Me* (Self), Custom-Private (Custom User-defined)
-	GroupTypeSystem GroupType = "System" // Public, Public(Anyone with the link, link/:slug-id route), Private, Namespace (directory/path trees), TagXyz, Friends, BugReport#1, Users(Region,Match, etc... ==> tag!! user-defined tag ())
+	GroupTypeAccount GroupType = "Account"
+	GroupTypeUser    GroupType = "User"   // Team* (!= Squad, WorkTeam, ETC), Profile*, Channel*, Page*, Friends*, Me* (Self), Custom-Private (Custom User-defined)
+	GroupTypeSystem  GroupType = "System" // Public, Public(Anyone with the link, link/:slug-id route), Private, Namespace (directory/path trees), TagXyz, Friends, BugReport#1, Users(Region,Match, etc... ==> tag!! user-defined tag ())
 )
 
 const (
