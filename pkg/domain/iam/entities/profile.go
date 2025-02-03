@@ -9,13 +9,16 @@ import (
 )
 
 type Profile struct {
-	ID            uuid.UUID            `json:"id" bson:"_id"`
-	RIDSource     RIDSourceKey         `json:"rid_source" bson:"rid_source"`
-	SourceKey     string               `json:"source_key" bson:"source_key"` // ie. steam id, google@, etc
-	Details       interface{}          `json:"details" bson:"details"`
-	ResourceOwner common.ResourceOwner `json:"resource_owner" bson:"resource_owner"`
-	CreatedAt     time.Time            `json:"created_at" bson:"created_at"`
-	UpdatedAt     time.Time            `json:"updated_at" bson:"updated_at"`
+	ID              uuid.UUID                  `json:"id" bson:"_id"`
+	RIDSource       RIDSourceKey               `json:"rid_source" bson:"rid_source"`
+	SourceKey       string                     `json:"source_key" bson:"source_key"` // ie. steam id, google@, etc
+	Details         interface{}                `json:"details" bson:"details"`       // TODO: deprecate. GET /profile/:id/details => mux para steam,google,squad,player
+	Links           map[string]string          `json:"links" bson:"links"`
+	VisibilityLevel common.IntendedAudienceKey `json:"visibility_level" bson:"visibility_level"`
+	VisbilityType   common.VisibilityTypeKey   `json:"visibility_type" bson:"visibility_type"`
+	ResourceOwner   common.ResourceOwner       `json:"resource_owner" bson:"resource_owner"`
+	CreatedAt       time.Time                  `json:"created_at" bson:"created_at"`
+	UpdatedAt       time.Time                  `json:"updated_at" bson:"updated_at"`
 }
 
 func NewProfile(userID uuid.UUID, groupID uuid.UUID, ridSource RIDSourceKey, sourceKey string, details interface{}, resourceOwner common.ResourceOwner) *Profile {
