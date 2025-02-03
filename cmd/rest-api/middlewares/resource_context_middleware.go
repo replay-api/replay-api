@@ -35,6 +35,7 @@ func (m *ResourceContextMiddleware) Handler(next http.Handler) http.Handler {
 		ctx = context.WithValue(ctx, common.ClientIDKey, common.TeamPROAppClientID)
 		ctx = context.WithValue(ctx, common.GroupIDKey, uuid.New())
 		ctx = context.WithValue(ctx, common.UserIDKey, uuid.New())
+		ctx = context.WithValue(ctx, common.AuthenticatedKey, false)
 
 		rid := r.Header.Get(controllers.ResourceOwnerIDHeaderKey)
 		if rid == "" {
@@ -55,6 +56,7 @@ func (m *ResourceContextMiddleware) Handler(next http.Handler) http.Handler {
 		ctx = context.WithValue(ctx, common.GroupIDKey, reso.GroupID)
 		ctx = context.WithValue(ctx, common.UserIDKey, reso.UserID)
 		ctx = context.WithValue(ctx, common.AudienceKey, aud)
+		ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})

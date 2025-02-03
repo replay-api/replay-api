@@ -13,5 +13,6 @@ const (
 	GameIDParamKey  ContextKey = "game_id"
 	MatchIDParamKey ContextKey = "match_id"
 
-	AudienceKey ContextKey = "aud"
+	AudienceKey      ContextKey = "aud"
+	AuthenticatedKey ContextKey = "auth"
 )
