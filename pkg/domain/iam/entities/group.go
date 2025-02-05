@@ -1,6 +1,7 @@
 package iam_entities
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -41,10 +42,37 @@ func NewGroup(groupID uuid.UUID, name string, groupType GroupType, resourceOwner
 	}
 }
 
-// func (e *Group) GetID() uuid.UUID {
-// 	return e.ID
-// }
+func NewAccountGroup(groupID uuid.UUID, resourceOwner common.ResourceOwner) *Group {
+	return NewGroup(groupID, DefaultUserGroupName, GroupTypeAccount, resourceOwner)
+}
 
 func (e Group) GetID() uuid.UUID {
 	return e.ID
+}
+
+func NewGroupAccountSearchByUser(ctx context.Context) common.Search {
+	return common.Search{
+		SearchParams: []common.SearchAggregation{
+			{
+				Params: []common.SearchParameter{
+					{
+						ValueParams: []common.SearchableValue{
+							{
+								Field:    "Type",
+								Operator: common.EqualsOperator,
+								Values:   []interface{}{GroupTypeAccount},
+							},
+						},
+					},
+				},
+			},
+		},
+		ResultOptions: common.SearchResultOptions{
+			Limit: 1,
+		},
+		VisibilityOptions: common.SearchVisibilityOptions{
+			RequestSource:    common.GetResourceOwner(ctx),
+			IntendedAudience: common.UserAudienceIDKey,
+		},
+	}
 }

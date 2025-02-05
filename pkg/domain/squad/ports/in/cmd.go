@@ -9,12 +9,13 @@ import (
 )
 
 type CreateSquadCommand struct {
-	Name        string                                                             `json:"name"`
-	Symbol      string                                                             `json:"symbol"`
-	Description string                                                             `json:"description"`
-	GameID      common.GameIDKey                                                   `json:"game_id"`
-	AvatarURI   string                                                             `json:"avatar_uri"`
-	Members     map[squad_entities.PlayerIDKey]squad_value_objects.SquadMembership `json:"members"`
+	Name        string                                         `json:"name"`
+	Symbol      string                                         `json:"symbol"`
+	Description string                                         `json:"description"`
+	GameID      common.GameIDKey                               `json:"game_id"`
+	AvatarURI   string                                         `json:"avatar_uri"`
+	SlugURI     string                                         `json:"slug_uri"`
+	Members     map[string]squad_value_objects.SquadMembership `json:"members"`
 }
 
 type CreateSquadCommandHandler interface {

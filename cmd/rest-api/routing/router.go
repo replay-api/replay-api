@@ -45,6 +45,7 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	matchController := query_controllers.NewMatchQueryController(container)
 	eventController := query_controllers.NewEventQueryController(container)
 	groupController := query_controllers.NewGroupController(&container)
+	squadController := cmd_controllers.NewSquadController(container)
 
 	// search controllers
 	searchMux := query_controllers.NewSearchMux(&container)
@@ -102,6 +103,7 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	// r.HandleFunc(("/games/{game_id}/replay/{replay_file_id}/share/{share_token_id}"), fileController.DownloadReplayFile(ctx)).Methods("DELETE")
 
 	// Squad API
+	r.HandleFunc("/squads", squadController.CreateSquadHandler(ctx)).Methods("POST")
 	// r.HandleFunc("/games/{game_id}/squad", squadController.GetSquadByGameID(ctx)).Methods("GET")
 	// r.HandleFunc("/games/{game_id}/squad", squadController.CreateSquad(ctx)).Methods("POST")
 	// r.HandleFunc("/games/{game_id}/squad/{squad_id}", squadController.GetSquadByID(ctx)).Methods("GET")

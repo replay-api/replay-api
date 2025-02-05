@@ -1,11 +1,8 @@
 package squad_entities
 
 import (
-	"github.com/google/uuid"
 	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
 )
-
-type PlayerIDKey uuid.UUID
 
 type PlayerHistoryAction string
 
@@ -22,6 +19,7 @@ type Player struct {
 	GameID      common.GameIDKey `json:"game_id" bson:"game_id"`
 	Nickname    string           `json:"nickname" bson:"nickname"`
 	Avatar      string           `json:"avatar" bson:"avatar"`
+	Roles       []string         `json:"roles" bson:"roles"`
 	Description string           `json:"description" bson:"description"`
 	LogoURI     string           `json:"logo_uri" bson:"logo_uri"`
 }

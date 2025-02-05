@@ -35,6 +35,7 @@ import (
 	squad_in "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/in"
 	squad_out "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/out"
 	squad_services "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/services"
+	squad_usecases "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/usecases"
 
 	replay_in "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/ports/in"
 	replay_out "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/ports/out"
@@ -562,6 +563,38 @@ func (b *ContainerBuilder) WithInboundPorts() *ContainerBuilder {
 
 	if err != nil {
 		slog.Error("Failed to register iam_in.MembershipReader.")
+		panic(err)
+	}
+
+	err = c.Singleton(func() (squad_in.CreateSquadCommandHandler, error) {
+		var squadWriter squad_out.SquadWriter
+		err := c.Resolve(&squadWriter)
+		if err != nil {
+			slog.Error("Failed to resolve SquadWriter for CreatePlayerCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var groupWriter iam_out.GroupWriter
+		err = c.Resolve(&groupWriter)
+		if err != nil {
+			slog.Error("Failed to resolve GroupWriter for CreatePlayerCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var groupReader iam_out.GroupReader
+		err = c.Resolve(&groupReader)
+		if err != nil {
+			slog.Error("Failed to resolve GroupReader for CreatePlayerCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		cmdHandler := squad_usecases.NewCreateSquadUseCase(squadWriter, groupWriter, groupReader)
+
+		return cmdHandler, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load CreateSquadCommandHandler.")
 		panic(err)
 	}
 
