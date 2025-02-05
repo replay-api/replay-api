@@ -51,8 +51,8 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	searchMux := query_controllers.NewSearchMux(&container)
 
 	r := mux.NewRouter()
-	r.Use(mux.CORSMethodMiddleware(r))
 	r.Use(resourceContextMiddleware.Handler)
+	r.Use(mux.CORSMethodMiddleware(r))
 
 	// r.Use(middlewares.NewLoggerMiddleware().Handler)
 	// r.Use(middlewares.NewRecoveryMiddleware().Handler)

@@ -38,14 +38,14 @@ func (m Match) GetID() uuid.UUID {
 
 type Scoreboard struct {
 	TeamScoreboards []TeamScoreboard `json:"team_scoreboards" bson:"team_scoreboards"`
-	MatchMVP        *Player          `json:"match_mvp" bson:"match_mvp"`
+	MatchMVP        *PlayerMetadata  `json:"match_mvp" bson:"match_mvp"`
 }
 
 type TeamScoreboard struct {
 	Team        Team                      `json:"team" bson:"team"`
 	TeamScore   int                       `json:"team_score" bson:"team_score"`
-	TeamMVP     *Player                   `json:"team_mvp" bson:"team_mvp"`
-	Players     []Player                  `json:"players" bson:"playerss"`
+	TeamMVP     *PlayerMetadata           `json:"team_mvp" bson:"team_mvp"`
+	Players     []PlayerMetadata          `json:"players" bson:"playerss"`
 	PlayerStats map[uuid.UUID]interface{} `json:"player_stats" bson:"player_stats"`
 	Rounds      []RoundInfo               `json:"rounds" bson:"rounds"`
 	RoundStats  map[int]interface{}       `json:"round_stats" bson:"round_stats"`

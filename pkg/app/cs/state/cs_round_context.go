@@ -21,7 +21,7 @@ type CS2RoundContext struct {
 	RoundType           CSRoundType
 	WinnerNetworkTeamID string // TODO: ver qual campo/type identifica o id  do time na steam pela demo (p/ Name => ie.: p.GameState().TeamCounterTerrorists().ClanName())
 	Clutch              *CS2ClutchContext
-	PlayerEntities      []*replay_entity.Player
+	PlayerEntities      []*replay_entity.PlayerMetadata
 	TeamT               cs_entity.TeamHashIDType
 	TeamCT              cs_entity.TeamHashIDType
 	TeamContext         map[cs_entity.TeamHashIDType]*CSTeamContext
@@ -29,11 +29,11 @@ type CS2RoundContext struct {
 }
 
 // TODO: adicionar parametro para tipo de rede, habilitar demais provides (fcit etc)
-func (r *CS2RoundContext) SetPlayingEntities(playing []*infocs.Player, res common.ResourceOwner) []*replay_entity.Player {
-	r.PlayerEntities = make([]*replay_entity.Player, len(playing))
+func (r *CS2RoundContext) SetPlayingEntities(playing []*infocs.Player, res common.ResourceOwner) []*replay_entity.PlayerMetadata {
+	r.PlayerEntities = make([]*replay_entity.PlayerMetadata, len(playing))
 
 	for index, p := range playing {
-		r.PlayerEntities[index] = replay_entity.NewPlayer(
+		r.PlayerEntities[index] = replay_entity.NewPlayerMetadata(
 			p.Name,
 			fmt.Sprintf("%d", p.SteamID64),
 			common.SteamNetworkIDKey,

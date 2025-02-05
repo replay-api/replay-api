@@ -8,3 +8,7 @@ import (
 type SquadReader interface {
 	common.Searchable[squad_entities.Squad]
 }
+
+type PlayerProfileReader interface {
+	common.Searchable[squad_entities.PlayerProfile]
+}

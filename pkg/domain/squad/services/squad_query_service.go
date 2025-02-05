@@ -11,7 +11,7 @@ type TeamQueryService struct {
 	common.BaseQueryService[squad_entities.Squad]
 }
 
-func NewSquadQueryService(eventReader squad_out.SquadReader) squad_in.SquadSearchableReader {
+func NewSquadQueryService(eventReader squad_out.SquadReader) squad_in.SquadReader {
 	queryableFields := map[string]bool{
 		"ID":            true,
 		"GroupID":       true,

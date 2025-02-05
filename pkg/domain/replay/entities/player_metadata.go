@@ -7,7 +7,7 @@ import (
 	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
 )
 
-type Player struct {
+type PlayerMetadata struct {
 	ID            common.PlayerIDType `json:"id" bson:"_id"`
 	GameID        common.GameIDKey    `json:"game_id" bson:"game_id"`
 	UserID        *uuid.UUID          `json:"-" bson:"user_id"`
@@ -27,8 +27,8 @@ type Player struct {
 	UpdatedAt     *time.Time           `json:"-" bson:"updated_at"`
 }
 
-func NewPlayer(currentName string, networkUserID string, networkID common.NetworkIDKey, clanName string, res common.ResourceOwner) *Player {
-	return &Player{
+func NewPlayerMetadata(currentName string, networkUserID string, networkID common.NetworkIDKey, clanName string, res common.ResourceOwner) *PlayerMetadata {
+	return &PlayerMetadata{
 		ID:            common.PlayerIDType(uuid.New()),
 		UserID:        nil,
 		GameID:        common.CS2.ID,
@@ -47,6 +47,6 @@ func NewPlayer(currentName string, networkUserID string, networkID common.Networ
 	}
 }
 
-func (e Player) GetID() uuid.UUID {
+func (e PlayerMetadata) GetID() uuid.UUID {
 	return uuid.UUID(e.ID)
 }
