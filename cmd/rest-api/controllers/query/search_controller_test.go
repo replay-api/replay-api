@@ -109,7 +109,7 @@ func TestVectorGetResourceStringFromPath(t *testing.T) {
 		common.ResourceTypeLeague,
 		common.ResourceTypeMatch,
 		common.ResourceTypeRound,
-		common.ResourceTypePlayer,
+		common.ResourceTypePlayerProfile,
 		common.ResourceTypeReplayFile,
 		common.ResourceTypeTeam,
 		common.ResourceTypeTournament,

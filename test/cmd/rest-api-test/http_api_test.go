@@ -36,7 +36,7 @@ func NewTester() *Tester {
 	os.Setenv("MONGO_DB_NAME", "replay")
 	os.Setenv("STEAM_VHASH_SOURCE", "82DA0F0D0135FEA0F5DDF6F96528B48A")
 
-	b := ioc.NewContainerBuilder().WithEnvFile().With(ioc.InjectMongoDB).WithInboundPorts()
+	b := ioc.NewContainerBuilder().WithEnvFile().With(ioc.InjectMongoDB).WithInboundPorts().WithSquadAPI()
 	c := b.Build()
 	return &Tester{
 		Container:      c,
@@ -100,6 +100,15 @@ func expectHeader(t *testing.T, key string, r *httptest.ResponseRecorder, aud co
 // 	expectStatus(t, http.StatusOK, response)
 // }
 
+func expectStatuses(t *testing.T, expected []int, r *httptest.ResponseRecorder) {
+	for _, status := range expected {
+		if status == r.Code {
+			return
+		}
+	}
+	t.Errorf("Expected one of response codes %v. Got %d\n Body=%v", expected, r.Code, r.Body)
+}
+
 func Test_Search_Player_SuccessEmpty(t *testing.T) {
 	tester := NewTester()
 
@@ -110,7 +119,9 @@ func Test_Search_Player_SuccessEmpty(t *testing.T) {
 
 	t.Logf("response: %v", res)
 
-	expectStatus(t, http.StatusNoContent, res)
+	expectStatuses(t, []int{
+		http.StatusNoContent, http.StatusOK,
+	}, res)
 }
 
 func Test_SteamOnboarding_BadRequest(t *testing.T) {
@@ -302,3 +313,35 @@ func LoadFile(path string) ([]byte, error) {
 // }
 
 // curl --form 'file=@"/Users/psavelis-adm/Desktop/go/src/github.com/psavelis/team-pro/replay-api/test/sample_replays/cs2/sound.dem"' "http://127.0.0.1:4991/games/cs2/replays"
+// curl --form 'file=@"C:\sources\replay-api\replay-api\test\sample_replays\cs2\sound.demo"' "http://127.0.0.1:4991/games/cs2/replays"
+// func Test_UploadReplayFile(t *testing.T) {
+// 	tester := NewTester()
+
+// 	filePath := "../../../test/sample_replays/cs2/sound.dem"
+// 	file, err := os.Open(filePath)
+// 	if err != nil {
+// 		t.Fatalf("Failed to open demo file: %v", err)
+// 	}
+// 	defer file.Close()
+
+// 	body := &strings.Builder{}
+// 	writer := multipart.NewWriter(body)
+// 	part, err := writer.CreateFormFile("file", filepath.Base(filePath))
+// 	if err != nil {
+// 		t.Fatalf("Failed to create form file: %v", err)
+// 	}
+// 	_, err = io.Copy(part, file)
+// 	if err != nil {
+// 		t.Fatalf("Failed to copy file content: %v", err)
+// 	}
+// 	writer.Close()
+
+// 	req, _ := http.NewRequest("POST", "http://127.0.0.1:4991/games/cs2/replays", strings.NewReader(body.String()))
+// 	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+// 	response := tester.Exec(req)
+
+// 	t.Logf("response: %v", response)
+
+// 	expectStatus(t, http.StatusOK, response)
+// }

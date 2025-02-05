@@ -50,7 +50,9 @@ func (ctlr *FileController) UploadHandler(apiContext context.Context) http.Handl
 		match, err := uploadAndProcessReplayFileCommand.Exec(reqContext, file)
 		if err != nil {
 			slog.ErrorContext(reqContext, "Failed to upload and process file", "err", err)
-			w.WriteHeader(http.StatusInternalServerError)
+			if err.Error() == "Unauthorized" {
+				w.WriteHeader(http.StatusUnauthorized)
+			}
 			return
 		}
 

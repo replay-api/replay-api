@@ -45,14 +45,15 @@ func (ctrl *PlayerProfileController) CreatePlayerProfileHandler(apiContext conte
 		player, err := createPlayerCommandHandler.Exec(r.Context(), createPlayerCommand)
 		if err != nil {
 			slog.ErrorContext(r.Context(), "Failed to create player profile", "err", err)
-			w.WriteHeader(http.StatusInternalServerError)
+			if err.Error() == "Unauthorized" {
+				w.WriteHeader(http.StatusUnauthorized)
+			}
 			return
 		}
 
 		err = json.NewEncoder(w).Encode(player)
 		if err != nil {
 			slog.ErrorContext(r.Context(), "Failed to encode response", "err", err)
-			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 

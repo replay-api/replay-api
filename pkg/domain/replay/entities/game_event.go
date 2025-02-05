@@ -44,7 +44,7 @@ func NewGameEvent[T any](matchID uuid.UUID, tickID common.TickIDType, gameTime t
 }
 
 func (ge *GameEvent) GetPlayerIDs() ([]common.PlayerIDType, error) {
-	players, ok := ge.Entities[common.ResourceTypePlayer]
+	players, ok := ge.Entities[common.ResourceTypePlayerMetadata]
 
 	if !ok {
 		return nil, fmt.Errorf("PlayerID not present in GameEvent %v", ge)

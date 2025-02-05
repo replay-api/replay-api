@@ -18,11 +18,24 @@ type CreatePlayerUseCase struct {
 	GroupReader  iam_out.GroupReader
 }
 
+func NewCreatePlayerProfileUseCase(playerWriter squad_out.PlayerProfileWriter, groupWriter iam_out.GroupWriter, groupReader iam_out.GroupReader) *CreatePlayerUseCase {
+	return &CreatePlayerUseCase{
+		PlayerWriter: playerWriter,
+		GroupWriter:  groupWriter,
+		GroupReader:  groupReader,
+	}
+}
+
 func (uc *CreatePlayerUseCase) Exec(c context.Context, cmd squad_in.CreatePlayerProfileCommand) (*squad_entities.PlayerProfile, error) {
 	isAuthenticated := c.Value(common.AuthenticatedKey)
 	if isAuthenticated == nil || !isAuthenticated.(bool) {
 		return nil, common.NewErrUnauthorized()
 	}
+
+	// TODO: validate DUPs (nickname, slug etc)
+	// TODO: fix roles, avatar, description
+	// TODO: check if token has SteamAccountID, if same name as player, connect them. (add verified bool to player, for badge)
+	// TODO: design way to connect player metadata
 
 	groupSearch := iam_entities.NewGroupAccountSearchByUser(c)
 

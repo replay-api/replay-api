@@ -43,14 +43,15 @@ func (ctrl *SquadController) CreateSquadHandler(apiContext context.Context) http
 		squad, err := createSquadCommandHandler.Exec(r.Context(), createSquadCommand)
 		if err != nil {
 			slog.ErrorContext(r.Context(), "Failed to create squad", "err", err)
-			w.WriteHeader(http.StatusInternalServerError)
+			if err.Error() == "Unauthorized" {
+				w.WriteHeader(http.StatusUnauthorized)
+			}
 			return
 		}
 
 		err = json.NewEncoder(w).Encode(squad)
 		if err != nil {
 			slog.ErrorContext(r.Context(), "Failed to encode response", "err", err)
-			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 

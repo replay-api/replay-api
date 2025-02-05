@@ -34,6 +34,8 @@ func (uc *CreateSquadUseCase) Exec(ctx context.Context, cmd squad_in.CreateSquad
 		return nil, common.NewErrUnauthorized()
 	}
 
+	// TODO: validate DUPs (nickname, slug etc)
+
 	groupSearch := iam_entities.NewGroupAccountSearchByUser(ctx)
 
 	groups, err := uc.GroupReader.Search(ctx, groupSearch)
