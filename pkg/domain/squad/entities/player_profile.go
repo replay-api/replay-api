@@ -31,10 +31,17 @@ func (e PlayerProfile) GetID() uuid.UUID {
 func NewPlayerProfile(gameID common.GameIDKey, nickname, avatar, description string, visbility common.VisibilityTypeKey, rxn common.ResourceOwner) *PlayerProfile {
 	var baseEntity common.BaseEntity
 
-	if visbility == common.PublicVisibilityTypeKey {
+	switch visbility {
+	case common.PublicVisibilityTypeKey:
 		baseEntity = common.NewUnrestrictedEntity(rxn)
-	} else {
+	case common.RestrictedVisibilityTypeKey:
 		baseEntity = common.NewRestrictedEntity(rxn)
+	case common.PrivateVisibilityTypeKey:
+		baseEntity = common.NewPrivateEntity(rxn)
+	case common.CustomVisibilityTypeKey:
+		baseEntity = common.NewEntity(rxn)
+	default:
+		baseEntity = common.NewEntity(rxn)
 	}
 
 	return &PlayerProfile{

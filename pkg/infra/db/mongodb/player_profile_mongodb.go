@@ -41,21 +41,21 @@ func NewPlayerProfileRepository(client *mongo.Client, dbName string, entityType 
 		"CreatedAt":       true,
 		"UpdatedAt":       true,
 	}, map[string]string{
-		"ID":              "_id", // TODO: review ; (opcional: aqui a exceção se tornou a regra. deixar default o que está na annotation da prop.) talvez seja melhor refletir os tipos nas anotacoes json/bson
+		"ID":              "baseentity._id", // TODO: review ; (opcional: aqui a exceção se tornou a regra. deixar default o que está na annotation da prop.) talvez seja melhor refletir os tipos nas anotacoes json/bson
 		"GameID":          "game_id",
 		"Nickname":        "nickname",
 		"Avatar":          "avatar",
 		"Roles":           "roles",
 		"Description":     "description",
-		"VisibilityLevel": "visibility_level",
-		"VisibilityType":  "visibility_type",
-		"ResourceOwner":   "resource_owner", // TODO: principalmente resource ownership, que é padronizado.
-		"TenantID":        "resource_owner.tenant_id",
-		"UserID":          "resource_owner.user_id",
-		"GroupID":         "resource_owner.group_id",
-		"ClientID":        "resource_owner.client_id",
-		"CreatedAt":       "create_at",
-		"UpdatedAt":       "updated_at",
+		"VisibilityLevel": "baseentity.visibility_level",
+		"VisibilityType":  "baseentity.visibility_type",
+		"ResourceOwner":   "baseentity.resource_owner", // TODO: principalmente resource ownership, que é padronizado.
+		"TenantID":        "baseentity.resource_owner.tenant_id",
+		"UserID":          "baseentity.resource_owner.user_id",
+		"GroupID":         "baseentity.resource_owner.group_id",
+		"ClientID":        "baseentity.resource_owner.client_id",
+		"CreatedAt":       "baseentity.create_at",
+		"UpdatedAt":       "baseentity.updated_at",
 	})
 
 	return &PlayerProfileRepository{

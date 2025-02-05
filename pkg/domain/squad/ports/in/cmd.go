@@ -22,13 +22,13 @@ type CreateSquadCommandHandler interface {
 	Exec(c context.Context, cmd CreateSquadCommand) (*squad_entities.Squad, error)
 }
 
-type CreatePlayerCommand struct {
+type CreatePlayerProfileCommand struct {
 	GameID         common.GameIDKey `json:"game_id"`
 	Nickname       string           `json:"nickname"`
 	AvatarURI      string           `json:"avatar_uri"`
 	VisibilityType common.VisibilityTypeKey
 }
 
-type CreatePlayerCommandHandler interface {
-	Exec(c context.Context, cmd CreatePlayerCommand) (*squad_entities.PlayerProfile, error)
+type CreatePlayerProfileCommandHandler interface {
+	Exec(c context.Context, cmd CreatePlayerProfileCommand) (*squad_entities.PlayerProfile, error)
 }

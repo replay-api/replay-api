@@ -18,7 +18,7 @@ type CreatePlayerUseCase struct {
 	GroupReader  iam_out.GroupReader
 }
 
-func (uc *CreatePlayerUseCase) Exec(c context.Context, cmd squad_in.CreatePlayerCommand) (*squad_entities.PlayerProfile, error) {
+func (uc *CreatePlayerUseCase) Exec(c context.Context, cmd squad_in.CreatePlayerProfileCommand) (*squad_entities.PlayerProfile, error) {
 	isAuthenticated := c.Value(common.AuthenticatedKey)
 	if isAuthenticated == nil || !isAuthenticated.(bool) {
 		return nil, common.NewErrUnauthorized()
