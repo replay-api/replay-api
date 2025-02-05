@@ -7,20 +7,18 @@ import (
 	squad_out "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/out"
 )
 
-type SquadQueryService struct {
-	common.BaseQueryService[squad_entities.Squad]
+type PlayerProfileQueryService struct {
+	common.BaseQueryService[squad_entities.PlayerProfile]
 }
 
-func NewSquadQueryService(eventReader squad_out.SquadReader) squad_in.SquadReader {
+func NewPlayerProfileQueryService(eventReader squad_out.PlayerProfileReader) squad_in.PlayerProfileReader {
 	queryableFields := map[string]bool{
 		"ID":            true,
-		"GroupID":       true,
 		"GameID":        true,
-		"FullName":      true,
-		"ShortName":     true,
-		"Symbol":        true,
+		"Nickname":      true,
+		"Avatar":        true,
+		"Roles":         true,
 		"Description":   true,
-		"Profiles.*":    true,
 		"ResourceOwner": true,
 		"CreatedAt":     true,
 		"UpdatedAt":     true,
@@ -28,20 +26,18 @@ func NewSquadQueryService(eventReader squad_out.SquadReader) squad_in.SquadReade
 
 	readableFields := map[string]bool{
 		"ID":            true,
-		"GroupID":       true,
 		"GameID":        true,
-		"FullName":      true,
-		"ShortName":     true,
-		"Symbol":        true,
+		"Nickname":      true,
+		"Avatar":        true,
+		"Roles":         true,
 		"Description":   true,
-		"Profiles.*":    true,
 		"ResourceOwner": common.DENY,
 		"CreatedAt":     true,
 		"UpdatedAt":     true,
 	}
 
-	return &common.BaseQueryService[squad_entities.Squad]{
-		Reader:          eventReader.(common.Searchable[squad_entities.Squad]),
+	return &common.BaseQueryService[squad_entities.PlayerProfile]{
+		Reader:          eventReader.(common.Searchable[squad_entities.PlayerProfile]),
 		QueryableFields: queryableFields,
 		ReadableFields:  readableFields,
 		MaxPageSize:     100,

@@ -690,6 +690,23 @@ func (b *ContainerBuilder) WithSquadAPI() *ContainerBuilder {
 		panic(err)
 	}
 
+	// squad_in.PlayerProfileReader
+	err = c.Singleton(func() (squad_in.PlayerProfileReader, error) {
+		var playerProfileReader squad_out.PlayerProfileReader
+		err := c.Resolve(&playerProfileReader)
+		if err != nil {
+			slog.Error("Failed to resolve PlayerProfileReader for PlayerProfileQueryService.", "err", err)
+			return nil, err
+		}
+
+		return squad_services.NewPlayerProfileQueryService(playerProfileReader), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load PlayerProfileReader.")
+		panic(err)
+	}
+
 	// squad_in.CreateSquadCommandHandler
 	err = c.Singleton(func() (squad_in.CreateSquadCommandHandler, error) {
 		var squadWriter squad_out.SquadWriter
