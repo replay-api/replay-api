@@ -30,5 +30,5 @@ type CreatePlayerCommand struct {
 }
 
 type CreatePlayerCommandHandler interface {
-	Exec(c context.Context, cmd CreatePlayerCommand) (*squad_entities.Player, error)
+	Exec(c context.Context, cmd CreatePlayerCommand) (*squad_entities.PlayerProfile, error)
 }

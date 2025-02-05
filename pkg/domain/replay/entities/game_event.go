@@ -53,7 +53,7 @@ func (ge *GameEvent) GetPlayerIDs() ([]common.PlayerIDType, error) {
 	playerIDs := make([]common.PlayerIDType, len(players))
 
 	for _, p := range players {
-		playerIDs = append(playerIDs, common.PlayerIDType(p.(Player).GetID()))
+		playerIDs = append(playerIDs, common.PlayerIDType(p.(PlayerMetadata).GetID()))
 	}
 
 	return playerIDs, nil

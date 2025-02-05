@@ -22,7 +22,7 @@ const (
 
 type SquadMembership struct {
 	Type    SquadMembershipType                 `json:"type" bson:"type"`
-	Roles   map[uint]string                     `json:"role" bson:"role"`
+	Roles   []string                            `json:"role" bson:"role"`
 	Status  map[time.Time]SquadMembershipStatus `json:"status" bson:"status"`
 	History map[time.Time]SquadMembershipType   `json:"history" bson:"history"`
 }

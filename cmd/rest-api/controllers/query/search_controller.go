@@ -135,8 +135,8 @@ func NewTeamSearchController(c *container.Container) *SearchController[replay_en
 	}
 }
 
-func NewPlayerSearchController(c *container.Container) *SearchController[replay_entity.Player] {
-	var s replay_in.PlayerReader
+func NewPlayerSearchController(c *container.Container) *SearchController[replay_entity.PlayerMetadata] {
+	var s replay_in.PlayerMetadataReader
 	err := c.Resolve(&s)
 
 	if err != nil {
@@ -144,7 +144,7 @@ func NewPlayerSearchController(c *container.Container) *SearchController[replay_
 		panic(err)
 	}
 
-	return &SearchController[replay_entity.Player]{
+	return &SearchController[replay_entity.PlayerMetadata]{
 		Searchable: s,
 	}
 }

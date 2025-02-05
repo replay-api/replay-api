@@ -11,12 +11,12 @@ import (
 	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
 )
 
-type PlayerRepository struct {
-	MongoDBRepository[replay_entity.Player]
+type PlayerMetadataRepository struct {
+	MongoDBRepository[replay_entity.PlayerMetadata]
 }
 
-func NewPlayerRepository(client *mongo.Client, dbName string, entityType replay_entity.Player, collectionName string) *PlayerRepository {
-	repo := MongoDBRepository[replay_entity.Player]{
+func NewPlayerMetadataRepository(client *mongo.Client, dbName string, entityType replay_entity.PlayerMetadata, collectionName string) *PlayerMetadataRepository {
+	repo := MongoDBRepository[replay_entity.PlayerMetadata]{
 		mongoClient:       client,
 		dbName:            dbName,
 		mappingCache:      make(map[string]CacheItem),
@@ -54,12 +54,12 @@ func NewPlayerRepository(client *mongo.Client, dbName string, entityType replay_
 		"UpdatedAt":          "updated_at",
 	})
 
-	return &PlayerRepository{
+	return &PlayerMetadataRepository{
 		repo,
 	}
 }
 
-func (r *PlayerRepository) Search(ctx context.Context, s common.Search) ([]replay_entity.Player, error) {
+func (r *PlayerMetadataRepository) Search(ctx context.Context, s common.Search) ([]replay_entity.PlayerMetadata, error) {
 	cursor, err := r.Query(ctx, s)
 	if cursor != nil {
 		defer cursor.Close(ctx)
@@ -70,10 +70,10 @@ func (r *PlayerRepository) Search(ctx context.Context, s common.Search) ([]repla
 		return nil, err
 	}
 
-	players := make([]replay_entity.Player, 0)
+	players := make([]replay_entity.PlayerMetadata, 0)
 
 	for cursor.Next(ctx) {
-		var p replay_entity.Player
+		var p replay_entity.PlayerMetadata
 		err := cursor.Decode(&p)
 
 		if err != nil {
@@ -87,7 +87,7 @@ func (r *PlayerRepository) Search(ctx context.Context, s common.Search) ([]repla
 	return players, nil
 }
 
-func (r *PlayerRepository) CreateMany(createCtx context.Context, events []interface{}) error {
+func (r *PlayerMetadataRepository) CreateMany(createCtx context.Context, events []interface{}) error {
 	_, err := r.collection.InsertMany(createCtx, events)
 	if err != nil {
 		slog.ErrorContext(createCtx, err.Error())
@@ -97,7 +97,7 @@ func (r *PlayerRepository) CreateMany(createCtx context.Context, events []interf
 	return nil
 }
 
-func (r *PlayerRepository) Create(createCtx context.Context, events ...replay_entity.Player) error {
+func (r *PlayerMetadataRepository) Create(createCtx context.Context, events ...replay_entity.PlayerMetadata) error {
 	toInsert := make([]interface{}, len(events))
 
 	for i := range events {

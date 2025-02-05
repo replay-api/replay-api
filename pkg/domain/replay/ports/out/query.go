@@ -35,7 +35,7 @@ type TeamReader interface {
 }
 
 type PlayerMetadataReader interface {
-	common.Searchable[replay_entity.Player]
+	common.Searchable[replay_entity.PlayerMetadata]
 }
 
 type BadgeReader interface {

@@ -24,45 +24,49 @@ func (b BaseEntity) GetID() uuid.UUID {
 }
 
 func NewEntity(resourceOwner ResourceOwner) BaseEntity {
+	now := time.Now()
 	return BaseEntity{
 		ID:              uuid.New(),
 		VisibilityLevel: ClientApplicationAudienceIDKey,
 		VisbilityType:   CustomVisibilityTypeKey,
 		ResourceOwner:   resourceOwner,
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
+		CreatedAt:       now,
+		UpdatedAt:       now,
 	}
 }
 
 func NewUnrestrictedEntity(resourceOwner ResourceOwner) BaseEntity {
+	now := time.Now()
 	return BaseEntity{
 		ID:              uuid.New(),
 		VisibilityLevel: TenantAudienceIDKey,
 		VisbilityType:   PublicVisibilityTypeKey,
 		ResourceOwner:   resourceOwner,
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
+		CreatedAt:       now,
+		UpdatedAt:       now,
 	}
 }
 
 func NewRestrictedEntity(resourceOwner ResourceOwner) BaseEntity {
+	now := time.Now()
 	return BaseEntity{
 		ID:              uuid.New(),
 		VisibilityLevel: GroupAudienceIDKey,
 		VisbilityType:   RestrictedVisibilityTypeKey,
 		ResourceOwner:   resourceOwner,
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
+		CreatedAt:       now,
+		UpdatedAt:       now,
 	}
 }
 
 func NewPrivateEntity(resourceOwner ResourceOwner) BaseEntity {
+	now := time.Now()
 	return BaseEntity{
 		ID:              uuid.New(),
 		VisibilityLevel: UserAudienceIDKey,
 		VisbilityType:   PrivateVisibilityTypeKey,
 		ResourceOwner:   resourceOwner,
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
+		CreatedAt:       now,
+		UpdatedAt:       now,
 	}
 }

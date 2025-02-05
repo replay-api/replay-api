@@ -63,8 +63,8 @@ func (uc *CreateSquadUseCase) Exec(ctx context.Context, cmd squad_in.CreateSquad
 		cmd.AvatarURI,
 		cmd.Name,
 		cmd.Symbol,
-		cmd.SlugURI,
 		cmd.Description,
+		cmd.SlugURI,
 		common.GetResourceOwner(ctx),
 	)
 
@@ -76,7 +76,7 @@ func (uc *CreateSquadUseCase) Exec(ctx context.Context, cmd squad_in.CreateSquad
 
 	squad.Membership = cmd.Members
 
-	squad, err = uc.SquadWriter.Create(ctx, squad)
+	squad, err = uc.SquadWriter.Create(ctx, squad) // TODO: create squadHistory
 
 	if err != nil {
 		return nil, err
