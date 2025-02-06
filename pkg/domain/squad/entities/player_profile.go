@@ -5,16 +5,6 @@ import (
 	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
 )
 
-type PlayerHistoryAction string
-
-const (
-	PlayerHistoryActionCreate                 PlayerHistoryAction = "Create"
-	PlayerHistoryActionUpdate                 PlayerHistoryAction = "Update"
-	PlayerHistoryActionDelete                 PlayerHistoryAction = "Delete"
-	PlayerHistoryActionVisibilityRestricted   PlayerHistoryAction = "VisibilityRestricted"
-	PlayerHistoryActionVisibilityUnrestricted PlayerHistoryAction = "VisibilityUnrestricted"
-)
-
 type PlayerProfile struct {
 	common.BaseEntity
 	GameID      common.GameIDKey `json:"game_id" bson:"game_id"`
@@ -38,8 +28,6 @@ func NewPlayerProfile(gameID common.GameIDKey, nickname, avatar, description str
 		baseEntity = common.NewRestrictedEntity(rxn)
 	case common.PrivateVisibilityTypeKey:
 		baseEntity = common.NewPrivateEntity(rxn)
-	case common.CustomVisibilityTypeKey:
-		baseEntity = common.NewEntity(rxn)
 	default:
 		baseEntity = common.NewEntity(rxn)
 	}

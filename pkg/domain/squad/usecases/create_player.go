@@ -13,9 +13,25 @@ import (
 )
 
 type CreatePlayerUseCase struct {
-	PlayerWriter squad_out.PlayerProfileWriter
-	GroupWriter  iam_out.GroupWriter
-	GroupReader  iam_out.GroupReader
+	PlayerWriter               squad_out.PlayerProfileWriter
+	GroupWriter                iam_out.GroupWriter
+	GroupReader                iam_out.GroupReader
+	PlayerProfileHistoryWriter squad_out.PlayerProfileHistoryWriter
+}
+
+func NewCreatePlayerUseCase(
+	playerWriter squad_out.PlayerProfileWriter,
+	groupWriter iam_out.GroupWriter,
+	groupReader iam_out.GroupReader,
+	playerProfileHistoryWriter squad_out.PlayerProfileHistoryWriter,
+) *squad_in.CreatePlayerProfileCommand {
+
+	return &CreatePlayerUseCase{
+		PlayerWriter:               playerWriter,
+		GroupWriter:                groupWriter,
+		GroupReader:                groupReader,
+		PlayerProfileHistoryWriter: playerProfileHistoryWriter,
+	}
 }
 
 func (uc *CreatePlayerUseCase) Exec(c context.Context, cmd squad_in.CreatePlayerProfileCommand) (*squad_entities.PlayerProfile, error) {

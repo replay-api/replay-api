@@ -598,6 +598,31 @@ func (b *ContainerBuilder) WithSquadAPI() *ContainerBuilder {
 		panic(err)
 	}
 
+	err = c.Singleton(func() (*db.PlayerProfileHistoryRepository, error) {
+		var client *mongo.Client
+		err := c.Resolve(&client)
+		if err != nil {
+			slog.Error("Failed to resolve mongo.Client for NamedSingleton PlayerProfileHistoryRepository as generic MongoDBRepository.", "err", err)
+			return &db.PlayerProfileHistoryRepository{}, err
+		}
+
+		var config common.Config
+		err = c.Resolve(&config)
+		if err != nil {
+			slog.Error("Failed to resolve config for db.PlayerProfileHistoryRepository.", "err", err)
+			return nil, err
+		}
+
+		repo := db.NewPlayerProfileHistoryRepository(client, config.MongoDB.DBName, squad_entities.PlayerProfileHistory{}, "player_profile_histories")
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load NamedSingleton PlayerProfileHistoryRepository as generic MongoDBRepository.", "err", err)
+		panic(err)
+	}
+
 	// // OutboundPorts
 	// Squad
 	err = c.Singleton(func() (*db.SquadRepository, error) {
@@ -687,6 +712,49 @@ func (b *ContainerBuilder) WithSquadAPI() *ContainerBuilder {
 
 	if err != nil {
 		slog.Error("Failed to load squad_out.PlayerProfileWriter.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (squad_in.CreatePlayerProfileCommand, error) {
+		var playerWriter squad_out.PlayerProfileWriter
+		err := c.Resolve(&playerWriter)
+		if err != nil {
+			slog.Error("Failed to resolve PlayerProfileWriter for CreatePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var groupWriter iam_out.GroupWriter
+		err = c.Resolve(&groupWriter)
+		if err != nil {
+			slog.Error("Failed to resolve GroupWriter for CreatePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var groupReader iam_out.GroupReader
+
+		err = c.Resolve(&groupReader)
+		if err != nil {
+			slog.Error("Failed to resolve GroupReader for CreatePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var playerProfileHistoryWriter squad_out.PlayerProfileHistoryWriter
+		err = c.Resolve(&playerProfileHistoryWriter)
+
+		if err != nil {
+			slog.Error("Failed to resolve PlayerProfileHistoryWriter for CreatePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var uc squad_in.CreatePlayerProfileCommand
+
+		uc = squad_usecases.NewCreatePlayerUseCase(playerWriter, groupWriter, groupReader, playerProfileHistoryWriter)
+
+		return uc, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load CreatePlayerProfileCommandHandler.", "err", err)
 		panic(err)
 	}
 

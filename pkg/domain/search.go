@@ -49,7 +49,6 @@ const (
 	PublicVisibilityTypeKey VisibilityTypeKey = 1 << iota
 	RestrictedVisibilityTypeKey
 	PrivateVisibilityTypeKey
-	CustomVisibilityTypeKey
 )
 
 const (

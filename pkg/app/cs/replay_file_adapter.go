@@ -22,7 +22,7 @@ func NewCS2ReplayAdapter() *CS2ReplayAdapter {
 func registerParsers(p dem.Parser, matchContext *state.CS2MatchContext, eventsChan chan *e.GameEvent) {
 	p.RegisterEventHandler(handlers.BeginNewMatch(p, matchContext, eventsChan))
 	// p.RegisterEventHandler(handlers.WeaponFire(p, matchContext, eventsChan))
-	// p.RegisterEventHandler(handlers.HitEvent(p, matchContext, eventsChan))
+	p.RegisterEventHandler(handlers.HitEvent(p, matchContext, eventsChan))
 	p.RegisterEventHandler(handlers.RoundMVP(p, matchContext, eventsChan))
 	p.RegisterEventHandler(handlers.ClutchStart(p, matchContext, eventsChan))
 	p.RegisterEventHandler(handlers.ClutchProgress(p, matchContext, eventsChan))

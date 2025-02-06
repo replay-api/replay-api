@@ -28,7 +28,7 @@ func NewEntity(resourceOwner ResourceOwner) BaseEntity {
 	return BaseEntity{
 		ID:              uuid.New(),
 		VisibilityLevel: ClientApplicationAudienceIDKey,
-		VisbilityType:   CustomVisibilityTypeKey,
+		VisbilityType:   RestrictedVisibilityTypeKey,
 		ResourceOwner:   resourceOwner,
 		CreatedAt:       now,
 		UpdatedAt:       now,
