@@ -30,3 +30,7 @@ type GroupReader interface {
 // type RIDTokenReader interface {
 // 	common.Searchable[iam_entity.RIDToken]
 // }
+
+type JwkReader interface {
+	common.Searchable[iam_entity.Jwk]
+}

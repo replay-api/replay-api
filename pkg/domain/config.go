@@ -21,6 +21,7 @@ type AuthConfig struct {
 	SteamConfig     SteamConfig
 	BattleNetConfig BattleNetConfig
 	GitHubConfig    GitHubConfig
+	Issuer          string
 }
 
 type MongoDBConfig struct {
@@ -30,10 +31,16 @@ type MongoDBConfig struct {
 	Certificate string
 }
 
+// ApiConfig holds the configuration for the API
+type ApiConfig struct {
+	Port string
+}
+
 type Config struct {
 	Auth    AuthConfig
 	MongoDB MongoDBConfig
 	S3      S3Config
+	Api     ApiConfig
 }
 
 type S3Config struct {

@@ -12,6 +12,18 @@ start-rest-api:
 	@export DEV_ENV="true"
 	@./replay-api-http-service
 
+build-rest-api-windows:
+	@echo "Building API"
+	go build -o replay-api-http-service.exe .\cmd\rest-api\main.go
+
+start-rest-api-windows:
+	@echo "Running API"
+	@set "DEV_ENV=true" && .\replay-api-http-service.exe
+
+run-rest-api-windows:
+	@echo "Running API"
+	@set "DEV_ENV=true" && go run .\cmd\rest-api\main.go
+
 test-docker:
 	@echo "Running tests"
 	@docker-compose -f docker-compose.test.yml up --build --abort-on-container-exit

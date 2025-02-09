@@ -21,12 +21,16 @@ func EnvironmentConfig() (common.Config, error) {
 			GitHubConfig: common.GitHubConfig{
 				GitHubKey: os.Getenv("GITHUB_KEY"),
 			},
+			Issuer: os.Getenv("ISSUER"),
 		},
 		MongoDB: common.MongoDBConfig{
 			URI:         os.Getenv("MONGO_URI"),
 			PublicKey:   os.Getenv("MONGO_PUB_KEY"),
 			Certificate: os.Getenv("MONGO_CERT"),
 			DBName:      os.Getenv("MONGO_DB_NAME"),
+		},
+		Api: common.ApiConfig{
+			Port: os.Getenv("PORT"),
 		},
 	}
 

@@ -565,6 +565,39 @@ func (b *ContainerBuilder) WithInboundPorts() *ContainerBuilder {
 		panic(err)
 	}
 
+	err = c.Singleton(func() (iam_in.WellKnownReader, error) {
+		var config common.Config
+
+		err = c.Resolve(&config)
+		if err != nil {
+			slog.Error("Failed to resolve config for iam_in.WellKnownReader.", "err", err)
+			return nil, err
+		}
+
+		var jwtReader iam_out.JwkReader
+		err := c.Resolve(&jwtReader)
+
+		if err != nil {
+			slog.Error("Failed to resolve iam_out.JwkReader for iam_in.WellKnownReader.", "err", err)
+			return nil, err
+		}
+
+		var jwtWriter iam_out.JwkWriter
+		err = c.Resolve(&jwtWriter)
+
+		if err != nil {
+			slog.Error("Failed to resolve iam_out.JwkWriter for iam_in.WellKnownReader.", "err", err)
+			return nil, err
+		}
+
+		return iam_query_services.NewWellKnownService(config, jwtReader, jwtWriter), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to register iam_in.WellKnownReader.")
+		panic(err)
+	}
+
 	return b
 }
 
@@ -1535,6 +1568,68 @@ func InjectMongoDB(c container.Container) error {
 
 	if err != nil {
 		slog.Error("Failed to load iam_out.MembershipWriter.", "err", err)
+		panic(err)
+	}
+
+	// -----
+
+	// Jwt
+
+	err = c.Singleton(func() (*db.JwtRepository, error) {
+		var client *mongo.Client
+		err := c.Resolve(&client)
+		if err != nil {
+			slog.Error("Failed to resolve mongo.Client for NamedSingleton MembershipRepository as generic MongoDBRepository.", "err", err)
+			return &db.JwtRepository{}, err
+		}
+
+		var config common.Config
+
+		err = c.Resolve(&config)
+		if err != nil {
+			slog.Error("Failed to resolve config for db.JwtRepository.", "err", err)
+			return nil, err
+		}
+
+		repo := db.NewJwtRepository(client, config.MongoDB.DBName, &iam_entities.Jwk{}, "memberships")
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load NamedSingleton JwtRepository as generic MongoDBRepository.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (iam_out.JwkReader, error) {
+		var repo *db.JwtRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve JwtRepository for iam_out.JwkReader.", "err", err)
+			return nil, err
+		}
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load iam_out.JwkWriter.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (iam_out.JwkWriter, error) {
+		var repo *db.JwtRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve JwtRepository for iam_out.JwkWriter.", "err", err)
+			return nil, err
+		}
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load iam_out.JwkWriter.", "err", err)
 		panic(err)
 	}
 

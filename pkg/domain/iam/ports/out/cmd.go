@@ -29,3 +29,8 @@ type MembershipWriter interface {
 	CreateMany(createCtx context.Context, events []*iam_entities.Membership) error
 	Create(createCtx context.Context, events *iam_entities.Membership) (*iam_entities.Membership, error)
 }
+
+type JwkWriter interface {
+	CreateMany(createCtx context.Context, events []*iam_entities.Jwk) error
+	Create(createCtx context.Context, events *iam_entities.Jwk) (*iam_entities.Jwk, error)
+}

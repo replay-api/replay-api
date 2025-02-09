@@ -28,7 +28,9 @@ const (
 	OnboardGoogle string = "/onboarding/google"
 
 	// IAM
-	Group string = "/groups"
+	Group                 string = "/groups"
+	OpenConfiguration     string = "/.well-known/openid-configuration"
+	OpenConfigurationJwks string = "/.well-known/openid-configuration/jwks"
 
 	Search string = "/search/{query:.*}"
 )
@@ -45,6 +47,7 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	matchController := query_controllers.NewMatchQueryController(container)
 	eventController := query_controllers.NewEventQueryController(container)
 	groupController := query_controllers.NewGroupController(&container)
+	wellKnownController := query_controllers.NewWellKnownController(&container)
 
 	// search controllers
 	searchMux := query_controllers.NewSearchMux(&container)
@@ -133,6 +136,8 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 
 	// IAM API
 	r.HandleFunc(Group, groupController.HandleListMemberGroups).Methods("GET")
+	r.HandleFunc(OpenConfiguration, wellKnownController.HandleOpenConfiguration).Methods("GET")
+	r.HandleFunc(OpenConfigurationJwks, wellKnownController.HandleOpenConfigurationJwks).Methods("GET")
 
 	return r
 }

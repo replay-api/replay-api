@@ -17,3 +17,8 @@ type MembershipReader interface {
 	common.Searchable[iam_entities.Membership]
 	ListMemberGroups(ctx context.Context, s *common.Search) (map[uuid.UUID]iam_dtos.GroupMembershipDTO, error)
 }
+
+type WellKnownReader interface {
+	GetOpenConfiguration(ctx context.Context) (iam_dtos.OpenConfigurationDTO, error)
+	GetOpenConfigurationJwks(ctx context.Context) (iam_dtos.OpenConfigurationJwksDTO, error)
+}
