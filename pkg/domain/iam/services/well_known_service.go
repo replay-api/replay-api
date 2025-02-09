@@ -27,6 +27,7 @@ type WellKnownService struct {
 // NewWellKnownService creates a new WellKnownService.
 func NewWellKnownService(config common.Config, jwkReader iam_out.JwkReader, jwtWriter iam_out.JwkWriter) *WellKnownService {
 	return &WellKnownService{
+		Config:    config,
 		JwkReader: jwkReader,
 		JwkWriter: jwtWriter,
 	}
