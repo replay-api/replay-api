@@ -26,6 +26,8 @@ const (
 	SquadMembershipRequestDeclined SquadHistoryAction = "Squad Membership Request Declined"
 	SquadMembershipRequestAccepted SquadHistoryAction = "Squad Membership Request Accepted"
 	SquadMembershipRequestCanceled SquadHistoryAction = "Squad Membership Request Canceled"
+	SquadVisibilityRemoved         SquadHistoryAction = "Squad Visibility Removed"
+	SquadVisibilitySet             SquadHistoryAction = "Squad Visibility Set"
 	SquadArchived                  SquadHistoryAction = "Squad Archived"
 	SquadUnarchived                SquadHistoryAction = "Squad Unarchived"
 	SquadDeleted                   SquadHistoryAction = "Squad Deleted"

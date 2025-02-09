@@ -454,10 +454,10 @@ func (r *MongoDBRepository[T]) EnsureTenancy(queryCtx context.Context, agg bson.
 		return ensureClientID(queryCtx, agg, s)
 
 	case common.GroupAudienceIDKey:
-		return ensureGroupID(queryCtx, agg, s)
+		return ensureUserOrGroupID(queryCtx, agg, s, s.VisibilityOptions.IntendedAudience)
 
 	case common.UserAudienceIDKey:
-		return ensureUserID(queryCtx, agg, s)
+		return ensureUserOrGroupID(queryCtx, agg, s, s.VisibilityOptions.IntendedAudience)
 
 	case common.TenantAudienceIDKey:
 		slog.WarnContext(queryCtx, "TENANCY.Admin: tenant audience is not allowed", "intendedAudience", s.VisibilityOptions.IntendedAudience)
@@ -465,7 +465,7 @@ func (r *MongoDBRepository[T]) EnsureTenancy(queryCtx context.Context, agg bson.
 
 	default:
 		slog.WarnContext(queryCtx, "TENANCY.Unknown: intended audience is invalid", "intendedAudience", s.VisibilityOptions.IntendedAudience)
-		return agg, fmt.Errorf("TENANCY.Unknown: intended audience %s is invalid in `common.Search`: %#v", s.VisibilityOptions.IntendedAudience, s)
+		return agg, fmt.Errorf("TENANCY.Unknown: intended audience %s is invalid in `common.Search`: %#v", string(s.VisibilityOptions.IntendedAudience), s)
 	}
 }
 
@@ -490,43 +490,38 @@ func ensureClientID(ctx context.Context, agg bson.M, s common.Search) (bson.M, e
 	return agg, nil
 }
 
-func ensureGroupID(ctx context.Context, agg bson.M, s common.Search) (bson.M, error) {
-	groupID, ok := ctx.Value(common.GroupIDKey).(uuid.UUID)
-	if !ok || groupID == uuid.Nil {
-		return agg, fmt.Errorf("TENANCY.GroupLevel: valid group_id is required in queryCtx: %#v", ctx)
+func ensureUserOrGroupID(ctx context.Context, agg bson.M, s common.Search, aud common.IntendedAudienceKey) (bson.M, error) {
+	groupID := s.VisibilityOptions.RequestSource.GroupID
+	userID := s.VisibilityOptions.RequestSource.UserID
+	userOK := userID != uuid.Nil
+	groupOK := groupID != uuid.Nil
+	noParams := !(userOK || groupOK)
+
+	if noParams {
+		return agg, fmt.Errorf("TENANCY.GroupLevel: valid user_id or group_id is required in search parameters: %#v", s)
 	}
 
-	if s.VisibilityOptions.RequestSource.GroupID == uuid.Nil {
-		return agg, fmt.Errorf("TENANCY.GroupLevel: `group_id` is required in `common.Search`: %#v", s)
+	if aud == common.GroupAudienceIDKey && !groupOK {
+		return agg, fmt.Errorf("TENANCY.GroupLevel: group_id is required in search parameters for intended audience: %s", string(aud))
 	}
 
-	if groupID != s.VisibilityOptions.RequestSource.GroupID {
-		return agg, fmt.Errorf("TENANCY.GroupLevel: `group_id` in queryCtx does not match `group_id` in `common.Search`: %v vs %v", groupID, s.VisibilityOptions.RequestSource.GroupID)
+	if aud == common.UserAudienceIDKey && !userOK {
+		return agg, fmt.Errorf("TENANCY.UserLevel: user_id is required in search parameters for intended audience: %s", string(aud))
 	}
 
-	agg["resource_owner.group_id"] = groupID
-	slog.InfoContext(ctx, "TENANCY.GroupLevel: group_id", "group_id", groupID)
-
-	return agg, nil
-}
-
-func ensureUserID(ctx context.Context, agg bson.M, s common.Search) (bson.M, error) {
-	userID, ok := ctx.Value(common.UserIDKey).(uuid.UUID)
-	if !ok || userID == uuid.Nil {
-		return agg, fmt.Errorf("TENANCY.EndUser: valid user_id is required in queryCtx: %#v", ctx)
+	if groupOK && userOK {
+		agg["$or"] = bson.A{
+			bson.M{"resource_owner.group_id": groupID},
+			bson.M{"resource_owner.user_id": userID},
+		}
+		slog.InfoContext(ctx, "TENANCY.GroupLevel: group_id and user_id", "group_id", groupID, "user_id", userID)
+	} else if groupOK {
+		agg["resource_owner.group_id"] = groupID
+		slog.InfoContext(ctx, "TENANCY.GroupLevel: group_id", "group_id", groupID)
+	} else {
+		agg["resource_owner.user_id"] = userID
+		slog.InfoContext(ctx, "TENANCY.UserLevel: user_id", "user_id", userID)
 	}
-
-	if s.VisibilityOptions.RequestSource.UserID == uuid.Nil {
-		return agg, fmt.Errorf("TENANCY.EndUser: `user_id` is required in `common.Search`: %#v", s)
-	}
-
-	if userID != s.VisibilityOptions.RequestSource.UserID {
-		return agg, fmt.Errorf("TENANCY.EndUser: `user_id` in queryCtx does not match `user_id` in `common.Search`: %v vs %v", userID, s.VisibilityOptions.RequestSource.UserID)
-	}
-
-	agg["resource_owner.user_id"] = userID
-
-	slog.InfoContext(ctx, "TENANCY.EndUser: user_id", "user_id", userID)
 
 	return agg, nil
 }

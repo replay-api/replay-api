@@ -17,8 +17,8 @@ type ReplayFileReader interface {
 	common.Searchable[replay_entity.ReplayFile]
 }
 
-type PlayerReader interface {
-	common.Searchable[replay_entity.Player]
+type PlayerMetadataReader interface {
+	common.Searchable[replay_entity.PlayerMetadata]
 }
 
 type TeamReader interface {

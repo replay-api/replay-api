@@ -12,7 +12,7 @@ type SquadQueryController struct {
 }
 
 func NewSquadQueryController(c container.Container) *SquadQueryController {
-	var queryService squad_in.SquadSearchableReader
+	var queryService squad_in.SquadReader
 
 	err := c.Resolve(&queryService)
 

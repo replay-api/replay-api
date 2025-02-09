@@ -632,7 +632,7 @@ func TestGetBSONFieldNameFromSearchableValue(t *testing.T) {
 			name:            "Nonexistent Field",
 			searchableValue: common.SearchableValue{Field: "NonexistentField", Values: []interface{}{"value"}},
 			expectedName:    "",
-			expectedError:   fmt.Errorf("field NonexistentField not found or not queryable in ReplayFile"),
+			expectedError:   fmt.Errorf("field NonexistentField not found or not queryable in Entity: ReplayFile (Collection: replay_files. Queryable Fields: map[CreatedAt:true Error:true GameID:true Header:true Header.Filestamp:true ID:true InternalURI:true NetworkID:true ResourceOwner:true Size:true Status:true UpdatedAt:true])"),
 		},
 		{
 			name:            "Time/Date Value",
@@ -650,13 +650,13 @@ func TestGetBSONFieldNameFromSearchableValue(t *testing.T) {
 			name:            "Invalid Nested Field",
 			searchableValue: common.SearchableValue{Field: "Invalid.Nested", Values: []interface{}{"value"}},
 			expectedName:    "",
-			expectedError:   fmt.Errorf("field Invalid.Nested not found or not queryable in ReplayFile"),
+			expectedError:   fmt.Errorf("field Invalid.Nested not found or not queryable in Entity: ReplayFile (Collection: replay_files. Queryable Fields: map[CreatedAt:true Error:true GameID:true Header:true Header.Filestamp:true ID:true InternalURI:true NetworkID:true ResourceOwner:true Size:true Status:true UpdatedAt:true])"),
 		},
 		{
 			name:            "Invalid Subfield",
 			searchableValue: common.SearchableValue{Field: "GameID.Invalid", Values: []interface{}{"value"}},
 			expectedName:    "",
-			expectedError:   fmt.Errorf("field GameID.Invalid not found or not queryable in ReplayFile"),
+			expectedError:   fmt.Errorf("field GameID.Invalid not found or not queryable in Entity: ReplayFile (Collection: replay_files. Queryable Fields: map[CreatedAt:true Error:true GameID:true Header:true Header.Filestamp:true ID:true InternalURI:true NetworkID:true ResourceOwner:true Size:true Status:true UpdatedAt:true])"),
 		},
 		{
 			name:            "Empty Field Name",
@@ -777,22 +777,6 @@ func TestMongoDBRepository_EnsureTenancy(t *testing.T) {
 			contextValues:     map[interface{}]uuid.UUID{common.TenantIDKey: tenantID},
 		},
 		{
-			name:              "Error - Empty GroupID in Search",
-			agg:               bson.M{},
-			search:            common.Search{VisibilityOptions: common.SearchVisibilityOptions{IntendedAudience: common.GroupAudienceIDKey, RequestSource: common.ResourceOwner{TenantID: tenantID}}},
-			expectedAgg:       bson.M{},
-			expectedErrorPart: "TENANCY.GroupLevel: valid group_id is required in queryCtx",
-			contextValues:     map[interface{}]uuid.UUID{common.TenantIDKey: tenantID},
-		},
-		{
-			name:              "Error - Empty UserID in Search",
-			agg:               bson.M{},
-			search:            common.Search{VisibilityOptions: common.SearchVisibilityOptions{IntendedAudience: common.UserAudienceIDKey, RequestSource: common.ResourceOwner{TenantID: tenantID}}},
-			expectedAgg:       bson.M{},
-			expectedErrorPart: "TENANCY.EndUser: valid user_id is required in queryCtx",
-			contextValues:     map[interface{}]uuid.UUID{common.TenantIDKey: tenantID},
-		},
-		{
 			name:              "Error - No Audience Provided",
 			agg:               bson.M{},
 			search:            common.Search{VisibilityOptions: common.SearchVisibilityOptions{RequestSource: common.ResourceOwner{TenantID: tenantID, ClientID: clientID}}},
@@ -800,33 +784,72 @@ func TestMongoDBRepository_EnsureTenancy(t *testing.T) {
 			expectedErrorPart: "TENANCY.Unknown: intended audience",
 			contextValues:     map[interface{}]uuid.UUID{common.TenantIDKey: tenantID, common.ClientIDKey: clientID},
 		},
+		{
+			name: "Success - EnsureUserAndGroupIDTenancy",
+			agg:  bson.M{},
+			search: common.Search{
+				VisibilityOptions: common.SearchVisibilityOptions{
+					IntendedAudience: common.UserAudienceIDKey,
+					RequestSource:    common.ResourceOwner{TenantID: tenantID, UserID: userID, GroupID: groupID},
+				},
+			},
+			expectedAgg:   bson.M{"resource_owner.tenant_id": tenantID, "$or": bson.A{bson.M{"resource_owner.group_id": groupID}, bson.M{"resource_owner.user_id": userID}}},
+			expectedError: nil,
+			contextValues: map[interface{}]uuid.UUID{common.TenantIDKey: tenantID, common.UserIDKey: userID, common.GroupIDKey: groupID},
+		},
+		{
+			name: "Error - EnsureUserAndGroupIDTenancy with Empty UserID",
+			agg:  bson.M{},
+			search: common.Search{
+				VisibilityOptions: common.SearchVisibilityOptions{
+					IntendedAudience: common.UserAudienceIDKey,
+					RequestSource:    common.ResourceOwner{TenantID: tenantID, GroupID: groupID},
+				},
+			},
+			expectedAgg:       bson.M{},
+			expectedErrorPart: "TENANCY.UserLevel: user_id is required in search parameters for intended audience:",
+			contextValues:     map[interface{}]uuid.UUID{common.TenantIDKey: tenantID, common.GroupIDKey: groupID},
+		},
+		{
+			name: "Error - EnsureUserAndGroupIDTenancy with Empty GroupID",
+			agg:  bson.M{},
+			search: common.Search{
+				VisibilityOptions: common.SearchVisibilityOptions{
+					IntendedAudience: common.GroupAudienceIDKey,
+					RequestSource:    common.ResourceOwner{TenantID: tenantID, UserID: userID},
+				},
+			},
+			expectedAgg:       bson.M{},
+			expectedErrorPart: "TENANCY.GroupLevel: group_id is required in search parameters for intended audience:",
+			contextValues:     map[interface{}]uuid.UUID{common.TenantIDKey: tenantID, common.UserIDKey: userID},
+		},
+		{
+			name: "Error - EnsureUserAndGroupIDTenancy with Mismatched TenantID",
+			agg:  bson.M{},
+			search: common.Search{
+				VisibilityOptions: common.SearchVisibilityOptions{
+					IntendedAudience: common.UserAudienceIDKey,
+					RequestSource:    common.ResourceOwner{TenantID: uuid.New(), UserID: userID},
+				},
+			},
+			expectedAgg:       bson.M{},
+			expectedErrorPart: "TENANCY.RequestSource: `tenant_id` in queryCtx does not match `tenant_id` in `common.Search`",
+			contextValues:     map[interface{}]uuid.UUID{common.TenantIDKey: uuid.New(), common.UserIDKey: userID},
+		},
+		{
+			name: "Error - EnsureUserAndGroupIDTenancy with Nil TenantID",
+			agg:  bson.M{},
+			search: common.Search{
+				VisibilityOptions: common.SearchVisibilityOptions{
+					IntendedAudience: common.UserAudienceIDKey,
+					RequestSource:    common.ResourceOwner{TenantID: uuid.Nil, UserID: userID},
+				},
+			},
+			expectedAgg:       bson.M{},
+			expectedErrorPart: "TENANCY.RequestSource: valid tenant_id is required in queryCtx",
+			contextValues:     map[interface{}]uuid.UUID{common.TenantIDKey: uuid.Nil, common.UserIDKey: userID},
+		},
 	}
-	// {
-	// 	name:          "Success - GroupAudienceIDKey",
-	// 	agg:           bson.M{},
-	// 	search:        common.Search{VisibilityOptions: common.SearchVisibilityOptions{IntendedAudience: common.GroupAudienceIDKey, RequestSource: common.ResourceOwner{TenantID: uuid.New(), GroupID: uuid.New()}}},
-	// 	expectedAgg:   bson.M{"resource_owner.tenant_id": uuid.UUID{}, "resource_owner.group_id": uuid.UUID{}},
-	// 	expectedError: nil,
-	// 	contextValues: map[interface{}]uuid.UUID{common.TenantIDKey: uuid.Nil, common.GroupIDKey: uuid.Nil},
-	// },
-	// {
-	// 	name:          "Success - UserAudienceIDKey",
-	// 	agg:           bson.M{},
-	// 	search:        common.Search{VisibilityOptions: common.SearchVisibilityOptions{IntendedAudience: common.UserAudienceIDKey, RequestSource: common.ResourceOwner{TenantID: uuid.New(), UserID: uuid.New()}}},
-	// 	expectedAgg:   bson.M{"resource_owner.tenant_id": uuid.Nil, "resource_owner.user_id": uuid.Nil},
-	// 	expectedError: nil,
-	// 	contextValues: map[interface{}]uuid.UUID{common.TenantIDKey: uuid.Nil, common.UserIDKey: uuid.Nil},
-	// },
-	// // Error cases
-	// {
-	// 	name:              "Error - Empty TenantID in Search",
-	// 	agg:               bson.M{},
-	// 	search:            common.Search{VisibilityOptions: common.SearchVisibilityOptions{RequestSource: common.ResourceOwner{}}},
-	// 	expectedAgg:       bson.M{},
-	// 	expectedError:     fmt.Errorf("tenant_id not found in search context"),
-	// 	contextValues:     map[interface{}]uuid.UUID{},
-	// 	maxRecursiveDepth: 1,
-	// },
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -838,6 +861,9 @@ func TestMongoDBRepository_EnsureTenancy(t *testing.T) {
 				assert.Error(t, err, tc.name)
 				assert.EqualError(t, err, tc.expectedError.Error(), tc.name)
 			} else if tc.expectedErrorPart != "" {
+				if err == nil {
+					assert.Fail(t, "expectedErrorPart is set but error is nil")
+				}
 				assert.Contains(t, err.Error(), tc.expectedErrorPart, tc.name)
 			} else if tc.expectedAgg != nil {
 				assert.NoError(t, err, tc.name)

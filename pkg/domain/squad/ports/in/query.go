@@ -5,6 +5,10 @@ import (
 	squad_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/entities"
 )
 
-type SquadSearchableReader interface {
+type SquadReader interface {
 	common.Searchable[squad_entities.Squad]
+}
+
+type PlayerProfileReader interface {
+	common.Searchable[squad_entities.PlayerProfile]
 }

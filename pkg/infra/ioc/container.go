@@ -35,6 +35,7 @@ import (
 	squad_in "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/in"
 	squad_out "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/out"
 	squad_services "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/services"
+	squad_usecases "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/usecases"
 
 	replay_in "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/ports/in"
 	replay_out "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/ports/out"
@@ -604,8 +605,178 @@ func (b *ContainerBuilder) WithInboundPorts() *ContainerBuilder {
 func (b *ContainerBuilder) WithSquadAPI() *ContainerBuilder {
 	c := b.Container
 
+	// repos
+	err := c.Singleton(func() (*db.PlayerProfileRepository, error) {
+		var client *mongo.Client
+		err := c.Resolve(&client)
+		if err != nil {
+			slog.Error("Failed to resolve mongo.Client for NamedSingleton PlayerProfileRepository as generic MongoDBRepository.", "err", err)
+			return &db.PlayerProfileRepository{}, err
+		}
+
+		var config common.Config
+		err = c.Resolve(&config)
+		if err != nil {
+			slog.Error("Failed to resolve config for db.PlayerProfileRepository.", "err", err)
+			return nil, err
+		}
+
+		repo := db.NewPlayerProfileRepository(client, config.MongoDB.DBName, squad_entities.PlayerProfile{}, "player_profiles")
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load NamedSingleton PlayerProfileRepository as generic MongoDBRepository.", "err", err)
+		panic(err)
+	}
+
+	// // OutboundPorts
+	// Squad
+	err = c.Singleton(func() (*db.SquadRepository, error) {
+		var client *mongo.Client
+		err := c.Resolve(&client)
+		if err != nil {
+			slog.Error("Failed to resolve mongo.Client for NamedSingleton SquadRepository as generic MongoDBRepository.", "err", err)
+			return &db.SquadRepository{}, err
+		}
+
+		var config common.Config
+
+		err = c.Resolve(&config)
+		if err != nil {
+			slog.Error("Failed to resolve config for db.SquadRepository.", "err", err)
+			return nil, err
+		}
+
+		repo := db.NewSquadRepository(client, config.MongoDB.DBName, squad_entities.Squad{}, "squads")
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load NamedSingleton SquadRepository as generic MongoDBRepository.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (squad_out.SquadReader, error) {
+		var repo *db.SquadRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve SquadRepository for squad_out.SquadReader.", "err", err)
+			return nil, err
+		}
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load squad_out.SquadReader.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (squad_out.SquadWriter, error) {
+		var repo *db.SquadRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve SquadRepository for squad_out.SquadWriter.", "err", err)
+			return nil, err
+		}
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load squad_out.SquadWriter.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (squad_out.PlayerProfileReader, error) {
+		var repo *db.PlayerProfileRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve PlayerProfileRepository for squad_out.PlayerProfileReader.", "err", err)
+			return nil, err
+		}
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load squad_out.PlayerProfileReader.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (squad_out.PlayerProfileWriter, error) {
+		var repo *db.PlayerProfileRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve PlayerProfileRepository for squad_out.PlayerProfileWriter.", "err", err)
+			return nil, err
+		}
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load squad_out.PlayerProfileWriter.", "err", err)
+		panic(err)
+	}
+
+	// squad_in.PlayerProfileReader
+	err = c.Singleton(func() (squad_in.PlayerProfileReader, error) {
+		var playerProfileReader squad_out.PlayerProfileReader
+		err := c.Resolve(&playerProfileReader)
+		if err != nil {
+			slog.Error("Failed to resolve PlayerProfileReader for PlayerProfileQueryService.", "err", err)
+			return nil, err
+		}
+
+		return squad_services.NewPlayerProfileQueryService(playerProfileReader), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load PlayerProfileReader.")
+		panic(err)
+	}
+
+	// squad_in.CreateSquadCommandHandler
+	err = c.Singleton(func() (squad_in.CreateSquadCommandHandler, error) {
+		var squadWriter squad_out.SquadWriter
+		err := c.Resolve(&squadWriter)
+		if err != nil {
+
+			slog.Error("Failed to resolve PlayerProfileWriter for CreatePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var groupWriter iam_out.GroupWriter
+		err = c.Resolve(&groupWriter)
+		if err != nil {
+			slog.Error("Failed to resolve GroupWriter for CreatePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var groupReader iam_out.GroupReader
+		err = c.Resolve(&groupReader)
+		if err != nil {
+			slog.Error("Failed to resolve GroupReader for CreatePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		cmdHandler := squad_usecases.NewCreateSquadUseCase(squadWriter, groupWriter, groupReader)
+
+		return cmdHandler, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load CreatePlayerProfileCommandHandler.")
+		panic(err)
+
+	}
+
 	// InboundPorts
-	err := c.Singleton(func() (squad_in.SquadSearchableReader, error) {
+	err = c.Singleton(func() (squad_in.SquadReader, error) {
 		var squadReader squad_out.SquadReader
 		err := c.Resolve(&squadReader)
 		if err != nil {
@@ -621,20 +792,35 @@ func (b *ContainerBuilder) WithSquadAPI() *ContainerBuilder {
 		panic(err)
 	}
 
-	// // OutboundPorts
-	err = c.Singleton(func() (squad_out.SquadReader, error) {
-		var squadReader squad_out.SquadReader
-		err = c.Resolve(&squadReader)
+	err = c.Singleton(func() (squad_in.CreateSquadCommandHandler, error) {
+		var squadWriter squad_out.SquadWriter
+		err := c.Resolve(&squadWriter)
 		if err != nil {
-			slog.Error("Failed to resolve SquadReader for SquadQueryService.", "err", err)
+			slog.Error("Failed to resolve SquadWriter for CreatePlayerCommandHandler.", "err", err)
 			return nil, err
 		}
 
-		return squad_services.NewSquadQueryService(squadReader), nil
+		var groupWriter iam_out.GroupWriter
+		err = c.Resolve(&groupWriter)
+		if err != nil {
+			slog.Error("Failed to resolve GroupWriter for CreatePlayerCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var groupReader iam_out.GroupReader
+		err = c.Resolve(&groupReader)
+		if err != nil {
+			slog.Error("Failed to resolve GroupReader for CreatePlayerCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		cmdHandler := squad_usecases.NewCreateSquadUseCase(squadWriter, groupWriter, groupReader)
+
+		return cmdHandler, nil
 	})
 
 	if err != nil {
-		slog.Error("Failed to load SquadReader.")
+		slog.Error("Failed to load CreateSquadCommandHandler.")
 		panic(err)
 	}
 
@@ -883,12 +1069,12 @@ func InjectMongoDB(c container.Container) error {
 	}
 
 	// Player Metadata Repository
-	err = c.Singleton(func() (*db.PlayerRepository, error) {
+	err = c.Singleton(func() (*db.PlayerMetadataRepository, error) {
 		var client *mongo.Client
 		err := c.Resolve(&client)
 		if err != nil {
 			slog.Error("Failed to resolve mongo.Client for PlayerRepository as generic MongoDBRepository.", "err", err)
-			return &db.PlayerRepository{}, err
+			return &db.PlayerMetadataRepository{}, err
 		}
 
 		var config common.Config
@@ -899,7 +1085,7 @@ func InjectMongoDB(c container.Container) error {
 			return nil, err
 		}
 
-		repo := db.NewPlayerRepository(client, config.MongoDB.DBName, replay_entity.Player{}, "player_metadata")
+		repo := db.NewPlayerMetadataRepository(client, config.MongoDB.DBName, replay_entity.PlayerMetadata{}, "player_metadata")
 
 		return repo, nil
 	})
@@ -910,7 +1096,7 @@ func InjectMongoDB(c container.Container) error {
 	}
 
 	err = c.Singleton(func() (replay_out.PlayerMetadataReader, error) {
-		var repo *db.PlayerRepository
+		var repo *db.PlayerMetadataRepository
 		err = c.Resolve(&repo)
 		if err != nil {
 			slog.Error("Failed to resolve PlayerRepository for replay_out.PlayerMetadataReader.", "err", err)
@@ -926,7 +1112,7 @@ func InjectMongoDB(c container.Container) error {
 	}
 
 	err = c.Singleton(func() (replay_out.PlayerMetadataWriter, error) {
-		var repo *db.PlayerRepository
+		var repo *db.PlayerMetadataRepository
 		err = c.Resolve(&repo)
 		if err != nil {
 			slog.Error("Failed to resolve PlayerRepository for replay_out.PlayerMetadataWriter.", "err", err)
@@ -957,11 +1143,11 @@ func InjectMongoDB(c container.Container) error {
 		panic(err)
 	}
 
-	err = c.Singleton(func() (replay_in.PlayerReader, error) {
-		var repo *db.PlayerRepository
+	err = c.Singleton(func() (replay_in.PlayerMetadataReader, error) {
+		var repo *db.PlayerMetadataRepository
 		err = c.Resolve(&repo)
 		if err != nil {
-			slog.Error("Failed to resolve PlayerRepository for replay_in.PlayerReader.", "err", err)
+			slog.Error("Failed to resolve PlayerRepository for replay_in.PlayerProfileReader.", "err", err)
 			return nil, err
 		}
 
@@ -969,7 +1155,7 @@ func InjectMongoDB(c container.Container) error {
 	})
 
 	if err != nil {
-		slog.Error("Failed to load replay_in.PlayerReader.", "err", err)
+		slog.Error("Failed to load replay_in.PlayerProfileReader.", "err", err)
 		panic(err)
 	}
 
@@ -1265,65 +1451,6 @@ func InjectMongoDB(c container.Container) error {
 
 	if err != nil {
 		slog.Error("Failed to load iam_out.RIDTokenReader.", "err", err)
-		panic(err)
-	}
-
-	// Squad
-	err = c.Singleton(func() (*db.SquadRepository, error) {
-		var client *mongo.Client
-		err := c.Resolve(&client)
-		if err != nil {
-			slog.Error("Failed to resolve mongo.Client for NamedSingleton SquadRepository as generic MongoDBRepository.", "err", err)
-			return &db.SquadRepository{}, err
-		}
-
-		var config common.Config
-
-		err = c.Resolve(&config)
-		if err != nil {
-			slog.Error("Failed to resolve config for db.SquadRepository.", "err", err)
-			return nil, err
-		}
-
-		repo := db.NewSquadRepository(client, config.MongoDB.DBName, squad_entities.Squad{}, "squads")
-
-		return repo, nil
-	})
-
-	if err != nil {
-		slog.Error("Failed to load NamedSingleton SquadRepository as generic MongoDBRepository.", "err", err)
-		panic(err)
-	}
-
-	err = c.Singleton(func() (squad_out.SquadReader, error) {
-		var repo *db.SquadRepository
-		err = c.Resolve(&repo)
-		if err != nil {
-			slog.Error("Failed to resolve SquadRepository for squad_out.SquadReader.", "err", err)
-			return nil, err
-		}
-
-		return repo, nil
-	})
-
-	if err != nil {
-		slog.Error("Failed to load squad_out.SquadReader.", "err", err)
-		panic(err)
-	}
-
-	err = c.Singleton(func() (squad_out.SquadWriter, error) {
-		var repo *db.SquadRepository
-		err = c.Resolve(&repo)
-		if err != nil {
-			slog.Error("Failed to resolve SquadRepository for squad_out.SquadWriter.", "err", err)
-			return nil, err
-		}
-
-		return repo, nil
-	})
-
-	if err != nil {
-		slog.Error("Failed to load squad_out.SquadWriter.", "err", err)
 		panic(err)
 	}
 

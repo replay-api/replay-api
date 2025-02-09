@@ -48,13 +48,16 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	eventController := query_controllers.NewEventQueryController(container)
 	groupController := query_controllers.NewGroupController(&container)
 	wellKnownController := query_controllers.NewWellKnownController(&container)
+	squadController := cmd_controllers.NewSquadController(container)
+	playerProfileQueryController := query_controllers.NewPlayerProfileQueryController(container)
+	playerProfileController := cmd_controllers.NewPlayerProfileController(container)
 
 	// search controllers
 	searchMux := query_controllers.NewSearchMux(&container)
 
 	r := mux.NewRouter()
-	r.Use(mux.CORSMethodMiddleware(r))
 	r.Use(resourceContextMiddleware.Handler)
+	r.Use(mux.CORSMethodMiddleware(r))
 
 	// r.Use(middlewares.NewLoggerMiddleware().Handler)
 	// r.Use(middlewares.NewRecoveryMiddleware().Handler)
@@ -105,11 +108,16 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	// r.HandleFunc(("/games/{game_id}/replay/{replay_file_id}/share/{share_token_id}"), fileController.DownloadReplayFile(ctx)).Methods("DELETE")
 
 	// Squad API
+	r.HandleFunc("/squads", squadController.CreateSquadHandler(ctx)).Methods("POST")
 	// r.HandleFunc("/games/{game_id}/squad", squadController.GetSquadByGameID(ctx)).Methods("GET")
 	// r.HandleFunc("/games/{game_id}/squad", squadController.CreateSquad(ctx)).Methods("POST")
 	// r.HandleFunc("/games/{game_id}/squad/{squad_id}", squadController.GetSquadByID(ctx)).Methods("GET")
 	// r.HandleFunc("/games/{game_id}/squad/{squad_id}", squadController.UpdateSquad(ctx)).Methods("PUT")
 	// r.HandleFunc("/games/{game_id}/squad/{squad_id}", squadController.DeleteSquad(ctx)).Methods("DELETE")
+
+	// Player Profiles API
+	r.HandleFunc("/players", playerProfileController.CreatePlayerProfileHandler(ctx)).Methods("POST")
+	r.HandleFunc("/players", playerProfileQueryController.DefaultSearchHandler).Methods("GET")
 
 	// User API
 	// r.HandleFunc("/games/{game_id}/user", userController.GetUserByGameID(ctx)).Methods("GET")

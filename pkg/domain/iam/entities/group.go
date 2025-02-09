@@ -1,6 +1,7 @@
 package iam_entities
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -10,8 +11,9 @@ import (
 type GroupType string
 
 const (
-	GroupTypeUser   GroupType = "User"   // Team*, Profile*, Channel*, Page*, Friends*, Me* (Self), Custom-Private (Custom User-defined)
-	GroupTypeSystem GroupType = "System" // Public, Public(Anyone with the link, link/:slug-id route), Private, Namespace (directory/path trees), TagXyz, Friends, BugReport#1, Users(Region,Match, etc... ==> tag!! user-defined tag ())
+	GroupTypeAccount GroupType = "Account"
+	GroupTypeUser    GroupType = "User"   // Team* (!= Squad, WorkTeam, ETC), Profile*, Channel*, Page*, Friends*, Me* (Self), Custom-Private (Custom User-defined)
+	GroupTypeSystem  GroupType = "System" // Public, Public(Anyone with the link, link/:slug-id route), Private, Namespace (directory/path trees), TagXyz, Friends, BugReport#1, Users(Region,Match, etc... ==> tag!! user-defined tag ())
 )
 
 const (
@@ -22,7 +24,6 @@ type Group struct {
 	ID            uuid.UUID            `json:"id" bson:"_id"`
 	Name          string               `json:"name" bson:"name"`
 	Type          GroupType            `json:"type" bson:"type"`
-	ParentGroupID *uuid.UUID           `json:"parent_group_id" bson:"parent_group_id"` // (REVIEW: already has a parent in the resource_owner)
 	ResourceOwner common.ResourceOwner `json:"resource_owner" bson:"resource_owner"`
 	CreatedAt     time.Time            `json:"created_at" bson:"created_at"`
 	UpdatedAt     time.Time            `json:"updated_at" bson:"updated_at"`
@@ -41,10 +42,37 @@ func NewGroup(groupID uuid.UUID, name string, groupType GroupType, resourceOwner
 	}
 }
 
-// func (e *Group) GetID() uuid.UUID {
-// 	return e.ID
-// }
+func NewAccountGroup(groupID uuid.UUID, resourceOwner common.ResourceOwner) *Group {
+	return NewGroup(groupID, DefaultUserGroupName, GroupTypeAccount, resourceOwner)
+}
 
 func (e Group) GetID() uuid.UUID {
 	return e.ID
+}
+
+func NewGroupAccountSearchByUser(ctx context.Context) common.Search {
+	return common.Search{
+		SearchParams: []common.SearchAggregation{
+			{
+				Params: []common.SearchParameter{
+					{
+						ValueParams: []common.SearchableValue{
+							{
+								Field:    "Type",
+								Operator: common.EqualsOperator,
+								Values:   []interface{}{GroupTypeAccount},
+							},
+						},
+					},
+				},
+			},
+		},
+		ResultOptions: common.SearchResultOptions{
+			Limit: 1,
+		},
+		VisibilityOptions: common.SearchVisibilityOptions{
+			RequestSource:    common.GetResourceOwner(ctx),
+			IntendedAudience: common.UserAudienceIDKey,
+		},
+	}
 }

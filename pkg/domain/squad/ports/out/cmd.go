@@ -10,3 +10,8 @@ type SquadWriter interface {
 	CreateMany(createCtx context.Context, events []*squad_entities.Squad) error
 	Create(createCtx context.Context, events *squad_entities.Squad) (*squad_entities.Squad, error)
 }
+
+type PlayerProfileWriter interface {
+	CreateMany(createCtx context.Context, events []*squad_entities.PlayerProfile) error
+	Create(createCtx context.Context, events *squad_entities.PlayerProfile) (*squad_entities.PlayerProfile, error)
+}
