@@ -18,13 +18,11 @@ func (e PlayerProfileHistory) GetID() uuid.UUID {
 	return e.ID
 }
 
-func NewPlayerProfileHistory(playerID uuid.UUID, changes PlayerHistoryAction) *PlayerProfileHistory {
+func NewPlayerProfileHistory(playerID uuid.UUID, changes PlayerHistoryAction, rxn common.ResourceOwner) *PlayerProfileHistory {
 	return &PlayerProfileHistory{
-		BaseEntity: common.BaseEntity{
-			ID: uuid.New(),
-		},
-		PlayerID:  playerID,
-		Changes:   changes,
-		CreatedAt: time.Now(),
+		BaseEntity: common.NewRestrictedEntity(rxn),
+		PlayerID:   playerID,
+		Changes:    changes,
+		CreatedAt:  time.Now(),
 	}
 }

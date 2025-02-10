@@ -42,7 +42,6 @@ func (uc *CreatePlayerUseCase) Exec(c context.Context, cmd squad_in.CreatePlayer
 		return nil, common.NewErrUnauthorized()
 	}
 
-	// TODO: validate DUPs (nickname, slug etc)
 	// TODO: fix roles, avatar, description
 	// TODO: check if token has SteamAccountID, if same name as player, connect them. (add verified bool to player, for badge)
 	// TODO: design way to connect player metadata
@@ -107,6 +106,8 @@ func (uc *CreatePlayerUseCase) Exec(c context.Context, cmd squad_in.CreatePlayer
 	if err != nil {
 		return nil, err
 	}
+
+	history := squad_entities.NewPlayerProfileHistory(player, squad_entities.PlayerHistoryActionCreate, common.GetResourceOwner(c))
 
 	return player, nil
 }
