@@ -39,7 +39,8 @@ func NewSearchMux(c *container.Container) *SearchableResourceMultiplexer {
 	// smux.Handlers[common.ResourceTypeRound] = NewMatchSearchController(c)
 	smux.Handlers[common.ResourceTypeReplayFile] = NewReplayFileSearchController(c)
 	smux.Handlers[common.ResourceTypeMatch] = NewMatchSearchController(c)
-	// smux.Handlers[common.ResourceTypePlayer] = NewPlayerSearchController(c)
+	smux.Handlers[common.ResourceTypePlayerMetadata] = NewPlayerSearchController(c)
+	smux.Handlers[common.ResourceTypePlayerProfile] = NePlayerProfileSearchController(c)
 
 	smux.Handlers[common.ResourceTypeGameEvent] = NewEventSearchController(c)
 	smux.Handlers[common.ResourceTypeProfile] = NewProfileSearchController(c)
@@ -148,6 +149,20 @@ func NewPlayerSearchController(c *container.Container) *SearchController[replay_
 	}
 
 	return &SearchController[replay_entity.PlayerMetadata]{
+		Searchable: s,
+	}
+}
+
+func NePlayerProfileSearchController(c *container.Container) *SearchController[squad_entities.PlayerProfile] {
+	var s squad_in.PlayerProfileReader
+	err := c.Resolve(&s)
+
+	if err != nil {
+		slog.Error("Cannot resolve replay_in.PlayerProfileReader for NePlayerProfileSearchController", "err", err)
+		panic(err)
+	}
+
+	return &SearchController[squad_entities.PlayerProfile]{
 		Searchable: s,
 	}
 }

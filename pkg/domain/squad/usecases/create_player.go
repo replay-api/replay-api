@@ -13,16 +13,26 @@ import (
 )
 
 type CreatePlayerUseCase struct {
-	PlayerWriter squad_out.PlayerProfileWriter
-	GroupWriter  iam_out.GroupWriter
-	GroupReader  iam_out.GroupReader
+	PlayerWriter               squad_out.PlayerProfileWriter
+	PlayerReader               squad_out.PlayerProfileReader
+	GroupWriter                iam_out.GroupWriter
+	GroupReader                iam_out.GroupReader
+	PlayerProfileHistoryWriter squad_out.PlayerProfileHistoryWriter
 }
 
-func NewCreatePlayerProfileUseCase(playerWriter squad_out.PlayerProfileWriter, groupWriter iam_out.GroupWriter, groupReader iam_out.GroupReader) *CreatePlayerUseCase {
+func NewCreatePlayerProfileUseCase(
+	playerWriter squad_out.PlayerProfileWriter,
+	playerReader squad_out.PlayerProfileReader,
+	groupWriter iam_out.GroupWriter,
+	groupReader iam_out.GroupReader,
+	playerProfileHistoryWriter squad_out.PlayerProfileHistoryWriter,
+) squad_in.CreatePlayerProfileCommandHandler {
 	return &CreatePlayerUseCase{
-		PlayerWriter: playerWriter,
-		GroupWriter:  groupWriter,
-		GroupReader:  groupReader,
+		PlayerWriter:               playerWriter,
+		PlayerReader:               playerReader,
+		GroupWriter:                groupWriter,
+		GroupReader:                groupReader,
+		PlayerProfileHistoryWriter: playerProfileHistoryWriter,
 	}
 }
 
@@ -64,12 +74,33 @@ func (uc *CreatePlayerUseCase) Exec(c context.Context, cmd squad_in.CreatePlayer
 		cmd.GameID,
 		cmd.Nickname,
 		cmd.AvatarURI,
+		cmd.SlugURI,
 		"",
 		cmd.VisibilityType,
 		common.GetResourceOwner(c),
 	)
 	// TODO: Verified Badge if connected wwith Steam
 	// TODO: Design link wwith playerMetadata
+
+	existingPlayers, err := uc.PlayerReader.Search(c, squad_entities.NewSearchByNickname(c, player.Nickname))
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(existingPlayers) > 0 {
+		return nil, common.NewErrAlreadyExists(common.ResourceTypePlayerProfile, "Nickname", player.Nickname)
+	}
+
+	existingPlayers, err = uc.PlayerReader.Search(c, squad_entities.NewSearchBySlugURI(c, player.SlugURI))
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(existingPlayers) > 0 {
+		return nil, common.NewErrAlreadyExists(common.ResourceTypePlayerProfile, "SlugURI", player.SlugURI)
+	}
 
 	player, err = uc.PlayerWriter.Create(c, player)
 

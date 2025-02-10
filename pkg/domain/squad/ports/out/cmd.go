@@ -15,3 +15,8 @@ type PlayerProfileWriter interface {
 	CreateMany(createCtx context.Context, events []*squad_entities.PlayerProfile) error
 	Create(createCtx context.Context, events *squad_entities.PlayerProfile) (*squad_entities.PlayerProfile, error)
 }
+
+type PlayerProfileHistoryWriter interface {
+	CreateMany(createCtx context.Context, events []*squad_entities.PlayerProfileHistory) error
+	Create(createCtx context.Context, events *squad_entities.PlayerProfileHistory) (*squad_entities.PlayerProfileHistory, error)
+}

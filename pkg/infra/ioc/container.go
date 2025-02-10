@@ -626,6 +626,22 @@ func (b *ContainerBuilder) WithSquadAPI() *ContainerBuilder {
 		panic(err)
 	}
 
+	err = c.Singleton(func() (squad_out.PlayerProfileHistoryWriter, error) {
+		var repo *db.PlayerProfileHistoryRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve PlayerProfileHistoryRepository for squad_out.PlayerProfileHistoryWriter.", "err", err)
+			return nil, err
+		}
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load squad_out.PlayerProfileHistoryWriter.", "err", err)
+		panic(err)
+	}
+
 	err = c.Singleton(func() (squad_out.SquadReader, error) {
 		var repo *db.SquadRepository
 		err = c.Resolve(&repo)
@@ -704,6 +720,52 @@ func (b *ContainerBuilder) WithSquadAPI() *ContainerBuilder {
 
 	if err != nil {
 		slog.Error("Failed to load PlayerProfileReader.")
+		panic(err)
+	}
+
+	err = c.Singleton(func() (squad_in.CreatePlayerProfileCommandHandler, error) {
+		var playerWriter squad_out.PlayerProfileWriter
+		err := c.Resolve(&playerWriter)
+		if err != nil {
+			slog.Error("Failed to resolve PlayerProfileWriter for CreatePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var groupWriter iam_out.GroupWriter
+		err = c.Resolve(&groupWriter)
+		if err != nil {
+			slog.Error("Failed to resolve GroupWriter for CreatePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var groupReader iam_out.GroupReader
+		err = c.Resolve(&groupReader)
+		if err != nil {
+			slog.Error("Failed to resolve GroupReader for CreatePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var playerProfileHistoryWriter squad_out.PlayerProfileHistoryWriter
+		err = c.Resolve(&playerProfileHistoryWriter)
+		if err != nil {
+			slog.Error("Failed to resolve PlayerProfileHistoryWriter for CreatePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var playerProfileReader squad_out.PlayerProfileReader
+		err = c.Resolve(&playerProfileReader)
+		if err != nil {
+			slog.Error("Failed to resolve PlayerProfileReader for CreatePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		uc := squad_usecases.NewCreatePlayerProfileUseCase(playerWriter, playerProfileReader, groupWriter, groupReader, playerProfileHistoryWriter)
+
+		return uc, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load CreatePlayerProfileCommand.", "err", err)
 		panic(err)
 	}
 
@@ -813,7 +875,21 @@ func (b *ContainerBuilder) WithSquadAPI() *ContainerBuilder {
 			return nil, err
 		}
 
-		cmdHandler := squad_usecases.NewCreatePlayerProfileUseCase(playerProfileWriter, groupWriter, groupReader)
+		var playerProfileHistoryWriter squad_out.PlayerProfileHistoryWriter
+		err = c.Resolve(&playerProfileHistoryWriter)
+		if err != nil {
+			slog.Error("Failed to resolve PlayerProfileHistoryWriter for CreatePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var playerProfileReader squad_out.PlayerProfileReader
+		err = c.Resolve(&playerProfileReader)
+		if err != nil {
+			slog.Error("Failed to resolve PlayerProfileReader for CreatePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		cmdHandler := squad_usecases.NewCreatePlayerProfileUseCase(playerProfileWriter, playerProfileReader, groupWriter, groupReader, playerProfileHistoryWriter)
 
 		return cmdHandler, nil
 	})
