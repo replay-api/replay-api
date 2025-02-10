@@ -65,7 +65,6 @@ func (c *DefaultSearchController[T]) DefaultSearchHandler(w http.ResponseWriter,
 	results, err := c.Search(r.Context(), *compiledSearch)
 	if err != nil {
 		slog.Error("(DefaultSearchHandler) Error filtering search request", "error", err)
-		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 

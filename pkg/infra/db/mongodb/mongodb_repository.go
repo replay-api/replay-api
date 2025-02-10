@@ -130,7 +130,7 @@ func (r *MongoDBRepository[T]) Query(queryCtx context.Context, s common.Search) 
 
 	pipe, err := r.GetPipeline(queryCtx, s)
 
-	slog.InfoContext(queryCtx, "Query: built pipeline", "pipeline", pipe)
+	slog.InfoContext(queryCtx, "Query: built pipeline", "pipeline", pipe, "collectionName", r.collectionName)
 
 	if err != nil {
 		slog.ErrorContext(queryCtx, "unable to create query pipeline", "err", err)
@@ -172,7 +172,7 @@ func (r *MongoDBRepository[T]) GetPipeline(queryCtx context.Context, s common.Se
 		pipeString += fmt.Sprintf("%v\n", stage)
 	}
 
-	slog.InfoContext(queryCtx, "GetPipeline: built pipeline", "pipeline", pipeString)
+	slog.InfoContext(queryCtx, "GetPipeline: built pipeline", "pipeline", pipeString, "collectionName", r.collectionName)
 
 	return pipe, nil
 }
@@ -446,7 +446,11 @@ func (r *MongoDBRepository[T]) EnsureTenancy(queryCtx context.Context, agg bson.
 		return agg, fmt.Errorf("TENANCY.RequestSource: `tenant_id` in queryCtx does not match `tenant_id` in `common.Search`: %v vs %v", tenantID, s.VisibilityOptions.RequestSource.TenantID)
 	}
 
-	agg["resource_owner.tenant_id"] = tenantID
+	agg["$or"] = bson.A{
+		bson.M{"resource_owner.tenant_id": tenantID},
+		bson.M{"baseentity.resource_owner.tenant_id": tenantID}, // TODO: this OR on tenancy will degrade performance. choose to keep only base entity
+	}
+
 	slog.InfoContext(queryCtx, "TENANCY.RequestSource: tenant_id", "tenant_id", tenantID)
 
 	switch s.VisibilityOptions.IntendedAudience {
@@ -483,7 +487,10 @@ func ensureClientID(ctx context.Context, agg bson.M, s common.Search) (bson.M, e
 		return agg, fmt.Errorf("TENANCY.ApplicationLevel: `client_id` in queryCtx does not match `client_id` in `common.Search`: %v vs %v", clientID, s.VisibilityOptions.RequestSource.ClientID)
 	}
 
-	agg["resource_owner.client_id"] = clientID
+	agg["$or"] = bson.A{
+		bson.M{"resource_owner.client_id": clientID},
+		bson.M{"baseentity.resource_owner.client_id": clientID}, // TODO: this OR on tenancy will degrade performance. choose to keep only base entity
+	}
 
 	slog.InfoContext(ctx, "TENANCY.ApplicationLevel: client_id", "client_id", clientID)
 
@@ -513,13 +520,21 @@ func ensureUserOrGroupID(ctx context.Context, agg bson.M, s common.Search, aud c
 		agg["$or"] = bson.A{
 			bson.M{"resource_owner.group_id": groupID},
 			bson.M{"resource_owner.user_id": userID},
+			bson.M{"baseentity.resource_owner.group_id": groupID}, // TODO: review, for performance reasons, use only baseentity
+			bson.M{"baseentity.resource_owner.user_id": userID},
 		}
-		slog.InfoContext(ctx, "TENANCY.GroupLevel: group_id and user_id", "group_id", groupID, "user_id", userID)
+		slog.InfoContext(ctx, "TENANCY.GroupLevel: group_id OR user_id", "group_id", groupID, "user_id", userID)
 	} else if groupOK {
-		agg["resource_owner.group_id"] = groupID
+		agg["$or"] = bson.A{
+			bson.M{"resource_owner.group_id": groupID},
+			bson.M{"baseentity.resource_owner.group_id": groupID}, // TODO: this OR on tenancy will degrade performance. choose to keep only base entity
+		}
 		slog.InfoContext(ctx, "TENANCY.GroupLevel: group_id", "group_id", groupID)
 	} else {
-		agg["resource_owner.user_id"] = userID
+		agg["$or"] = bson.A{
+			bson.M{"resource_owner.user_id": userID},
+			bson.M{"baseentity.resource_owner.user_id": userID}, // TODO: this OR on tenancy will degrade performance. choose to keep only base entity
+		}
 		slog.InfoContext(ctx, "TENANCY.UserLevel: user_id", "user_id", userID)
 	}
 

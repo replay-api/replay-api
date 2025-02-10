@@ -31,6 +31,7 @@ func NewResourceContextMiddleware(container *container.Container) *ResourceConte
 
 func (m *ResourceContextMiddleware) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		slog.InfoContext(r.Context(), "resource context middleware", "path", r.URL.Path, "method", r.Method, "rid", r.Header.Get(controllers.ResourceOwnerIDHeaderKey))
 		ctx := context.WithValue(r.Context(), common.TenantIDKey, common.TeamPROTenantID)
 		ctx = context.WithValue(ctx, common.ClientIDKey, common.TeamPROAppClientID)
 		ctx = context.WithValue(ctx, common.GroupIDKey, uuid.New())
@@ -39,6 +40,7 @@ func (m *ResourceContextMiddleware) Handler(next http.Handler) http.Handler {
 
 		rid := r.Header.Get(controllers.ResourceOwnerIDHeaderKey)
 		if rid == "" {
+			slog.WarnContext(ctx, "missing resource owner id", "ResourceOwnerIDHeaderKey", controllers.ResourceOwnerIDHeaderKey)
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
@@ -48,6 +50,8 @@ func (m *ResourceContextMiddleware) Handler(next http.Handler) http.Handler {
 			slog.ErrorContext(ctx, "unable to verify rid", controllers.ResourceOwnerIDHeaderKey, rid)
 			http.Error(w, "unknown", http.StatusUnauthorized)
 		}
+
+		slog.InfoContext(ctx, "resource owner verified", "reso", reso, "aud", aud)
 
 		if !reso.IsUser() {
 			slog.WarnContext(ctx, "non end user resource owner", "reso", reso)

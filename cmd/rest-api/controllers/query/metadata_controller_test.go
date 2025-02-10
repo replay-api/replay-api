@@ -81,7 +81,62 @@ func TestReplaySearchHandler(t *testing.T) {
 		t.Errorf("expected content type %s, got %s", expectedContentType, actualContentType)
 	}
 }
+func TestPlayerSearchHandler(t *testing.T) {
+	controller := setup()
 
+	req, err := http.NewRequest(http.MethodGet, "/search/"+routing.PlayerProfile, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	setContextWithValues := func(tenantID, clientID, groupID, userID uuid.UUID) context.Context {
+		newCtx := context.TODO()
+		newCtx = context.WithValue(newCtx, common.TenantIDKey, tenantID)
+		newCtx = context.WithValue(newCtx, common.ClientIDKey, clientID)
+		newCtx = context.WithValue(newCtx, common.GroupIDKey, groupID)
+		newCtx = context.WithValue(newCtx, common.UserIDKey, userID)
+		return newCtx
+	}
+
+	tenantID := uuid.New()
+	clientID := uuid.New()
+	groupID := uuid.New()
+	userID := uuid.New()
+
+	s := common.NewSearchByValues(
+		setContextWithValues(tenantID, clientID, groupID, userID),
+		[]common.SearchableValue{},
+		common.SearchResultOptions{Limit: 10},
+		common.UserAudienceIDKey,
+	)
+
+	var searchJSON []byte
+	searchJSON, err = json.Marshal(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	slog.Info("searchJSON", "searchJSON", searchJSON)
+
+	base64Encoded := base64.StdEncoding.EncodeToString(searchJSON)
+	req = req.WithContext(GetDefaultTestContext(req.Context(), tenantID, clientID, groupID, userID))
+
+	req.Header.Set("x-search", base64Encoded)
+
+	recorder := httptest.NewRecorder()
+
+	controller.DefaultSearchHandler(recorder, req)
+
+	if recorder.Code != http.StatusOK {
+		t.Errorf("expected status code %d, got %d. Response: %v", http.StatusOK, recorder.Code, recorder.Body.String())
+	}
+
+	expectedContentType := "application/json"
+	actualContentType := recorder.Header().Get("Content-Type")
+	if actualContentType != expectedContentType {
+		t.Errorf("expected content type %s, got %s", expectedContentType, actualContentType)
+	}
+}
 func setup() *query_controllers.ReplayMetadataQueryController {
 	os.Setenv("DEV_ENV", "test")
 	os.Setenv("MONGO_URI", "mongodb://host.docker.internal:37019")

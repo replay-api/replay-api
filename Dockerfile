@@ -1,12 +1,13 @@
-# # dependencies
-# FROM golang:1.22.2-bullseye AS dependencies
-# WORKDIR /app 
-# COPY go.mod go.sum ./
-# RUN go mod download
-# COPY . .
+# dependencies
+# Use a local cache for the base image
+FROM --platform=$BUILDPLATFORM golang:1.23 AS dependencies
+WORKDIR /app 
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
 
 # build
-FROM golang:1.22.2 AS build
+FROM --platform=$BUILDPLATFORM golang:1.23 AS build
 WORKDIR /app
 COPY . /app
 # ENV DEV_ENV docker
@@ -15,9 +16,6 @@ RUN mkdir -p /app/replay_files
 RUN mkdir -p /app/coverage
 RUN chown -R ${DEV_ENV}:${DEV_ENV} /app/replay_files
 RUN chown -R ${DEV_ENV}:${DEV_ENV} /app/coverage
-
-# RUN go install github.com/google/go-licenses@latest
-# RUN go-licenses report github.com/replay-api/replay-api
 
 # runtime
 FROM scratch AS runtime

@@ -20,7 +20,7 @@ func NewGameEvent[T any](eventType common.EventIDKey, matchContext *state.CS2Mat
 		panic("nilroundcontext")
 	}
 
-	entities[common.ResourceTypePlayer] = roundContext.GetUntypedPlayingEntities()
+	entities[common.ResourceTypePlayerMetadata] = roundContext.GetUntypedPlayingEntities()
 
 	battleContext := roundContext.BattleContext
 	battleStats, err := battleContext.GetStatistics()

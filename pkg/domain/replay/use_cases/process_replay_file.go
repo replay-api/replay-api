@@ -103,7 +103,7 @@ func (usecase *ProcessReplayFileUseCase) Exec(ctx context.Context, replayFileID 
 
 	for resourceKey, entities := range entitiesMap {
 		switch resourceKey {
-		case common.ResourceTypePlayer:
+		case common.ResourceTypePlayerMetadata:
 			err = usecase.PlayerMetadataWriter.CreateMany(ctx, entities)
 
 			if err != nil {

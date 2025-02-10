@@ -13,6 +13,8 @@ import (
 	iam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/in"
 	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
 	replay_in "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/ports/in"
+	squad_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/entities"
+	squad_in "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/in"
 )
 
 type SearchableHandler interface {
@@ -37,11 +39,13 @@ func NewSearchMux(c *container.Container) *SearchableResourceMultiplexer {
 	// smux.Handlers[common.ResourceTypeRound] = NewMatchSearchController(c)
 	smux.Handlers[common.ResourceTypeReplayFile] = NewReplayFileSearchController(c)
 	smux.Handlers[common.ResourceTypeMatch] = NewMatchSearchController(c)
-	smux.Handlers[common.ResourceTypePlayer] = NewPlayerSearchController(c)
+	smux.Handlers[common.ResourceTypePlayerMetadata] = NewPlayerSearchController(c)
+	smux.Handlers[common.ResourceTypePlayerProfile] = NePlayerProfileSearchController(c)
 
 	smux.Handlers[common.ResourceTypeGameEvent] = NewEventSearchController(c)
 	smux.Handlers[common.ResourceTypeProfile] = NewProfileSearchController(c)
 	smux.Handlers[common.ResourceTypeMembership] = NewMembershipSearchController(c)
+	smux.Handlers[common.ResourceTypePlayerProfile] = NewPlayerProfileSearchController(c)
 	// smux.Handlers[common.ResourceTypeTeam] = NewTeamSearchController(c)
 	smux.ResourceTypes = make([]common.ResourceType, len(smux.Handlers))
 
@@ -149,6 +153,20 @@ func NewPlayerSearchController(c *container.Container) *SearchController[replay_
 	}
 }
 
+func NePlayerProfileSearchController(c *container.Container) *SearchController[squad_entities.PlayerProfile] {
+	var s squad_in.PlayerProfileReader
+	err := c.Resolve(&s)
+
+	if err != nil {
+		slog.Error("Cannot resolve replay_in.PlayerProfileReader for NePlayerProfileSearchController", "err", err)
+		panic(err)
+	}
+
+	return &SearchController[squad_entities.PlayerProfile]{
+		Searchable: s,
+	}
+}
+
 func NewEventSearchController(c *container.Container) *SearchController[replay_entity.GameEvent] {
 	var s replay_in.EventReader
 	err := c.Resolve(&s)
@@ -201,6 +219,20 @@ func NewMembershipSearchController(c *container.Container) *SearchController[iam
 	}
 
 	return &SearchController[iam_entities.Membership]{
+		Searchable: s,
+	}
+}
+
+func NewPlayerProfileSearchController(c *container.Container) *SearchController[squad_entities.PlayerProfile] {
+	var s squad_in.PlayerProfileReader
+	err := c.Resolve(&s)
+
+	if err != nil {
+		slog.Error("Cannot resolve squad_in.PlayerProfileReader for NewPlayerProfileSearchController", "err", err)
+		panic(err)
+	}
+
+	return &SearchController[squad_entities.PlayerProfile]{
 		Searchable: s,
 	}
 }

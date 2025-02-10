@@ -27,6 +27,8 @@ const (
 	OnboardSteam  string = "/onboarding/steam"
 	OnboardGoogle string = "/onboarding/google"
 
+	PlayerProfile string = "/players"
+
 	// IAM
 	Group string = "/groups"
 
@@ -53,8 +55,10 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	searchMux := query_controllers.NewSearchMux(&container)
 
 	r := mux.NewRouter()
-	r.Use(resourceContextMiddleware.Handler)
+
+	r.Use(middlewares.ErrorMiddleware)
 	r.Use(mux.CORSMethodMiddleware(r))
+	r.Use(resourceContextMiddleware.Handler)
 
 	// r.Use(middlewares.NewLoggerMiddleware().Handler)
 	// r.Use(middlewares.NewRecoveryMiddleware().Handler)
