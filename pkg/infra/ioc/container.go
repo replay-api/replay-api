@@ -598,6 +598,31 @@ func (b *ContainerBuilder) WithSquadAPI() *ContainerBuilder {
 		panic(err)
 	}
 
+	err = c.Singleton(func() (*db.PlayerProfileHistoryRepository, error) {
+		var client *mongo.Client
+		err := c.Resolve(&client)
+		if err != nil {
+			slog.Error("Failed to resolve mongo.Client for NamedSingleton PlayerProfileHistoryRepository as generic MongoDBRepository.", "err", err)
+			return &db.PlayerProfileHistoryRepository{}, err
+		}
+
+		var config common.Config
+		err = c.Resolve(&config)
+		if err != nil {
+			slog.Error("Failed to resolve config for db.PlayerProfileHistoryRepository.", "err", err)
+			return nil, err
+		}
+
+		repo := db.NewPlayerProfileHistoryRepository(client, config.MongoDB.DBName, squad_entities.PlayerProfileHistory{}, "player_profile_histories")
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load NamedSingleton PlayerProfileHistoryRepository as generic MongoDBRepository.", "err", err)
+		panic(err)
+	}
+
 	// // OutboundPorts
 	// Squad
 	err = c.Singleton(func() (*db.SquadRepository, error) {
