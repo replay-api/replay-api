@@ -9,7 +9,7 @@ import (
 
 type PlayerProfileHistory struct {
 	common.BaseEntity
-	PlayerID  uuid.UUID           `json:"player_profile"`
+	PlayerID  uuid.UUID           `json:"player_id"`
 	Changes   PlayerHistoryAction `json:"changes"`
 	CreatedAt time.Time           `json:"created_at"`
 }
