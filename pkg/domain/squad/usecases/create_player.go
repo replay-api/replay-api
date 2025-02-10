@@ -107,7 +107,9 @@ func (uc *CreatePlayerUseCase) Exec(c context.Context, cmd squad_in.CreatePlayer
 		return nil, err
 	}
 
-	history := squad_entities.NewPlayerProfileHistory(player, squad_entities.PlayerHistoryActionCreate, common.GetResourceOwner(c))
+	history := squad_entities.NewPlayerProfileHistory(player.ID, squad_entities.PlayerHistoryActionCreate, common.GetResourceOwner(c))
+
+	uc.PlayerProfileHistoryWriter.Create(c, history)
 
 	return player, nil
 }
