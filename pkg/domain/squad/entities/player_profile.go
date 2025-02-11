@@ -93,6 +93,41 @@ func NewSearchByNickname(ctx context.Context, nickname string) common.Search {
 	}
 }
 
+func NewSearchByID(ctx context.Context, id uuid.UUID) common.Search {
+	params := []common.SearchAggregation{
+		{
+			Params: []common.SearchParameter{
+				{
+					ValueParams: []common.SearchableValue{
+						{
+							Field: "ID",
+							Values: []interface{}{
+								id,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	visibility := common.SearchVisibilityOptions{
+		RequestSource:    common.GetResourceOwner(ctx),
+		IntendedAudience: common.ClientApplicationAudienceIDKey,
+	}
+
+	result := common.SearchResultOptions{
+		Skip:  0,
+		Limit: 1,
+	}
+
+	return common.Search{
+		SearchParams:      params,
+		ResultOptions:     result,
+		VisibilityOptions: visibility,
+	}
+}
+
 func NewSearchBySlugURI(ctx context.Context, slugURI string) common.Search {
 	params := []common.SearchAggregation{
 		{

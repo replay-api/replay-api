@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/golobby/container/v3"
 	squad_in "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/in"
@@ -42,9 +43,33 @@ func (ctrl *SquadController) CreateSquadHandler(apiContext context.Context) http
 
 		squad, err := createSquadCommandHandler.Exec(r.Context(), createSquadCommand)
 		if err != nil {
-			slog.ErrorContext(r.Context(), "Failed to create squad", "err", err)
+			slog.ErrorContext(r.Context(), "Failed to create SQUAD profile", "err", err)
 			if err.Error() == "Unauthorized" {
 				w.WriteHeader(http.StatusUnauthorized)
+			} else if strings.Contains(err.Error(), "already exists") {
+				w.WriteHeader(http.StatusConflict)
+				errorJSON := map[string]string{
+					"code":  "CONFLICT",
+					"error": err.Error(),
+				}
+
+				err = json.NewEncoder(w).Encode(errorJSON)
+				if err != nil {
+					slog.ErrorContext(r.Context(), "Failed to encode response", "err", err)
+				}
+			} else if strings.Contains(err.Error(), "not found") {
+				w.WriteHeader(http.StatusNotFound)
+				errorJSON := map[string]string{
+					"code":  "NOT_FOUND",
+					"error": err.Error(),
+				}
+
+				err = json.NewEncoder(w).Encode(errorJSON)
+				if err != nil {
+					slog.ErrorContext(r.Context(), "Failed to encode response", "err", err)
+				}
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
 			}
 			return
 		}

@@ -41,3 +41,18 @@ type SquadHistory struct {
 	ResourceOwner common.ResourceOwner `json:"resource_owner" bson:"resource_owner"`
 	CreatedAt     time.Time            `json:"created_at" bson:"created_at"`
 }
+
+func (e SquadHistory) GetID() uuid.UUID {
+	return e.ID
+}
+
+func NewSquadHistory(squadID, userID uuid.UUID, action SquadHistoryAction, resourceOwner common.ResourceOwner) *SquadHistory {
+	return &SquadHistory{
+		ID:            uuid.New(),
+		SquadID:       squadID,
+		UserID:        userID,
+		Action:        action,
+		ResourceOwner: resourceOwner,
+		CreatedAt:     time.Now(),
+	}
+}
