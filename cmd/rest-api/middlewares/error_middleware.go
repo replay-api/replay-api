@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"strings"
 )
 
 func ErrorMiddleware(next http.Handler) http.Handler {
@@ -33,7 +34,7 @@ func ErrorMiddleware(next http.Handler) http.Handler {
 			case rr.statusCode == http.StatusNotFound || err.Error() == "Not Found":
 				statusCode = http.StatusNotFound
 				errorCode = "NOT_FOUND"
-			case rr.statusCode == http.StatusConflict || err.Error() == "Conflict":
+			case rr.statusCode == http.StatusConflict || err.Error() == "Conflict" || strings.Contains(err.Error(), "already exists"):
 				statusCode = http.StatusConflict
 				errorCode = "CONFLICT"
 			case rr.statusCode == http.StatusBadRequest || err.Error() == "Bad Request":
@@ -47,7 +48,9 @@ func ErrorMiddleware(next http.Handler) http.Handler {
 				errorCode = "UNKNOWN_ERROR"
 			}
 
-			rr.WriteHeader(statusCode)
+			if errorCode != "" {
+				rr.WriteHeader(statusCode)
+			}
 			response := map[string]string{
 				"code":  errorCode,
 				"error": err.Error(),

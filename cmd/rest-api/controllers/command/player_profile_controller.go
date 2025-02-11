@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	// squad_in
 	"github.com/golobby/container/v3"
@@ -16,7 +17,6 @@ type PlayerProfileController struct {
 }
 
 func NewPlayerProfileController(container container.Container) *PlayerProfileController {
-
 	return &PlayerProfileController{container: container}
 }
 
@@ -47,6 +47,19 @@ func (ctrl *PlayerProfileController) CreatePlayerProfileHandler(apiContext conte
 			slog.ErrorContext(r.Context(), "Failed to create player profile", "err", err)
 			if err.Error() == "Unauthorized" {
 				w.WriteHeader(http.StatusUnauthorized)
+			} else if strings.Contains(err.Error(), "already exists") {
+				w.WriteHeader(http.StatusConflict)
+				errorJSON := map[string]string{
+					"code":  "CONFLICT",
+					"error": err.Error(),
+				}
+
+				err = json.NewEncoder(w).Encode(errorJSON)
+				if err != nil {
+					slog.ErrorContext(r.Context(), "Failed to encode response", "err", err)
+				}
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
 			}
 			return
 		}
