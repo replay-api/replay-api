@@ -23,11 +23,11 @@ type CreateSquadCommandHandler interface {
 }
 
 type CreatePlayerProfileCommand struct {
-	GameID         common.GameIDKey `json:"game_id"`
-	Nickname       string           `json:"nickname"`
-	AvatarURI      string           `json:"avatar_uri"`
-	SlugURI        string           `json:"slug_uri"`
-	VisibilityType common.VisibilityTypeKey
+	GameID         common.GameIDKey         `json:"game_id"`
+	Nickname       string                   `json:"nickname"`
+	AvatarURI      string                   `json:"avatar_uri"`
+	SlugURI        string                   `json:"slug_uri"`
+	VisibilityType common.VisibilityTypeKey `json:"visibility_type"`
 }
 
 type CreatePlayerProfileCommandHandler interface {

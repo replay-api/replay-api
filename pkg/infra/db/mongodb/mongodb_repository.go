@@ -522,16 +522,37 @@ func ensureUserOrGroupID(ctx context.Context, agg bson.M, s common.Search, aud c
 			bson.M{"resource_owner.user_id": userID},
 			bson.M{"baseentity.resource_owner.group_id": groupID}, // TODO: review, for performance reasons, use only baseentity
 			bson.M{"baseentity.resource_owner.user_id": userID},
+			bson.M{
+				"$or": bson.A{
+					bson.M{"visibility_type": common.PublicVisibilityTypeKey},
+					bson.M{"baseentity.visibility_type": common.PublicVisibilityTypeKey},
+					bson.M{"resource_owner.client_id": common.GetResourceOwner(ctx).ClientID},
+				},
+			},
 		}
 		slog.InfoContext(ctx, "TENANCY.GroupLevel: group_id OR user_id", "group_id", groupID, "user_id", userID)
 	} else if groupOK {
 		agg["$or"] = bson.A{
+			bson.M{
+				"$or": bson.A{
+					bson.M{"visibility_type": common.PublicVisibilityTypeKey},
+					bson.M{"baseentity.visibility_type": common.PublicVisibilityTypeKey},
+					bson.M{"resource_owner.client_id": common.GetResourceOwner(ctx).ClientID},
+				},
+			},
 			bson.M{"resource_owner.group_id": groupID},
 			bson.M{"baseentity.resource_owner.group_id": groupID}, // TODO: this OR on tenancy will degrade performance. choose to keep only base entity
 		}
 		slog.InfoContext(ctx, "TENANCY.GroupLevel: group_id", "group_id", groupID)
 	} else {
 		agg["$or"] = bson.A{
+			bson.M{
+				"$or": bson.A{
+					bson.M{"visibility_type": common.PublicVisibilityTypeKey},
+					bson.M{"baseentity.visibility_type": common.PublicVisibilityTypeKey},
+					bson.M{"resource_owner.client_id": common.GetResourceOwner(ctx).ClientID},
+				},
+			},
 			bson.M{"resource_owner.user_id": userID},
 			bson.M{"baseentity.resource_owner.user_id": userID}, // TODO: this OR on tenancy will degrade performance. choose to keep only base entity
 		}

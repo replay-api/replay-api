@@ -334,6 +334,10 @@ func GetQueryParams(r *http.Request, s *common.Search) *common.Search {
 	}
 
 	for key, values := range queryParams {
+		if key == "filter" {
+			continue
+		}
+
 		value := common.SearchableValue{
 			Field:    key,
 			Values:   make([]interface{}, len(values)),
