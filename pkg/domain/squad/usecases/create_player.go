@@ -69,12 +69,23 @@ func (uc *CreatePlayerUseCase) Exec(c context.Context, cmd squad_in.CreatePlayer
 
 	c = context.WithValue(c, common.GroupIDKey, group.GetID())
 
+	// Remove duplicate roles
+	uniqueRoles := make(map[string]bool)
+	var roles []string
+	for _, role := range cmd.Roles {
+		if !uniqueRoles[role] && role != "" {
+			uniqueRoles[role] = true
+			roles = append(roles, role)
+		}
+	}
+
 	player := squad_entities.NewPlayerProfile(
 		cmd.GameID,
 		cmd.Nickname,
 		cmd.AvatarURI,
 		cmd.SlugURI,
-		"",
+		cmd.Description,
+		roles,
 		cmd.VisibilityType,
 		common.GetResourceOwner(c),
 	)

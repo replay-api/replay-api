@@ -27,6 +27,8 @@ type CreatePlayerProfileCommand struct {
 	Nickname       string                   `json:"nickname"`
 	AvatarURI      string                   `json:"avatar_uri"`
 	SlugURI        string                   `json:"slug_uri"`
+	Roles          []string                 `json:"roles"`
+	Description    string                   `json:"description"`
 	VisibilityType common.VisibilityTypeKey `json:"visibility_type"`
 }
 

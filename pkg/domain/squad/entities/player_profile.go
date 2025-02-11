@@ -31,7 +31,7 @@ func (e PlayerProfile) GetID() uuid.UUID {
 	return e.BaseEntity.ID
 }
 
-func NewPlayerProfile(gameID common.GameIDKey, nickname, avatar, slugURI, description string, visbility common.VisibilityTypeKey, rxn common.ResourceOwner) *PlayerProfile {
+func NewPlayerProfile(gameID common.GameIDKey, nickname, avatar, slugURI, description string, roles []string, visbility common.VisibilityTypeKey, rxn common.ResourceOwner) *PlayerProfile {
 	var baseEntity common.BaseEntity
 
 	switch visbility {
@@ -54,6 +54,7 @@ func NewPlayerProfile(gameID common.GameIDKey, nickname, avatar, slugURI, descri
 		SlugURI:     slugURI,
 		Avatar:      avatar,
 		Description: description,
+		Roles:       roles,
 	}
 }
 
