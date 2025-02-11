@@ -32,6 +32,7 @@ func NewPlayerProfileRepository(client *mongo.Client, dbName string, entityType 
 		"ID":              true,
 		"GameID":          true,
 		"Nickname":        true,
+		"SlugURI":         true,
 		"Avatar":          true,
 		"Roles":           true,
 		"Description":     true,
@@ -44,6 +45,7 @@ func NewPlayerProfileRepository(client *mongo.Client, dbName string, entityType 
 		"ID":              "baseentity._id", // TODO: review ; (opcional: aqui a exceção se tornou a regra. deixar default o que está na annotation da prop.) talvez seja melhor refletir os tipos nas anotacoes json/bson
 		"GameID":          "game_id",
 		"Nickname":        "nickname",
+		"SlugURI":         "slug_uri",
 		"Avatar":          "avatar",
 		"Roles":           "roles",
 		"Description":     "description",
