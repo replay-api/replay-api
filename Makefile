@@ -3,26 +3,35 @@
 .PHONY: test-kafka
 .PHONY: coverage
 
+
+# Detect the operating system
+ifeq ($(OS),Windows_NT)
+    DETECTED_OS := Windows
+else
+    DETECTED_OS := $(shell uname -s)
+endif
+
+# Define the output binary name based on the OS
+ifeq ($(DETECTED_OS),Windows)
+    BINARY_NAME := replay-api-http-service.exe
+else
+    BINARY_NAME := replay-api-http-service
+endif
+
 build-rest-api:
-	@echo "Building API"
-	CGO_ENABLED=0 go build -o replay-api-http-service ./cmd/rest-api/main.go
+    @echo "Building API for $(DETECTED_OS)"
+ifeq ($(DETECTED_OS),Windows)
+    @echo "Building for Windows"
+    @go build -o $(BINARY_NAME) ./cmd/rest-api/main.go
+else
+    @echo "Building for Unix-like system"
+    CGO_ENABLED=0 go build -o $(BINARY_NAME) ./cmd/rest-api/main.go
+endif
 
 start-rest-api:
 	@echo "Running API"
 	@export DEV_ENV="true"
-	@./replay-api-http-service
-
-build-rest-api-windows:
-	@echo "Building API"
-	go build -o replay-api-http-service.exe .\cmd\rest-api\main.go
-
-start-rest-api-windows:
-	@echo "Running API"
-	@set "DEV_ENV=true" && .\replay-api-http-service.exe
-
-run-rest-api-windows:
-	@echo "Running API"
-	@set "DEV_ENV=true" && go run .\cmd\rest-api\main.go
+	@./$(BINARY_NAME)
 
 test-docker:
 	@echo "Running tests"
