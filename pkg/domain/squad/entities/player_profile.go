@@ -31,7 +31,7 @@ func (e PlayerProfile) GetID() uuid.UUID {
 	return e.BaseEntity.ID
 }
 
-func NewPlayerProfile(gameID common.GameIDKey, nickname, avatar, slugURI, description string, visbility common.VisibilityTypeKey, rxn common.ResourceOwner) *PlayerProfile {
+func NewPlayerProfile(gameID common.GameIDKey, nickname, avatar, slugURI, description string, roles []string, visbility common.VisibilityTypeKey, rxn common.ResourceOwner) *PlayerProfile {
 	var baseEntity common.BaseEntity
 
 	switch visbility {
@@ -54,6 +54,7 @@ func NewPlayerProfile(gameID common.GameIDKey, nickname, avatar, slugURI, descri
 		SlugURI:     slugURI,
 		Avatar:      avatar,
 		Description: description,
+		Roles:       roles,
 	}
 }
 
@@ -67,6 +68,41 @@ func NewSearchByNickname(ctx context.Context, nickname string) common.Search {
 							Field: "Nickname",
 							Values: []interface{}{
 								nickname,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	visibility := common.SearchVisibilityOptions{
+		RequestSource:    common.GetResourceOwner(ctx),
+		IntendedAudience: common.ClientApplicationAudienceIDKey,
+	}
+
+	result := common.SearchResultOptions{
+		Skip:  0,
+		Limit: 1,
+	}
+
+	return common.Search{
+		SearchParams:      params,
+		ResultOptions:     result,
+		VisibilityOptions: visibility,
+	}
+}
+
+func NewSearchByID(ctx context.Context, id uuid.UUID) common.Search {
+	params := []common.SearchAggregation{
+		{
+			Params: []common.SearchParameter{
+				{
+					ValueParams: []common.SearchableValue{
+						{
+							Field: "ID",
+							Values: []interface{}{
+								id,
 							},
 						},
 					},

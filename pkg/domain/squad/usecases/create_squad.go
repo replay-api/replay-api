@@ -3,11 +3,13 @@ package squad_usecases
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/google/uuid"
 	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
 	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
 	iam_out "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/out"
+	squad_common "github.com/psavelis/team-pro/replay-api/pkg/domain/squad"
 	squad_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/entities"
 	squad_in "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/in"
 	squad_out "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/out"
@@ -15,16 +17,22 @@ import (
 )
 
 type CreateSquadUseCase struct {
-	SquadWriter squad_out.SquadWriter
-	GroupWriter iam_out.GroupWriter
-	GroupReader iam_out.GroupReader
+	SquadWriter         squad_out.SquadWriter
+	SquadReader         squad_out.SquadReader
+	GroupWriter         iam_out.GroupWriter
+	GroupReader         iam_out.GroupReader
+	SquadHistoryWriter  squad_out.SquadHistoryWriter
+	PlayerProfileReader squad_in.PlayerProfileReader
 }
 
-func NewCreateSquadUseCase(squadWriter squad_out.SquadWriter, groupWriter iam_out.GroupWriter, groupReader iam_out.GroupReader) *CreateSquadUseCase {
+func NewCreateSquadUseCase(squadWriter squad_out.SquadWriter, squadHistoryWriter squad_out.SquadHistoryWriter, squadReader squad_out.SquadReader, groupWriter iam_out.GroupWriter, groupReader iam_out.GroupReader, playerProfileReader squad_in.PlayerProfileReader) *CreateSquadUseCase {
 	return &CreateSquadUseCase{
-		SquadWriter: squadWriter,
-		GroupWriter: groupWriter,
-		GroupReader: groupReader,
+		SquadWriter:         squadWriter,
+		SquadHistoryWriter:  squadHistoryWriter,
+		SquadReader:         squadReader,
+		GroupWriter:         groupWriter,
+		GroupReader:         groupReader,
+		PlayerProfileReader: playerProfileReader,
 	}
 }
 
@@ -34,7 +42,31 @@ func (uc *CreateSquadUseCase) Exec(ctx context.Context, cmd squad_in.CreateSquad
 		return nil, common.NewErrUnauthorized()
 	}
 
-	// TODO: validate DUPs (nickname, slug etc)
+	err := ValidateMembershipUUIDs(cmd.Members)
+
+	if err != nil {
+		return nil, err
+	}
+
+	existingSquads, err := uc.SquadReader.Search(ctx, squad_entities.NewSearchBySlugURI(ctx, cmd.SlugURI))
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(existingSquads) > 0 {
+		return nil, common.NewErrAlreadyExists(common.ResourceTypeSquad, "SlugURI", cmd.SlugURI)
+	}
+
+	existingSquads, err = uc.SquadReader.Search(ctx, squad_entities.NewSearchByName(ctx, cmd.Name))
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(existingSquads) > 0 {
+		return nil, common.NewErrAlreadyExists(common.ResourceTypeSquad, "Name", cmd.Name)
+	}
 
 	groupSearch := iam_entities.NewGroupAccountSearchByUser(ctx)
 
@@ -44,10 +76,12 @@ func (uc *CreateSquadUseCase) Exec(ctx context.Context, cmd squad_in.CreateSquad
 		return nil, err
 	}
 
+	rxn := common.GetResourceOwner(ctx)
+
 	var group *iam_entities.Group
 
 	if len(groups) == 0 {
-		group = iam_entities.NewAccountGroup(uuid.New(), common.GetResourceOwner(ctx))
+		group = iam_entities.NewAccountGroup(uuid.New(), rxn)
 		group, err = uc.GroupWriter.Create(ctx, group)
 
 		if err != nil {
@@ -59,6 +93,36 @@ func (uc *CreateSquadUseCase) Exec(ctx context.Context, cmd squad_in.CreateSquad
 
 	ctx = context.WithValue(ctx, common.GroupIDKey, group.GetID())
 
+	memberships := make([]squad_value_objects.SquadMembership, 0)
+	membershipMap := make(map[uuid.UUID]interface{})
+
+	for k, v := range cmd.Members {
+		playerProfileID := uuid.MustParse(k)
+		if membershipMap[playerProfileID] != nil {
+			continue
+		}
+		players, err := uc.PlayerProfileReader.Search(ctx, squad_entities.NewSearchByID(ctx, playerProfileID))
+
+		if err != nil {
+			return nil, err
+		}
+
+		if len(players) == 0 {
+			return nil, common.NewErrNotFound(common.ResourceTypePlayerProfile, "ID", playerProfileID.String())
+		}
+		slog.InfoContext(ctx, "roles", "roles", v.Roles)
+		userID := players[0].ResourceOwner.UserID
+		membershipMap[playerProfileID] = struct{}{}
+		memberships = append(memberships, *squad_value_objects.NewSquadMembership(
+			userID,
+			playerProfileID,
+			v.Type,
+			squad_common.Unique(v.Roles),
+			squad_value_objects.SquadMembershipStatusActive,
+			v.Type,
+		))
+	}
+
 	squad := squad_entities.NewSquad(
 		group.GetID(),
 		cmd.GameID,
@@ -67,27 +131,29 @@ func (uc *CreateSquadUseCase) Exec(ctx context.Context, cmd squad_in.CreateSquad
 		cmd.Symbol,
 		cmd.Description,
 		cmd.SlugURI,
-		common.GetResourceOwner(ctx),
+		memberships,
+		rxn,
 	)
 
-	err = ValidateMembershipUUIDs(cmd.Members)
+	squad, err = uc.SquadWriter.Create(ctx, squad)
 
 	if err != nil {
 		return nil, err
 	}
 
-	squad.Membership = cmd.Members
+	squadHistory := squad_entities.NewSquadHistory(
+		squad.GetID(),
+		rxn.UserID,
+		squad_entities.SquadCreated,
+		rxn,
+	)
 
-	squad, err = uc.SquadWriter.Create(ctx, squad) // TODO: create squadHistory
-
-	if err != nil {
-		return nil, err
-	}
+	uc.SquadHistoryWriter.Create(ctx, squadHistory)
 
 	return squad, nil
 }
 
-func ValidateMembershipUUIDs(members map[string]squad_value_objects.SquadMembership) error {
+func ValidateMembershipUUIDs(members map[string]squad_in.CreateSquadMembershipInput) error {
 	for key := range members {
 		_, err := uuid.Parse(key)
 		if err != nil {

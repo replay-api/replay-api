@@ -29,32 +29,39 @@ func NewSquadRepository(client *mongo.Client, dbName string, entityType squad_en
 	}
 
 	repo.InitQueryableFields(map[string]bool{
-		"ID":            true,
-		"GroupID":       true,
-		"GameID":        true,
-		"FullName":      true,
-		"ShortName":     true,
-		"Description":   true,
-		"Profiles":      true,
-		"ResourceOwner": true,
-		"CreatedAt":     true,
-		"UpdatedAt":     true,
+		"ID":              true,
+		"GameID":          true,
+		"Name":            true,
+		"Symbol":          true,
+		"SlugURI":         true,
+		"Description":     true,
+		"Membership.*":    true,
+		"VisibilityLevel": true,
+		"VisibilityType":  true,
+		"ResourceOwner.*": true,
+		"CreatedAt":       true,
+		"UpdatedAt":       true,
 	}, map[string]string{
-		"ID":                 "_id",
-		"GroupID":            "group_id",
+		"ID":                 "baseentity._id",
 		"GameID":             "game_id",
-		"FullName":           "full_name",
-		"CurrentDisplayName": "short_name",
+		"Name":               "name",
 		"Symbol":             "symbol",
+		"SlugURI":            "slug_uri",
 		"Description":        "description",
-		"Profiles":           "profiles",
-		"ResourceOwner":      "resource_owner",
-		"TenantID":           "resource_owner.tenant_id",
-		"UserID":             "resource_owner.user_id",
-		// "GroupID":            "resource_owner.group_id",
-		"ClientID":  "resource_owner.client_id",
-		"CreatedAt": "create_at",
-		"UpdatedAt": "updated_at",
+		"Membership":         "membership",
+		"Membership.Type":    "membership.type",
+		"Membership.Roles":   "membership.roles",
+		"Membership.Status":  "membership.status",
+		"Membership.History": "membership.history",
+		"VisibilityLevel":    "baseentity.visibility_level",
+		"VisibilityType":     "baseentity.visibility_type",
+		"ResourceOwner":      "baseentity.resource_owner",
+		"TenantID":           "baseentity.resource_owner.tenant_id",
+		"UserID":             "baseentity.resource_owner.user_id",
+		"GroupID":            "baseentity.resource_owner.group_id",
+		"ClientID":           "baseentity.resource_owner.client_id",
+		"CreatedAt":          "baseentity.create_at",
+		"UpdatedAt":          "baseentity.updated_at",
 	})
 
 	return &SquadRepository{
@@ -69,49 +76,23 @@ func (r *SquadRepository) Search(ctx context.Context, s common.Search) ([]squad_
 	}
 
 	if err != nil {
-		slog.ErrorContext(ctx, "error querying player entity", "err", err)
+		slog.ErrorContext(ctx, "error querying squad entity", "err", err)
 		return nil, err
 	}
 
-	players := make([]squad_entities.Squad, 0)
+	squads := make([]squad_entities.Squad, 0)
 
 	for cursor.Next(ctx) {
 		var p squad_entities.Squad
 		err := cursor.Decode(&p)
 
 		if err != nil {
-			slog.ErrorContext(ctx, "error decoding player entity", "err", err)
+			slog.ErrorContext(ctx, "error decoding squad entity", "err", err)
 			return nil, err
 		}
 
-		players = append(players, p)
+		squads = append(squads, p)
 	}
 
-	return players, nil
+	return squads, nil
 }
-
-// func (r *SquadRepository) CreateMany(createCtx context.Context, events []interface{}) error {
-// 	_, err := r.collection.InsertMany(createCtx, events)
-// 	if err != nil {
-// 		slog.ErrorContext(createCtx, err.Error())
-// 		return err
-// 	}
-
-// 	return nil
-// }
-
-// func (r *SquadRepository) Create(createCtx context.Context, events ...squad_entities.Squad) error {
-// 	toInsert := make([]interface{}, len(events))
-
-// 	for i := range events {
-// 		toInsert[i] = events[i]
-// 	}
-
-// 	_, err := r.collection.InsertMany(createCtx, toInsert)
-// 	if err != nil {
-// 		slog.ErrorContext(createCtx, err.Error())
-// 		return err
-// 	}
-
-// 	return nil
-// }

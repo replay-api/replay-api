@@ -651,6 +651,48 @@ func (b *ContainerBuilder) WithSquadAPI() *ContainerBuilder {
 		panic(err)
 	}
 
+	err = c.Singleton(func() (*db.SquadHistoryRepository, error) {
+		var client *mongo.Client
+		err := c.Resolve(&client)
+		if err != nil {
+			slog.Error("Failed to resolve mongo.Client for NamedSingleton SquadHistoryRepository as generic MongoDBRepository.", "err", err)
+			return &db.SquadHistoryRepository{}, err
+		}
+
+		var config common.Config
+
+		err = c.Resolve(&config)
+		if err != nil {
+			slog.Error("Failed to resolve config for db.SquadHistoryRepository.", "err", err)
+			return nil, err
+		}
+
+		repo := db.NewSquadHistoryRepository(client, config.MongoDB.DBName, squad_entities.SquadHistory{}, "squad_histories")
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load NamedSingleton SquadHistoryRepository as generic MongoDBRepository.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (squad_out.SquadHistoryWriter, error) {
+		var repo *db.SquadHistoryRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve SquadHistoryRepository for squad_out.SquadHistoryWriter.", "err", err)
+			return nil, err
+		}
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load squad_out.SquadHistoryWriter.", "err", err)
+		panic(err)
+	}
+
 	err = c.Singleton(func() (squad_out.PlayerProfileHistoryWriter, error) {
 		var repo *db.PlayerProfileHistoryRepository
 		err = c.Resolve(&repo)
@@ -799,8 +841,14 @@ func (b *ContainerBuilder) WithSquadAPI() *ContainerBuilder {
 		var squadWriter squad_out.SquadWriter
 		err := c.Resolve(&squadWriter)
 		if err != nil {
-
 			slog.Error("Failed to resolve PlayerProfileWriter for CreatePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var squadReader squad_out.SquadReader
+		err = c.Resolve(&squadReader)
+		if err != nil {
+			slog.Error("Failed to resolve SquadReader for CreateSquadCommandHandler.", "err", err)
 			return nil, err
 		}
 
@@ -818,7 +866,21 @@ func (b *ContainerBuilder) WithSquadAPI() *ContainerBuilder {
 			return nil, err
 		}
 
-		cmdHandler := squad_usecases.NewCreateSquadUseCase(squadWriter, groupWriter, groupReader)
+		var squadHistoryWriter squad_out.SquadHistoryWriter
+		err = c.Resolve(&squadHistoryWriter)
+		if err != nil {
+			slog.Error("Failed to resolve SquadHistoryWriter for CreateSquadCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var playerProfileReader squad_in.PlayerProfileReader
+		err = c.Resolve(&playerProfileReader)
+		if err != nil {
+			slog.Error("Failed to resolve PlayerProfileReader for CreateSquadCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		cmdHandler := squad_usecases.NewCreateSquadUseCase(squadWriter, squadHistoryWriter, squadReader, groupWriter, groupReader, playerProfileReader)
 
 		return cmdHandler, nil
 	})
@@ -846,37 +908,6 @@ func (b *ContainerBuilder) WithSquadAPI() *ContainerBuilder {
 		panic(err)
 	}
 
-	err = c.Singleton(func() (squad_in.CreateSquadCommandHandler, error) {
-		var squadWriter squad_out.SquadWriter
-		err := c.Resolve(&squadWriter)
-		if err != nil {
-			slog.Error("Failed to resolve SquadWriter for CreatePlayerCommandHandler.", "err", err)
-			return nil, err
-		}
-
-		var groupWriter iam_out.GroupWriter
-		err = c.Resolve(&groupWriter)
-		if err != nil {
-			slog.Error("Failed to resolve GroupWriter for CreatePlayerCommandHandler.", "err", err)
-			return nil, err
-		}
-
-		var groupReader iam_out.GroupReader
-		err = c.Resolve(&groupReader)
-		if err != nil {
-			slog.Error("Failed to resolve GroupReader for CreatePlayerCommandHandler.", "err", err)
-			return nil, err
-		}
-
-		cmdHandler := squad_usecases.NewCreateSquadUseCase(squadWriter, groupWriter, groupReader)
-
-		return cmdHandler, nil
-	})
-
-	if err != nil {
-		slog.Error("Failed to load CreateSquadCommandHandler.")
-		panic(err)
-	}
 	// squad_in.CreatePlayerProfileCommandHandler
 	err = c.Singleton(func() (squad_in.CreatePlayerProfileCommandHandler, error) {
 		var playerProfileWriter squad_out.PlayerProfileWriter

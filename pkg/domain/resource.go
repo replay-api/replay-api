@@ -41,6 +41,7 @@ const (
 	ResourceTypePlayerProfile  ResourceType = "Players"        // composition of user
 	ResourceTypePlayerMetadata ResourceType = "PlayerMetadata" // composition of user
 	ResourceTypeTeam           ResourceType = "Teams"          // specification of user group
+	ResourceTypeSquad          ResourceType = "Squads"         // specification of user group
 	ResourceTypeGroup          ResourceType = "Groups"         // system group
 	ResourceTypeUser           ResourceType = "Users"          // specification of group
 	ResourceTypeChannel        ResourceType = "Channels"       // specification of user group

@@ -7,6 +7,7 @@ import (
 	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
 	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
 	iam_out "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/out"
+	squad_common "github.com/psavelis/team-pro/replay-api/pkg/domain/squad"
 	squad_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/entities"
 	squad_in "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/in"
 	squad_out "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/out"
@@ -69,12 +70,16 @@ func (uc *CreatePlayerUseCase) Exec(c context.Context, cmd squad_in.CreatePlayer
 
 	c = context.WithValue(c, common.GroupIDKey, group.GetID())
 
+	// Remove duplicate roles
+	roles := squad_common.Unique(cmd.Roles)
+
 	player := squad_entities.NewPlayerProfile(
 		cmd.GameID,
 		cmd.Nickname,
 		cmd.AvatarURI,
 		cmd.SlugURI,
-		"",
+		cmd.Description,
+		roles,
 		cmd.VisibilityType,
 		common.GetResourceOwner(c),
 	)

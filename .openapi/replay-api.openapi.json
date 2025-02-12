@@ -1,0 +1,349 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "My Project",
+    "description": "",
+    "version": "1.0.0"
+  },
+  "tags": [
+    {
+      "name": "replay"
+    }
+  ],
+  "paths": {
+    "/games/cs2/replays": {
+      "post": {
+        "summary": "Upload Replay File",
+        "deprecated": false,
+        "description": "",
+        "operationId": "upload-replay-file",
+        "tags": [
+          "replay"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "format": "binary",
+                    "type": "string",
+                    "example": "file://C:\\sources\\replay-api\\replay-api\\test\\sample_replays\\cs2\\sound.dem"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/": {
+      "get": {
+        "summary": "GET Pricing",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      },
+      "delete": {
+        "summary": "Unsubscribe",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      },
+      "put": {
+        "summary": "Update Membership",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      },
+      "post": {
+        "summary": "Subscribe",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/squads": {
+      "post": {
+        "summary": "* CreateSquad",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "X-Resource-Owner-ID",
+            "in": "header",
+            "description": "",
+            "required": false,
+            "example": "38d79da1-0526-482c-b123-691fe3677a2d",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Resource-Owner-Audience-Type",
+            "in": "header",
+            "description": "",
+            "required": false,
+            "example": "",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {}
+              },
+              "example": {
+                "name": "Ethernity4",
+                "symbol": "ETHY",
+                "description": "eTHERNITY SquadFR!!",
+                "game_id": "cs2",
+                "avatar_uri": "/squads/:squad_id/avatar",
+                "slug_uri": "/squads/ethernity4",
+                "members": {
+                  "59b946d7-cd7b-4956-9702-d0f79015e622": {
+                    "type": "Owner",
+                    "roles": [
+                      "IGL",
+                      "AWPer"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/players": {
+      "post": {
+        "summary": "* CreatePlayerProfile",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "X-Resource-Owner-ID",
+            "in": "header",
+            "description": "",
+            "required": false,
+            "example": "38d79da1-0526-482c-b123-691fe3677a2d",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {}
+              },
+              "example": {
+                "game_id": "cs2",
+                "nickname": "sound8",
+                "avatar": "players/sound/avatar",
+                "slug_uri": "sound8",
+                "visibility_type": 1,
+                "roles": [
+                  "AWPer",
+                  "IGL",
+                  "Initiatior"
+                ],
+                "description": "Your game description"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/search/players": {
+      "get": {
+        "summary": "* Search PlayerProfiles",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "X-Resource-Owner-ID",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "example": "38d79da1-0526-482c-b123-691fe3677a2d",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Nickname",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "example": "sound",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "example": "in",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Resource-Owner-ID",
+            "in": "header",
+            "description": "",
+            "required": false,
+            "example": "38d79da1-0526-482c-b123-691fe3677a2d",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    }
+  },
+  "components": {
+    "schemas": {},
+    "securitySchemes": {}
+  },
+  "servers": [],
+  "security": {}
+}
