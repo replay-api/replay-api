@@ -9,13 +9,15 @@ import (
 )
 
 type CreateSquadCommand struct {
-	Name        string                                `json:"name"`
-	Symbol      string                                `json:"symbol"`
-	Description string                                `json:"description"`
-	GameID      common.GameIDKey                      `json:"game_id"`
-	AvatarURI   string                                `json:"avatar_uri"`
-	SlugURI     string                                `json:"slug_uri"`
-	Members     map[string]CreateSquadMembershipInput `json:"members"`
+	Name          string                                `json:"name"`
+	Symbol        string                                `json:"symbol"`
+	Description   string                                `json:"description"`
+	GameID        common.GameIDKey                      `json:"game_id"`
+	SlugURI       string                                `json:"slug_uri"`
+	Members       map[string]CreateSquadMembershipInput `json:"members"`
+	Base64Logo    string                                `json:"base64_logo"`
+	LogoExtension string                                `json:"logo_extension"`
+	Links         map[string]string                     `json:"links"`
 }
 
 type CreateSquadMembershipInput struct {

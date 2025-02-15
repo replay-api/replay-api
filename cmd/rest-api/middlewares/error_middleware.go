@@ -62,7 +62,7 @@ func ErrorMiddleware(next http.Handler) http.Handler {
 			slog.ErrorContext(r.Context(), "ErrorMiddleware", "err", err, "Status", rr.statusCode)
 			return
 		} else {
-			slog.InfoContext(r.Context(), "ErrorMiddleware", "Status", rr.statusCode)
+			slog.InfoContext(r.Context(), "Success", "Status", rr.statusCode)
 		}
 	})
 }

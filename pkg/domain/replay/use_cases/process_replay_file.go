@@ -3,6 +3,7 @@ package use_cases
 import (
 	"context"
 	"log/slog"
+	"sync"
 
 	"github.com/google/uuid"
 	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
@@ -75,22 +76,31 @@ func (usecase *ProcessReplayFileUseCase) Exec(ctx context.Context, replayFileID 
 
 	slog.InfoContext(ctx, "parsing replay file", "Size", replayFile.Size, "replayFileID", replayFileID)
 
-	eventsChan := make(chan *e.GameEvent, 1)
-	defer close(eventsChan)
+	eventsChan := make(chan *e.GameEvent, 1000)
 
-	var entitiesMap map[common.ResourceType][]interface{}
+	entitiesMap := make(map[common.ResourceType][]interface{})
 
 	gameEvents := make([]*e.GameEvent, 0)
 
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		for event := range eventsChan {
+			slog.InfoContext(ctx, "event", "event.Type", event.Type)
 			if event.Type != common.Event_GenericGameEventID {
 				match.Events = append(match.Events, event)
 			}
 
 			gameEvents = append(gameEvents, event)
 
-			entitiesMap = event.Entities
+			for k, v := range event.Entities {
+				if entitiesMap[k] == nil {
+					entitiesMap[k] = make([]interface{}, 0)
+				}
+
+				entitiesMap[k] = append(entitiesMap[k], v...)
+			}
 		}
 	}()
 
@@ -101,22 +111,36 @@ func (usecase *ProcessReplayFileUseCase) Exec(ctx context.Context, replayFileID 
 		return nil, err
 	}
 
+	wg.Wait()
+
 	for resourceKey, entities := range entitiesMap {
 		switch resourceKey {
 		case common.ResourceTypePlayerMetadata:
-			err = usecase.PlayerMetadataWriter.CreateMany(ctx, entities)
+			for _, rawEntity := range entities {
+				slog.InfoContext(ctx, "PlayerMetadata", "entity", rawEntity)
+				entity := rawEntity.(*e.PlayerMetadata)
 
-			if err != nil {
-				slog.ErrorContext(ctx, "error writing PlayerMetadata entities", "err", err)
-				return nil, err
+				// TODO: getByNetworkID, refactor Create=>Upsert, Set RXN to app, Set UpdatedAt, Set USER_ID, Use BaseEntity, Se visibility to Public(?), Set NameHistory
+				// TODO: distinct/mergeProps before upsert? (dups)
+				err = usecase.PlayerMetadataWriter.Create(ctx, *entity)
+
+				if err != nil {
+					slog.ErrorContext(ctx, "error writing PlayerMetadata entities", "err", err)
+					return nil, err
+				}
 			}
 
 		case common.ResourceTypeMatch:
-			err = usecase.MatchMetadataWriter.CreateMany(ctx, entities)
+			for _, rawEntity := range entities {
+				slog.InfoContext(ctx, "MatchMetadata", "entity", rawEntity)
+				entity := rawEntity.(*e.Match)
 
-			if err != nil {
-				slog.ErrorContext(ctx, "error writing MatchMetadata entities", "err", err)
-				return nil, err
+				err = usecase.MatchMetadataWriter.Create(ctx, *entity)
+
+				if err != nil {
+					slog.ErrorContext(ctx, "error writing MatchMetadata entities", "err", err)
+					return nil, err
+				}
 			}
 		}
 	}

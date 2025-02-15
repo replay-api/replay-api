@@ -13,6 +13,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	// repositories/db
+	"github.com/psavelis/team-pro/replay-api/pkg/infra/cdn"
 	db "github.com/psavelis/team-pro/replay-api/pkg/infra/db/mongodb"
 
 	// messageBroker (kafka/rabbit)
@@ -30,6 +31,7 @@ import (
 	google_in "github.com/psavelis/team-pro/replay-api/pkg/domain/google/ports/in"
 	google_out "github.com/psavelis/team-pro/replay-api/pkg/domain/google/ports/out"
 	google_use_cases "github.com/psavelis/team-pro/replay-api/pkg/domain/google/use_cases"
+	media_out "github.com/psavelis/team-pro/replay-api/pkg/domain/media/ports/out"
 	metadata "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/services/metadata"
 	squad_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/entities"
 	squad_in "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/in"
@@ -773,6 +775,15 @@ func (b *ContainerBuilder) WithSquadAPI() *ContainerBuilder {
 		panic(err)
 	}
 
+	err = c.Singleton(func() (media_out.MediaWriter, error) {
+		return cdn.NewImageCDNRepositoryMock(), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load media_out.MediaWriter.", "err", err)
+		panic(err)
+	}
+
 	// squad_in.PlayerProfileReader
 	err = c.Singleton(func() (squad_in.PlayerProfileReader, error) {
 		var playerProfileReader squad_out.PlayerProfileReader
@@ -880,7 +891,14 @@ func (b *ContainerBuilder) WithSquadAPI() *ContainerBuilder {
 			return nil, err
 		}
 
-		cmdHandler := squad_usecases.NewCreateSquadUseCase(squadWriter, squadHistoryWriter, squadReader, groupWriter, groupReader, playerProfileReader)
+		var mediaWriter media_out.MediaWriter
+		err = c.Resolve(&mediaWriter)
+		if err != nil {
+			slog.Error("Failed to resolve MediaWriter for CreateSquadCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		cmdHandler := squad_usecases.NewCreateSquadUseCase(squadWriter, squadHistoryWriter, squadReader, groupWriter, groupReader, playerProfileReader, mediaWriter)
 
 		return cmdHandler, nil
 	})

@@ -5,7 +5,9 @@ import (
 	"log/slog"
 	"reflect"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
 	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
@@ -87,8 +89,14 @@ func (r *PlayerMetadataRepository) Search(ctx context.Context, s common.Search) 
 	return players, nil
 }
 
-func (r *PlayerMetadataRepository) CreateMany(createCtx context.Context, events []interface{}) error {
-	_, err := r.collection.InsertMany(createCtx, events)
+func (r *PlayerMetadataRepository) CreateMany(createCtx context.Context, events []replay_entity.PlayerMetadata) error {
+	toInsert := make([]interface{}, len(events))
+
+	for i := range events {
+		toInsert[i] = events[i]
+	}
+
+	_, err := r.collection.InsertMany(createCtx, toInsert)
 	if err != nil {
 		slog.ErrorContext(createCtx, err.Error())
 		return err
@@ -97,14 +105,11 @@ func (r *PlayerMetadataRepository) CreateMany(createCtx context.Context, events 
 	return nil
 }
 
-func (r *PlayerMetadataRepository) Create(createCtx context.Context, events ...replay_entity.PlayerMetadata) error {
-	toInsert := make([]interface{}, len(events))
-
-	for i := range events {
-		toInsert[i] = events[i]
-	}
-
-	_, err := r.collection.InsertMany(createCtx, toInsert)
+func (r *PlayerMetadataRepository) Create(createCtx context.Context, event replay_entity.PlayerMetadata) error {
+	opts := options.Update().SetUpsert(true)
+	filter := bson.M{"_id": event.ID}
+	update := bson.M{"$set": event}
+	_, err := r.collection.UpdateOne(createCtx, filter, update, opts)
 	if err != nil {
 		slog.ErrorContext(createCtx, err.Error())
 		return err

@@ -45,7 +45,7 @@ func NewSearchMux(c *container.Container) *SearchableResourceMultiplexer {
 	smux.Handlers[common.ResourceTypeGameEvent] = NewEventSearchController(c)
 	smux.Handlers[common.ResourceTypeProfile] = NewProfileSearchController(c)
 	smux.Handlers[common.ResourceTypeMembership] = NewMembershipSearchController(c)
-	smux.Handlers[common.ResourceTypePlayerProfile] = NewPlayerProfileSearchController(c)
+	smux.Handlers[common.ResourceTypeSquad] = NewSquadSearchController(c)
 	// smux.Handlers[common.ResourceTypeTeam] = NewTeamSearchController(c)
 	smux.ResourceTypes = make([]common.ResourceType, len(smux.Handlers))
 
@@ -233,6 +233,20 @@ func NewPlayerProfileSearchController(c *container.Container) *SearchController[
 	}
 
 	return &SearchController[squad_entities.PlayerProfile]{
+		Searchable: s,
+	}
+}
+
+func NewSquadSearchController(c *container.Container) *SearchController[squad_entities.Squad] {
+	var s squad_in.SquadReader
+	err := c.Resolve(&s)
+
+	if err != nil {
+		slog.Error("Cannot resolve squad_in.SquadReader for NewSquadSearchController", "err", err)
+		panic(err)
+	}
+
+	return &SearchController[squad_entities.Squad]{
 		Searchable: s,
 	}
 }

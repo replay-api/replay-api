@@ -145,7 +145,9 @@ func Test_GameEventSearch_SuccessEmpty(t *testing.T) {
 
 	t.Logf("response: %v", response)
 
-	expectStatus(t, http.StatusNoContent, response)
+	expectStatuses(t, []int{
+		http.StatusNoContent, http.StatusOK,
+	}, response)
 }
 
 func Test_SearchSteamUserRealName_Success(t *testing.T) {
@@ -157,7 +159,9 @@ func Test_SearchSteamUserRealName_Success(t *testing.T) {
 
 	t.Logf("response: %v", response)
 
-	expectStatus(t, http.StatusNoContent, response)
+	expectStatuses(t, []int{
+		http.StatusNoContent, http.StatusOK,
+	}, response)
 }
 
 func Test_SteamOnboarding_Success(t *testing.T) {

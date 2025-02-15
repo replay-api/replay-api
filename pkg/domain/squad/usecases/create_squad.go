@@ -9,6 +9,7 @@ import (
 	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
 	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
 	iam_out "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/out"
+	media_out "github.com/psavelis/team-pro/replay-api/pkg/domain/media/ports/out"
 	squad_common "github.com/psavelis/team-pro/replay-api/pkg/domain/squad"
 	squad_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/entities"
 	squad_in "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/in"
@@ -23,9 +24,10 @@ type CreateSquadUseCase struct {
 	GroupReader         iam_out.GroupReader
 	SquadHistoryWriter  squad_out.SquadHistoryWriter
 	PlayerProfileReader squad_in.PlayerProfileReader
+	MediaWriter         media_out.MediaWriter
 }
 
-func NewCreateSquadUseCase(squadWriter squad_out.SquadWriter, squadHistoryWriter squad_out.SquadHistoryWriter, squadReader squad_out.SquadReader, groupWriter iam_out.GroupWriter, groupReader iam_out.GroupReader, playerProfileReader squad_in.PlayerProfileReader) *CreateSquadUseCase {
+func NewCreateSquadUseCase(squadWriter squad_out.SquadWriter, squadHistoryWriter squad_out.SquadHistoryWriter, squadReader squad_out.SquadReader, groupWriter iam_out.GroupWriter, groupReader iam_out.GroupReader, playerProfileReader squad_in.PlayerProfileReader, mediaWriter media_out.MediaWriter) *CreateSquadUseCase {
 	return &CreateSquadUseCase{
 		SquadWriter:         squadWriter,
 		SquadHistoryWriter:  squadHistoryWriter,
@@ -33,7 +35,22 @@ func NewCreateSquadUseCase(squadWriter squad_out.SquadWriter, squadHistoryWriter
 		GroupWriter:         groupWriter,
 		GroupReader:         groupReader,
 		PlayerProfileReader: playerProfileReader,
+		MediaWriter:         mediaWriter,
 	}
+}
+
+func ValidateSlugURL(slugURI string) error {
+	if len(slugURI) < 3 {
+		return fmt.Errorf("slugURI must be at least 3 characters long")
+	}
+
+	for _, char := range slugURI {
+		if !(char >= 'a' && char <= 'z' || char >= '0' && char <= '9' || char == '-' || char == '_') {
+			return fmt.Errorf("slugURI contains invalid characters")
+		}
+	}
+
+	return nil
 }
 
 func (uc *CreateSquadUseCase) Exec(ctx context.Context, cmd squad_in.CreateSquadCommand) (*squad_entities.Squad, error) {
@@ -42,7 +59,15 @@ func (uc *CreateSquadUseCase) Exec(ctx context.Context, cmd squad_in.CreateSquad
 		return nil, common.NewErrUnauthorized()
 	}
 
+	// TODO: check plan for QTY of squads
+
 	err := ValidateMembershipUUIDs(cmd.Members)
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = ValidateSlugURL(cmd.SlugURI)
 
 	if err != nil {
 		return nil, err
@@ -123,10 +148,19 @@ func (uc *CreateSquadUseCase) Exec(ctx context.Context, cmd squad_in.CreateSquad
 		))
 	}
 
+	var avatarURI string
+	if cmd.Base64Logo != "" {
+		imageName := fmt.Sprintf("%s_%s", cmd.SlugURI, uuid.New().String())
+		avatarURI, err = uc.MediaWriter.Create(ctx, []byte(cmd.Base64Logo), imageName, cmd.LogoExtension)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	squad := squad_entities.NewSquad(
 		group.GetID(),
 		cmd.GameID,
-		cmd.AvatarURI,
+		avatarURI,
 		cmd.Name,
 		cmd.Symbol,
 		cmd.Description,

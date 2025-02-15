@@ -48,6 +48,7 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	eventController := query_controllers.NewEventQueryController(container)
 	groupController := query_controllers.NewGroupController(&container)
 	squadController := cmd_controllers.NewSquadController(container)
+	squadQueryController := query_controllers.NewSquadQueryController(container)
 	playerProfileQueryController := query_controllers.NewPlayerProfileQueryController(container)
 	playerProfileController := cmd_controllers.NewPlayerProfileController(container)
 
@@ -110,6 +111,7 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 
 	// Squad API
 	r.HandleFunc("/squads", squadController.CreateSquadHandler(ctx)).Methods("POST")
+	r.HandleFunc("/squads", squadQueryController.DefaultSearchHandler).Methods("GET")
 	// r.HandleFunc("/games/{game_id}/squad", squadController.GetSquadByGameID(ctx)).Methods("GET")
 	// r.HandleFunc("/games/{game_id}/squad", squadController.CreateSquad(ctx)).Methods("POST")
 	// r.HandleFunc("/games/{game_id}/squad/{squad_id}", squadController.GetSquadByID(ctx)).Methods("GET")

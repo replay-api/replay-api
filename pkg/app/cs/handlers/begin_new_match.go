@@ -48,7 +48,7 @@ func BeginNewMatch(p dem.Parser, matchContext *state.CS2MatchContext, out chan *
 			payload,
 		)
 
-		slog.Info("MatchStart:", "gameEvent", gameEvent)
+		slog.Info("MatchStart:", "gameEvent", common.Event_MatchStartID)
 
 		if err != nil {
 			slog.Error("unable to create new match event")
