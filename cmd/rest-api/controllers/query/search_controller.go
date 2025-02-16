@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/golobby/container/v3"
@@ -347,6 +348,10 @@ func GetQueryParams(r *http.Request, s *common.Search) *common.Search {
 		}
 	}
 
+	limitParam := queryParams["limit"]
+
+	skipParam := queryParams["skip"]
+
 	for key, values := range queryParams {
 		if key == "filter" {
 			continue
@@ -374,7 +379,29 @@ func GetQueryParams(r *http.Request, s *common.Search) *common.Search {
 
 	s.SearchParams = append(s.SearchParams, aggregation)
 
+	s.ResultOptions = getResultOptions(limitParam, skipParam)
+
 	return s
+}
+
+func getResultOptions(limitParam []string, skipParam []string) common.SearchResultOptions {
+	var limit uint
+	var offset uint
+
+	if len(limitParam) > 0 {
+		limitInt, _ := strconv.Atoi(limitParam[0])
+		limit = uint(limitInt)
+	}
+
+	if len(skipParam) > 0 {
+		offsetInt, _ := strconv.Atoi(skipParam[0])
+		offset = uint(offsetInt)
+	}
+
+	return common.SearchResultOptions{
+		Limit: limit,
+		Skip:  offset,
+	}
 }
 
 func (c *SearchController[T]) HandleSearchRequest(w http.ResponseWriter, r *http.Request) {

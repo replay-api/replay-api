@@ -195,6 +195,10 @@ func (r *MongoDBRepository[T]) addLimit(pipe []bson.M, s common.Search) ([]bson.
 }
 
 func (r *MongoDBRepository[T]) addSkip(pipe []bson.M, s common.Search) []bson.M {
+	if s.ResultOptions.Skip == 0 {
+		return pipe
+	}
+
 	pipe = append(pipe, bson.M{"$skip": s.ResultOptions.Skip})
 	return pipe
 }

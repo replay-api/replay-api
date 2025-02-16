@@ -13,7 +13,7 @@
   "paths": {
     "/games/cs2/replays": {
       "post": {
-        "summary": "Upload Replay File",
+        "summary": "* Upload Replay File",
         "deprecated": false,
         "description": "",
         "operationId": "upload-replay-file",
@@ -127,6 +127,41 @@
         "description": "",
         "tags": [],
         "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/search/gameevents": {
+      "get": {
+        "summary": "* Search Highlights",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "Type",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "example": "RoundMVPAnnouncement",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -297,6 +332,61 @@
             "description": "",
             "required": false,
             "example": "sound",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "example": "in",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Resource-Owner-ID",
+            "in": "header",
+            "description": "",
+            "required": false,
+            "example": "38d79da1-0526-482c-b123-691fe3677a2d",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/search/squads": {
+      "get": {
+        "summary": "* Search Squads",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "Name",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "example": "Ethernity2",
             "schema": {
               "type": "string"
             }
