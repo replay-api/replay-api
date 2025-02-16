@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
+	common "github.com/replay-api/replay-api/pkg/domain"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )

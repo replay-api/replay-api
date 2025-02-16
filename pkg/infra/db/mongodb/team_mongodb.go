@@ -7,8 +7,8 @@ import (
 
 	"go.mongodb.org/mongo-driver/mongo"
 
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 )
 
 type TeamRepository struct {

@@ -6,15 +6,15 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
-	iam_out "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/out"
-	media_out "github.com/psavelis/team-pro/replay-api/pkg/domain/media/ports/out"
-	squad_common "github.com/psavelis/team-pro/replay-api/pkg/domain/squad"
-	squad_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/entities"
-	squad_in "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/in"
-	squad_out "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/out"
-	squad_value_objects "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/value-objects"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
+	iam_out "github.com/replay-api/replay-api/pkg/domain/iam/ports/out"
+	media_out "github.com/replay-api/replay-api/pkg/domain/media/ports/out"
+	squad_common "github.com/replay-api/replay-api/pkg/domain/squad"
+	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
+	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
+	squad_out "github.com/replay-api/replay-api/pkg/domain/squad/ports/out"
+	squad_value_objects "github.com/replay-api/replay-api/pkg/domain/squad/value-objects"
 )
 
 type CreateSquadUseCase struct {

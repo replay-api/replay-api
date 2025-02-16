@@ -7,8 +7,8 @@ import (
 	"net/http"
 
 	"github.com/golobby/container/v3"
-	google_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/google/entities"
-	google_in "github.com/psavelis/team-pro/replay-api/pkg/domain/google/ports/in"
+	google_entity "github.com/replay-api/replay-api/pkg/domain/google/entities"
+	google_in "github.com/replay-api/replay-api/pkg/domain/google/ports/in"
 )
 
 type GoogleController struct {

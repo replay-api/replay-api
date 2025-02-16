@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
+	common "github.com/replay-api/replay-api/pkg/domain"
 )
 
 func TestValidateSearchParameters(t *testing.T) {

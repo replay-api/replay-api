@@ -5,11 +5,11 @@ import (
 	dem "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs"
 	csinfo "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs/common"
 	evt "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs/events"
-	"github.com/psavelis/team-pro/replay-api/pkg/app/cs/builders"
-	"github.com/psavelis/team-pro/replay-api/pkg/app/cs/state"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	csDomain "github.com/psavelis/team-pro/replay-api/pkg/domain/cs/entities"
-	e "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
+	"github.com/replay-api/replay-api/pkg/app/cs/builders"
+	"github.com/replay-api/replay-api/pkg/app/cs/state"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	csDomain "github.com/replay-api/replay-api/pkg/domain/cs/entities"
+	e "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 )
 
 func ClutchEnd(p dem.Parser, matchContext *state.CS2MatchContext, out chan *e.GameEvent) func(e evt.RoundEnd) error {

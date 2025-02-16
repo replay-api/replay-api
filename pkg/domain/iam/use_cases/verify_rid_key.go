@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	iam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/in"
-	iam_out "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/out"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	iam_in "github.com/replay-api/replay-api/pkg/domain/iam/ports/in"
+	iam_out "github.com/replay-api/replay-api/pkg/domain/iam/ports/out"
 )
 
 type VerifyRIDUseCase struct {

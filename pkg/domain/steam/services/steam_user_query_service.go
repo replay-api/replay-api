@@ -1,10 +1,10 @@
 package steam_query_services
 
 import (
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	steam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/entities"
-	steam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/ports/in"
-	steam_out "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/ports/out"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	steam_entities "github.com/replay-api/replay-api/pkg/domain/steam/entities"
+	steam_in "github.com/replay-api/replay-api/pkg/domain/steam/ports/in"
+	steam_out "github.com/replay-api/replay-api/pkg/domain/steam/ports/out"
 )
 
 type SteamUserQueryService struct {

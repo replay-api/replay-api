@@ -6,15 +6,15 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
+	common "github.com/replay-api/replay-api/pkg/domain"
 
-	"github.com/psavelis/team-pro/replay-api/pkg/domain/google"
-	google_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/google/entities"
-	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
-	iam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/in"
+	"github.com/replay-api/replay-api/pkg/domain/google"
+	google_entity "github.com/replay-api/replay-api/pkg/domain/google/entities"
+	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
+	iam_in "github.com/replay-api/replay-api/pkg/domain/iam/ports/in"
 
-	google_in "github.com/psavelis/team-pro/replay-api/pkg/domain/google/ports/in"
-	google_out "github.com/psavelis/team-pro/replay-api/pkg/domain/google/ports/out"
+	google_in "github.com/replay-api/replay-api/pkg/domain/google/ports/in"
+	google_out "github.com/replay-api/replay-api/pkg/domain/google/ports/out"
 )
 
 type OnboardGoogleUserUseCase struct {

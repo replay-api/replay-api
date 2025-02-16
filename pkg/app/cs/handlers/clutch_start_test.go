@@ -11,10 +11,10 @@ import (
 	evt "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs/events"
 	"github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs/sendtables"
 	dispatch "github.com/markus-wa/godispatch"
-	h "github.com/psavelis/team-pro/replay-api/pkg/app/cs/handlers"
-	"github.com/psavelis/team-pro/replay-api/pkg/app/cs/state"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	e "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
+	h "github.com/replay-api/replay-api/pkg/app/cs/handlers"
+	"github.com/replay-api/replay-api/pkg/app/cs/state"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	e "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 	"github.com/stretchr/testify/mock"
 )
 

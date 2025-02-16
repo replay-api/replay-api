@@ -3,7 +3,7 @@ package db
 import (
 	"reflect"
 
-	google_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/google/entities"
+	google_entities "github.com/replay-api/replay-api/pkg/domain/google/entities"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 

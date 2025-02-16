@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
+	common "github.com/replay-api/replay-api/pkg/domain"
 )
 
 type PlayerHistoryAction string

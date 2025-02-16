@@ -7,10 +7,10 @@ import (
 
 	"github.com/golobby/container/v3"
 	"github.com/gorilla/mux"
-	"github.com/psavelis/team-pro/replay-api/cmd/rest-api/controllers"
-	cmd_controllers "github.com/psavelis/team-pro/replay-api/cmd/rest-api/controllers/command"
-	query_controllers "github.com/psavelis/team-pro/replay-api/cmd/rest-api/controllers/query"
-	"github.com/psavelis/team-pro/replay-api/cmd/rest-api/middlewares"
+	"github.com/replay-api/replay-api/cmd/rest-api/controllers"
+	cmd_controllers "github.com/replay-api/replay-api/cmd/rest-api/controllers/command"
+	query_controllers "github.com/replay-api/replay-api/cmd/rest-api/controllers/query"
+	"github.com/replay-api/replay-api/cmd/rest-api/middlewares"
 )
 
 const (

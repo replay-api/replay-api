@@ -8,8 +8,8 @@ import (
 
 	//	"golang.org/x/oauth2/jwt"
 
-	"github.com/psavelis/team-pro/replay-api/cmd/rest-api/routing"
-	ioc "github.com/psavelis/team-pro/replay-api/pkg/infra/ioc"
+	"github.com/replay-api/replay-api/cmd/rest-api/routing"
+	ioc "github.com/replay-api/replay-api/pkg/infra/ioc"
 )
 
 func main() {

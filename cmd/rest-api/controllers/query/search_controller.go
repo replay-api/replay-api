@@ -9,13 +9,13 @@ import (
 	"strings"
 
 	"github.com/golobby/container/v3"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
-	iam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/in"
-	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
-	replay_in "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/ports/in"
-	squad_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/entities"
-	squad_in "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/in"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
+	iam_in "github.com/replay-api/replay-api/pkg/domain/iam/ports/in"
+	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
+	replay_in "github.com/replay-api/replay-api/pkg/domain/replay/ports/in"
+	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
+	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
 )
 
 type SearchableHandler interface {

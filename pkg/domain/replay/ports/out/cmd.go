@@ -5,7 +5,7 @@ import (
 	"io"
 
 	"github.com/google/uuid"
-	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
+	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 )
 
 type ReplayParser interface {

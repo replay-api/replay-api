@@ -14,15 +14,15 @@ import (
 
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
-	"github.com/psavelis/team-pro/replay-api/cmd/rest-api/controllers"
-	"github.com/psavelis/team-pro/replay-api/cmd/rest-api/routing"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	ioc "github.com/psavelis/team-pro/replay-api/pkg/infra/ioc"
+	"github.com/replay-api/replay-api/cmd/rest-api/controllers"
+	"github.com/replay-api/replay-api/cmd/rest-api/routing"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	ioc "github.com/replay-api/replay-api/pkg/infra/ioc"
 
-	google_out "github.com/psavelis/team-pro/replay-api/pkg/domain/google/ports/out"
-	iam_dtos "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/dtos"
-	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
-	steam_out "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/ports/out"
+	google_out "github.com/replay-api/replay-api/pkg/domain/google/ports/out"
+	iam_dtos "github.com/replay-api/replay-api/pkg/domain/iam/dtos"
+	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
+	steam_out "github.com/replay-api/replay-api/pkg/domain/steam/ports/out"
 )
 
 type Tester struct {
@@ -316,7 +316,7 @@ func LoadFile(path string) ([]byte, error) {
 // 	expectStatus(t, http.StatusOK, response.Code)
 // }
 
-// curl --form 'file=@"/Users/psavelis-adm/Desktop/go/src/github.com/psavelis/team-pro/replay-api/test/sample_replays/cs2/sound.dem"' "http://127.0.0.1:4991/games/cs2/replays"
+// curl --form 'file=@"/Users/psavelis-adm/Desktop/go/src/github.com/replay-api/replay-api/test/sample_replays/cs2/sound.dem"' "http://127.0.0.1:4991/games/cs2/replays"
 // curl --form 'file=@"C:\sources\replay-api\replay-api\test\sample_replays\cs2\sound.demo"' "http://127.0.0.1:4991/games/cs2/replays"
 // func Test_UploadReplayFile(t *testing.T) {
 // 	tester := NewTester()

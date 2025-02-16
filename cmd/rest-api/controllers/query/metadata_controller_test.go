@@ -11,10 +11,10 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	query_controllers "github.com/psavelis/team-pro/replay-api/cmd/rest-api/controllers/query"
-	"github.com/psavelis/team-pro/replay-api/cmd/rest-api/routing"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	"github.com/psavelis/team-pro/replay-api/pkg/infra/ioc"
+	query_controllers "github.com/replay-api/replay-api/cmd/rest-api/controllers/query"
+	"github.com/replay-api/replay-api/cmd/rest-api/routing"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	"github.com/replay-api/replay-api/pkg/infra/ioc"
 )
 
 func GetDefaultTestContext(reqContext context.Context, tenantID, clientID, groupID, userID uuid.UUID) context.Context {

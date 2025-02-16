@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/golobby/container/v3"
-	squad_in "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/in"
+	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
 )
 
 type SquadController struct {

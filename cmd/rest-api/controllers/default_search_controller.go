@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
+	common "github.com/replay-api/replay-api/pkg/domain"
 )
 
 type DefaultSearchController[T any] struct {

@@ -7,9 +7,9 @@ import (
 
 	"github.com/google/uuid"
 	dem "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs"
-	handlers "github.com/psavelis/team-pro/replay-api/pkg/app/cs/handlers"
-	state "github.com/psavelis/team-pro/replay-api/pkg/app/cs/state"
-	e "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
+	handlers "github.com/replay-api/replay-api/pkg/app/cs/handlers"
+	state "github.com/replay-api/replay-api/pkg/app/cs/state"
+	e "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 )
 
 type CS2ReplayAdapter struct {

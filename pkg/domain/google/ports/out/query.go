@@ -3,8 +3,8 @@ package google_out
 import (
 	"context"
 
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	google_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/google/entities"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	google_entity "github.com/replay-api/replay-api/pkg/domain/google/entities"
 )
 
 type GoogleUserReader interface {

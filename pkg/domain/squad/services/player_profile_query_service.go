@@ -1,10 +1,10 @@
 package squad_services
 
 import (
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	squad_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/entities"
-	squad_in "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/in"
-	squad_out "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/out"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
+	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
+	squad_out "github.com/replay-api/replay-api/pkg/domain/squad/ports/out"
 )
 
 type PlayerProfileQueryService struct {

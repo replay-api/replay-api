@@ -5,12 +5,12 @@ import (
 
 	dem "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs"
 	evt "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs/events"
-	"github.com/psavelis/team-pro/replay-api/pkg/app/cs/builders"
-	event_factory "github.com/psavelis/team-pro/replay-api/pkg/app/cs/factories"
-	state "github.com/psavelis/team-pro/replay-api/pkg/app/cs/state"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	cs_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/cs/entities"
-	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
+	"github.com/replay-api/replay-api/pkg/app/cs/builders"
+	event_factory "github.com/replay-api/replay-api/pkg/app/cs/factories"
+	state "github.com/replay-api/replay-api/pkg/app/cs/state"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	cs_entity "github.com/replay-api/replay-api/pkg/domain/cs/entities"
+	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 )
 
 func BeginNewMatch(p dem.Parser, matchContext *state.CS2MatchContext, out chan *replay_entity.GameEvent) func(e evt.MatchStart) {

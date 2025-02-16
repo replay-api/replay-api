@@ -3,9 +3,9 @@ package squad_in
 import (
 	"context"
 
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	squad_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/entities"
-	squad_value_objects "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/value-objects"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
+	squad_value_objects "github.com/replay-api/replay-api/pkg/domain/squad/value-objects"
 )
 
 type CreateSquadCommand struct {

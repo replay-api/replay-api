@@ -5,7 +5,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/mongo"
 
-	iam_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
+	iam_entity "github.com/replay-api/replay-api/pkg/domain/iam/entities"
 )
 
 type RIDTokenRepository struct {

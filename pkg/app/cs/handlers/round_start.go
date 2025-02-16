@@ -3,8 +3,8 @@ package handlers
 import (
 	dem "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs"
 	evt "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs/events"
-	state "github.com/psavelis/team-pro/replay-api/pkg/app/cs/state"
-	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
+	state "github.com/replay-api/replay-api/pkg/app/cs/state"
+	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 )
 
 func RoundStart(p dem.Parser, matchContext *state.CS2MatchContext, out chan *replay_entity.GameEvent) func(e evt.RoundStart) {

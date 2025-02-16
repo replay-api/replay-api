@@ -6,10 +6,10 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	iam_dtos "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/dtos"
-	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
-	iam_out "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/out"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	iam_dtos "github.com/replay-api/replay-api/pkg/domain/iam/dtos"
+	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
+	iam_out "github.com/replay-api/replay-api/pkg/domain/iam/ports/out"
 )
 
 type MembershipQueryService struct {

@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	squad_value_objects "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/value-objects"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	squad_value_objects "github.com/replay-api/replay-api/pkg/domain/squad/value-objects"
 )
 
 type Squad struct {

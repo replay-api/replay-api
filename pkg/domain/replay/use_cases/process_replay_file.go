@@ -6,9 +6,9 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	e "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
-	replay_out "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/ports/out"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	e "github.com/replay-api/replay-api/pkg/domain/replay/entities"
+	replay_out "github.com/replay-api/replay-api/pkg/domain/replay/ports/out"
 )
 
 const CHUNK_SIZE = 10
@@ -113,23 +113,27 @@ func (usecase *ProcessReplayFileUseCase) Exec(ctx context.Context, replayFileID 
 
 	wg.Wait()
 
+	playersMap := make(map[string]*e.PlayerMetadata)
+
+	for _, p := range entitiesMap[common.ResourceTypePlayerMetadata] {
+		player := p.(*e.PlayerMetadata)
+		playersMap[player.NetworkUserID] = player
+	}
+
+	for _, p := range playersMap {
+		slog.InfoContext(ctx, "PlayerMetadata", "entity", p)
+		// TODO: getByNetworkID,s refactor Create=>Upsert, Set RXN to app, Set UpdatedAt, Set USER_ID, Use BaseEntity, Se visibility to Public(?), Set NameHistory
+		// TODO: distinct/mergeProps before upsert? (dups)
+		err = usecase.PlayerMetadataWriter.Create(ctx, *p)
+
+		if err != nil {
+			slog.ErrorContext(ctx, "error writing PlayerMetadata entities", "err", err)
+			return nil, err
+		}
+	}
+
 	for resourceKey, entities := range entitiesMap {
 		switch resourceKey {
-		case common.ResourceTypePlayerMetadata:
-			for _, rawEntity := range entities {
-				slog.InfoContext(ctx, "PlayerMetadata", "entity", rawEntity)
-				entity := rawEntity.(*e.PlayerMetadata)
-
-				// TODO: getByNetworkID, refactor Create=>Upsert, Set RXN to app, Set UpdatedAt, Set USER_ID, Use BaseEntity, Se visibility to Public(?), Set NameHistory
-				// TODO: distinct/mergeProps before upsert? (dups)
-				err = usecase.PlayerMetadataWriter.Create(ctx, *entity)
-
-				if err != nil {
-					slog.ErrorContext(ctx, "error writing PlayerMetadata entities", "err", err)
-					return nil, err
-				}
-			}
-
 		case common.ResourceTypeMatch:
 			for _, rawEntity := range entities {
 				slog.InfoContext(ctx, "MatchMetadata", "entity", rawEntity)

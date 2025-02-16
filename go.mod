@@ -1,4 +1,4 @@
-module github.com/psavelis/team-pro/replay-api
+module github.com/replay-api/replay-api
 
 go 1.22.2
 

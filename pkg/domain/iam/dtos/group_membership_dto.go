@@ -1,7 +1,7 @@
 package iam_dtos
 
 import (
-	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
+	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
 )
 
 type GroupMembershipDTO struct {

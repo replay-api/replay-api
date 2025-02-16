@@ -7,12 +7,12 @@ import (
 
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
-	steam_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/entities"
-	steam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/ports/in"
-	steam_out "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/ports/out"
-	ioc "github.com/psavelis/team-pro/replay-api/pkg/infra/ioc"
+	steam_entity "github.com/replay-api/replay-api/pkg/domain/steam/entities"
+	steam_in "github.com/replay-api/replay-api/pkg/domain/steam/ports/in"
+	steam_out "github.com/replay-api/replay-api/pkg/domain/steam/ports/out"
+	ioc "github.com/replay-api/replay-api/pkg/infra/ioc"
 
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
+	common "github.com/replay-api/replay-api/pkg/domain"
 )
 
 var (

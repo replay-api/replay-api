@@ -4,13 +4,13 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
-	iam_out "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/out"
-	squad_common "github.com/psavelis/team-pro/replay-api/pkg/domain/squad"
-	squad_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/entities"
-	squad_in "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/in"
-	squad_out "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/out"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
+	iam_out "github.com/replay-api/replay-api/pkg/domain/iam/ports/out"
+	squad_common "github.com/replay-api/replay-api/pkg/domain/squad"
+	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
+	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
+	squad_out "github.com/replay-api/replay-api/pkg/domain/squad/ports/out"
 )
 
 type CreatePlayerUseCase struct {

@@ -5,8 +5,8 @@ import (
 	"io"
 	"log/slog"
 
-	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
-	replay_in "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/ports/in"
+	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
+	replay_in "github.com/replay-api/replay-api/pkg/domain/replay/ports/in"
 )
 
 type UploadAndProcessReplayFileUseCase struct {

@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	cs2 "github.com/psavelis/team-pro/replay-api/pkg/app/cs"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	e "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
+	cs2 "github.com/replay-api/replay-api/pkg/app/cs"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	e "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 )
 
 func TestCS2ReplayAdapter_GetEvents(t *testing.T) {

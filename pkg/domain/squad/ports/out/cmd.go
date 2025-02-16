@@ -3,7 +3,7 @@ package squad_out
 import (
 	"context"
 
-	squad_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/entities"
+	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 )
 
 type SquadWriter interface {

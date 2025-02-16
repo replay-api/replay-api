@@ -13,13 +13,13 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	// repositories/db
-	"github.com/psavelis/team-pro/replay-api/pkg/infra/cdn"
-	db "github.com/psavelis/team-pro/replay-api/pkg/infra/db/mongodb"
+	"github.com/replay-api/replay-api/pkg/infra/cdn"
+	db "github.com/replay-api/replay-api/pkg/infra/db/mongodb"
 
 	// messageBroker (kafka/rabbit)
 
 	// encryption
-	encryption "github.com/psavelis/team-pro/replay-api/pkg/infra/crypto"
+	encryption "github.com/replay-api/replay-api/pkg/infra/crypto"
 
 	// container
 	container "github.com/golobby/container/v3"
@@ -27,42 +27,42 @@ import (
 	// local files
 
 	// ports
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	google_in "github.com/psavelis/team-pro/replay-api/pkg/domain/google/ports/in"
-	google_out "github.com/psavelis/team-pro/replay-api/pkg/domain/google/ports/out"
-	google_use_cases "github.com/psavelis/team-pro/replay-api/pkg/domain/google/use_cases"
-	media_out "github.com/psavelis/team-pro/replay-api/pkg/domain/media/ports/out"
-	metadata "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/services/metadata"
-	squad_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/entities"
-	squad_in "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/in"
-	squad_out "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/out"
-	squad_services "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/services"
-	squad_usecases "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/usecases"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	google_in "github.com/replay-api/replay-api/pkg/domain/google/ports/in"
+	google_out "github.com/replay-api/replay-api/pkg/domain/google/ports/out"
+	google_use_cases "github.com/replay-api/replay-api/pkg/domain/google/use_cases"
+	media_out "github.com/replay-api/replay-api/pkg/domain/media/ports/out"
+	metadata "github.com/replay-api/replay-api/pkg/domain/replay/services/metadata"
+	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
+	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
+	squad_out "github.com/replay-api/replay-api/pkg/domain/squad/ports/out"
+	squad_services "github.com/replay-api/replay-api/pkg/domain/squad/services"
+	squad_usecases "github.com/replay-api/replay-api/pkg/domain/squad/usecases"
 
-	replay_in "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/ports/in"
-	replay_out "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/ports/out"
+	replay_in "github.com/replay-api/replay-api/pkg/domain/replay/ports/in"
+	replay_out "github.com/replay-api/replay-api/pkg/domain/replay/ports/out"
 
-	steam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/ports/in"
-	steam_out "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/ports/out"
-	steam_query_services "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/services"
+	steam_in "github.com/replay-api/replay-api/pkg/domain/steam/ports/in"
+	steam_out "github.com/replay-api/replay-api/pkg/domain/steam/ports/out"
+	steam_query_services "github.com/replay-api/replay-api/pkg/domain/steam/services"
 
-	iam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/in"
-	iam_out "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/out"
-	iam_query_services "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/services"
+	iam_in "github.com/replay-api/replay-api/pkg/domain/iam/ports/in"
+	iam_out "github.com/replay-api/replay-api/pkg/domain/iam/ports/out"
+	iam_query_services "github.com/replay-api/replay-api/pkg/domain/iam/services"
 
 	// domain
-	google_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/google/entities"
-	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
-	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
-	steam_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/entities"
+	google_entities "github.com/replay-api/replay-api/pkg/domain/google/entities"
+	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
+	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
+	steam_entity "github.com/replay-api/replay-api/pkg/domain/steam/entities"
 
 	// app
-	cs_app "github.com/psavelis/team-pro/replay-api/pkg/app/cs"
+	cs_app "github.com/replay-api/replay-api/pkg/app/cs"
 
 	// usecases
-	iam_use_cases "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/use_cases"
-	replay_use_cases "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/use_cases"
-	steam_use_cases "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/use_cases"
+	iam_use_cases "github.com/replay-api/replay-api/pkg/domain/iam/use_cases"
+	replay_use_cases "github.com/replay-api/replay-api/pkg/domain/replay/use_cases"
+	steam_use_cases "github.com/replay-api/replay-api/pkg/domain/steam/use_cases"
 )
 
 type ContainerBuilder struct {
