@@ -37,6 +37,6 @@ func GenericGameEvent(p dem.Parser, matchContext *state.CS2MatchContext, out cha
 		}
 
 		// out <- *gameEvent
-		slog.Warn("skipping generic event", "gameEvent", gameEvent)
+		slog.Warn("skipping generic event", "gameEvent.Type", gameEvent.Type)
 	}
 }
