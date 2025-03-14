@@ -39,6 +39,13 @@ test-coverage:
 	@mkdir -p ./.coverage  
 	@go tool cover -html=coverage.out -o ./.coverage/coverage.html 
 
+proto:
+	@echo "Generating proto files"
+	@protoc --proto_path=pkg/app/proto/squad --go_out=pkg/app/proto/squad --go-grpc_out=pkg/app/proto/squad pkg/app/proto/squad/player_profile.proto
+	@protoc --proto_path=pkg/app/proto/iam --go_out=pkg/app/proto/iam --go-grpc_out=pkg/app/proto/iam pkg/app/proto/iam/validate_rid.proto
+	@protoc --proto_path=pkg/app/proto/billing --go_out=pkg/app/proto/billing --go-grpc_out=pkg/app/proto/billing pkg/app/proto/billing/subscription.proto
+
+
 test-kafka-produce:
 	@go run pkg/infra/events/pub_kafka_poc.go
 
@@ -61,10 +68,6 @@ CC = \033[0;36m
 B = \033[1m
 NEW_BUFFER = \033[H\033[2J
 LOGO = "\n\t$(CR)⦿ Replay$(CEND)API\n\n"
-
-
-
-
 
 # --- Project Configuration ---
 
@@ -112,10 +115,7 @@ licenses-report: licenses-csv
 
 .DEFAULT_GOAL := help
 
-
-
 #--------- server
-
 
 # Set your image name and container name (replace with your actual values)
 IMAGE_NAME := cs2-server

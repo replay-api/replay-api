@@ -1,13 +1,13 @@
 # dependencies
 # Use a local cache for the base image
-FROM --platform=$BUILDPLATFORM golang:1.23 AS dependencies
+FROM golang:1.23 AS dependencies
 WORKDIR /app 
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 
 # build
-FROM --platform=$BUILDPLATFORM golang:1.23 AS build
+FROM golang:1.23 AS build
 WORKDIR /app
 COPY . /app
 # ENV DEV_ENV docker

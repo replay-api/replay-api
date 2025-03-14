@@ -7,28 +7,27 @@ import (
 type BillingPeriodType string
 
 const (
-	Monthly  BillingPeriodType = "monthly"
-	Yearly   BillingPeriodType = "yearly"
-	Lifetime BillingPeriodType = "lifetime"
+	BillingPeriodMonthly  BillingPeriodType = "monthly"
+	BillingPeriodYearly   BillingPeriodType = "yearly"
+	BillingPeriodLifetime BillingPeriodType = "lifetime"
 )
 
 type Plan struct {
 	common.BaseEntity
-	Name            string                        `json:"name"`
-	Description     string                        `json:"description"`
-	Prices          map[BillingPeriodType][]Price `json:"prices"`
-	OperationLimits []BillableItem                `json:"operation_limits"`
-	IsFree          bool                          `json:"is_free"`
+	Name            string                                `json:"name" bson:"name"`
+	Description     string                                `json:"description" bson:"description"`
+	Prices          map[BillingPeriodType][]Price         `json:"prices" bson:"prices"`
+	OperationLimits map[BillableOperationKey]BillableItem `json:"operation_limits" bson:"operation_limits"`
+	IsFree          bool                                  `json:"is_free" bson:"is_free"`
 }
 
 type BillableItem struct {
-	OperationKey BillableOperationKey `json:"operation_key"`
-	Name         string               `json:"name"`
-	Description  string               `json:"description"`
-	Limit        uint                 `json:"limit"`
+	Name        string  `json:"name" bson:"name"`
+	Description string  `json:"description" bson:"description"`
+	Limit       float64 `json:"limit" bson:"limit"`
 }
 
 type Price struct {
-	Amount   float64 `json:"amount"`
-	Currency string  `json:"currency"`
+	Amount   float64 `json:"amount" bson:"amount"`
+	Currency string  `json:"currency" bson:"currency"`
 }

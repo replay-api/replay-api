@@ -59,15 +59,13 @@ func (uc *CreateSquadUseCase) Exec(ctx context.Context, cmd squad_in.CreateSquad
 		return nil, common.NewErrUnauthorized()
 	}
 
-	// TODO: check plan for QTY of squads
-
 	err := ValidateMembershipUUIDs(cmd.Members)
 
 	if err != nil {
 		return nil, err
 	}
 
-	err = ValidateSlugURL(cmd.SlugURI)
+	err = ValidateSlugURL(cmd.SlugURI) // TODO: validate name and slug
 
 	if err != nil {
 		return nil, err
@@ -117,6 +115,8 @@ func (uc *CreateSquadUseCase) Exec(ctx context.Context, cmd squad_in.CreateSquad
 	}
 
 	ctx = context.WithValue(ctx, common.GroupIDKey, group.GetID())
+
+	// TODO: check plan for QTY of squads
 
 	memberships := make([]squad_value_objects.SquadMembership, 0)
 	membershipMap := make(map[uuid.UUID]interface{})

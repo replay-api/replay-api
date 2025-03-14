@@ -3,6 +3,7 @@ package common
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"reflect"
 )
 
@@ -26,7 +27,25 @@ func (service *BaseQueryService[T]) GetName() string {
 }
 
 func (service *BaseQueryService[T]) Search(ctx context.Context, s Search) ([]T, error) {
-	gameEvents, err := service.Reader.Search(ctx, s)
+	var omitFields []string
+	var pickFields []string
+	for fieldName, isReadable := range service.ReadableFields {
+		if !isReadable {
+			omitFields = append(omitFields, fieldName)
+			continue
+		}
+
+		pickFields = append(pickFields, fieldName)
+	}
+
+	if len(omitFields) > 0 {
+		slog.Info("Omitting fields", "fields", omitFields)
+	}
+
+	s.ResultOptions.OmitFields = omitFields
+	s.ResultOptions.PickFields = pickFields
+
+	entities, err := service.Reader.Search(ctx, s)
 
 	if err != nil {
 		var typeDef T
@@ -35,7 +54,7 @@ func (service *BaseQueryService[T]) Search(ctx context.Context, s Search) ([]T, 
 		return nil, fmt.Errorf("error filtering. Service: %v. Entity: %v. Error: %v", svcName, typeName, err)
 	}
 
-	return gameEvents, nil
+	return entities, nil
 }
 
 func (svc *BaseQueryService[T]) Compile(ctx context.Context, searchParams []SearchAggregation, resultOptions SearchResultOptions) (*Search, error) {

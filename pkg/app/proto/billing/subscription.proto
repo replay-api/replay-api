@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package replayapi_billing;
+
+option go_package = "generated/billing;billing";
+
+message Subscription {
+  string plan_id = 1;
+  string user_id = 2;
+  string start_date = 3;
+  string end_date = 4;
+  string status = 5;
+  map<string, int32> usage = 6;
+  map<string, int32> available = 7;
+}
+
+message GetSubscriptionRequest {
+  string user_id = 1;
+  string rid_token = 2;
+}
+
+message GetSubscriptionResponse {
+  bool is_valid = 1;
+  string reason = 2;
+  Subscription subscription = 3;
+}
+
+message ValidateOperationRequest {
+  string user_id = 1;
+  string rid_token = 2;
+  string operation_id = 3;
+  int32 amount = 4;
+}
+
+message ValidateOperationResponse {
+  bool is_valid = 1;
+  string reason = 2;
+}
+
+message ConfirmOperationRequest {
+  string user_id = 1;
+  string rid_token = 2;
+  string operation_id = 3;
+  int32 amount = 4;
+}
+
+message ConfirmOperationResponse {
+  bool success = 1;
+  string reason = 2;
+}
+
+service SubscriptionService {
+  rpc GetSubscription (GetSubscriptionRequest) returns (GetSubscriptionResponse);
+  rpc ValidateOperation (ValidateOperationRequest) returns (ValidateOperationResponse);
+  rpc ConfirmOperation (ConfirmOperationRequest) returns (ConfirmOperationResponse);
+}

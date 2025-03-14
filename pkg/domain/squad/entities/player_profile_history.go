@@ -9,9 +9,9 @@ import (
 
 type PlayerProfileHistory struct {
 	common.BaseEntity
-	PlayerID  uuid.UUID           `json:"player_id"`
-	Changes   PlayerHistoryAction `json:"changes"`
-	CreatedAt time.Time           `json:"created_at"`
+	PlayerID  uuid.UUID           `json:"player_id" bson:"player_id"`
+	Changes   PlayerHistoryAction `json:"changes" bson:"changes"`
+	CreatedAt time.Time           `json:"created_at" bson:"created_at"`
 }
 
 func (e PlayerProfileHistory) GetID() uuid.UUID {

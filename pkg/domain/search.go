@@ -83,11 +83,12 @@ type SortableField struct {
 }
 
 type SearchParameter struct {
-	ValueParams       []SearchableValue         `json:"values" bson:"value_params"`
-	DateParams        []SearchableDateRange     `json:"date" bson:"date_params"`
-	DurationParams    []SearchableDurationRange `json:"time" bson:"duration_params"`
-	AggregationParams []SearchAggregation       `json:"aggregate" bson:"aggregation_params"`
-	AggregationClause SearchAggregationClause   `json:"clause" bson:"clause"` // if not provided, default to AndAggregationClause
+	FullTextSearchParam string                    `json:"text" bson:"text_params"`
+	ValueParams         []SearchableValue         `json:"values" bson:"value_params"`
+	DateParams          []SearchableDateRange     `json:"date" bson:"date_params"`
+	DurationParams      []SearchableDurationRange `json:"time" bson:"duration_params"`
+	AggregationParams   []SearchAggregation       `json:"aggregate" bson:"aggregation_params"`
+	AggregationClause   SearchAggregationClause   `json:"clause" bson:"clause"` // if not provided, default to AndAggregationClause
 }
 
 type SearchAggregation struct {

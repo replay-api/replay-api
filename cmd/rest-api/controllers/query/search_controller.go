@@ -352,6 +352,8 @@ func GetQueryParams(r *http.Request, s *common.Search) *common.Search {
 
 	skipParam := queryParams["skip"]
 
+	fullTextSearchParam := queryParams["q"]
+
 	for key, values := range queryParams {
 		if key == "filter" {
 			continue
@@ -372,6 +374,10 @@ func GetQueryParams(r *http.Request, s *common.Search) *common.Search {
 				value,
 			},
 			AggregationClause: aggregation.AggregationClause,
+		}
+
+		if len(fullTextSearchParam) > 0 {
+			param.FullTextSearchParam = fullTextSearchParam[0]
 		}
 
 		aggregation.Params = append(aggregation.Params, param)

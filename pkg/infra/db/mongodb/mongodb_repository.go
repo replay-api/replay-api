@@ -208,11 +208,22 @@ func (r *MongoDBRepository[T]) addSort(pipe []bson.M, s common.Search) []bson.M 
 	for _, sortOption := range s.SortOptions {
 		sortFields = append(sortFields, bson.D{{Key: sortOption.Field, Value: sortOption.Direction}})
 	}
+	for _, v := range s.SearchParams {
+		for _, p := range v.Params {
+			if p.FullTextSearchParam != "" {
+				sortFields = append(sortFields, bson.D{{Key: "score", Value: bson.D{{Key: "$meta", Value: "textScore"}}}})
+
+				break
+			}
+		}
+	}
+
 	sortStage := bson.M{"$sort": sortFields}
 
 	if (sortFields != nil) && (len(sortFields) > 0) {
 		pipe = append(pipe, sortStage)
 	}
+
 	return pipe
 }
 
@@ -233,6 +244,7 @@ func (r *MongoDBRepository[T]) addMatch(queryCtx context.Context, pipe []bson.M,
 	return pipe, nil
 }
 
+// TODO: return error instead of panic
 func (r *MongoDBRepository[T]) setMatchValues(queryCtx context.Context, params []common.SearchParameter, aggregate *bson.M, clause common.SearchAggregationClause) {
 	if r.queryableFields == nil {
 		panic(fmt.Errorf("queryableFields not initialized in MongoDBRepository of %s", r.entityName))
@@ -240,11 +252,19 @@ func (r *MongoDBRepository[T]) setMatchValues(queryCtx context.Context, params [
 
 	clauses := bson.A{}
 	for _, p := range params {
+		if p.FullTextSearchParam != "" {
+			// Full text search
+			clauses = append(clauses, bson.M{"$text": bson.M{"$search": p.FullTextSearchParam}})
+
+			slog.InfoContext(queryCtx, "query: $text", "value: %v", p.FullTextSearchParam)
+		}
+
 		// Handle ValueParams
 		for _, v := range p.ValueParams {
 			bsonFieldName, err := r.GetBSONFieldNameFromSearchableValue(v)
 			if err != nil {
 				panic(err) // Retain panic for irrecoverable errors
+				// slog.WarnContext(queryCtx, "setMatchValue GetBSONFieldNameFromSearchableValue", "err", err, "value", v)
 			}
 
 			// Check if the prefix is allowed
@@ -430,11 +450,24 @@ func (r *MongoDBRepository[T]) addProjection(pipe []bson.M, s common.Search) []b
 		for _, field := range s.ResultOptions.OmitFields {
 			(*projection)[field] = 0
 		}
+	} else {
+		projection = &bson.M{}
+	}
+
+	for _, v := range s.SearchParams {
+		for _, p := range v.Params {
+			if p.FullTextSearchParam != "" {
+				(*projection)["score"] = bson.M{"$meta": "textScore"}
+
+				break
+			}
+		}
 	}
 
 	if projection != nil {
 		pipe = append(pipe, bson.M{"$project": *projection})
 	}
+
 	return pipe
 }
 

@@ -1,12 +1,90 @@
 package billing_entities
 
-import common "github.com/replay-api/replay-api/pkg/domain"
+import (
+	"github.com/google/uuid"
+	common "github.com/replay-api/replay-api/pkg/domain"
+)
 
 type BillableEntry struct {
 	common.BaseEntity
-	OperationID string  `json:"operation_id"`
-	PlanID      string  `json:"plan_id"`
-	Amount      float64 `json:"amount"`
+	OperationID    BillableOperationKey   `json:"operation_id" bson:"operation_id"`
+	PlanID         uuid.UUID              `json:"plan_id" bson:"plan_id"`
+	Amount         float64                `json:"amount" bson:"amount"`
+	PayableID      *uuid.UUID             `json:"payable_id" bson:"payable_id"`
+	SubscriptionID uuid.UUID              `json:"subscription_id" bson:"subscription_id"`
+	Args           map[string]interface{} `json:"args" bson:"args"`
 }
 
 type BillableOperationKey string
+
+const (
+	// REPLAY & CLOUD
+	OperationTypeUploadedReplayFiles BillableOperationKey = "UploadReplayFiles"
+	OperationTypeStorageLimit        BillableOperationKey = "StorageLimit"
+	OperationTypeMediaAlbum          BillableOperationKey = "MediaAlbum"
+
+	// WEB 3.0
+	OperationTypeMintAssetAmount  BillableOperationKey = "MintAssetAmount"
+	OperationTypeListAssetAmount  BillableOperationKey = "ListAssetAmount"
+	OperationTypeSwapAssetAmount  BillableOperationKey = "SwapAssetAmount"
+	OperationTypeStakeAssetAmount BillableOperationKey = "StakeAssetAmount"
+
+	// SQUAD
+	OperationTypeSquadProfileAmount      BillableOperationKey = "SquadProfileAmount"
+	OperationTypePlayersPerSquadAmount   BillableOperationKey = "PlayersPerSquadAmount"
+	OperationTypePlayerProfileCreate     BillableOperationKey = "PlayerProfileCreate"
+	OperationTypeSquadProfileBoostAmount BillableOperationKey = "SquadProfileBoostAmount"
+
+	// TOURNAMENT (plus+)
+	OperationTypeTournamentProfileAmount BillableOperationKey = "TournamentProfileAmount"
+
+	// MATCH-MAKING
+	OperationTypeMatchMakingQueueAmount          BillableOperationKey = "MatchMakingQueueAmount"
+	OperationTypeMatchMakingCreateAmount         BillableOperationKey = "MatchMakingCreateAmount"
+	OperationTypeMatchMakingPriorityQueue        BillableOperationKey = "MatchMakingPriorityQueue"
+	OperationTypeMatchMakingCreateFeaturedBoosts BillableOperationKey = "MatchMakingCreateFeaturedBoosts"
+
+	OperationTypeMatchMakingTournamentAmount BillableOperationKey = "MatchMakingTournamentAmount" // TOURNAMENT (plus+)
+
+	// STORE
+	OperationTypeStoreAmount                    BillableOperationKey = "StoreAmount"
+	OperationTypeStoreBoostAmount               BillableOperationKey = "StoreBoostAmount"
+	OperationTypeStoreVoucherAmount             BillableOperationKey = "StoreVoucherAmount"
+	OperationTypeStorePromotionAmount           BillableOperationKey = "StorePromotionAmount"
+	OperationTypeFeatureStoreCatalogIntegration BillableOperationKey = "FeatureStoreCatalogIntegration"
+
+	// WALLET
+	OperationTypeFeatureGlobalWallet           BillableOperationKey = "FeatureGlobalWallet"
+	OperationTypeGlobalWalletLimit             BillableOperationKey = "GlobalWalletLimit"
+	OperationTypeGlobalPaymentProcessingAmount BillableOperationKey = "GlobalPaymentProcessingAmount" // (plus+)
+	OperationTypeSquadPayout                   BillableOperationKey = "SquadPayout"                   // (plus+)
+
+	// BETTING
+	OperationTypeFeatureBetting      BillableOperationKey = "FeatureBetting"
+	OperationTypeBettingCreateAmount BillableOperationKey = "BettingCreateAmount" // (plus+)
+	OperationTypeBettingStakeAmount  BillableOperationKey = "BettingStakeAmount"
+	OperationTypeBettingPayoutAmount BillableOperationKey = "BettingPayoutAmount" // (plus+)
+
+	// ENGAGEMENT ITEMS
+	OperationTypeFeatureAnalytics       BillableOperationKey = "FeatureAnalytics"
+	OperationTypeFeatureChatAndComments BillableOperationKey = "FeatureChatAndComments"
+	OperationTypeFeatureForum           BillableOperationKey = "FeatureForum"
+	OperationTypeFeaturedBlogPostAmount BillableOperationKey = "FeaturedBlogPostAmount" // featured blog post on main page
+
+	OperationTypeFeatureWiki                BillableOperationKey = "FeatureWiki"
+	OperationTypeFeaturePoll                BillableOperationKey = "FeaturePoll"
+	OperationTypeFeatureCalendarIntegration BillableOperationKey = "FeatureCalendarIntegration"
+	OperationTypeFeatureTournament          BillableOperationKey = "FeatureTournament" // (plus+)
+	OperationTypeFeatureAchievements        BillableOperationKey = "FeatureAchievements"
+
+	OperationTypeNotifications      BillableOperationKey = "Notifications"
+	OperationTypeCustomEmails       BillableOperationKey = "CustomEmails"
+	OperationTypePremiumSupport     BillableOperationKey = "PremiumSupport"
+	OperationTypeDiscordIntegration BillableOperationKey = "DiscordIntegration"
+	OperationTypeFeatureAPI         BillableOperationKey = "FeatureAPI"      // (plus+)
+	OperationTypeFeatureWebhooks    BillableOperationKey = "FeatureWebhooks" // (plus+)
+	// OperationTypeCustomAvatars       BillableOperationKey = "CustomAvatars"
+	OperationTypeExclusiveContent    BillableOperationKey = "ExclusiveContent"
+	OperationTypeAdFreeExperience    BillableOperationKey = "AdFreeExperience"
+	OperationTypeEarlyAccessFeatures BillableOperationKey = "EarlyAccessFeatures"
+)

@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package replayapi_player_profile;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "generated/squad;squad";
+
+message PlayerProfile {
+  string id = 1;
+  string game_id = 2;
+  string nickname = 3;
+  string slug_uri = 4;
+  string user_id = 5;
+  string avatar_uri = 6;
+  repeated string roles = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+  repeated SquadMembership squads = 10;
+  repeated string networks = 11;
+  repeated string regions = 12;
+  repeated string languages = 13;
+  repeated string genre = 14;
+  repeated string tags = 15;
+  repeated string score = 16;
+}
+
+message SquadMembership {
+  string squad_id = 1;
+  string squad_name = 2;
+  string symbol = 3;
+  string slug_uri = 4;
+  string type = 5;
+  repeated string roles = 6;
+}
+
+message GetPlayerProfileRequest {
+  string player_id = 1;
+  string rid_token = 2;
+}
+
+message GetPlayerProfileResponse {
+  bool is_valid = 1;
+  string reason = 2;
+  PlayerProfile player_profile = 3;
+}
+
+service PlayerProfileService {
+  rpc GetPlayerProfile (GetPlayerProfileRequest) returns (GetPlayerProfileResponse);
+}

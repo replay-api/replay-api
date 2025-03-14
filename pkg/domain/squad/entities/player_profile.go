@@ -19,12 +19,18 @@ const (
 
 type PlayerProfile struct {
 	common.BaseEntity
-	GameID      common.GameIDKey `json:"game_id" bson:"game_id"`
-	Nickname    string           `json:"nickname" bson:"nickname"`
-	SlugURI     string           `json:"slug_uri" bson:"slug_uri"`
-	Avatar      string           `json:"avatar" bson:"avatar"`
-	Roles       []string         `json:"roles" bson:"roles"`
-	Description string           `json:"description" bson:"description"`
+	GameID      common.GameIDKey  `json:"game_id" bson:"game_id"`
+	Nickname    string            `json:"nickname" bson:"nickname"`
+	SlugURI     string            `json:"slug_uri" bson:"slug_uri"`
+	Avatar      string            `json:"avatar" bson:"avatar"`
+	Roles       []string          `json:"roles" bson:"roles"`
+	Description string            `json:"description" bson:"description"`
+	NetworkIDs  map[string]string `json:"-" bson:"network_ids"`
+	// TODO: regions?
+	// TODO: country!
+	// TODO: languagues
+	// TODO: gender (optional)
+	// TODO: Status Or flag indicating to request participation in Squad (and/or status: looking for squad, looking for friends etcs)
 }
 
 func (e PlayerProfile) GetID() uuid.UUID {
@@ -119,6 +125,48 @@ func NewSearchByID(ctx context.Context, id uuid.UUID) common.Search {
 	result := common.SearchResultOptions{
 		Skip:  0,
 		Limit: 1,
+	}
+
+	return common.Search{
+		SearchParams:      params,
+		ResultOptions:     result,
+		VisibilityOptions: visibility,
+	}
+}
+
+func NewNicknameAndSlugExistenceCheck(ctx context.Context, id uuid.UUID, nickname, sluguri string) common.Search {
+	params := []common.SearchAggregation{
+		{
+			Params: []common.SearchParameter{
+				{
+					AggregationClause: common.OrAggregationClause,
+					ValueParams: []common.SearchableValue{
+						{
+							Field: "Nickname",
+							Values: []interface{}{
+								nickname,
+							},
+						},
+						{
+							Field: "SlugURI",
+							Values: []interface{}{
+								sluguri,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	visibility := common.SearchVisibilityOptions{
+		RequestSource:    common.GetResourceOwner(ctx),
+		IntendedAudience: common.ClientApplicationAudienceIDKey,
+	}
+
+	result := common.SearchResultOptions{
+		Skip:  0,
+		Limit: 2,
 	}
 
 	return common.Search{

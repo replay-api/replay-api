@@ -9,9 +9,11 @@ import (
 type SquadMembershipType string
 
 const (
-	SquadMembershipTypeOwner  SquadMembershipType = "Owner"
-	SquadMembershipTypeAdmin  SquadMembershipType = "Admin"
-	SquadMembershipTypeMember SquadMembershipType = "Member"
+	SquadMembershipTypeOwner    SquadMembershipType = "Owner"
+	SquadMembershipTypeAdmin    SquadMembershipType = "Admin"
+	SquadMembershipTypeMember   SquadMembershipType = "Member"
+	SquadMembershipTypeGuest    SquadMembershipType = "Guest"
+	SquadMembershipTypeInactive SquadMembershipType = "Inactive"
 )
 
 type SquadMembershipStatus string

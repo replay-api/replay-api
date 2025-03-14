@@ -3,6 +3,7 @@ package squad_in
 import (
 	"context"
 
+	"github.com/google/uuid"
 	common "github.com/replay-api/replay-api/pkg/domain"
 	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 	squad_value_objects "github.com/replay-api/replay-api/pkg/domain/squad/value-objects"
@@ -30,15 +31,26 @@ type CreateSquadCommandHandler interface {
 }
 
 type CreatePlayerProfileCommand struct {
-	GameID         common.GameIDKey         `json:"game_id"`
-	Nickname       string                   `json:"nickname"`
-	AvatarURI      string                   `json:"avatar_uri"`
-	SlugURI        string                   `json:"slug_uri"`
-	Roles          []string                 `json:"roles"`
-	Description    string                   `json:"description"`
-	VisibilityType common.VisibilityTypeKey `json:"visibility_type"`
+	GameID          common.GameIDKey         `json:"game_id"`
+	Nickname        string                   `json:"nickname"`
+	Base64Avatar    string                   `json:"base64_avatar"`
+	AvatarExtension string                   `json:"avatar_extension"`
+	SlugURI         string                   `json:"slug_uri"`
+	Roles           []string                 `json:"roles"`
+	Description     string                   `json:"description"`
+	VisibilityType  common.VisibilityTypeKey `json:"visibility_type"`
 }
 
 type CreatePlayerProfileCommandHandler interface {
 	Exec(c context.Context, cmd CreatePlayerProfileCommand) (*squad_entities.PlayerProfile, error)
+}
+
+type UpdatePlayerCommand struct {
+	PlayerID        uuid.UUID `json:"player_id"`
+	Nickname        string    `json:"nickname"`
+	Base64Avatar    string    `json:"base64_avatar"`
+	AvatarExtension string    `json:"avatar_extension"`
+	SlugURI         string    `json:"slug_uri"`
+	Roles           []string  `json:"roles"`
+	Description     string    `json:"description"`
 }

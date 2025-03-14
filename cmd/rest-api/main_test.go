@@ -11,7 +11,7 @@ package main_test
 // 	c := client.NewClient(nil)
 // 	// or use this if you don't want to use a client: vulns, err := osv.GetByModule(context.Background(), modulePath)
 
-// 	modulePath := "github.com/replay-api/replay-api" // Adjust if your main module is different
+// 	modulePath := "github.com/replay-api/replay-api/replay-api" // Adjust if your main module is different
 
 // 	// Fetch vulnerabilities from OSV
 // 	vulns, err := c.GetByModule(context.Background(), modulePath)

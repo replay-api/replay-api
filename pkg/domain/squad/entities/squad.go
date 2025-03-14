@@ -18,6 +18,11 @@ type Squad struct {
 	SlugURI     string                                `json:"slug_uri" bson:"slug_uri"`
 	BannerURI   string                                `json:"banner_uri" bson:"banner_uri"` // TODO: create media collection, for multiple purposes
 	Membership  []squad_value_objects.SquadMembership `json:"membership" bson:"membership"`
+	// TODO: regions
+	// TODO: countries
+	// TODO: languagues
+	// TODO: genders
+	// TODO: leagues?
 }
 
 func NewSquad(groupID uuid.UUID, gameID common.GameIDKey, logorURI, name, symbol, description, slugURI string, membership []squad_value_objects.SquadMembership, rxn common.ResourceOwner) *Squad {
