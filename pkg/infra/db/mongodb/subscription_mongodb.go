@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"reflect"
+	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
 
@@ -21,10 +22,10 @@ func NewSubscriptionRepository(client *mongo.Client, dbName string, entityType b
 		dbName:            dbName,
 		mappingCache:      make(map[string]CacheItem),
 		entityModel:       reflect.TypeOf(entityType),
-		bsonFieldMappings: make(map[string]string),
+		BsonFieldMappings: make(map[string]string),
 		collectionName:    collectionName,
 		entityName:        reflect.TypeOf(entityType).Name(),
-		queryableFields:   make(map[string]bool),
+		QueryableFields:   make(map[string]bool),
 		collection:        client.Database(dbName).Collection(collectionName),
 	}
 
@@ -42,6 +43,8 @@ func NewSubscriptionRepository(client *mongo.Client, dbName string, entityType b
 		"UpdatedAt":       true,
 		"History":         true,
 		"IsFree":          true,
+		"VoucherCode":     true,
+		"Args":            true,
 	}, map[string]string{
 		"ID":              "baseentity._id",
 		"PlanID":          "plan_id",
@@ -60,6 +63,8 @@ func NewSubscriptionRepository(client *mongo.Client, dbName string, entityType b
 		"UpdatedAt":       "baseentity.updated_at",
 		"History":         "history",
 		"IsFree":          "is_free",
+		"VoucherCode":     "voucher_code",
+		"Args":            "args",
 	})
 
 	return &SubscriptionRepository{
@@ -93,4 +98,43 @@ func (r *SubscriptionRepository) Search(ctx context.Context, s common.Search) ([
 	}
 
 	return subscriptions, nil
+}
+
+func (r *SubscriptionRepository) GetCurrentSubscription(ctx context.Context, rxn common.ResourceOwner) (*billing_entities.Subscription, error) {
+	search := common.NewSearchByValues(ctx, []common.SearchableValue{
+		{
+			Field:    "Status",
+			Values:   []interface{}{billing_entities.SubscriptionStatusActive},
+			Operator: common.EqualsOperator,
+		},
+		{
+			Field:    "StartDate",
+			Values:   []interface{}{time.Now()},
+			Operator: common.LessThanOperator,
+		},
+		{
+			Field:    "EndDate",
+			Values:   []interface{}{time.Now()},
+			Operator: common.GreaterThanOperator,
+		},
+		{
+			Field: "UserID",
+			Values: []interface{}{
+				rxn.UserID,
+			},
+			Operator: common.EqualsOperator,
+		},
+	}, common.NewSearchResultOptions(0, 1), common.ClientApplicationAudienceIDKey)
+
+	subscriptions, err := r.Search(ctx, search)
+	if err != nil {
+		slog.ErrorContext(ctx, "error searching for current subscription", "err", err)
+		return nil, err
+	}
+
+	if len(subscriptions) == 0 {
+		return nil, nil
+	}
+
+	return &subscriptions[0], nil
 }

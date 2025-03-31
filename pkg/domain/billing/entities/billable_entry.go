@@ -10,7 +10,6 @@ type BillableEntry struct {
 	OperationID    BillableOperationKey   `json:"operation_id" bson:"operation_id"`
 	PlanID         uuid.UUID              `json:"plan_id" bson:"plan_id"`
 	Amount         float64                `json:"amount" bson:"amount"`
-	PayableID      *uuid.UUID             `json:"payable_id" bson:"payable_id"`
 	SubscriptionID uuid.UUID              `json:"subscription_id" bson:"subscription_id"`
 	Args           map[string]interface{} `json:"args" bson:"args"`
 }
@@ -30,9 +29,9 @@ const (
 	OperationTypeStakeAssetAmount BillableOperationKey = "StakeAssetAmount"
 
 	// SQUAD
-	OperationTypeSquadProfileAmount      BillableOperationKey = "SquadProfileAmount"
+	OperationTypeCreateSquadProfile      BillableOperationKey = "CreateSquadProfile"
 	OperationTypePlayersPerSquadAmount   BillableOperationKey = "PlayersPerSquadAmount"
-	OperationTypePlayerProfileCreate     BillableOperationKey = "PlayerProfileCreate"
+	OperationTypeCreatePlayerProfile     BillableOperationKey = "CreatePlayerProfile"
 	OperationTypeSquadProfileBoostAmount BillableOperationKey = "SquadProfileBoostAmount"
 
 	// TOURNAMENT (plus+)

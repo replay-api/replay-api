@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 	"reflect"
+
+	"github.com/google/uuid"
 )
 
 type BaseQueryService[T any] struct {
@@ -24,6 +26,55 @@ func (service *BaseQueryService[T]) GetName() string {
 	service.name = reflect.TypeOf(service).Name()
 
 	return service.name
+}
+
+// / GetByID returns a single entity by its ID using ClientApplicationAudienceIDKey as the intended audience.
+func (service *BaseQueryService[T]) GetByID(ctx context.Context, id uuid.UUID) (*T, error) {
+	params := []SearchAggregation{
+		{
+			Params: []SearchParameter{
+				{
+					ValueParams: []SearchableValue{
+						{
+							Field: "ID",
+							Values: []interface{}{
+								id,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	visibility := SearchVisibilityOptions{
+		RequestSource:    GetResourceOwner(ctx),
+		IntendedAudience: ClientApplicationAudienceIDKey,
+	}
+
+	result := SearchResultOptions{
+		Skip:  0,
+		Limit: 1,
+	}
+
+	search := Search{
+		SearchParams:      params,
+		ResultOptions:     result,
+		VisibilityOptions: visibility,
+	}
+
+	entities, err := service.Reader.Search(ctx, search)
+
+	if err != nil {
+		var typeDef T
+		typeName := reflect.TypeOf(typeDef).Name()
+		svcName := service.GetName()
+		return nil, fmt.Errorf("error searching. Service: %v. Entity: %v. Error: %v", svcName, typeName, err)
+	}
+
+	res := entities[0]
+
+	return &res, nil
 }
 
 func (service *BaseQueryService[T]) Search(ctx context.Context, s Search) ([]T, error) {

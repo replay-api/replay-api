@@ -21,10 +21,10 @@ func NewPlayerProfileHistoryRepository(client *mongo.Client, dbName string, enti
 		dbName:            dbName,
 		mappingCache:      make(map[string]CacheItem),
 		entityModel:       reflect.TypeOf(entityType),
-		bsonFieldMappings: make(map[string]string),
+		BsonFieldMappings: make(map[string]string),
 		collectionName:    collectionName,
 		entityName:        reflect.TypeOf(entityType).Name(),
-		queryableFields:   make(map[string]bool),
+		QueryableFields:   make(map[string]bool),
 		collection:        client.Database(dbName).Collection(collectionName),
 	}
 

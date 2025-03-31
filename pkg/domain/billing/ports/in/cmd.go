@@ -15,7 +15,7 @@ type BillableOperationCommand struct {
 }
 
 type BillableOperationCommandHandler interface {
-	Exec(ctx context.Context, command BillableOperationCommand) error
+	Exec(ctx context.Context, command BillableOperationCommand) (*billing_entities.BillableEntry, *billing_entities.Subscription, error)
 	Validate(ctx context.Context, command BillableOperationCommand) error
 }
 

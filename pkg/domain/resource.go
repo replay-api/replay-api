@@ -11,26 +11,6 @@ type ResourceType string
 
 type PlayerIDType uuid.UUID
 
-// draft
-// CS:2
-// TeamA > Match - PUB #1231233 > Round #5 > Event #7
-// /teams/:team_slug/matches/1827381723/rounds/5/events/7
-
-// TeamA > Match - PUB #1231233 > Player #6 > Round #5 > Events > Event #7
-// /teams/9128123881723712837/matches/1827381723/players/77777/rounds/5/events/7
-
-// TeamA > Match - PUB #1231233 > Player #6 > Round #5 > Events > Event #7
-// /teams/9128123881723712837/matches/1827381723/rounds/5/events/7
-
-// Player #6 > TeamA > Match - PUB #1231233 > Round #5 > Events
-// ---- /players/1/matches/1/rounds/5/events/7
-
-// Tags/LAN/CS:GO/2021/NA/ESL/ProLeague/Season1/Week1/Day1/Match1
-
-// Matches
-// Rounds
-// Events
-
 const (
 	ResourceTypeGameEvent      ResourceType = "GameEvents"
 	ResourceTypeBadge          ResourceType = "Badges"
@@ -43,6 +23,8 @@ const (
 	ResourceTypeTeam           ResourceType = "Teams"          // specification of user group
 	ResourceTypeSquad          ResourceType = "Squads"         // specification of user group
 	ResourceTypeGroup          ResourceType = "Groups"         // system group
+	ResourceTypePlan           ResourceType = "Plans"          //
+	ResourceTypeSubscription   ResourceType = "Subscriptions"  //
 	ResourceTypeUser           ResourceType = "Users"          // specification of group
 	ResourceTypeChannel        ResourceType = "Channels"       // specification of user group
 	ResourceTypeLeague         ResourceType = "Leagues"        // specification of user group
@@ -61,6 +43,30 @@ const (
 	ResourceTypeTag ResourceType = "Tags"
 	// ResourceTypeBugReport ResourceType = "BugReports"
 )
+
+var ResourceTypes = []ResourceType{
+	ResourceTypeGameEvent,
+	ResourceTypeBadge,
+	ResourceTypeReplayFile,
+	ResourceTypeMatch,
+	ResourceTypeRound,
+	ResourceTypeGame,
+	ResourceTypePlayerProfile,
+	ResourceTypePlayerMetadata,
+	ResourceTypeTeam,
+	ResourceTypeSquad,
+	ResourceTypeGroup,
+	ResourceTypeUser,
+	ResourceTypeChannel,
+	ResourceTypeLeague,
+	ResourceTypeTournament,
+	ResourceTypeProfile,
+	ResourceTypeMembership,
+	ResourceTypePage,
+	ResourceTypeFriends,
+	ResourceTypeList,
+	ResourceTypeTag,
+}
 
 var ResourceKeyMap = map[ResourceType]string{
 	ResourceTypeGameEvent:     "game_event_id",

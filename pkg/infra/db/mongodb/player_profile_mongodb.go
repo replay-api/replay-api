@@ -21,10 +21,10 @@ func NewPlayerProfileRepository(client *mongo.Client, dbName string, entityType 
 		dbName:            dbName,
 		mappingCache:      make(map[string]CacheItem),
 		entityModel:       reflect.TypeOf(entityType),
-		bsonFieldMappings: make(map[string]string),
+		BsonFieldMappings: make(map[string]string),
 		collectionName:    collectionName,
 		entityName:        reflect.TypeOf(entityType).Name(),
-		queryableFields:   make(map[string]bool),
+		QueryableFields:   make(map[string]bool),
 		collection:        client.Database(dbName).Collection(collectionName),
 	}
 
@@ -89,6 +89,8 @@ func (r *PlayerProfileRepository) Search(ctx context.Context, s common.Search) (
 
 		players = append(players, p)
 	}
+
+	slog.InfoContext(ctx, "player profile entity search successful", "players", players)
 
 	return players, nil
 }

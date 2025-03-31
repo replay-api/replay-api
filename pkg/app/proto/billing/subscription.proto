@@ -10,8 +10,8 @@ message Subscription {
   string start_date = 3;
   string end_date = 4;
   string status = 5;
-  map<string, int32> usage = 6;
-  map<string, int32> available = 7;
+  map<string, double> usage = 6;
+  map<string, double> available = 7;
 }
 
 message GetSubscriptionRequest {
@@ -29,7 +29,7 @@ message ValidateOperationRequest {
   string user_id = 1;
   string rid_token = 2;
   string operation_id = 3;
-  int32 amount = 4;
+  double amount = 4;
 }
 
 message ValidateOperationResponse {
@@ -41,7 +41,7 @@ message ConfirmOperationRequest {
   string user_id = 1;
   string rid_token = 2;
   string operation_id = 3;
-  int32 amount = 4;
+  double amount = 4;
 }
 
 message ConfirmOperationResponse {

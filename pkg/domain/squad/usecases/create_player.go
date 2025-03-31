@@ -78,7 +78,7 @@ func (uc *CreatePlayerUseCase) Exec(c context.Context, cmd squad_in.CreatePlayer
 	c = context.WithValue(c, common.GroupIDKey, group.GetID())
 
 	billingCmd := billing_in.BillableOperationCommand{
-		OperationID: billing_entities.OperationTypePlayerProfileCreate,
+		OperationID: billing_entities.OperationTypeCreatePlayerProfile,
 		UserID:      common.GetResourceOwner(c).UserID,
 		Amount:      1,
 		Args: map[string]interface{}{
@@ -136,7 +136,7 @@ func (uc *CreatePlayerUseCase) Exec(c context.Context, cmd squad_in.CreatePlayer
 	)
 
 	// TODO: Verified Badge if connected with Steam (set networkIDs)
-	// TODO: Add PlayerMetadataIDs (due to multiple networks)
+	// TODO: Add PlayerMetadataIDs (due to multiple networks) // queue to reconcile replays etc
 
 	player, err = uc.PlayerWriter.Create(c, player)
 
@@ -145,7 +145,7 @@ func (uc *CreatePlayerUseCase) Exec(c context.Context, cmd squad_in.CreatePlayer
 		return nil, fmt.Errorf("unable to create player profile")
 	}
 
-	if err := uc.billableOperationHandler.Exec(c, billingCmd); err != nil {
+	if _, _, err := uc.billableOperationHandler.Exec(c, billingCmd); err != nil {
 		slog.ErrorContext(c, "create player profile failed: unable to account usage", "err", err)
 		return nil, err
 	}
@@ -153,6 +153,8 @@ func (uc *CreatePlayerUseCase) Exec(c context.Context, cmd squad_in.CreatePlayer
 	history := squad_entities.NewPlayerProfileHistory(player.ID, squad_entities.PlayerHistoryActionCreate, common.GetResourceOwner(c))
 
 	uc.PlayerProfileHistoryWriter.Create(c, history)
+
+	slog.InfoContext(c, "player profile created", "player_id", player.ID, "nickname", player.Nickname, "slug_uri", player.SlugURI)
 
 	return player, nil
 }

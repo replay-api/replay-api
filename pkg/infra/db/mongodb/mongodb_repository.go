@@ -22,6 +22,8 @@ const (
 
 type CacheItem map[string]string
 
+var Repositories = make(map[common.ResourceType]interface{})
+
 type MongoDBRepository[T common.Entity] struct {
 	mongoClient       *mongo.Client
 	dbName            string
@@ -29,22 +31,92 @@ type MongoDBRepository[T common.Entity] struct {
 	entityModel       reflect.Type
 	collectionName    string
 	entityName        string
-	bsonFieldMappings map[string]string // Local mapping of field names
-	queryableFields   map[string]bool
+	BsonFieldMappings map[string]string // Local mapping of field names
+	QueryableFields   map[string]bool
 	collection        *mongo.Collection
+}
+
+func (r *MongoDBRepository[T]) CollectionName() string {
+	return r.collectionName
+}
+
+func (r *MongoDBRepository[T]) EntityName() string {
+	return r.entityName
+}
+
+func (r *MongoDBRepository[T]) addLookup(pipe []bson.M, s common.Search) ([]bson.M, error) {
+	for _, includeParam := range s.IncludeParams {
+		foreignRepo, ok := Repositories[includeParam.From].(*MongoDBRepository[common.Entity])
+		if !ok {
+			err := fmt.Errorf("repository for %s not found or invalid type", includeParam.From)
+			slog.Error("addLookup:foreignRepo", "err", err)
+			return nil, err
+		}
+
+		localField, err := r.GetBSONFieldName(includeParam.LocalField)
+		if err != nil {
+			slog.Error("addLookup:localField:GetBSONFieldName", "err", err)
+			return nil, err
+		}
+
+		foreignField, err := foreignRepo.GetBSONFieldName(includeParam.ForeignField)
+		if err != nil {
+			slog.Error("addLookup:foreignField:GetBSONFieldName", "err", err)
+			return nil, err
+		}
+
+		lookupStage := bson.M{
+			"$lookup": bson.M{
+				"from":         foreignRepo.CollectionName(),
+				"localField":   localField,   // ie.: _id OR baseentity._id
+				"foreignField": foreignField, // ie.: subscription_id
+				"as":           "includes." + foreignRepo.EntityName(),
+			},
+		}
+		pipe = append(pipe, lookupStage)
+
+		// Optionally add $unwind stage if needed
+		if !includeParam.IsArray {
+			unwindStage := bson.M{
+				"$unwind": bson.M{
+					"path":                       "$includes." + foreignRepo.EntityName(),
+					"preserveNullAndEmptyArrays": true,
+				},
+			}
+			pipe = append(pipe, unwindStage)
+		}
+	}
+	return pipe, nil
 }
 
 type MongoDBRepositoryBuilder[T common.BaseEntity] struct {
 }
 
 func (r *MongoDBRepository[T]) InitQueryableFields(queryableFields map[string]bool, bsonFieldMappings map[string]string) {
-	r.queryableFields = queryableFields
+	r.QueryableFields = queryableFields
 
 	for k, v := range bsonFieldMappings {
-		r.bsonFieldMappings[k] = v
+		r.BsonFieldMappings[k] = v
 	}
 
 	r.collection = r.mongoClient.Database(r.dbName).Collection(r.collectionName)
+
+	// Ensure text index is created for full-text search
+	textIndexFields := bson.D{}
+	for field := range queryableFields {
+		textIndexFields = append(textIndexFields, bson.E{Key: field, Value: "text"})
+	}
+	if len(textIndexFields) > 0 {
+		_, err := r.collection.Indexes().CreateOne(context.TODO(), mongo.IndexModel{
+			Keys:    textIndexFields,
+			Options: nil,
+		})
+		if err != nil {
+			slog.Error("InitQueryableFields: failed to create text index", "err", err)
+		}
+	}
+
+	Repositories[common.ResourceType(r.entityName)] = r
 }
 
 func (r *MongoDBRepository[T]) GetBSONFieldName(fieldName string) (string, error) {
@@ -90,12 +162,12 @@ func (r *MongoDBRepository[T]) GetBSONFieldName(fieldName string) (string, error
 }
 
 func (repo *MongoDBRepository[T]) Compile(ctx context.Context, searchParams []common.SearchAggregation, resultOptions common.SearchResultOptions) (*common.Search, error) {
-	err := common.ValidateSearchParameters(searchParams, repo.queryableFields)
+	err := common.ValidateSearchParameters(searchParams, repo.QueryableFields)
 	if err != nil {
 		return nil, fmt.Errorf("error validating search parameters: %v", err)
 	}
 
-	err = repo.ValidateBSONSetup(resultOptions, repo.bsonFieldMappings)
+	err = repo.ValidateBSONSetup(resultOptions, repo.BsonFieldMappings)
 	if err != nil {
 		return nil, fmt.Errorf("error validating result options: %v", err)
 	}
@@ -156,7 +228,14 @@ func (r *MongoDBRepository[T]) GetPipeline(queryCtx context.Context, s common.Se
 		return nil, err
 	}
 
-	pipe = r.addProjection(pipe, s)
+	pipe, err = r.addLookup(pipe, s)
+
+	if err != nil {
+		slog.ErrorContext(queryCtx, "GetPipeline: unable to build $lookup stage", "error", err)
+		return nil, err
+	}
+
+	pipe = r.AddProjection(pipe, s)
 	pipe = r.addSort(pipe, s)
 	pipe = r.addSkip(pipe, s)
 
@@ -218,9 +297,15 @@ func (r *MongoDBRepository[T]) addSort(pipe []bson.M, s common.Search) []bson.M 
 		}
 	}
 
-	sortStage := bson.M{"$sort": sortFields}
+	sortObject := bson.M{}
+	for _, field := range sortFields {
+		for _, kv := range field {
+			sortObject[kv.Key] = kv.Value
+		}
+	}
 
-	if (sortFields != nil) && (len(sortFields) > 0) {
+	if len(sortObject) > 0 {
+		sortStage := bson.M{"$sort": sortObject}
 		pipe = append(pipe, sortStage)
 	}
 
@@ -246,7 +331,7 @@ func (r *MongoDBRepository[T]) addMatch(queryCtx context.Context, pipe []bson.M,
 
 // TODO: return error instead of panic
 func (r *MongoDBRepository[T]) setMatchValues(queryCtx context.Context, params []common.SearchParameter, aggregate *bson.M, clause common.SearchAggregationClause) {
-	if r.queryableFields == nil {
+	if r.QueryableFields == nil {
 		panic(fmt.Errorf("queryableFields not initialized in MongoDBRepository of %s", r.entityName))
 	}
 
@@ -270,7 +355,7 @@ func (r *MongoDBRepository[T]) setMatchValues(queryCtx context.Context, params [
 			// Check if the prefix is allowed
 			if strings.HasSuffix(v.Field, ".*") {
 				prefix := strings.TrimSuffix(v.Field, ".*")
-				if !isPrefixAllowed(prefix, r.queryableFields) {
+				if !isPrefixAllowed(prefix, r.QueryableFields) {
 					panic(fmt.Errorf("filtering on fields matching '%s.*' is not permitted", prefix))
 				}
 			}
@@ -397,7 +482,7 @@ func (r *MongoDBRepository[T]) GetBSONFieldNameFromSearchableValue(v common.Sear
 	}
 
 	// Direct lookup in the mapping
-	if bsonFieldName, ok := r.bsonFieldMappings[v.Field]; ok {
+	if bsonFieldName, ok := r.BsonFieldMappings[v.Field]; ok {
 		return bsonFieldName, nil
 	}
 
@@ -407,7 +492,7 @@ func (r *MongoDBRepository[T]) GetBSONFieldNameFromSearchableValue(v common.Sear
 		return "", fmt.Errorf("empty field not allowed. cant query")
 	}
 
-	return "", fmt.Errorf("field %s not found or not queryable in Entity: %s (Collection: %s. Queryable Fields: %v)", v.Field, r.entityName, r.collectionName, r.queryableFields)
+	return "", fmt.Errorf("field %s not found or not queryable in Entity: %s (Collection: %s. Queryable Fields: %v)", v.Field, r.entityName, r.collectionName, r.QueryableFields)
 }
 
 func (r *MongoDBRepository[T]) Create(ctx context.Context, entity *T) (*T, error) {
@@ -438,35 +523,76 @@ func (r *MongoDBRepository[T]) CreateMany(ctx context.Context, entities []*T) er
 	return nil
 }
 
-func (r *MongoDBRepository[T]) addProjection(pipe []bson.M, s common.Search) []bson.M {
-	var projection *bson.M
+func (r *MongoDBRepository[T]) AddProjection(pipe []bson.M, s common.Search) []bson.M {
+	projection := &bson.M{}
+	for field := range r.QueryableFields {
+		if bsonFieldName, ok := r.BsonFieldMappings[field]; ok {
+			(*projection)[bsonFieldName] = 1
+		} else {
+			slog.Warn("addProjection: field not found in mapping", "field", field)
+		}
+	}
+
 	if len(s.ResultOptions.PickFields) > 0 {
+		// Prioritize PickFields if both PickFields and OmitFields are specified
 		projection = &bson.M{}
 		for _, field := range s.ResultOptions.PickFields {
-			(*projection)[field] = 1
+			if bsonFieldName, ok := r.BsonFieldMappings[field]; ok {
+				(*projection)[bsonFieldName] = 1
+			} else {
+				slog.Warn("addProjection: field not found in mapping for pick", "field", field)
+			}
 		}
 	} else if len(s.ResultOptions.OmitFields) > 0 {
-		projection = &bson.M{}
+		// Apply OmitFields only if PickFields is not specified
 		for _, field := range s.ResultOptions.OmitFields {
-			(*projection)[field] = 0
+			if bsonFieldName, ok := r.BsonFieldMappings[field]; ok {
+				(*projection)[bsonFieldName] = 0
+			} else {
+				slog.Warn("addProjection: field not found in mapping for omit", "field", field)
+			}
 		}
-	} else {
-		projection = &bson.M{}
 	}
 
 	for _, v := range s.SearchParams {
 		for _, p := range v.Params {
 			if p.FullTextSearchParam != "" {
 				(*projection)["score"] = bson.M{"$meta": "textScore"}
-
 				break
 			}
 		}
 	}
 
-	if projection != nil {
-		pipe = append(pipe, bson.M{"$project": *projection})
+	if len(s.IncludeParams) > 0 {
+		for _, includeParam := range s.IncludeParams {
+			if len(includeParam.PickFields) > 0 {
+				for _, field := range includeParam.PickFields {
+					foreignRepo, ok := Repositories[includeParam.From].(*MongoDBRepository[common.Entity])
+					if !ok {
+						slog.Warn("addProjection:foreignRepo", "err", fmt.Errorf("repository for %s not found or invalid type", includeParam.From))
+						continue
+					}
+					f, err := foreignRepo.GetBSONFieldName(field)
+
+					if err != nil {
+						slog.Warn("addProjection:GetBSONFieldName", "err", err)
+						continue
+					}
+
+					fieldPath := "Includes." + foreignRepo.EntityName() + "." + f
+					if _, exists := (*projection)[fieldPath]; exists {
+						slog.Warn("addProjection: path collision detected, skipping field to avoid collision", "fieldPath", fieldPath)
+						continue
+					}
+					(*projection)[fieldPath] = 1
+				}
+			}
+		}
 	}
+
+	slog.Info("addProjection: projection", "projection", *projection)
+
+	pipe = append(pipe, bson.M{"$project": *projection})
 
 	return pipe
 }
@@ -537,6 +663,13 @@ func ensureClientID(ctx context.Context, agg bson.M, s common.Search) (bson.M, e
 func ensureUserOrGroupID(ctx context.Context, agg bson.M, s common.Search, aud common.IntendedAudienceKey) (bson.M, error) {
 	groupID := s.VisibilityOptions.RequestSource.GroupID
 	userID := s.VisibilityOptions.RequestSource.UserID
+
+	if groupID == uuid.Nil && userID == uuid.Nil {
+		slog.WarnContext(ctx, "TENANCY.GroupLevel: valid user_id or group_id is required in `common.Search`: %#v. Overwriting from context", "search", s)
+		groupID = common.GetResourceOwner(ctx).GroupID
+		userID = common.GetResourceOwner(ctx).UserID
+	}
+
 	userOK := userID != uuid.Nil
 	groupOK := groupID != uuid.Nil
 	noParams := !(userOK || groupOK)
@@ -631,7 +764,7 @@ func (r *MongoDBRepository[T]) GetByID(queryCtx context.Context, id uuid.UUID) (
 	var entity T
 
 	query := bson.D{
-		{Key: "_id", Value: id},
+		bson.E{Key: "_id", Value: id},
 	}
 
 	err := r.collection.FindOne(queryCtx, query).Decode(&entity)

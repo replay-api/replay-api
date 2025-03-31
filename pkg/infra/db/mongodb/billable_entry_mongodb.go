@@ -1,15 +1,28 @@
 package db
 
 import (
+	"context"
 	"reflect"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 
+	"github.com/google/uuid"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 )
 
 type BillableEntryRepository struct {
 	MongoDBRepository[billing_entities.BillableEntry]
+}
+
+func (repo *BillableEntryRepository) Find(ctx context.Context, filter interface{}, result interface{}) error {
+	collection := repo.collection
+	cursor, err := collection.Find(ctx, filter)
+	if err != nil {
+		return err
+	}
+	defer cursor.Close(ctx)
+	return cursor.All(ctx, result)
 }
 
 func NewBillableEntryRepository(client *mongo.Client, dbName string, entityType billing_entities.BillableEntry, collectionName string) *BillableEntryRepository {
@@ -18,10 +31,10 @@ func NewBillableEntryRepository(client *mongo.Client, dbName string, entityType 
 		dbName:            dbName,
 		mappingCache:      make(map[string]CacheItem),
 		entityModel:       reflect.TypeOf(entityType),
-		bsonFieldMappings: make(map[string]string),
+		BsonFieldMappings: make(map[string]string),
 		collectionName:    collectionName,
 		entityName:        reflect.TypeOf(entityType).Name(),
-		queryableFields:   make(map[string]bool),
+		QueryableFields:   make(map[string]bool),
 		collection:        client.Database(dbName).Collection(collectionName),
 	}
 
@@ -56,4 +69,20 @@ func NewBillableEntryRepository(client *mongo.Client, dbName string, entityType 
 	return &BillableEntryRepository{
 		repo,
 	}
+}
+
+func (repo *BillableEntryRepository) GetEntriesBySubscriptionID(ctx context.Context, subscriptionID uuid.UUID) (map[billing_entities.BillableOperationKey][]billing_entities.BillableEntry, error) {
+	var entries []billing_entities.BillableEntry
+	err := repo.Find(ctx, bson.M{"subscription_id": subscriptionID}, &entries)
+
+	if err != nil {
+		return nil, err
+	}
+
+	entriesMap := make(map[billing_entities.BillableOperationKey][]billing_entities.BillableEntry)
+	for _, entry := range entries {
+		entriesMap[entry.OperationID] = append(entriesMap[entry.OperationID], entry)
+	}
+
+	return entriesMap, nil
 }

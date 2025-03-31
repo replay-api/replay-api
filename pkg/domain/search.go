@@ -108,11 +108,22 @@ type SearchVisibilityOptions struct {
 	IntendedAudience IntendedAudienceKey `json:"-" bson:"intended_audience"` // Default: User
 }
 
+type IncludeParam struct {
+	From         ResourceType `json:"from"`                    // The collection to join
+	LocalField   string       `json:"local_field"`             // The field in the local collection to join with the foreign collection
+	ForeignField string       `json:"foreign_field"`           // The field in the foreign collection to join with the local collection
+	IsArray      bool         `json:"is_array"`                // If the field is an array
+	PickFields   []string     `json:"pick" bson:"pick_fields"` // if not informed, pick all
+	OmitFields   []string     `json:"omit" bson:"omit_fields"` // if not informed, doesnt omit any
+	// LocalForeignFields map[string]string `json:"local_foreign_fields"` // The field in the local collection to join with the foreign collection
+}
+
 type Search struct {
 	SearchParams      []SearchAggregation     `json:"search_params" bson:"search_params"`
 	ResultOptions     SearchResultOptions     `json:"result_options" bson:"result_options"`
 	SortOptions       []SortableField         `json:"sort_options" bson:"sort_options"`
 	VisibilityOptions SearchVisibilityOptions `json:"-" bson:"visibility_options"`
+	IncludeParams     []IncludeParam          `json:"include_params" bson:"include_params"`
 }
 
 func GetIntendedAudience(ctx context.Context) *IntendedAudienceKey {

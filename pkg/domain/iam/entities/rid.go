@@ -33,3 +33,7 @@ type RIDToken struct {
 func (t RIDToken) GetID() uuid.UUID {
 	return t.ID
 }
+
+func (t RIDToken) IsExpired() bool {
+	return t.ExpiresAt.Before(time.Now())
+}

@@ -9,7 +9,7 @@ import (
 	squad_value_objects "github.com/replay-api/replay-api/pkg/domain/squad/value-objects"
 )
 
-type CreateSquadCommand struct {
+type CreateOrUpdatedSquadCommand struct {
 	Name          string                                `json:"name"`
 	Symbol        string                                `json:"symbol"`
 	Description   string                                `json:"description"`
@@ -22,12 +22,17 @@ type CreateSquadCommand struct {
 }
 
 type CreateSquadMembershipInput struct {
-	Type  squad_value_objects.SquadMembershipType `json:"type" bson:"type"`
-	Roles []string                                `json:"role" bson:"role"`
+	Status squad_value_objects.SquadMembershipStatus `json:"status" bson:"status"`
+	Type   squad_value_objects.SquadMembershipType   `json:"type" bson:"type"`
+	Roles  []string                                  `json:"roles" bson:"roles"`
 }
 
 type CreateSquadCommandHandler interface {
-	Exec(c context.Context, cmd CreateSquadCommand) (*squad_entities.Squad, error)
+	Exec(c context.Context, cmd CreateOrUpdatedSquadCommand) (*squad_entities.Squad, error)
+}
+
+type UpdateSquadCommandHandler interface {
+	Exec(c context.Context, squadID uuid.UUID, cmd CreateOrUpdatedSquadCommand) (*squad_entities.Squad, error)
 }
 
 type CreatePlayerProfileCommand struct {

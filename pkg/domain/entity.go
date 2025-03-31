@@ -7,12 +7,13 @@ import (
 )
 
 type BaseEntity struct {
-	ID              uuid.UUID           `json:"id" bson:"_id"`
-	VisibilityLevel IntendedAudienceKey `json:"visibility_level" bson:"visibility_level"`
-	VisbilityType   VisibilityTypeKey   `json:"visibility_type" bson:"visibility_type"`
-	ResourceOwner   ResourceOwner       `json:"resource_owner" bson:"resource_owner"`
-	CreatedAt       time.Time           `json:"created_at" bson:"created_at"`
-	UpdatedAt       time.Time           `json:"updated_at" bson:"updated_at"`
+	ID              uuid.UUID              `json:"id" bson:"_id"`
+	VisibilityLevel IntendedAudienceKey    `json:"visibility_level" bson:"visibility_level"`
+	VisibilityType  VisibilityTypeKey      `json:"visibility_type" bson:"visibility_type"`
+	ResourceOwner   ResourceOwner          `json:"resource_owner" bson:"resource_owner"`
+	CreatedAt       time.Time              `json:"created_at" bson:"created_at"`
+	UpdatedAt       time.Time              `json:"updated_at" bson:"updated_at"`
+	Includes        map[string]interface{} `json:"includes" bson:"-"`
 }
 
 type Entity interface {
@@ -28,7 +29,7 @@ func NewEntity(resourceOwner ResourceOwner) BaseEntity {
 	return BaseEntity{
 		ID:              uuid.New(),
 		VisibilityLevel: ClientApplicationAudienceIDKey,
-		VisbilityType:   CustomVisibilityTypeKey,
+		VisibilityType:  CustomVisibilityTypeKey,
 		ResourceOwner:   resourceOwner,
 		CreatedAt:       now,
 		UpdatedAt:       now,
@@ -40,7 +41,7 @@ func NewUnrestrictedEntity(resourceOwner ResourceOwner) BaseEntity {
 	return BaseEntity{
 		ID:              uuid.New(),
 		VisibilityLevel: TenantAudienceIDKey,
-		VisbilityType:   PublicVisibilityTypeKey,
+		VisibilityType:  PublicVisibilityTypeKey,
 		ResourceOwner:   resourceOwner,
 		CreatedAt:       now,
 		UpdatedAt:       now,
@@ -52,7 +53,7 @@ func NewRestrictedEntity(resourceOwner ResourceOwner) BaseEntity {
 	return BaseEntity{
 		ID:              uuid.New(),
 		VisibilityLevel: GroupAudienceIDKey,
-		VisbilityType:   RestrictedVisibilityTypeKey,
+		VisibilityType:  RestrictedVisibilityTypeKey,
 		ResourceOwner:   resourceOwner,
 		CreatedAt:       now,
 		UpdatedAt:       now,
@@ -64,7 +65,7 @@ func NewPrivateEntity(resourceOwner ResourceOwner) BaseEntity {
 	return BaseEntity{
 		ID:              uuid.New(),
 		VisibilityLevel: UserAudienceIDKey,
-		VisbilityType:   PrivateVisibilityTypeKey,
+		VisibilityType:  PrivateVisibilityTypeKey,
 		ResourceOwner:   resourceOwner,
 		CreatedAt:       now,
 		UpdatedAt:       now,

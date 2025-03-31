@@ -12,3 +12,22 @@ func Unique(values []string) []string {
 	}
 	return uniqueValues
 }
+
+func RolesEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for _, role := range a {
+		found := false
+		for _, otherRole := range b {
+			if role == otherRole {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
+}

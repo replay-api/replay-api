@@ -18,25 +18,25 @@ func NewMembershipRepository(client *mongo.Client, dbName string, entityType *ia
 		dbName:            dbName,
 		mappingCache:      make(map[string]CacheItem),
 		entityModel:       reflect.TypeOf(entityType),
-		bsonFieldMappings: make(map[string]string),
+		BsonFieldMappings: make(map[string]string),
 		collectionName:    collectionName,
 		entityName:        reflect.TypeOf(entityType).Name(),
-		queryableFields:   make(map[string]bool),
+		QueryableFields:   make(map[string]bool),
 	}
 
 	repo.InitQueryableFields(map[string]bool{
-		"ID":              true,
-		"Type":            true,
-		"ResourceOwner.*": true,
-		"CreatedAt":       true,
-		"UpdatedAt":       true,
+		"ID":            true,
+		"Type":          true,
+		"ResourceOwner": true,
+		"CreatedAt":     true,
+		"UpdatedAt":     true,
 	}, map[string]string{
-		"ID":                   "_id",
-		"Type":                 "type",
-		"ResourceOwner":        "resource_owner",
-		"ResourceOwner.UserID": "resource_owner.user_id",
-		"CreatedAt":            "created_at",
-		"UpdatedAt":            "updated_at",
+		"ID":            "_id",
+		"Type":          "type",
+		"ResourceOwner": "resource_owner",
+		"UserID":        "resource_owner.user_id",
+		"CreatedAt":     "created_at",
+		"UpdatedAt":     "updated_at",
 	})
 
 	return &MembershipRepository{

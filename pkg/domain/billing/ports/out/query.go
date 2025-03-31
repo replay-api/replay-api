@@ -9,12 +9,12 @@ import (
 )
 
 type SubscriptionReader interface {
-	GetCurrentSubscription(rxn common.ResourceOwner) (*billing_entities.Subscription, error)
+	GetCurrentSubscription(ctx context.Context, rxn common.ResourceOwner) (*billing_entities.Subscription, error)
 }
 
 type PlanReader interface {
+	common.Searchable[billing_entities.Plan]
 	GetDefaultFreePlan(ctx context.Context) (*billing_entities.Plan, error)
-	GetPlanByID(ctx context.Context, id uuid.UUID) (*billing_entities.Plan, error)
 }
 
 type BillableEntryReader interface {

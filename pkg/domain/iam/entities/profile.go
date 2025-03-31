@@ -39,7 +39,7 @@ type Profile struct {
 	Details         interface{}                `json:"details" bson:"details"`       // TODO: deprecate. GET /profile/:id/details => mux para steam,google,squad,player
 	Links           map[ProfileLinkType]string `json:"links" bson:"links"`
 	VisibilityLevel common.IntendedAudienceKey `json:"visibility_level" bson:"visibility_level"`
-	VisbilityType   common.VisibilityTypeKey   `json:"visibility_type" bson:"visibility_type"`
+	VisibilityType  common.VisibilityTypeKey   `json:"visibility_type" bson:"visibility_type"`
 	Type            ProfileType                `json:"type" bson:"type"` // ie. steam, google, team/squad, player
 	ResourceOwner   common.ResourceOwner       `json:"resource_owner" bson:"resource_owner"`
 	CreatedAt       time.Time                  `json:"created_at" bson:"created_at"`

@@ -1,0 +1,53 @@
+services:
+  replay-api:
+    container_name: "replay-api"
+    build:
+      context: .
+      dockerfile: /cmd/rest-api/Dockerfile.rest-api
+    ports:
+      - "4991:4991"
+    volumes:
+      - .blob:/app/replay_files
+    depends_on:
+      - mongodb
+    env_file:
+      - .env
+    environment:
+      - DEV_ENV="docker"
+      - MONGO_URI=mongodb://host.docker.internal:37019/replay
+      - TMP_APP_REPLAY_FILES="/app/replay_files/"
+    networks:
+      - svc
+  replay-rpc-api:
+    container_name: "replay-rpc-api"
+    build:
+      context: .
+      dockerfile: /cmd/rpc-api/Dockerfile.rpc-api
+    ports:
+      - "50051:50051"
+    depends_on:
+      - mongodb
+    env_file:
+      - .env
+    environment:
+      - DEV_ENV="docker"
+      - MONGO_URI=mongodb://host.docker.internal:37019/replay
+      - TMP_APP_REPLAY_FILES="/app/replay_files/"
+    networks:
+      - svc
+
+  mongodb:
+    container_name: "mongodb"
+    image: mongo:latest
+    ports:
+      - "37019:27017"
+    volumes:
+      - ./.mongodb:/data/db
+    networks:
+      - default
+      - svc
+    command: ["sh", "-c", "chown -R mongodb:mongodb /data/db && mongod --bind_ip_all"]
+
+networks:
+  svc:
+    driver: bridge

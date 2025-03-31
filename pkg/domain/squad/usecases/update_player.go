@@ -102,5 +102,7 @@ func (uc *UpdatePlayerUseCase) Exec(ctx context.Context, cmd squad_in.UpdatePlay
 		slog.WarnContext(ctx, "Failed to create player history", "err", err)
 	}
 
+	// TODO: remove old avatar/images
+
 	return updatedPlayer, nil
 }

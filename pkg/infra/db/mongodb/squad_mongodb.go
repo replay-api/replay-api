@@ -21,10 +21,10 @@ func NewSquadRepository(client *mongo.Client, dbName string, entityType squad_en
 		dbName:            dbName,
 		mappingCache:      make(map[string]CacheItem),
 		entityModel:       reflect.TypeOf(entityType),
-		bsonFieldMappings: make(map[string]string),
+		BsonFieldMappings: make(map[string]string),
 		collectionName:    collectionName,
 		entityName:        reflect.TypeOf(entityType).Name(),
-		queryableFields:   make(map[string]bool),
+		QueryableFields:   make(map[string]bool),
 		collection:        client.Database(dbName).Collection(collectionName),
 	}
 
@@ -35,10 +35,10 @@ func NewSquadRepository(client *mongo.Client, dbName string, entityType squad_en
 		"Symbol":          true,
 		"SlugURI":         true,
 		"Description":     true,
-		"Membership.*":    true,
+		"Membership":      true,
 		"VisibilityLevel": true,
 		"VisibilityType":  true,
-		"ResourceOwner.*": true,
+		"ResourceOwner":   true,
 		"CreatedAt":       true,
 		"UpdatedAt":       true,
 	}, map[string]string{

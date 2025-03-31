@@ -25,4 +25,3 @@ message CalendarEvent {
   string url = 16;
   string logo_uri = 17;
 }
-

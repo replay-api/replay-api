@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/google/uuid"
 	common "github.com/replay-api/replay-api/pkg/domain"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	billing_out "github.com/replay-api/replay-api/pkg/domain/billing/ports/out"
+	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
+	iam_out "github.com/replay-api/replay-api/pkg/domain/iam/ports/out"
 )
 
 type CreateBillableEntryUseCase struct {
@@ -17,11 +20,38 @@ type CreateBillableEntryUseCase struct {
 	SubscriptionWriter      billing_out.SubscriptionWriter
 	SubscriptionReader      billing_out.SubscriptionReader
 	PlanReader              billing_out.PlanReader
+	GroupReader             iam_out.GroupReader
+}
+
+func NewCreateBillableEntryUseCase(
+	billableOperationWriter billing_out.BillableEntryWriter,
+	billableOperationReader billing_out.BillableEntryReader,
+	subscriptionWriter billing_out.SubscriptionWriter,
+	subscriptionReader billing_out.SubscriptionReader,
+	planReader billing_out.PlanReader,
+	groupReader iam_out.GroupReader,
+) billing_in.BillableOperationCommandHandler {
+	return &CreateBillableEntryUseCase{
+		BillableOperationWriter: billableOperationWriter,
+		BillableOperationReader: billableOperationReader,
+		SubscriptionWriter:      subscriptionWriter,
+		SubscriptionReader:      subscriptionReader,
+		PlanReader:              planReader,
+		GroupReader:             groupReader,
+	}
 }
 
 func (useCase *CreateBillableEntryUseCase) Exec(ctx context.Context, command billing_in.BillableOperationCommand) (*billing_entities.BillableEntry, *billing_entities.Subscription, error) {
+	ctx, err := useCase.prepareUserContext(ctx, command.UserID)
+
+	if err != nil {
+		slog.ErrorContext(ctx, "unable to prepare user context for creating billing entry", "err", err, "command", command)
+		return nil, nil, err
+	}
+
 	rxn := common.GetResourceOwner(ctx)
-	sub, err := useCase.SubscriptionReader.GetCurrentSubscription(rxn)
+
+	sub, err := useCase.SubscriptionReader.GetCurrentSubscription(ctx, rxn)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -62,6 +92,8 @@ func (useCase *CreateBillableEntryUseCase) Exec(ctx context.Context, command bil
 		return nil, nil, err
 	}
 
+	// TODO: chamar (grpc) pra verificar arbitrariamente termos de uso, regras de compliance, regra de seguranca/block etc...
+
 	entry, err := useCase.BillableOperationWriter.Create(ctx, &billing_entities.BillableEntry{
 		BaseEntity:     common.NewRestrictedEntity(rxn),
 		OperationID:    command.OperationID,
@@ -79,9 +111,18 @@ func (useCase *CreateBillableEntryUseCase) Exec(ctx context.Context, command bil
 }
 
 func (useCase *CreateBillableEntryUseCase) Validate(ctx context.Context, command billing_in.BillableOperationCommand) error {
-	rxn := common.GetResourceOwner(ctx)
-	sub, err := useCase.SubscriptionReader.GetCurrentSubscription(rxn)
+	ctx, err := useCase.prepareUserContext(ctx, command.UserID)
+
 	if err != nil {
+		slog.ErrorContext(ctx, "unable to prepare user context for validating billing entry", "err", err, "command", command)
+		return err
+	}
+
+	rxn := common.GetResourceOwner(ctx)
+
+	sub, err := useCase.SubscriptionReader.GetCurrentSubscription(ctx, rxn)
+	if err != nil {
+		slog.ErrorContext(ctx, "unable to get current subscription", "err", err, "rxn", rxn)
 		return err
 	}
 
@@ -95,7 +136,7 @@ func (useCase *CreateBillableEntryUseCase) Validate(ctx context.Context, command
 			return fmt.Errorf("the amount %s exceeds the limit %s for the free plan on operation %s", formatAmount(command.Amount), formatAmount(freePlan.OperationLimits[command.OperationID].Limit), command.OperationID)
 		}
 	} else {
-		plan, err := useCase.PlanReader.GetPlanByID(ctx, sub.PlanID)
+		plan, err := useCase.PlanReader.GetByID(ctx, sub.PlanID)
 		if err != nil {
 			slog.ErrorContext(ctx, "unable to get plan id", "err", err, "planID", sub.PlanID, "subscriptionID", sub.ID, "rxn", rxn)
 			return fmt.Errorf("unable to get plan id for subscription ID %s", sub.ID)
@@ -122,4 +163,21 @@ func (useCase *CreateBillableEntryUseCase) Validate(ctx context.Context, command
 
 func formatAmount(amount float64) string {
 	return fmt.Sprintf("%.2f", amount)
+}
+
+func (useCase *CreateBillableEntryUseCase) prepareUserContext(ctx context.Context, userID uuid.UUID) (context.Context, error) {
+	userContext := context.WithValue(ctx, common.UserIDKey, userID)
+	groupAccountSearch := iam_entities.NewGroupAccountSearchByUser(userContext)
+
+	groupAccount, err := useCase.GroupReader.Search(userContext, groupAccountSearch)
+	if err != nil {
+		slog.ErrorContext(ctx, "unable to get group account", "err", err, "userID", userID)
+		return nil, fmt.Errorf("unable to fetch group account for user %v", userID)
+	}
+
+	if len(groupAccount) > 0 {
+		userContext = context.WithValue(userContext, common.GroupIDKey, groupAccount[0].ID)
+	}
+
+	return userContext, nil
 }

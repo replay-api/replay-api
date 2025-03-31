@@ -8,6 +8,10 @@ func NewErrUnauthorized() error {
 	return fmt.Errorf("Unauthorized")
 }
 
+func NewErrForbidden() error {
+	return fmt.Errorf("Forbidden")
+}
+
 func NewErrAlreadyExists(resourceType ResourceType, fieldName string, value interface{}) error {
 	return fmt.Errorf("%s with %s %v already exists", resourceType, fieldName, value)
 }

@@ -12,11 +12,22 @@ import (
 )
 
 type SquadController struct {
-	container container.Container
+	container                 container.Container
+	createSquadCommandHandler squad_in.CreateSquadCommandHandler
 }
 
 func NewSquadController(container container.Container) *SquadController {
-	return &SquadController{container: container}
+	var createSquadCommandHandler squad_in.CreateSquadCommandHandler
+	var err = container.Resolve(&createSquadCommandHandler)
+	if err != nil {
+		slog.Error("Failed to resolve CreateSquadCommandHandler", "err", err)
+		return nil
+	}
+
+	return &SquadController{
+		container:                 container,
+		createSquadCommandHandler: createSquadCommandHandler,
+	}
 }
 
 func (ctrl *SquadController) CreateSquadHandler(apiContext context.Context) http.HandlerFunc {
@@ -25,7 +36,7 @@ func (ctrl *SquadController) CreateSquadHandler(apiContext context.Context) http
 		w.Header().Set("Access-Control-Allow-Methods", "POST")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
-		var createSquadCommand squad_in.CreateSquadCommand
+		var createSquadCommand squad_in.CreateOrUpdatedSquadCommand
 		err := json.NewDecoder(r.Body).Decode(&createSquadCommand)
 		if err != nil {
 			slog.ErrorContext(r.Context(), "Failed to decode request", "err", err)
@@ -33,15 +44,7 @@ func (ctrl *SquadController) CreateSquadHandler(apiContext context.Context) http
 			return
 		}
 
-		var createSquadCommandHandler squad_in.CreateSquadCommandHandler
-		err = ctrl.container.Resolve(&createSquadCommandHandler)
-		if err != nil {
-			slog.ErrorContext(r.Context(), "Failed to resolve CreateSquadCommandHandler", "err", err)
-			w.WriteHeader(http.StatusServiceUnavailable)
-			return
-		}
-
-		squad, err := createSquadCommandHandler.Exec(r.Context(), createSquadCommand)
+		squad, err := ctrl.createSquadCommandHandler.Exec(r.Context(), createSquadCommand)
 		if err != nil {
 			slog.ErrorContext(r.Context(), "Failed to create SQUAD profile", "err", err)
 			if err.Error() == "Unauthorized" {
