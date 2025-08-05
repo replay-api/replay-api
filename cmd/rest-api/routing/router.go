@@ -11,6 +11,7 @@ import (
 	cmd_controllers "github.com/replay-api/replay-api/cmd/rest-api/controllers/command"
 	query_controllers "github.com/replay-api/replay-api/cmd/rest-api/controllers/query"
 	"github.com/replay-api/replay-api/cmd/rest-api/middlewares"
+	common "github.com/replay-api/replay-api/pkg/domain"
 )
 
 const (
@@ -36,8 +37,13 @@ const (
 )
 
 func NewRouter(ctx context.Context, container container.Container) http.Handler {
+	// Get configuration from container
+	var config common.Config
+	container.Resolve(&config)
+
 	// middleware
 	resourceContextMiddleware := middlewares.NewResourceContextMiddleware(&container)
+	corsMiddleware := middlewares.NewCORSMiddleware(config.CORS)
 
 	// metadataController := controllers.NewMetadataController(container)
 	fileController := cmd_controllers.NewFileController(container)
@@ -57,7 +63,9 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 
 	r := mux.NewRouter()
 
+	// Use unified error middleware for consistent error handling
 	r.Use(middlewares.ErrorMiddleware)
+	r.Use(corsMiddleware.Handler)
 	r.Use(mux.CORSMethodMiddleware(r))
 	r.Use(resourceContextMiddleware.Handler)
 

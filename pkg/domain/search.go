@@ -171,6 +171,35 @@ func NewSearchByID(ctx context.Context, id uuid.UUID, audienceLevel IntendedAudi
 	}
 }
 
+func NewSearchByIDs(ctx context.Context, ids []uuid.UUID, audienceLevel IntendedAudienceKey) Search {
+	v := []SearchableValue{
+		{
+			Field:  "ID",
+			Values: make([]interface{}, len(ids)),
+		},
+	}
+
+	for i, id := range ids {
+		v[i].Values[0] = id
+	}
+
+	p := []SearchParameter{
+		{
+			ValueParams: v,
+		},
+	}
+
+	params := []SearchAggregation{
+		{
+			Params: p,
+		},
+	}
+
+	result := NewSearchResultOptions(0, uint(len(ids)))
+
+	return NewSearchByAggregation(ctx, params, result, audienceLevel)
+}
+
 func NewSearchResultOptions(skip uint, limit uint) SearchResultOptions {
 	return SearchResultOptions{
 		Skip:  skip,

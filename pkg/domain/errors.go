@@ -19,3 +19,7 @@ func NewErrAlreadyExists(resourceType ResourceType, fieldName string, value inte
 func NewErrNotFound(resourceType ResourceType, fieldName string, value interface{}) error {
 	return fmt.Errorf("%s with %s %v not found", resourceType, fieldName, value)
 }
+
+func NewErrConflict(resourceType ResourceType, fieldName string, value interface{}) error {
+	return fmt.Errorf("%s with %s %v conflict", resourceType, fieldName, value)
+}

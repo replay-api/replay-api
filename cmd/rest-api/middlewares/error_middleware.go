@@ -1,78 +1,120 @@
 package middlewares
 
 import (
-	"encoding/json"
+	"context"
 	"log/slog"
 	"net/http"
-	"strings"
+
+	common "github.com/replay-api/replay-api/pkg/domain"
 )
 
+// ErrorMiddleware handles all types of errors with proper header management
 func ErrorMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		rr := &responseRecorder{ResponseWriter: w, statusCode: http.StatusOK}
-		next.ServeHTTP(rr, r)
-
-		hdr := w.Header()
-
-		if len(hdr.Get("Content-Type")) == 0 {
-			w.Header().Set("Content-Type", "application/json")
+		// Create a response recorder to capture status and prevent multiple header writes
+		rw := &errorResponseWriter{
+			ResponseWriter: w,
+			statusCode:     http.StatusOK,
+			headerWritten:  false,
 		}
 
-		err := r.Context().Err()
+		// Call the next handler
+		next.ServeHTTP(rw, r)
 
-		if err != nil {
-			var statusCode int
-			var errorCode string
-
-			switch {
-			case rr.statusCode == http.StatusUnauthorized || err.Error() == "Unauthorized":
-				statusCode = http.StatusUnauthorized
-				errorCode = "UNAUTHORIZED"
-			case rr.statusCode == http.StatusForbidden || err.Error() == "Forbidden":
-				statusCode = http.StatusForbidden
-				errorCode = "FORBIDDEN"
-			case rr.statusCode == http.StatusNotFound || err.Error() == "Not Found":
-				statusCode = http.StatusNotFound
-				errorCode = "NOT_FOUND"
-			case rr.statusCode == http.StatusConflict || err.Error() == "Conflict" || strings.Contains(err.Error(), "already exists"):
-				statusCode = http.StatusConflict
-				errorCode = "CONFLICT"
-			case rr.statusCode == http.StatusBadRequest || err.Error() == "Bad Request":
-				statusCode = http.StatusBadRequest
-				errorCode = "BAD_REQUEST"
-			case rr.statusCode == http.StatusInternalServerError || err.Error() == "Internal Server Error":
-				statusCode = http.StatusInternalServerError
-				errorCode = "INTERNAL_SERVER_ERROR"
-			default:
-				statusCode = http.StatusInternalServerError
-				errorCode = "UNKNOWN_ERROR"
+		// Check for errors in context first (highest priority)
+		if err := common.GetError(r.Context()); err != nil && !rw.headerWritten {
+			slog.ErrorContext(r.Context(), "Handling context error", "error", err)
+			var apiErr *common.APIError
+			if existingAPIErr, ok := err.(*common.APIError); ok {
+				apiErr = existingAPIErr
+			} else {
+				apiErr = common.ErrorFromString(err)
 			}
 
-			if errorCode != "" {
-				rr.WriteHeader(statusCode)
-			}
-			response := map[string]string{
-				"code":  errorCode,
-				"error": err.Error(),
-			}
-			jsonResponse, _ := json.Marshal(response)
-			w.Header().Set("Content-Type", "application/json")
-			w.Write(jsonResponse)
-
-			slog.ErrorContext(r.Context(), "ErrorMiddleware", "err", err, "Status", rr.statusCode)
+			rw.writeErrorResponse(apiErr)
 			return
-		} else {
-			slog.InfoContext(r.Context(), "Success", "Status", rr.statusCode)
+		}
+
+		// Check for request context cancellation/timeout errors
+		if ctxErr := r.Context().Err(); ctxErr != nil && !rw.headerWritten {
+			slog.ErrorContext(r.Context(), "Request context error", "error", ctxErr)
+
+			var apiErr *common.APIError
+			switch ctxErr {
+			case context.Canceled:
+				apiErr = common.NewAPIError(http.StatusRequestTimeout, "REQUEST_CANCELLED", "Request was cancelled")
+			case context.DeadlineExceeded:
+				apiErr = common.NewAPIError(http.StatusRequestTimeout, "REQUEST_TIMEOUT", "Request timeout")
+			default:
+				apiErr = common.NewAPIError(http.StatusInternalServerError, "CONTEXT_ERROR", ctxErr.Error())
+			}
+
+			rw.writeErrorResponse(apiErr)
+			return
+		}
+
+		// Check if an error status was set but no body was written
+		if rw.statusCode >= 400 && !rw.headerWritten {
+			slog.ErrorContext(r.Context(), "Error status without response body", "status", rw.statusCode)
+
+			var apiErr *common.APIError
+			switch rw.statusCode {
+			case http.StatusUnauthorized:
+				apiErr = common.ErrUnauthorized
+			case http.StatusForbidden:
+				apiErr = common.ErrForbidden
+			case http.StatusNotFound:
+				apiErr = common.ErrNotFound
+			case http.StatusBadRequest:
+				apiErr = common.ErrBadRequest
+			case http.StatusConflict:
+				apiErr = common.ErrConflict
+			default:
+				apiErr = common.NewAPIError(rw.statusCode, "ERROR", http.StatusText(rw.statusCode))
+			}
+
+			rw.writeErrorResponse(apiErr)
+			return
+		}
+
+		// Log successful requests
+		if rw.statusCode < 400 {
+			slog.InfoContext(r.Context(), "Request completed successfully", "status", rw.statusCode)
 		}
 	})
 }
 
-type responseRecorder struct {
-	http.ResponseWriter
-	statusCode int
+// ContextualErrorMiddleware is kept for backward compatibility, but now uses ErrorMiddleware
+func ContextualErrorMiddleware(next http.Handler) http.Handler {
+	return ErrorMiddleware(next)
 }
 
-func (rr *responseRecorder) WriteHeader(code int) {
-	rr.statusCode = code
-	rr.ResponseWriter.WriteHeader(code)
+// errorResponseWriter wraps http.ResponseWriter to track status and prevent multiple header writes
+type errorResponseWriter struct {
+	http.ResponseWriter
+	statusCode    int
+	headerWritten bool
+}
+
+func (rw *errorResponseWriter) WriteHeader(statusCode int) {
+	if !rw.headerWritten {
+		rw.statusCode = statusCode
+		rw.headerWritten = true
+		rw.ResponseWriter.WriteHeader(statusCode)
+	}
+}
+
+func (rw *errorResponseWriter) Write(data []byte) (int, error) {
+	if !rw.headerWritten {
+		rw.WriteHeader(http.StatusOK)
+	}
+	return rw.ResponseWriter.Write(data)
+}
+
+func (rw *errorResponseWriter) writeErrorResponse(apiErr *common.APIError) {
+	if !rw.headerWritten {
+		if err := common.WriteErrorResponse(rw.ResponseWriter, apiErr); err != nil {
+			slog.Error("Failed to write error response", "error", err)
+		}
+	}
 }

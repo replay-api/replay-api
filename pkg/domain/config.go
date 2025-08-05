@@ -34,6 +34,7 @@ type Config struct {
 	Auth    AuthConfig
 	MongoDB MongoDBConfig
 	S3      S3Config
+	CORS    CORSConfig
 }
 
 type S3Config struct {
@@ -41,6 +42,14 @@ type S3Config struct {
 	// AccessKeyID     string
 	Region string
 	Bucket string
+}
+
+type CORSConfig struct {
+	AllowedOrigins   []string
+	AllowedMethods   []string
+	AllowedHeaders   []string
+	AllowCredentials bool
+	MaxAge           int
 }
 
 type KafkaConfig struct {

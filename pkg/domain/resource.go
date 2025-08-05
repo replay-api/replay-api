@@ -33,6 +33,7 @@ const (
 	ResourceTypeMembership     ResourceType = "Memberships"    // specification of user group
 	ResourceTypePage           ResourceType = "Pages"          //
 	ResourceTypeFriends        ResourceType = "Friends"
+	ResourceTypeTokens         ResourceType = "Tokens"
 	ResourceTypeList           ResourceType = "List" // recurse root resources (?)
 	// ResourceTypeMe         ResourceType = "Me"
 	// ResourceTypeCustom     ResourceType = "Custom"

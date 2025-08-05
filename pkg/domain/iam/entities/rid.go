@@ -24,6 +24,7 @@ type RIDToken struct {
 	Source           RIDSourceKey               `json:"-" bson:"source"`
 	ResourceOwner    common.ResourceOwner       `json:"-" bson:"resource_owner"`
 	IntendedAudience common.IntendedAudienceKey `json:"-" bson:"intended_audience"`
+	ActiveProfiles   map[ProfileType]uuid.UUID  `json:"-" bson:"active_profiles"`
 	GrantType        string                     `json:"-" bson:"grant_type"`
 	ExpiresAt        time.Time                  `json:"-" bson:"expires_at"`
 	CreatedAt        time.Time                  `json:"-" bson:"created_at"`

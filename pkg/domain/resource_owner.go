@@ -19,6 +19,7 @@ var AdminAudienceIDKeys = make(map[IntendedAudienceKey]bool, 0)
 
 func IsAdmin(userContext context.Context) bool {
 	if len(AdminAudienceIDKeys) == 0 {
+		// TODO: review usecase, document jira
 		AdminAudienceIDKeys[TenantAudienceIDKey] = true
 		AdminAudienceIDKeys[ClientApplicationAudienceIDKey] = true
 	}

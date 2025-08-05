@@ -2,18 +2,19 @@ package cmd_controllers
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 	"net/http"
-	"strings"
 
 	"github.com/golobby/container/v3"
+	"github.com/replay-api/replay-api/cmd/rest-api/controllers"
+	common "github.com/replay-api/replay-api/pkg/domain"
 	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
 )
 
 type SquadController struct {
 	container                 container.Container
 	createSquadCommandHandler squad_in.CreateSquadCommandHandler
+	helper                    *controllers.ControllerHelper
 }
 
 func NewSquadController(container container.Container) *SquadController {
@@ -27,63 +28,53 @@ func NewSquadController(container container.Container) *SquadController {
 	return &SquadController{
 		container:                 container,
 		createSquadCommandHandler: createSquadCommandHandler,
+		helper:                    controllers.NewControllerHelper(),
 	}
 }
 
 func (ctrl *SquadController) CreateSquadHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "POST")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
 		var createSquadCommand squad_in.CreateOrUpdatedSquadCommand
-		err := json.NewDecoder(r.Body).Decode(&createSquadCommand)
-		if err != nil {
-			slog.ErrorContext(r.Context(), "Failed to decode request", "err", err)
-			w.WriteHeader(http.StatusBadRequest)
+
+		// Decode request using helper
+		if err := ctrl.helper.DecodeJSONRequest(w, r, &createSquadCommand); err != nil {
+			return // Error already handled by helper
+		}
+
+		// Execute command
+		squad, err := ctrl.createSquadCommandHandler.Exec(r.Context(), createSquadCommand)
+		if ctrl.helper.HandleError(w, r, err, "Failed to create SQUAD profile") {
+			return // Error handled by helper
+		}
+
+		// Write successful response
+		ctrl.helper.WriteCreated(w, r, squad)
+	}
+}
+
+// CreateSquadHandlerWithContext demonstrates using context-based error handling
+func (ctrl *SquadController) CreateSquadHandlerWithContext(apiContext context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var createSquadCommand squad_in.CreateOrUpdatedSquadCommand
+
+		// Decode request using helper
+		if err := ctrl.helper.DecodeJSONRequest(w, r, &createSquadCommand); err != nil {
+			// Store error in context for middleware to handle
+			ctx := common.SetError(r.Context(), common.NewAPIError(http.StatusBadRequest, "BAD_REQUEST", "Invalid request body"))
+			*r = *r.WithContext(ctx)
 			return
 		}
 
 		squad, err := ctrl.createSquadCommandHandler.Exec(r.Context(), createSquadCommand)
 		if err != nil {
 			slog.ErrorContext(r.Context(), "Failed to create SQUAD profile", "err", err)
-			if err.Error() == "Unauthorized" {
-				w.WriteHeader(http.StatusUnauthorized)
-			} else if strings.Contains(err.Error(), "already exists") {
-				w.WriteHeader(http.StatusConflict)
-				errorJSON := map[string]string{
-					"code":  "CONFLICT",
-					"error": err.Error(),
-				}
-
-				err = json.NewEncoder(w).Encode(errorJSON)
-				if err != nil {
-					slog.ErrorContext(r.Context(), "Failed to encode response", "err", err)
-				}
-			} else if strings.Contains(err.Error(), "not found") {
-				w.WriteHeader(http.StatusNotFound)
-				errorJSON := map[string]string{
-					"code":  "NOT_FOUND",
-					"error": err.Error(),
-				}
-
-				err = json.NewEncoder(w).Encode(errorJSON)
-				if err != nil {
-					slog.ErrorContext(r.Context(), "Failed to encode response", "err", err)
-				}
-			} else {
-				w.WriteHeader(http.StatusInternalServerError)
-			}
+			// Store error in context for middleware to handle
+			ctx := common.SetError(r.Context(), err)
+			*r = *r.WithContext(ctx)
 			return
 		}
 
-		err = json.NewEncoder(w).Encode(squad)
-		if err != nil {
-			slog.ErrorContext(r.Context(), "Failed to encode response", "err", err)
-			return
-		}
-
-		w.WriteHeader(http.StatusCreated)
-		w.Header().Set("Content-Type", "application/json")
+		// Write successful response
+		ctrl.helper.WriteCreated(w, r, squad)
 	}
 }

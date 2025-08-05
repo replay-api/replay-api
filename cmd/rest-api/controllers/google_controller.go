@@ -2,17 +2,18 @@ package controllers
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 	"net/http"
 
 	"github.com/golobby/container/v3"
+	common "github.com/replay-api/replay-api/pkg/domain"
 	google_entity "github.com/replay-api/replay-api/pkg/domain/google/entities"
 	google_in "github.com/replay-api/replay-api/pkg/domain/google/ports/in"
 )
 
 type GoogleController struct {
 	OnboardGoogleUserCommand google_in.OnboardGoogleUserCommand
+	helper                   *ControllerHelper
 }
 
 func NewGoogleController(container *container.Container) *GoogleController {
@@ -24,7 +25,10 @@ func NewGoogleController(container *container.Container) *GoogleController {
 		panic(err)
 	}
 
-	return &GoogleController{OnboardGoogleUserCommand: onboardGoogleUserCommand}
+	return &GoogleController{
+		OnboardGoogleUserCommand: onboardGoogleUserCommand,
+		helper:                   NewControllerHelper(),
+	}
 }
 
 func (c *GoogleController) OnboardGoogleUser(apiContext context.Context) http.HandlerFunc {
@@ -33,50 +37,37 @@ func (c *GoogleController) OnboardGoogleUser(apiContext context.Context) http.Ha
 		w.Header().Set("Access-Control-Allow-Methods", "POST")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
-		if r.Body == nil {
-			slog.ErrorContext(r.Context(), "no request body", "request.Body", r.Body)
-			http.Error(w, "Bad Request", http.StatusBadRequest)
-			return
-		}
-
-		decoder := json.NewDecoder(r.Body)
 		var googleUserParams google_entity.GoogleUser
-		err := decoder.Decode(&googleUserParams)
 
-		// slog.InfoContext(r.Context(), "GoogleUser Received =>", "google_entity.GoogleUser", googleUserParams)
-
-		if err != nil {
-			slog.ErrorContext(r.Context(), "error decoding google user from request", "err", err, "request.body", r.Body)
-			http.Error(w, "Bad Request", http.StatusBadRequest)
-			return
+		// Decode request using helper
+		if err := c.helper.DecodeJSONRequest(w, r, &googleUserParams); err != nil {
+			return // Error already handled by helper
 		}
 
-		err = c.OnboardGoogleUserCommand.Validate(r.Context(), &googleUserParams)
-
-		if err != nil {
-			slog.ErrorContext(r.Context(), "error validating google user", "err", err, "googleUserParams", googleUserParams)
-			http.Error(w, "Bad Request", http.StatusBadRequest)
-			return
+		// Validate the google user parameters
+		err := c.OnboardGoogleUserCommand.Validate(r.Context(), &googleUserParams)
+		if c.helper.HandleError(w, r, err, "error validating google user") {
+			return // Error handled by helper
 		}
 
+		// Execute the onboard command
 		googleUser, ridToken, err := c.OnboardGoogleUserCommand.Exec(r.Context(), &googleUserParams)
-
-		if err != nil {
-			slog.ErrorContext(r.Context(), "error onboarding google user", "err", err, "googleUserParams.Email", googleUserParams.Email, "googleUserParams.VHash", googleUserParams.VHash)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			return
+		if c.helper.HandleError(w, r, err, "error onboarding google user") {
+			return // Error handled by helper
 		}
 
+		// Validate ridToken is not nil
 		if ridToken == nil {
 			slog.ErrorContext(r.Context(), "error onboarding google user", "err", "controller: ridToken is nil", "googleUserParams.Email", googleUserParams.Email, "googleUserParams.VHash", googleUserParams.VHash)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			c.helper.HandleError(w, r, common.NewAPIError(http.StatusInternalServerError, "INTERNAL_ERROR", "ridToken is nil"), "ridToken validation failed")
 			return
 		}
 
-		w.WriteHeader(http.StatusCreated)
-		w.Header().Set("Content-Type", "application/json")
+		// Set additional headers for resource owner information
 		w.Header().Set(ResourceOwnerIDHeaderKey, ridToken.GetID().String())
 		w.Header().Set(ResourceOwnerAudTypeHeaderKey, string(ridToken.IntendedAudience))
-		json.NewEncoder(w).Encode(googleUser)
+
+		// Write successful response
+		c.helper.WriteCreated(w, r, googleUser)
 	}
 }

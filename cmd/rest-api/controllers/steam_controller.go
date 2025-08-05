@@ -2,17 +2,18 @@ package controllers
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 	"net/http"
 
 	"github.com/golobby/container/v3"
+	common "github.com/replay-api/replay-api/pkg/domain"
 	steam_entity "github.com/replay-api/replay-api/pkg/domain/steam/entities"
 	steam_in "github.com/replay-api/replay-api/pkg/domain/steam/ports/in"
 )
 
 type SteamController struct {
 	OnboardSteamUserCommand steam_in.OnboardSteamUserCommand
+	helper                  *ControllerHelper
 }
 
 func NewSteamController(container *container.Container) *SteamController {
@@ -24,7 +25,10 @@ func NewSteamController(container *container.Container) *SteamController {
 		panic(err)
 	}
 
-	return &SteamController{OnboardSteamUserCommand: onboardSteamUserCommand}
+	return &SteamController{
+		OnboardSteamUserCommand: onboardSteamUserCommand,
+		helper:                  NewControllerHelper(),
+	}
 }
 
 func (c *SteamController) OnboardSteamUser(apiContext context.Context) http.HandlerFunc {
@@ -33,50 +37,37 @@ func (c *SteamController) OnboardSteamUser(apiContext context.Context) http.Hand
 		w.Header().Set("Access-Control-Allow-Methods", "POST")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
-		if r.Body == nil {
-			slog.ErrorContext(r.Context(), "no request body", "request.Body", r.Body)
-			http.Error(w, "Bad Request", http.StatusBadRequest)
-			return
-		}
-
-		decoder := json.NewDecoder(r.Body)
 		var steamUserParams steam_entity.SteamUser
-		err := decoder.Decode(&steamUserParams)
 
-		// slog.InfoContext(r.Context(), "SteamUser Received =>", "steam_entity.SteamUser", steamUserParams)
-
-		if err != nil {
-			slog.ErrorContext(r.Context(), "error decoding steam user from request", "err", err, "request.body", r.Body)
-			http.Error(w, "Bad Request", http.StatusBadRequest)
-			return
+		// Decode request using helper
+		if err := c.helper.DecodeJSONRequest(w, r, &steamUserParams); err != nil {
+			return // Error already handled by helper
 		}
 
-		err = c.OnboardSteamUserCommand.Validate(r.Context(), &steamUserParams)
-
-		if err != nil {
-			slog.ErrorContext(r.Context(), "error validating steam user", "err", err, "steamUserParams", steamUserParams)
-			http.Error(w, "Bad Request", http.StatusBadRequest)
-			return
+		// Validate the steam user parameters
+		err := c.OnboardSteamUserCommand.Validate(r.Context(), &steamUserParams)
+		if c.helper.HandleError(w, r, err, "error validating steam user") {
+			return // Error handled by helper
 		}
 
+		// Execute the onboard command
 		steamUser, ridToken, err := c.OnboardSteamUserCommand.Exec(r.Context(), &steamUserParams)
-
-		if err != nil {
-			slog.ErrorContext(r.Context(), "error onboarding steam user", "err", err, "steamUserParams.Steam.ID", steamUserParams.Steam.ID, "steamUserParams.VHash", steamUserParams.VHash)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			return
+		if c.helper.HandleError(w, r, err, "error onboarding steam user") {
+			return // Error handled by helper
 		}
 
+		// Validate ridToken is not nil
 		if ridToken == nil {
 			slog.ErrorContext(r.Context(), "error onboarding steam user", "err", "controller: ridToken is nil", "steamUserParams.Steam.ID", steamUserParams.Steam.ID, "steamUserParams.VHash", steamUserParams.VHash)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			c.helper.HandleError(w, r, common.NewAPIError(http.StatusInternalServerError, "INTERNAL_ERROR", "ridToken is nil"), "ridToken validation failed")
 			return
 		}
 
-		w.WriteHeader(http.StatusCreated)
-		w.Header().Set("Content-Type", "application/json")
+		// Set additional headers for resource owner information
 		w.Header().Set(ResourceOwnerIDHeaderKey, ridToken.GetID().String())
 		w.Header().Set(ResourceOwnerAudTypeHeaderKey, string(ridToken.IntendedAudience))
-		json.NewEncoder(w).Encode(steamUser)
+
+		// Write successful response
+		c.helper.WriteCreated(w, r, steamUser)
 	}
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	common "github.com/replay-api/replay-api/pkg/domain"
+	iam_dtos "github.com/replay-api/replay-api/pkg/domain/iam/dtos"
 	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
 )
 
@@ -25,4 +26,13 @@ type OnboardOpenIDUserCommand struct {
 
 type OnboardOpenIDUserCommandHandler interface {
 	Exec(ctx context.Context, cmd OnboardOpenIDUserCommand) (*iam_entities.Profile, *iam_entities.RIDToken, error)
+}
+
+type SetRIDTokenProfileCommand struct {
+	RIDTokenID uuid.UUID   `json:"rid_token_id" bson:"rid_token_id"`
+	Profiles   []uuid.UUID `json:"profiles" bson:"profiles"`
+}
+
+type SetRIDTokenProfileCommandHandler interface {
+	Exec(ctx context.Context, cmd SetRIDTokenProfileCommand) (*iam_entities.RIDToken, iam_dtos.ProfilesDTO, error)
 }

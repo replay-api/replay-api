@@ -2,75 +2,61 @@ package cmd_controllers
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 	"net/http"
 	"strings"
 
-	// squad_in
 	"github.com/golobby/container/v3"
+	"github.com/replay-api/replay-api/cmd/rest-api/controllers"
+	common "github.com/replay-api/replay-api/pkg/domain"
 	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
 )
 
 type PlayerProfileController struct {
 	container container.Container
+	helper    *controllers.ControllerHelper
 }
 
 func NewPlayerProfileController(container container.Container) *PlayerProfileController {
-	return &PlayerProfileController{container: container}
+	return &PlayerProfileController{
+		container: container,
+		helper:    controllers.NewControllerHelper(),
+	}
 }
 
 func (ctrl *PlayerProfileController) CreatePlayerProfileHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "POST")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
 		var createPlayerCommand squad_in.CreatePlayerProfileCommand
-		err := json.NewDecoder(r.Body).Decode(&createPlayerCommand)
-		if err != nil {
-			slog.ErrorContext(r.Context(), "Failed to decode request", "err", err)
-			w.WriteHeader(http.StatusBadRequest)
-			return
+
+		// Decode request using helper
+		if err := ctrl.helper.DecodeJSONRequest(w, r, &createPlayerCommand); err != nil {
+			return // Error already handled by helper
 		}
 
 		var createPlayerCommandHandler squad_in.CreatePlayerProfileCommandHandler
-		err = ctrl.container.Resolve(&createPlayerCommandHandler)
+		err := ctrl.container.Resolve(&createPlayerCommandHandler)
 		if err != nil {
 			slog.ErrorContext(r.Context(), "Failed to resolve CreatePlayerProfileCommandHandler", "err", err)
-			w.WriteHeader(http.StatusServiceUnavailable)
+			ctrl.helper.HandleError(w, r, common.NewAPIError(http.StatusServiceUnavailable, "SERVICE_UNAVAILABLE", "failed to resolve command handler"), "dependency resolution failed")
 			return
 		}
 
 		player, err := createPlayerCommandHandler.Exec(r.Context(), createPlayerCommand)
 		if err != nil {
-			slog.ErrorContext(r.Context(), "Failed to create player profile", "err", err)
+			// Handle specific error cases
 			if err.Error() == "Unauthorized" {
-				w.WriteHeader(http.StatusUnauthorized)
+				ctrl.helper.HandleError(w, r, common.NewAPIError(http.StatusUnauthorized, "UNAUTHORIZED", "unauthorized access"), "unauthorized access")
 			} else if strings.Contains(err.Error(), "already exists") {
-				w.WriteHeader(http.StatusConflict)
-				errorJSON := map[string]string{
-					"code":  "CONFLICT",
-					"error": err.Error(),
-				}
-
-				err = json.NewEncoder(w).Encode(errorJSON)
-				if err != nil {
-					slog.ErrorContext(r.Context(), "Failed to encode response", "err", err)
-				}
+				// Handle conflict case with specific error format for backward compatibility
+				conflictErr := common.NewAPIError(http.StatusConflict, "CONFLICT", err.Error())
+				ctrl.helper.HandleError(w, r, conflictErr, "player profile already exists")
 			} else {
-				w.WriteHeader(http.StatusInternalServerError)
+				ctrl.helper.HandleError(w, r, err, "Failed to create player profile")
 			}
 			return
 		}
 
-		err = json.NewEncoder(w).Encode(player)
-		if err != nil {
-			slog.ErrorContext(r.Context(), "Failed to encode response", "err", err)
-			return
-		}
-
-		w.WriteHeader(http.StatusCreated)
-		w.Header().Set("Content-Type", "application/json")
+		// Write successful response
+		ctrl.helper.WriteCreated(w, r, player)
 	}
 }

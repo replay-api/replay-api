@@ -6,6 +6,8 @@ import (
 	"context"
 	"net/http"
 	"strings"
+
+	common "github.com/replay-api/replay-api/pkg/domain"
 )
 
 type AuthMiddleware struct {
@@ -19,13 +21,17 @@ func (am *AuthMiddleware) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authorizationHeader := r.Header.Get("Authorization")
 		if authorizationHeader == "" {
-			http.Error(w, "no-auth", http.StatusUnauthorized)
+			// Store error in context instead of writing directly
+			ctx := common.SetError(r.Context(), common.ErrUnauthorized)
+			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
 
 		bearerToken := strings.Split(authorizationHeader, "Bearer ")
 		if len(bearerToken) != 2 {
-			http.Error(w, "no-auth", http.StatusUnauthorized)
+			// Store error in context instead of writing directly
+			ctx := common.SetError(r.Context(), common.ErrUnauthorized)
+			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
 
@@ -35,7 +41,8 @@ func (am *AuthMiddleware) Handler(next http.Handler) http.Handler {
 
 		// steamID, err := getSteamID(steamToken)
 		// if err != nil {
-		// 	http.Error(w, "Failed to validate token", http.StatusUnauthorized)
+		// 	ctx := common.SetError(r.Context(), common.ErrUnauthorized)
+		// 	next.ServeHTTP(w, r.WithContext(ctx))
 		// 	return
 		// }
 

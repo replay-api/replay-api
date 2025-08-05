@@ -2,21 +2,25 @@ package cmd_controllers
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 	"net/http"
 
 	"github.com/golobby/container/v3"
+	"github.com/replay-api/replay-api/cmd/rest-api/controllers"
 	common "github.com/replay-api/replay-api/pkg/domain"
 	replay_in "github.com/replay-api/replay-api/pkg/domain/replay/ports/in"
 )
 
 type FileController struct {
 	container container.Container
+	helper    *controllers.ControllerHelper
 }
 
 func NewFileController(container container.Container) *FileController {
-	return &FileController{container: container}
+	return &FileController{
+		container: container,
+		helper:    controllers.NewControllerHelper(),
+	}
 }
 
 func (ctlr *FileController) UploadHandler(apiContext context.Context) http.HandlerFunc {
@@ -34,7 +38,7 @@ func (ctlr *FileController) UploadHandler(apiContext context.Context) http.Handl
 		file, _, err := r.FormFile("file")
 		if err != nil {
 			slog.ErrorContext(reqContext, "Failed to get file", "err", err)
-			w.WriteHeader(http.StatusBadRequest)
+			ctlr.helper.HandleError(w, r, common.NewAPIError(http.StatusBadRequest, "BAD_REQUEST", "failed to get file from form"), "form file error")
 			return
 		}
 		defer file.Close()
@@ -43,29 +47,27 @@ func (ctlr *FileController) UploadHandler(apiContext context.Context) http.Handl
 		err = ctlr.container.Resolve(&uploadAndProcessReplayFileCommand)
 		if err != nil {
 			slog.ErrorContext(reqContext, "Failed to resolve uploadAndProcessReplayFileCommand", "err", err)
-			w.WriteHeader(http.StatusServiceUnavailable)
+			ctlr.helper.HandleError(w, r, common.NewAPIError(http.StatusServiceUnavailable, "SERVICE_UNAVAILABLE", "failed to resolve command handler"), "dependency resolution failed")
 			return
 		}
 
 		match, err := uploadAndProcessReplayFileCommand.Exec(reqContext, file)
 		if err != nil {
-			slog.ErrorContext(reqContext, "Failed to upload and process file", "err", err)
+			// Handle specific error cases
 			if err.Error() == "Unauthorized" {
-				w.WriteHeader(http.StatusUnauthorized)
+				ctlr.helper.HandleError(w, r, common.NewAPIError(http.StatusUnauthorized, "UNAUTHORIZED", "unauthorized access"), "unauthorized access")
+			} else {
+				ctlr.helper.HandleError(w, r, err, "Failed to upload and process file")
 			}
 			return
 		}
 
+		// Remove events from the response (business requirement)
 		match.Events = nil
 
-		err = json.NewEncoder(w).Encode(match)
-		if err != nil {
-			slog.ErrorContext(reqContext, "Failed to encode response", "err", err, "match", match)
-			w.WriteHeader(http.StatusBadGateway)
-		}
-
+		// Set Location header and write successful response
 		w.Header().Set("Location", r.URL.Path+"/"+match.ID.String())
-		w.WriteHeader(http.StatusCreated)
+		ctlr.helper.WriteCreated(w, r, match)
 	}
 }
 

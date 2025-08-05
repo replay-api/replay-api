@@ -27,7 +27,7 @@ const (
 type ProfileType string
 
 const (
-	ProfileTypeSteam  ProfileType = "account" // steam, google
+	ProfileTypeSteam  ProfileType = "account" // auth(steam/google), wallet, etc
 	ProfileTypeSquad  ProfileType = "squad"
 	ProfileTypePlayer ProfileType = "player"
 )
@@ -40,7 +40,7 @@ type Profile struct {
 	Links           map[ProfileLinkType]string `json:"links" bson:"links"`
 	VisibilityLevel common.IntendedAudienceKey `json:"visibility_level" bson:"visibility_level"`
 	VisibilityType  common.VisibilityTypeKey   `json:"visibility_type" bson:"visibility_type"`
-	Type            ProfileType                `json:"type" bson:"type"` // ie. steam, google, team/squad, player
+	Type            ProfileType                `json:"type" bson:"type"` // ie. team/squad, player, account (wallet,etc)
 	ResourceOwner   common.ResourceOwner       `json:"resource_owner" bson:"resource_owner"`
 	CreatedAt       time.Time                  `json:"created_at" bson:"created_at"`
 	UpdatedAt       time.Time                  `json:"updated_at" bson:"updated_at"`
