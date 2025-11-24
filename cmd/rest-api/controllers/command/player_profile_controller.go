@@ -49,7 +49,10 @@ func (ctrl *PlayerProfileController) CreatePlayerProfileHandler(apiContext conte
 
 		player, err := createPlayerCommandHandler.Exec(r.Context(), createPlayerCommand)
 		if err != nil {
-			slog.ErrorContext(r.Context(), "Failed to create player profile", "err", err)
+			slog.ErrorContext(r.Context(), "Failed to create player profile",
+				"error", err,
+				"username", createPlayerCommand.Username,
+				"game_id", createPlayerCommand.GameID)
 			if err.Error() == "Unauthorized" {
 				w.WriteHeader(http.StatusUnauthorized)
 			} else if strings.Contains(err.Error(), "already exists") {
@@ -61,7 +64,7 @@ func (ctrl *PlayerProfileController) CreatePlayerProfileHandler(apiContext conte
 
 				err = json.NewEncoder(w).Encode(errorJSON)
 				if err != nil {
-					slog.ErrorContext(r.Context(), "Failed to encode response", "err", err)
+					slog.ErrorContext(r.Context(), "Failed to encode response", "error", err)
 				}
 			} else {
 				w.WriteHeader(http.StatusInternalServerError)
@@ -69,9 +72,17 @@ func (ctrl *PlayerProfileController) CreatePlayerProfileHandler(apiContext conte
 			return
 		}
 
+		slog.InfoContext(r.Context(), "Player profile created successfully",
+			"player_id", player.ID,
+			"username", player.Username,
+			"game_id", player.GameID,
+			"user_id", r.Context().Value(common.UserIDKey))
+
 		err = json.NewEncoder(w).Encode(player)
 		if err != nil {
-			slog.ErrorContext(r.Context(), "Failed to encode response", "err", err)
+			slog.ErrorContext(r.Context(), "Failed to encode response",
+				"error", err,
+				"player_id", player.ID)
 			return
 		}
 
@@ -93,12 +104,14 @@ func (ctrl *PlayerProfileController) GetPlayerProfileHandler(apiContext context.
 
 		var profileReader squad_out.PlayerProfileReader
 		if err := ctrl.container.Resolve(&profileReader); err != nil {
+			slog.ErrorContext(r.Context(), "Failed to resolve PlayerProfileReader", "error", err)
 			http.Error(w, "service unavailable", http.StatusServiceUnavailable)
 			return
 		}
 
 		idUUID, err := uuid.Parse(profileID)
 		if err != nil {
+			slog.WarnContext(r.Context(), "Invalid profile ID format", "profile_id", profileID, "error", err)
 			http.Error(w, "invalid profile_id format", http.StatusBadRequest)
 			return
 		}
@@ -107,14 +120,18 @@ func (ctrl *PlayerProfileController) GetPlayerProfileHandler(apiContext context.
 		search := common.NewSearchByValues(r.Context(), valueParams, common.SearchResultOptions{Limit: 1}, common.UserAudienceIDKey)
 		results, err := profileReader.Search(r.Context(), search)
 		if err != nil {
+			slog.ErrorContext(r.Context(), "Error fetching player profile", "error", err, "profile_id", idUUID)
 			http.Error(w, "error fetching profile", http.StatusInternalServerError)
 			return
 		}
 
 		if len(results) == 0 {
+			slog.WarnContext(r.Context(), "Player profile not found", "profile_id", idUUID)
 			http.Error(w, "profile not found", http.StatusNotFound)
 			return
 		}
+
+		slog.InfoContext(r.Context(), "Player profile retrieved successfully", "profile_id", idUUID, "username", results[0].Username)
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -142,18 +159,21 @@ func (ctrl *PlayerProfileController) UpdatePlayerProfileHandler(apiContext conte
 
 		var req UpdatePlayerProfileRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			slog.ErrorContext(r.Context(), "Failed to decode update request", "error", err, "profile_id", profileID)
 			http.Error(w, "invalid request body", http.StatusBadRequest)
 			return
 		}
 
 		var profileReader squad_out.PlayerProfileReader
 		if err := ctrl.container.Resolve(&profileReader); err != nil {
+			slog.ErrorContext(r.Context(), "Failed to resolve PlayerProfileReader", "error", err)
 			http.Error(w, "service unavailable", http.StatusServiceUnavailable)
 			return
 		}
 
 		idUUID, err := uuid.Parse(profileID)
 		if err != nil {
+			slog.WarnContext(r.Context(), "Invalid profile ID format for update", "profile_id", profileID, "error", err)
 			http.Error(w, "invalid profile_id format", http.StatusBadRequest)
 			return
 		}
@@ -162,6 +182,7 @@ func (ctrl *PlayerProfileController) UpdatePlayerProfileHandler(apiContext conte
 		search := common.NewSearchByValues(r.Context(), valueParams, common.SearchResultOptions{Limit: 1}, common.UserAudienceIDKey)
 		results, err := profileReader.Search(r.Context(), search)
 		if err != nil || len(results) == 0 {
+			slog.WarnContext(r.Context(), "Player profile not found for update", "profile_id", idUUID, "error", err)
 			http.Error(w, "profile not found", http.StatusNotFound)
 			return
 		}
@@ -185,15 +206,25 @@ func (ctrl *PlayerProfileController) UpdatePlayerProfileHandler(apiContext conte
 
 		var profileWriter squad_out.PlayerProfileWriter
 		if err := ctrl.container.Resolve(&profileWriter); err != nil {
+			slog.ErrorContext(r.Context(), "Failed to resolve PlayerProfileWriter", "error", err)
 			http.Error(w, "service unavailable", http.StatusServiceUnavailable)
 			return
 		}
 
 		updatedProfile, err := profileWriter.Update(r.Context(), &profile)
 		if err != nil {
+			slog.ErrorContext(r.Context(), "Failed to update player profile",
+				"error", err,
+				"profile_id", idUUID,
+				"user_id", r.Context().Value(common.UserIDKey))
 			http.Error(w, "failed to update profile", http.StatusInternalServerError)
 			return
 		}
+
+		slog.InfoContext(r.Context(), "Player profile updated successfully",
+			"profile_id", idUUID,
+			"username", updatedProfile.Username,
+			"user_id", r.Context().Value(common.UserIDKey))
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -214,24 +245,35 @@ func (ctrl *PlayerProfileController) DeletePlayerProfileHandler(apiContext conte
 
 		var profileWriter squad_out.PlayerProfileWriter
 		if err := ctrl.container.Resolve(&profileWriter); err != nil {
+			slog.ErrorContext(r.Context(), "Failed to resolve PlayerProfileWriter", "error", err)
 			http.Error(w, "service unavailable", http.StatusServiceUnavailable)
 			return
 		}
 
 		profileUUID, err := uuid.Parse(profileID)
 		if err != nil {
+			slog.WarnContext(r.Context(), "Invalid profile ID format for delete", "profile_id", profileID, "error", err)
 			http.Error(w, "invalid profile_id format", http.StatusBadRequest)
 			return
 		}
 
 		if err := profileWriter.Delete(r.Context(), profileUUID); err != nil {
 			if err == mongo.ErrNoDocuments {
+				slog.WarnContext(r.Context(), "Player profile not found for delete", "profile_id", profileUUID)
 				http.Error(w, "profile not found", http.StatusNotFound)
 				return
 			}
+			slog.ErrorContext(r.Context(), "Failed to delete player profile",
+				"error", err,
+				"profile_id", profileUUID,
+				"user_id", r.Context().Value(common.UserIDKey))
 			http.Error(w, "failed to delete profile", http.StatusInternalServerError)
 			return
 		}
+
+		slog.InfoContext(r.Context(), "Player profile deleted successfully",
+			"profile_id", profileUUID,
+			"user_id", r.Context().Value(common.UserIDKey))
 
 		w.WriteHeader(http.StatusNoContent)
 	}
