@@ -2031,7 +2031,7 @@ func InjectMongoDB(c container.Container) error {
 			return nil, err
 		}
 
-		return db.NewMatchmakingSessionRepository(client, config.Database.Name), nil
+		return db.NewMatchmakingSessionRepository(client, config.MongoDB.DBName), nil
 	})
 
 	if err != nil {
@@ -2054,7 +2054,7 @@ func InjectMongoDB(c container.Container) error {
 			return nil, err
 		}
 
-		return db.NewMatchmakingPoolRepository(client, config.Database.Name), nil
+		return db.NewMatchmakingPoolRepository(client, config.MongoDB.DBName), nil
 	})
 
 	if err != nil {

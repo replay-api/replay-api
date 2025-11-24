@@ -29,7 +29,7 @@ func NewSteamClient() *SteamClient {
 func (c *SteamClient) Details(token string) (*steamEntities.SteamUser, error) {
 	res, err := c.HttpClient.Get("https://api.steampowered.com/ISteamUserOAuth/GetTokenDetails/v1/?access_token=" + token)
 	if err != nil {
-		slog.Error("Failed to get token details", err)
+		slog.Error("Failed to get token details", "error", err)
 		return nil, err
 	}
 	defer res.Body.Close()
