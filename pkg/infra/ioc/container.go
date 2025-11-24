@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"time"
 
 	// env
 	"github.com/joho/godotenv"
@@ -44,6 +45,20 @@ import (
 	steam_out "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/ports/out"
 	steam_query_services "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/services"
 
+	matchmaking_in "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/ports/in"
+	matchmaking_out "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/ports/out"
+	matchmaking_services "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/services"
+
+	tournament_in "github.com/psavelis/team-pro/replay-api/pkg/domain/tournament/ports/in"
+	tournament_out "github.com/psavelis/team-pro/replay-api/pkg/domain/tournament/ports/out"
+	tournament_services "github.com/psavelis/team-pro/replay-api/pkg/domain/tournament/services"
+
+	wallet_in "github.com/psavelis/team-pro/replay-api/pkg/domain/wallet/ports/in"
+	wallet_out "github.com/psavelis/team-pro/replay-api/pkg/domain/wallet/ports/out"
+	wallet_services "github.com/psavelis/team-pro/replay-api/pkg/domain/wallet/services"
+
+	websocket "github.com/psavelis/team-pro/replay-api/pkg/infra/websocket"
+
 	iam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/in"
 	iam_out "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/out"
 	iam_query_services "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/services"
@@ -56,6 +71,7 @@ import (
 
 	// app
 	cs_app "github.com/psavelis/team-pro/replay-api/pkg/app/cs"
+	jobs "github.com/psavelis/team-pro/replay-api/pkg/app/jobs"
 
 	// usecases
 	iam_use_cases "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/use_cases"
@@ -1254,6 +1270,91 @@ func InjectMongoDB(c container.Container) error {
 		panic(err)
 	}
 
+	// SHARE TOKEN REPOSITORY
+	err = c.Singleton(func() (*db.ShareTokenRepository, error) {
+		var client *mongo.Client
+		err := c.Resolve(&client)
+		if err != nil {
+			slog.Error("Failed to resolve mongo.Client for ShareTokenRepository.", "err", err)
+			return nil, err
+		}
+
+		var config common.Config
+		err = c.Resolve(&config)
+		if err != nil {
+			slog.Error("Failed to resolve config for ShareTokenRepository.", "err", err)
+			return nil, err
+		}
+
+		repo := db.NewShareTokenRepository(client, config.MongoDB.DBName, replay_entity.ShareToken{}, "share_tokens")
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load ShareTokenRepository.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (replay_out.ShareTokenReader, error) {
+		var repo *db.ShareTokenRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve ShareTokenRepository for replay_out.ShareTokenReader.", "err", err)
+			return nil, err
+		}
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load replay_out.ShareTokenReader.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (replay_out.ShareTokenWriter, error) {
+		var repo *db.ShareTokenRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve ShareTokenRepository for replay_out.ShareTokenWriter.", "err", err)
+			return nil, err
+		}
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load replay_out.ShareTokenWriter.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (replay_in.ShareTokenReader, error) {
+		var shareTokenReader replay_out.ShareTokenReader
+		err := c.Resolve(&shareTokenReader)
+		if err != nil {
+			slog.Error("Failed to resolve ShareTokenReader for replay_in.ShareTokenReader.", "err", err)
+			return nil, err
+		}
+		return metadata.NewShareTokenQueryService(shareTokenReader), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load replay_in.ShareTokenReader.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (replay_in.ShareTokenCommand, error) {
+		var shareTokenWriter replay_out.ShareTokenWriter
+		err := c.Resolve(&shareTokenWriter)
+		if err != nil {
+			slog.Error("Failed to resolve ShareTokenWriter for replay_in.ShareTokenCommand.", "err", err)
+			return nil, err
+		}
+		return metadata.NewShareTokenCommandService(shareTokenWriter), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load replay_in.ShareTokenCommand.", "err", err)
+		panic(err)
+	}
+
 	// err = c.Singleton(func() (replay_out.BadgeReader, error) {
 	// 	var repo *db.BadgeRepository
 	// 	err = c.Resolve(&repo)
@@ -1790,6 +1891,273 @@ func InjectMongoDB(c container.Container) error {
 
 	if err != nil {
 		slog.Error("Failed to load iam_out.MembershipWriter.", "err", err)
+		panic(err)
+	}
+
+	// ----- Matchmaking & Wallet (Prize Pool System) -----
+
+	// WebSocket Hub (Singleton)
+	err = c.Singleton(func() *websocket.WebSocketHub {
+		hub := websocket.NewWebSocketHub()
+		return hub
+	})
+
+	if err != nil {
+		slog.Error("Failed to load *websocket.WebSocketHub.", "err", err)
+		panic(err)
+	}
+
+	// Lobby Repository
+	err = c.Singleton(func() (matchmaking_out.LobbyRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve *mongo.Client for MongoLobbyRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for MongoLobbyRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewMongoLobbyRepository(client, config.MongoDB.DBName), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load matchmaking_out.LobbyRepository.", "err", err)
+		panic(err)
+	}
+
+	// Prize Pool Repository
+	err = c.Singleton(func() (matchmaking_out.PrizePoolRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve *mongo.Client for MongoPrizePoolRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for MongoPrizePoolRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewMongoPrizePoolRepository(client, config.MongoDB.DBName), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load matchmaking_out.PrizePoolRepository.", "err", err)
+		panic(err)
+	}
+
+	// Tournament Repository
+	err = c.Singleton(func() (tournament_out.TournamentRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve *mongo.Client for MongoTournamentRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for MongoTournamentRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewMongoTournamentRepository(client, config.MongoDB.DBName), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load tournament_out.TournamentRepository.", "err", err)
+		panic(err)
+	}
+
+	// Wallet Repository
+	err = c.Singleton(func() (wallet_out.WalletRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve *mongo.Client for MongoWalletRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for MongoWalletRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewMongoWalletRepository(client, config.MongoDB.DBName), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load wallet_out.WalletRepository.", "err", err)
+		panic(err)
+	}
+
+	// Wallet Service
+	err = c.Singleton(func() (wallet_in.WalletCommand, error) {
+		var repo wallet_out.WalletRepository
+
+		if err := c.Resolve(&repo); err != nil {
+			slog.Error("Failed to resolve wallet_out.WalletRepository for WalletService.", "err", err)
+			return nil, err
+		}
+
+		return wallet_services.NewWalletService(repo), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load wallet_in.WalletCommand.", "err", err)
+		panic(err)
+	}
+
+	// Matchmaking Session Repository
+	err = c.Singleton(func() (matchmaking_out.MatchmakingSessionRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve mongo.Client for MatchmakingSessionRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for MatchmakingSessionRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewMatchmakingSessionRepository(client, config.Database.Name), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load matchmaking_out.MatchmakingSessionRepository.", "err", err)
+		panic(err)
+	}
+
+	// Matchmaking Pool Repository
+	err = c.Singleton(func() (matchmaking_out.MatchmakingPoolRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve mongo.Client for MatchmakingPoolRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for MatchmakingPoolRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewMatchmakingPoolRepository(client, config.Database.Name), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load matchmaking_out.MatchmakingPoolRepository.", "err", err)
+		panic(err)
+	}
+
+	// Lobby Orchestration Service
+	err = c.Singleton(func() (matchmaking_in.LobbyCommand, error) {
+		var lobbyRepo matchmaking_out.LobbyRepository
+		var poolRepo matchmaking_out.PrizePoolRepository
+		var walletCmd wallet_in.WalletCommand
+		var wsHub *websocket.WebSocketHub
+
+		if err := c.Resolve(&lobbyRepo); err != nil {
+			slog.Error("Failed to resolve matchmaking_out.LobbyRepository for LobbyOrchestrationService.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&poolRepo); err != nil {
+			slog.Error("Failed to resolve matchmaking_out.PrizePoolRepository for LobbyOrchestrationService.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&walletCmd); err != nil {
+			slog.Error("Failed to resolve wallet_in.WalletCommand for LobbyOrchestrationService.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&wsHub); err != nil {
+			slog.Error("Failed to resolve *websocket.WebSocketHub for LobbyOrchestrationService.", "err", err)
+			return nil, err
+		}
+
+		return matchmaking_services.NewLobbyOrchestrationService(lobbyRepo, poolRepo, walletCmd, wsHub), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load matchmaking_in.LobbyCommand.", "err", err)
+		panic(err)
+	}
+
+	// Prize Distribution Job
+	err = c.Singleton(func() (*jobs.PrizeDistributionJob, error) {
+		var poolRepo matchmaking_out.PrizePoolRepository
+		var walletCmd wallet_in.WalletCommand
+
+		if err := c.Resolve(&poolRepo); err != nil {
+			slog.Error("Failed to resolve matchmaking_out.PrizePoolRepository for PrizeDistributionJob.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&walletCmd); err != nil {
+			slog.Error("Failed to resolve wallet_in.WalletCommand for PrizeDistributionJob.", "err", err)
+			return nil, err
+		}
+
+		// Run every 5 minutes
+		return jobs.NewPrizeDistributionJob(poolRepo, walletCmd, 5*time.Minute), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load *jobs.PrizeDistributionJob.", "err", err)
+		panic(err)
+	}
+
+	// Tournament Command Service
+	err = c.Singleton(func() (tournament_in.TournamentCommand, error) {
+		var tournamentRepo tournament_out.TournamentRepository
+		var walletCmd wallet_in.WalletCommand
+
+		if err := c.Resolve(&tournamentRepo); err != nil {
+			slog.Error("Failed to resolve tournament_out.TournamentRepository for TournamentService.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&walletCmd); err != nil {
+			slog.Error("Failed to resolve wallet_in.WalletCommand for TournamentService.", "err", err)
+			return nil, err
+		}
+
+		return tournament_services.NewTournamentService(tournamentRepo, walletCmd), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load tournament_in.TournamentCommand.", "err", err)
+		panic(err)
+	}
+
+	// Tournament Reader Service
+	err = c.Singleton(func() (tournament_in.TournamentReader, error) {
+		var tournamentRepo tournament_out.TournamentRepository
+
+		if err := c.Resolve(&tournamentRepo); err != nil {
+			slog.Error("Failed to resolve tournament_out.TournamentRepository for TournamentReaderService.", "err", err)
+			return nil, err
+		}
+
+		return tournament_services.NewTournamentReaderService(tournamentRepo), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load tournament_in.TournamentReader.", "err", err)
 		panic(err)
 	}
 

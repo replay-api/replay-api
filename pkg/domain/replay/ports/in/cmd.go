@@ -33,3 +33,13 @@ type ProcessReplayFileCommand interface {
 type UpdateReplayFileHeaderCommand interface {
 	Exec(ctx context.Context, replayFileID uuid.UUID) (*replay_entity.ReplayFile, error)
 }
+
+// ShareTokenCommand is an interface for share token management operations
+type ShareTokenCommand interface {
+	// CreateToken creates a new share token for a resource
+	Create(ctx context.Context, token *replay_entity.ShareToken) error
+	// RevokeToken revokes (deletes) a share token
+	Revoke(ctx context.Context, tokenID uuid.UUID) error
+	// UpdateToken updates share token properties
+	Update(ctx context.Context, token *replay_entity.ShareToken) error
+}

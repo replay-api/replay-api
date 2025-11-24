@@ -69,3 +69,12 @@ $RECYCLE.BIN/
 docker-compose.dev.yml
 ./docker-compose.dev.yml
 .env
+.env.*
+!.env.example
+
+# sensitive files
+*.pem
+*.key
+credentials/
+secrets/
+config/local.*

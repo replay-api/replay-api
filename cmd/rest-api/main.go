@@ -10,6 +10,8 @@ import (
 
 	"github.com/psavelis/team-pro/replay-api/cmd/rest-api/routing"
 	ioc "github.com/psavelis/team-pro/replay-api/pkg/infra/ioc"
+	jobs "github.com/psavelis/team-pro/replay-api/pkg/app/jobs"
+	websocket "github.com/psavelis/team-pro/replay-api/pkg/infra/websocket"
 )
 
 func main() {
@@ -24,6 +26,24 @@ func main() {
 	c := builder.WithEnvFile().With(ioc.InjectMongoDB).WithInboundPorts().WithSquadAPI().Build()
 
 	defer builder.Close(c)
+
+	// Start WebSocket Hub
+	var wsHub *websocket.WebSocketHub
+	if err := c.Resolve(&wsHub); err != nil {
+		slog.ErrorContext(ctx, "Failed to resolve WebSocket hub", "error", err)
+		panic(err)
+	}
+	go wsHub.Run(ctx)
+	slog.InfoContext(ctx, "WebSocket hub started")
+
+	// Start Prize Distribution Job
+	var prizeJob *jobs.PrizeDistributionJob
+	if err := c.Resolve(&prizeJob); err != nil {
+		slog.ErrorContext(ctx, "Failed to resolve PrizeDistributionJob", "error", err)
+		panic(err)
+	}
+	go prizeJob.Run(ctx)
+	slog.InfoContext(ctx, "Prize distribution job started")
 
 	router := routing.NewRouter(ctx, c)
 

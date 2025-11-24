@@ -3,15 +3,18 @@ module github.com/psavelis/team-pro/replay-api
 go 1.22.2
 
 require (
+	github.com/ethereum/go-ethereum v1.13.10
 	github.com/golang/geo v0.0.0-20230421003525-6adc56603217
 	github.com/golobby/container/v3 v3.3.2
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
+	github.com/gorilla/websocket v1.5.1
 	github.com/joho/godotenv v1.5.1
 	github.com/markus-wa/demoinfocs-golang/v4 v4.1.3
 	github.com/markus-wa/godispatch v1.4.1
 	github.com/streadway/amqp v1.1.0
 	github.com/stretchr/testify v1.9.0
+	github.com/testcontainers/testcontainers-go v0.27.0
 	go.mongodb.org/mongo-driver v1.15.0
 )
 

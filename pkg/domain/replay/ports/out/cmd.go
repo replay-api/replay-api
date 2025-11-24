@@ -35,3 +35,9 @@ type ReplayFileMetadataWriter interface {
 type ReplayFileContentWriter interface {
 	Put(createCtx context.Context, replayFileID uuid.UUID, reader io.ReadSeeker) (string, error)
 }
+
+type ShareTokenWriter interface {
+	Create(ctx context.Context, token *replay_entity.ShareToken) error
+	Update(ctx context.Context, token *replay_entity.ShareToken) error
+	Delete(ctx context.Context, tokenID uuid.UUID) error
+}

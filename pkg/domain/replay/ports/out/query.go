@@ -41,3 +41,9 @@ type PlayerMetadataReader interface {
 type BadgeReader interface {
 	common.Searchable[replay_entity.Badge]
 }
+
+type ShareTokenReader interface {
+	common.Searchable[replay_entity.ShareToken]
+	FindByToken(ctx context.Context, tokenID uuid.UUID) (*replay_entity.ShareToken, error)
+	FindByResourceID(ctx context.Context, resourceID uuid.UUID) ([]replay_entity.ShareToken, error)
+}

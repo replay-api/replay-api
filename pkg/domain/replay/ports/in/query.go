@@ -32,3 +32,7 @@ type RoundReader interface {
 type BadgeReader interface {
 	common.Searchable[replay_entity.Badge]
 }
+
+type ShareTokenReader interface {
+	common.Searchable[replay_entity.ShareToken]
+}

@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"reflect"
 
+	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/mongo"
 
 	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
@@ -90,28 +91,31 @@ func (r *SquadRepository) Search(ctx context.Context, s common.Search) ([]squad_
 	return players, nil
 }
 
-// func (r *SquadRepository) CreateMany(createCtx context.Context, events []interface{}) error {
-// 	_, err := r.collection.InsertMany(createCtx, events)
-// 	if err != nil {
-// 		slog.ErrorContext(createCtx, err.Error())
-// 		return err
-// 	}
+func (r *SquadRepository) Update(ctx context.Context, squad *squad_entities.Squad) (*squad_entities.Squad, error) {
+	filter := map[string]interface{}{"_id": squad.ID}
+	update := map[string]interface{}{"$set": squad}
 
-// 	return nil
-// }
+	_, err := r.collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		slog.ErrorContext(ctx, "error updating squad", "err", err, "squad_id", squad.ID)
+		return nil, err
+	}
 
-// func (r *SquadRepository) Create(createCtx context.Context, events ...squad_entities.Squad) error {
-// 	toInsert := make([]interface{}, len(events))
+	return squad, nil
+}
 
-// 	for i := range events {
-// 		toInsert[i] = events[i]
-// 	}
+func (r *SquadRepository) Delete(ctx context.Context, squadID uuid.UUID) error {
+	filter := map[string]interface{}{"_id": squadID}
 
-// 	_, err := r.collection.InsertMany(createCtx, toInsert)
-// 	if err != nil {
-// 		slog.ErrorContext(createCtx, err.Error())
-// 		return err
-// 	}
+	result, err := r.collection.DeleteOne(ctx, filter)
+	if err != nil {
+		slog.ErrorContext(ctx, "error deleting squad", "err", err, "squad_id", squadID)
+		return err
+	}
 
-// 	return nil
-// }
+	if result.DeletedCount == 0 {
+		return mongo.ErrNoDocuments
+	}
+
+	return nil
+}

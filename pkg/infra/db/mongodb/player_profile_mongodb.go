@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"reflect"
 
+	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/mongo"
 
 	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
@@ -91,4 +92,33 @@ func (r *PlayerProfileRepository) Search(ctx context.Context, s common.Search) (
 	}
 
 	return players, nil
+}
+
+func (r *PlayerProfileRepository) Update(ctx context.Context, profile *squad_entities.PlayerProfile) (*squad_entities.PlayerProfile, error) {
+	filter := map[string]interface{}{"baseentity._id": profile.ID}
+	update := map[string]interface{}{"$set": profile}
+
+	_, err := r.collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		slog.ErrorContext(ctx, "error updating player profile", "err", err, "profile_id", profile.ID)
+		return nil, err
+	}
+
+	return profile, nil
+}
+
+func (r *PlayerProfileRepository) Delete(ctx context.Context, profileID uuid.UUID) error {
+	filter := map[string]interface{}{"baseentity._id": profileID}
+
+	result, err := r.collection.DeleteOne(ctx, filter)
+	if err != nil {
+		slog.ErrorContext(ctx, "error deleting player profile", "err", err, "profile_id", profileID)
+		return err
+	}
+
+	if result.DeletedCount == 0 {
+		return mongo.ErrNoDocuments
+	}
+
+	return nil
 }

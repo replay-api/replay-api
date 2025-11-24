@@ -68,3 +68,7 @@ type ShareToken struct {
 
 	// ShareToken    string               `json:"share_token" bson:"share_token"`
 }
+
+func (s ShareToken) GetID() uuid.UUID {
+	return s.ID
+}
