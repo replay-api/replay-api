@@ -3,7 +3,7 @@ package iam_out
 import (
 	"context"
 
-	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
+	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
 )
 
 type RIDTokenWriter interface {

@@ -3,7 +3,10 @@ package common
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"reflect"
+
+	"github.com/google/uuid"
 )
 
 type BaseQueryService[T any] struct {
@@ -25,8 +28,75 @@ func (service *BaseQueryService[T]) GetName() string {
 	return service.name
 }
 
+// / GetByID returns a single entity by its ID using ClientApplicationAudienceIDKey as the intended audience.
+func (service *BaseQueryService[T]) GetByID(ctx context.Context, id uuid.UUID) (*T, error) {
+	params := []SearchAggregation{
+		{
+			Params: []SearchParameter{
+				{
+					ValueParams: []SearchableValue{
+						{
+							Field: "ID",
+							Values: []interface{}{
+								id,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	visibility := SearchVisibilityOptions{
+		RequestSource:    GetResourceOwner(ctx),
+		IntendedAudience: ClientApplicationAudienceIDKey,
+	}
+
+	result := SearchResultOptions{
+		Skip:  0,
+		Limit: 1,
+	}
+
+	search := Search{
+		SearchParams:      params,
+		ResultOptions:     result,
+		VisibilityOptions: visibility,
+	}
+
+	entities, err := service.Reader.Search(ctx, search)
+
+	if err != nil {
+		var typeDef T
+		typeName := reflect.TypeOf(typeDef).Name()
+		svcName := service.GetName()
+		return nil, fmt.Errorf("error searching. Service: %v. Entity: %v. Error: %v", svcName, typeName, err)
+	}
+
+	res := entities[0]
+
+	return &res, nil
+}
+
 func (service *BaseQueryService[T]) Search(ctx context.Context, s Search) ([]T, error) {
-	gameEvents, err := service.Reader.Search(ctx, s)
+	var omitFields []string
+	var pickFields []string
+	for fieldName, isReadable := range service.ReadableFields {
+		if !isReadable {
+			omitFields = append(omitFields, fieldName)
+			continue
+		}
+
+		pickFields = append(pickFields, fieldName)
+	}
+
+	if len(omitFields) > 0 {
+		slog.Info("Omitting fields", "fields", omitFields)
+	}
+
+	s.ResultOptions.OmitFields = omitFields
+	s.ResultOptions.PickFields = pickFields
+
+	entities, err := service.Reader.Search(ctx, s)
 
 	if err != nil {
 		var typeDef T
@@ -35,7 +105,7 @@ func (service *BaseQueryService[T]) Search(ctx context.Context, s Search) ([]T, 
 		return nil, fmt.Errorf("error filtering. Service: %v. Entity: %v. Error: %v", svcName, typeName, err)
 	}
 
-	return gameEvents, nil
+	return entities, nil
 }
 
 func (svc *BaseQueryService[T]) Compile(ctx context.Context, searchParams []SearchAggregation, resultOptions SearchResultOptions) (*Search, error) {

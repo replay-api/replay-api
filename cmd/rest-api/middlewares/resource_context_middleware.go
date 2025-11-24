@@ -7,9 +7,9 @@ import (
 
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
-	"github.com/psavelis/team-pro/replay-api/cmd/rest-api/controllers"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	iam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/in"
+	"github.com/replay-api/replay-api/cmd/rest-api/controllers"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	iam_in "github.com/replay-api/replay-api/pkg/domain/iam/ports/in"
 )
 
 type ResourceContextMiddleware struct {

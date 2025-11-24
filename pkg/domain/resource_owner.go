@@ -15,6 +15,27 @@ type ResourceOwner struct {
 	UserID   uuid.UUID `json:"user_id" bson:"user_id"`     // EndUserID represents the ID of the end user who owns the resource.
 }
 
+var AdminAudienceIDKeys = make(map[IntendedAudienceKey]bool, 0)
+
+func IsAdmin(userContext context.Context) bool {
+	if len(AdminAudienceIDKeys) == 0 {
+		AdminAudienceIDKeys[TenantAudienceIDKey] = true
+		AdminAudienceIDKeys[ClientApplicationAudienceIDKey] = true
+	}
+
+	audience, ok := userContext.Value(AudienceKey).(IntendedAudienceKey)
+	if !ok {
+		return false
+	}
+
+	if _, ok := AdminAudienceIDKeys[audience]; !ok {
+		return false
+	}
+
+	return AdminAudienceIDKeys[audience]
+
+}
+
 func GetResourceOwner(userContext context.Context) ResourceOwner {
 	res := ResourceOwner{}
 

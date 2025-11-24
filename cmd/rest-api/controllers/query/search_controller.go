@@ -5,16 +5,20 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/golobby/container/v3"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
-	iam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/in"
-	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
-	replay_in "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/ports/in"
-	squad_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/entities"
-	squad_in "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/in"
+	"github.com/google/uuid"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
+	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
+	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
+	iam_in "github.com/replay-api/replay-api/pkg/domain/iam/ports/in"
+	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
+	replay_in "github.com/replay-api/replay-api/pkg/domain/replay/ports/in"
+	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
+	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
 )
 
 type SearchableHandler interface {
@@ -40,12 +44,14 @@ func NewSearchMux(c *container.Container) *SearchableResourceMultiplexer {
 	smux.Handlers[common.ResourceTypeReplayFile] = NewReplayFileSearchController(c)
 	smux.Handlers[common.ResourceTypeMatch] = NewMatchSearchController(c)
 	smux.Handlers[common.ResourceTypePlayerMetadata] = NewPlayerSearchController(c)
-	smux.Handlers[common.ResourceTypePlayerProfile] = NePlayerProfileSearchController(c)
+	smux.Handlers[common.ResourceTypePlayerProfile] = NewPlayerProfileSearchController(c)
 
 	smux.Handlers[common.ResourceTypeGameEvent] = NewEventSearchController(c)
 	smux.Handlers[common.ResourceTypeProfile] = NewProfileSearchController(c)
 	smux.Handlers[common.ResourceTypeMembership] = NewMembershipSearchController(c)
-	smux.Handlers[common.ResourceTypePlayerProfile] = NewPlayerProfileSearchController(c)
+	smux.Handlers[common.ResourceTypeSquad] = NewSquadSearchController(c)
+	smux.Handlers[common.ResourceTypePlan] = NewPlanSearchController(c)
+	smux.Handlers[common.ResourceTypeSubscription] = NewSubscriptionSearchController(c)
 	// smux.Handlers[common.ResourceTypeTeam] = NewTeamSearchController(c)
 	smux.ResourceTypes = make([]common.ResourceType, len(smux.Handlers))
 
@@ -84,9 +90,11 @@ func GetResourceStringFromPath(types []common.ResourceType, path string) string 
 func (smux *SearchableResourceMultiplexer) Dispatch(w http.ResponseWriter, r *http.Request) {
 	resString := GetResourceStringFromPath(smux.ResourceTypes, r.URL.Path)
 
-	for _, res := range smux.ResourceTypes {
-		if resString == strings.ToLower(fmt.Sprint(res)) {
-			smux.Handlers[res].(SearchableHandler).HandleSearchRequest(w, r)
+	res := common.ResourceType(resString)
+
+	for _, resource := range smux.ResourceTypes {
+		if strings.EqualFold(string(res), string(resource)) {
+			smux.Handlers[resource].(SearchableHandler).HandleSearchRequest(w, r)
 			return
 		}
 	}
@@ -237,9 +245,51 @@ func NewPlayerProfileSearchController(c *container.Container) *SearchController[
 	}
 }
 
+func NewSquadSearchController(c *container.Container) *SearchController[squad_entities.Squad] {
+	var s squad_in.SquadReader
+	err := c.Resolve(&s)
+
+	if err != nil {
+		slog.Error("Cannot resolve squad_in.SquadReader for NewSquadSearchController", "err", err)
+		panic(err)
+	}
+
+	return &SearchController[squad_entities.Squad]{
+		Searchable: s,
+	}
+}
+
+func NewSubscriptionSearchController(c *container.Container) *SearchController[billing_entities.Subscription] {
+	var s billing_in.SubscriptionReader
+	err := c.Resolve(&s)
+
+	if err != nil {
+		slog.Error("Cannot resolve billing_in.SubscriptionReader for NewSubscriptionSearchController", "err", err)
+		panic(err)
+	}
+
+	return &SearchController[billing_entities.Subscription]{
+		Searchable: s,
+	}
+}
+
+func NewPlanSearchController(c *container.Container) *SearchController[billing_entities.Plan] {
+	var s billing_in.PlanReader
+	err := c.Resolve(&s)
+
+	if err != nil {
+		slog.Error("Cannot resolve billing_in.PlanReader for NewPlanSearchController", "err", err)
+		panic(err)
+	}
+
+	return &SearchController[billing_entities.Plan]{
+		Searchable: s,
+	}
+}
+
 func GetPathParams(r *http.Request, s *common.Search) (*common.Search, error) {
 	sanitizedPath := strings.Join(strings.Split(strings.ToLower(r.URL.Path), "/search/"), "")
-	parts := strings.Split(sanitizedPath, "/") // test
+	parts := strings.Split(sanitizedPath, "/")
 
 	for i := range parts {
 		if i <= 1 || i%2 != 0 {
@@ -252,10 +302,17 @@ func GetPathParams(r *http.Request, s *common.Search) (*common.Search, error) {
 			return nil, err
 		}
 
+		parsedUUID, err := uuid.Parse(parts[i-1])
+		if err != nil {
+			// Skip this segment if it's not a valid UUID
+			slog.WarnContext(r.Context(), "Skipping invalid UUID segment", "segment", parts[i-1], "error", err)
+			continue
+		}
+
 		value := common.SearchableValue{
 			Field:    fieldID,
-			Values:   []interface{}{parts[i-1]}, // TODO: parse multiple values !!!
-			Operator: common.EqualsOperator,     // TODO: use IN when multiple values
+			Values:   []interface{}{parsedUUID},
+			Operator: common.EqualsOperator,
 		}
 
 		params := []common.SearchParameter{
@@ -301,6 +358,11 @@ func InitializeSearch(r *http.Request) *common.Search {
 func GetSearchParams(r *http.Request) (*common.Search, error) {
 	s := InitializeSearch(r)
 
+	if s.VisibilityOptions.IntendedAudience == 0 {
+		slog.ErrorContext(r.Context(), "Unauthorized: missing audience", "request", r)
+		s.VisibilityOptions.IntendedAudience = common.GroupAudienceIDKey
+	}
+
 	s, err := GetPathParams(r, s)
 
 	if err != nil {
@@ -333,8 +395,16 @@ func GetQueryParams(r *http.Request, s *common.Search) *common.Search {
 		}
 	}
 
+	limitParam := queryParams["limit"]
+
+	skipParam := queryParams["skip"]
+
+	fullTextSearchParam := queryParams["query"]
+
+	includeParams := queryParams["include"]
+
 	for key, values := range queryParams {
-		if key == "filter" {
+		if key == "filter" || key == "limit" || key == "skip" || key == "query" || key == "include" {
 			continue
 		}
 
@@ -355,12 +425,49 @@ func GetQueryParams(r *http.Request, s *common.Search) *common.Search {
 			AggregationClause: aggregation.AggregationClause,
 		}
 
+		if len(fullTextSearchParam) > 0 {
+			param.FullTextSearchParam = fullTextSearchParam[0]
+		}
+
 		aggregation.Params = append(aggregation.Params, param)
 	}
 
 	s.SearchParams = append(s.SearchParams, aggregation)
 
+	s.ResultOptions = getResultOptions(limitParam, skipParam)
+
+	for _, includeParam := range includeParams {
+		resString := common.ResourceType(includeParam)
+
+		s.IncludeParams = append(s.IncludeParams, common.IncludeParam{
+			From:         resString,
+			LocalField:   "ID",                             // expects to parse to baseentity._id or _id
+			ForeignField: common.ResourceKeyMap[resString], // TODO: currently using snake case, needs to map to camel case in the repos (ie: subscription_id)
+			IsArray:      true,
+		})
+	}
+
 	return s
+}
+
+func getResultOptions(limitParam []string, skipParam []string) common.SearchResultOptions {
+	var limit uint
+	var offset uint
+
+	if len(limitParam) > 0 {
+		limitInt, _ := strconv.Atoi(limitParam[0])
+		limit = uint(limitInt)
+	}
+
+	if len(skipParam) > 0 {
+		offsetInt, _ := strconv.Atoi(skipParam[0])
+		offset = uint(offsetInt)
+	}
+
+	return common.SearchResultOptions{
+		Limit: limit,
+		Skip:  offset,
+	}
 }
 
 func (c *SearchController[T]) HandleSearchRequest(w http.ResponseWriter, r *http.Request) {
@@ -394,6 +501,6 @@ func (c *SearchController[T]) HandleSearchRequest(w http.ResponseWriter, r *http
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusOK) // TODO: check if have other headers, check for internal error etc
 	json.NewEncoder(w).Encode(result)
 }

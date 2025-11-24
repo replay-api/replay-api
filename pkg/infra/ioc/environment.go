@@ -3,7 +3,7 @@ package ioc
 import (
 	"os"
 
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
+	common "github.com/replay-api/replay-api/pkg/domain"
 )
 
 func EnvironmentConfig() (common.Config, error) {

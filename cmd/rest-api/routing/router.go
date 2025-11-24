@@ -51,6 +51,7 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	eventController := query_controllers.NewEventQueryController(container)
 	groupController := query_controllers.NewGroupController(&container)
 	squadController := cmd_controllers.NewSquadController(container)
+	squadQueryController := query_controllers.NewSquadQueryController(container)
 	playerProfileQueryController := query_controllers.NewPlayerProfileQueryController(container)
 	playerProfileController := cmd_controllers.NewPlayerProfileController(container)
 	matchmakingController := cmd_controllers.NewMatchmakingController(container)
@@ -128,6 +129,7 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 
 	// Squad API
 	r.HandleFunc("/squads", squadController.CreateSquadHandler(ctx)).Methods("POST")
+	r.HandleFunc("/squads", squadQueryController.DefaultSearchHandler).Methods("GET")
 	r.HandleFunc("/squads/{id}", squadController.GetSquadHandler(ctx)).Methods("GET")
 	r.HandleFunc("/squads/{id}", squadController.UpdateSquadHandler(ctx)).Methods("PUT")
 	r.HandleFunc("/squads/{id}", squadController.DeleteSquadHandler(ctx)).Methods("DELETE")

@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/golobby/container/v3"
-	iam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/in"
+	iam_in "github.com/replay-api/replay-api/pkg/domain/iam/ports/in"
 )
 
 type GroupController struct {

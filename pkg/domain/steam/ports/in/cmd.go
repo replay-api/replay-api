@@ -3,8 +3,8 @@ package steam_in
 import (
 	"context"
 
-	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
-	steam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/entities"
+	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
+	steam_entities "github.com/replay-api/replay-api/pkg/domain/steam/entities"
 )
 
 type OnboardSteamUserCommand interface {

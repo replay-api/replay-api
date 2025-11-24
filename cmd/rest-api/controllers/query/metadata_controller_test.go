@@ -11,10 +11,10 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	query_controllers "github.com/psavelis/team-pro/replay-api/cmd/rest-api/controllers/query"
-	"github.com/psavelis/team-pro/replay-api/cmd/rest-api/routing"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	"github.com/psavelis/team-pro/replay-api/pkg/infra/ioc"
+	query_controllers "github.com/replay-api/replay-api/cmd/rest-api/controllers/query"
+	"github.com/replay-api/replay-api/cmd/rest-api/routing"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	"github.com/replay-api/replay-api/pkg/infra/ioc"
 )
 
 func GetDefaultTestContext(reqContext context.Context, tenantID, clientID, groupID, userID uuid.UUID) context.Context {
@@ -143,7 +143,7 @@ func setup() *query_controllers.ReplayMetadataQueryController {
 	os.Setenv("MONGO_DB_NAME", "replay")
 	os.Setenv("STEAM_VHASH_SOURCE", "82DA0F0D0135FEA0F5DDF6F96528B48A")
 
-	c := ioc.NewContainerBuilder().WithEnvFile().With(ioc.InjectMongoDB).WithInboundPorts().Build()
+	c := ioc.NewContainerBuilder().WithEnvFile().With(ioc.InjectMongoDB).WithInboundPorts().WithSquadAPI().Build()
 
 	controller := query_controllers.NewReplayMetadataQueryController(c)
 	return controller

@@ -6,8 +6,8 @@ import (
 
 	dem "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs"
 	cs2 "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs/common"
-	"github.com/psavelis/team-pro/replay-api/pkg/app/cs/state"
-	cs_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/cs/entities"
+	"github.com/replay-api/replay-api/pkg/app/cs/state"
+	cs_entity "github.com/replay-api/replay-api/pkg/domain/cs/entities"
 )
 
 type CS2MatchStatsBuilder struct {

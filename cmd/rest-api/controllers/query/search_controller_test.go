@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	query_controllers "github.com/psavelis/team-pro/replay-api/cmd/rest-api/controllers/query"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
+	query_controllers "github.com/replay-api/replay-api/cmd/rest-api/controllers/query"
+	common "github.com/replay-api/replay-api/pkg/domain"
 )
 
 type RoutingTestCase struct {

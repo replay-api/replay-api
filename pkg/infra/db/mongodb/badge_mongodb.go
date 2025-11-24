@@ -7,8 +7,8 @@ import (
 
 	"go.mongodb.org/mongo-driver/mongo"
 
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 )
 
 type BadgeRepository struct {
@@ -21,10 +21,10 @@ func NewBadgeRepository(client *mongo.Client, dbName string, entityType replay_e
 		dbName:            dbName,
 		mappingCache:      make(map[string]CacheItem),
 		entityModel:       reflect.TypeOf(entityType),
-		bsonFieldMappings: make(map[string]string),
+		BsonFieldMappings: make(map[string]string),
 		collectionName:    collectionName,
 		entityName:        reflect.TypeOf(entityType).Name(),
-		queryableFields:   make(map[string]bool),
+		QueryableFields:   make(map[string]bool),
 	}
 
 	repo.InitQueryableFields(map[string]bool{

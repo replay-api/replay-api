@@ -12,7 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 
 	"github.com/google/uuid"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
+	common "github.com/replay-api/replay-api/pkg/domain"
 )
 
 type S3Adapter struct {

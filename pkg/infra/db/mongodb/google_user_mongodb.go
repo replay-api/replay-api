@@ -3,7 +3,7 @@ package db
 import (
 	"reflect"
 
-	google_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/google/entities"
+	google_entities "github.com/replay-api/replay-api/pkg/domain/google/entities"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -17,10 +17,10 @@ func NewGoogleUserMongoDBRepository(client *mongo.Client, dbName string, entityT
 		dbName:            dbName,
 		mappingCache:      make(map[string]CacheItem),
 		entityModel:       reflect.TypeOf(entityType),
-		bsonFieldMappings: make(map[string]string),
+		BsonFieldMappings: make(map[string]string),
 		collectionName:    collectionName,
 		entityName:        reflect.TypeOf(entityType).Name(),
-		queryableFields:   make(map[string]bool),
+		QueryableFields:   make(map[string]bool),
 	}
 
 	repo.InitQueryableFields(map[string]bool{

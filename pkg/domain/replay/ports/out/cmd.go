@@ -5,7 +5,7 @@ import (
 	"io"
 
 	"github.com/google/uuid"
-	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
+	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 )
 
 type ReplayParser interface {
@@ -18,13 +18,13 @@ type GameEventWriter interface {
 }
 
 type MatchMetadataWriter interface {
-	// CreateMany(createCtx context.Context, matches []replay_entity.Match) error
-	CreateMany(createCtx context.Context, matches []interface{}) error
+	Create(createCtx context.Context, match replay_entity.Match) error
+	CreateMany(createCtx context.Context, matches []replay_entity.Match) error
 }
 
 type PlayerMetadataWriter interface {
-	// CreateMany(createCtx context.Context, players []replay_entity.Player) error
-	CreateMany(createCtx context.Context, players []interface{}) error
+	Create(createCtx context.Context, player replay_entity.PlayerMetadata) error
+	CreateMany(createCtx context.Context, players []replay_entity.PlayerMetadata) error
 }
 
 type ReplayFileMetadataWriter interface {

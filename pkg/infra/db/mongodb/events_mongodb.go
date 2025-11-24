@@ -9,7 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 
-	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
+	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 )
 
 type EventsRepository struct {
@@ -22,10 +22,10 @@ func NewEventsRepository(client *mongo.Client, dbName string, entityType *replay
 		dbName:            dbName,
 		mappingCache:      make(map[string]CacheItem),
 		entityModel:       reflect.TypeOf(entityType),
-		bsonFieldMappings: make(map[string]string),
+		BsonFieldMappings: make(map[string]string),
 		collectionName:    collectionName,
 		entityName:        reflect.TypeOf(entityType).Name(),
-		queryableFields:   make(map[string]bool),
+		QueryableFields:   make(map[string]bool),
 	}
 
 	repo.InitQueryableFields(map[string]bool{

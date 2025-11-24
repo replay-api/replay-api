@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package replayapi_iam;
+
+option go_package = "generated/iam;iam";
+
+message ValidateRIDRequest {
+  string rid_token = 1;
+  string operation_id = 2;
+}
+
+message ValidateRIDResponse {
+  bool is_valid = 1;
+  string reason = 4;
+}
+
+service RIDService {
+  rpc ValidateRID (ValidateRIDRequest) returns (ValidateRIDResponse);
+}

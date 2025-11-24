@@ -14,12 +14,13 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	// repositories/db
-	db "github.com/psavelis/team-pro/replay-api/pkg/infra/db/mongodb"
+	"github.com/replay-api/replay-api/pkg/infra/cdn"
+	db "github.com/replay-api/replay-api/pkg/infra/db/mongodb"
 
 	// messageBroker (kafka/rabbit)
 
 	// encryption
-	encryption "github.com/psavelis/team-pro/replay-api/pkg/infra/crypto"
+	encryption "github.com/replay-api/replay-api/pkg/infra/crypto"
 
 	// container
 	container "github.com/golobby/container/v3"
@@ -27,23 +28,29 @@ import (
 	// local files
 
 	// ports
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	google_in "github.com/psavelis/team-pro/replay-api/pkg/domain/google/ports/in"
-	google_out "github.com/psavelis/team-pro/replay-api/pkg/domain/google/ports/out"
-	google_use_cases "github.com/psavelis/team-pro/replay-api/pkg/domain/google/use_cases"
-	metadata "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/services/metadata"
-	squad_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/entities"
-	squad_in "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/in"
-	squad_out "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/out"
-	squad_services "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/services"
-	squad_usecases "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/usecases"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
+	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
+	billing_out "github.com/replay-api/replay-api/pkg/domain/billing/ports/out"
+	billing_services "github.com/replay-api/replay-api/pkg/domain/billing/services"
+	billing_usecases "github.com/replay-api/replay-api/pkg/domain/billing/usecases"
+	google_in "github.com/replay-api/replay-api/pkg/domain/google/ports/in"
+	google_out "github.com/replay-api/replay-api/pkg/domain/google/ports/out"
+	google_use_cases "github.com/replay-api/replay-api/pkg/domain/google/use_cases"
+	media_out "github.com/replay-api/replay-api/pkg/domain/media/ports/out"
+	metadata "github.com/replay-api/replay-api/pkg/domain/replay/services/metadata"
+	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
+	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
+	squad_out "github.com/replay-api/replay-api/pkg/domain/squad/ports/out"
+	squad_services "github.com/replay-api/replay-api/pkg/domain/squad/services"
+	squad_usecases "github.com/replay-api/replay-api/pkg/domain/squad/usecases"
 
-	replay_in "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/ports/in"
-	replay_out "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/ports/out"
+	replay_in "github.com/replay-api/replay-api/pkg/domain/replay/ports/in"
+	replay_out "github.com/replay-api/replay-api/pkg/domain/replay/ports/out"
 
-	steam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/ports/in"
-	steam_out "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/ports/out"
-	steam_query_services "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/services"
+	steam_in "github.com/replay-api/replay-api/pkg/domain/steam/ports/in"
+	steam_out "github.com/replay-api/replay-api/pkg/domain/steam/ports/out"
+	steam_query_services "github.com/replay-api/replay-api/pkg/domain/steam/services"
 
 	matchmaking_in "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/ports/in"
 	matchmaking_out "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/ports/out"
@@ -64,19 +71,19 @@ import (
 	iam_query_services "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/services"
 
 	// domain
-	google_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/google/entities"
-	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
-	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
-	steam_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/entities"
+	google_entities "github.com/replay-api/replay-api/pkg/domain/google/entities"
+	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
+	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
+	steam_entity "github.com/replay-api/replay-api/pkg/domain/steam/entities"
 
 	// app
 	cs_app "github.com/psavelis/team-pro/replay-api/pkg/app/cs"
 	jobs "github.com/psavelis/team-pro/replay-api/pkg/app/jobs"
 
 	// usecases
-	iam_use_cases "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/use_cases"
-	replay_use_cases "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/use_cases"
-	steam_use_cases "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/use_cases"
+	iam_use_cases "github.com/replay-api/replay-api/pkg/domain/iam/use_cases"
+	replay_use_cases "github.com/replay-api/replay-api/pkg/domain/replay/use_cases"
+	steam_use_cases "github.com/replay-api/replay-api/pkg/domain/steam/use_cases"
 )
 
 type ContainerBuilder struct {
@@ -139,7 +146,95 @@ func (b *ContainerBuilder) WithEnvFile() *ContainerBuilder {
 func (b *ContainerBuilder) WithInboundPorts() *ContainerBuilder {
 	c := b.Container
 
-	err := c.Singleton(func() (replay_in.EventReader, error) {
+	err := c.Singleton(func() (billing_in.SubscriptionReader, error) {
+		var subscriptionReader billing_out.SubscriptionReader
+		err := c.Resolve(&subscriptionReader)
+		if err != nil {
+			slog.Error("Failed to resolve SubscriptionReader for SubscriptionQueryService.", "err", err)
+			return nil, err
+		}
+
+		return billing_services.NewSubscriptionQueryService(subscriptionReader), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to register billing_in.SubscriptionReader.")
+		panic(err)
+	}
+
+	err = c.Singleton(func() (billing_in.PlanReader, error) {
+		var planReader billing_out.PlanReader
+		err := c.Resolve(&planReader)
+		if err != nil {
+			slog.Error("Failed to resolve PlanReader for PlanQueryService.", "err", err)
+			return nil, err
+		}
+
+		return billing_services.NewPlanQueryService(planReader), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to register billing_in.PlanReader.")
+		panic(err)
+	}
+
+	err = c.Singleton(func() (billing_in.BillableOperationCommandHandler, error) {
+		var gameEventReader replay_out.GameEventReader
+
+		err := c.Resolve(&gameEventReader)
+		if err != nil {
+			slog.Error("Failed to resolve EventsByGameReader for billing_in.BillableOperationCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var billableOperationWriter billing_out.BillableEntryWriter
+		err = c.Resolve(&billableOperationWriter)
+		if err != nil {
+			slog.Error("Failed to resolve BillableEntryWriter for billing_in.BillableOperationCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var billableOperationReader billing_out.BillableEntryReader
+		err = c.Resolve(&billableOperationReader)
+		if err != nil {
+			slog.Error("Failed to resolve BillableEntryReader for billing_in.BillableOperationCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var subscriptionWriter billing_out.SubscriptionWriter
+		err = c.Resolve(&subscriptionWriter)
+		if err != nil {
+			slog.Error("Failed to resolve SubscriptionWriter for billing_in.BillableOperationCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var subscriptionReader billing_out.SubscriptionReader
+		err = c.Resolve(&subscriptionReader)
+		if err != nil {
+			slog.Error("Failed to resolve SubscriptionReader for billing_in.BillableOperationCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var planReader billing_out.PlanReader
+		err = c.Resolve(&planReader)
+		if err != nil {
+			slog.Error("Failed to resolve PlanReader for billing_in.BillableOperationCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var groupReader iam_out.GroupReader
+
+		err = c.Resolve(&groupReader)
+		if err != nil {
+			slog.Error("Failed to resolve GroupReader for billing_in.BillableOperationCommandHandler.", "err", err)
+
+			return nil, err
+		}
+
+		return billing_usecases.NewCreateBillableEntryUseCase(billableOperationWriter, billableOperationReader, subscriptionWriter, subscriptionReader, planReader, groupReader), nil
+	})
+
+	err = c.Singleton(func() (replay_in.EventReader, error) {
 		var gameEventReader replay_out.GameEventReader
 
 		err := c.Resolve(&gameEventReader)
@@ -667,6 +762,48 @@ func (b *ContainerBuilder) WithSquadAPI() *ContainerBuilder {
 		panic(err)
 	}
 
+	err = c.Singleton(func() (*db.SquadHistoryRepository, error) {
+		var client *mongo.Client
+		err := c.Resolve(&client)
+		if err != nil {
+			slog.Error("Failed to resolve mongo.Client for NamedSingleton SquadHistoryRepository as generic MongoDBRepository.", "err", err)
+			return &db.SquadHistoryRepository{}, err
+		}
+
+		var config common.Config
+
+		err = c.Resolve(&config)
+		if err != nil {
+			slog.Error("Failed to resolve config for db.SquadHistoryRepository.", "err", err)
+			return nil, err
+		}
+
+		repo := db.NewSquadHistoryRepository(client, config.MongoDB.DBName, squad_entities.SquadHistory{}, "squad_histories")
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load NamedSingleton SquadHistoryRepository as generic MongoDBRepository.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (squad_out.SquadHistoryWriter, error) {
+		var repo *db.SquadHistoryRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve SquadHistoryRepository for squad_out.SquadHistoryWriter.", "err", err)
+			return nil, err
+		}
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load squad_out.SquadHistoryWriter.", "err", err)
+		panic(err)
+	}
+
 	err = c.Singleton(func() (squad_out.PlayerProfileHistoryWriter, error) {
 		var repo *db.PlayerProfileHistoryRepository
 		err = c.Resolve(&repo)
@@ -747,6 +884,15 @@ func (b *ContainerBuilder) WithSquadAPI() *ContainerBuilder {
 		panic(err)
 	}
 
+	err = c.Singleton(func() (media_out.MediaWriter, error) {
+		return cdn.NewImageCDNRepositoryMock(), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load media_out.MediaWriter.", "err", err)
+		panic(err)
+	}
+
 	// squad_in.PlayerProfileReader
 	err = c.Singleton(func() (squad_in.PlayerProfileReader, error) {
 		var playerProfileReader squad_out.PlayerProfileReader
@@ -800,7 +946,22 @@ func (b *ContainerBuilder) WithSquadAPI() *ContainerBuilder {
 			return nil, err
 		}
 
-		uc := squad_usecases.NewCreatePlayerProfileUseCase(playerWriter, playerProfileReader, groupWriter, groupReader, playerProfileHistoryWriter)
+		var mediaWriter media_out.MediaWriter
+		err = c.Resolve(&mediaWriter)
+		if err != nil {
+			slog.Error("Failed to resolve MediaWriter for CreatePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var billableOperationHandler billing_in.BillableOperationCommandHandler
+
+		err = c.Resolve(&billableOperationHandler)
+		if err != nil {
+			slog.Error("Failed to resolve BillableOperationCommandHandler for CreatePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		uc := squad_usecases.NewCreatePlayerProfileUseCase(billableOperationHandler, playerWriter, playerProfileReader, groupWriter, groupReader, playerProfileHistoryWriter, mediaWriter)
 
 		return uc, nil
 	})
@@ -815,8 +976,14 @@ func (b *ContainerBuilder) WithSquadAPI() *ContainerBuilder {
 		var squadWriter squad_out.SquadWriter
 		err := c.Resolve(&squadWriter)
 		if err != nil {
-
 			slog.Error("Failed to resolve PlayerProfileWriter for CreatePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var squadReader squad_out.SquadReader
+		err = c.Resolve(&squadReader)
+		if err != nil {
+			slog.Error("Failed to resolve SquadReader for CreateSquadCommandHandler.", "err", err)
 			return nil, err
 		}
 
@@ -834,7 +1001,36 @@ func (b *ContainerBuilder) WithSquadAPI() *ContainerBuilder {
 			return nil, err
 		}
 
-		cmdHandler := squad_usecases.NewCreateSquadUseCase(squadWriter, groupWriter, groupReader)
+		var squadHistoryWriter squad_out.SquadHistoryWriter
+		err = c.Resolve(&squadHistoryWriter)
+		if err != nil {
+			slog.Error("Failed to resolve SquadHistoryWriter for CreateSquadCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var playerProfileReader squad_in.PlayerProfileReader
+		err = c.Resolve(&playerProfileReader)
+		if err != nil {
+			slog.Error("Failed to resolve PlayerProfileReader for CreateSquadCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var mediaWriter media_out.MediaWriter
+		err = c.Resolve(&mediaWriter)
+		if err != nil {
+			slog.Error("Failed to resolve MediaWriter for CreateSquadCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var billableOperationHandler billing_in.BillableOperationCommandHandler
+
+		err = c.Resolve(&billableOperationHandler)
+		if err != nil {
+			slog.Error("Failed to resolve BillableOperationCommandHandler for CreatePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		cmdHandler := squad_usecases.NewCreateSquadUseCase(squadWriter, squadHistoryWriter, squadReader, groupWriter, groupReader, playerProfileReader, mediaWriter, billableOperationHandler)
 
 		return cmdHandler, nil
 	})
@@ -862,37 +1058,6 @@ func (b *ContainerBuilder) WithSquadAPI() *ContainerBuilder {
 		panic(err)
 	}
 
-	err = c.Singleton(func() (squad_in.CreateSquadCommandHandler, error) {
-		var squadWriter squad_out.SquadWriter
-		err := c.Resolve(&squadWriter)
-		if err != nil {
-			slog.Error("Failed to resolve SquadWriter for CreatePlayerCommandHandler.", "err", err)
-			return nil, err
-		}
-
-		var groupWriter iam_out.GroupWriter
-		err = c.Resolve(&groupWriter)
-		if err != nil {
-			slog.Error("Failed to resolve GroupWriter for CreatePlayerCommandHandler.", "err", err)
-			return nil, err
-		}
-
-		var groupReader iam_out.GroupReader
-		err = c.Resolve(&groupReader)
-		if err != nil {
-			slog.Error("Failed to resolve GroupReader for CreatePlayerCommandHandler.", "err", err)
-			return nil, err
-		}
-
-		cmdHandler := squad_usecases.NewCreateSquadUseCase(squadWriter, groupWriter, groupReader)
-
-		return cmdHandler, nil
-	})
-
-	if err != nil {
-		slog.Error("Failed to load CreateSquadCommandHandler.")
-		panic(err)
-	}
 	// squad_in.CreatePlayerProfileCommandHandler
 	err = c.Singleton(func() (squad_in.CreatePlayerProfileCommandHandler, error) {
 		var playerProfileWriter squad_out.PlayerProfileWriter
@@ -930,7 +1095,22 @@ func (b *ContainerBuilder) WithSquadAPI() *ContainerBuilder {
 			return nil, err
 		}
 
-		cmdHandler := squad_usecases.NewCreatePlayerProfileUseCase(playerProfileWriter, playerProfileReader, groupWriter, groupReader, playerProfileHistoryWriter)
+		var mediaWriter media_out.MediaWriter
+		err = c.Resolve(&mediaWriter)
+		if err != nil {
+			slog.Error("Failed to resolve MediaWriter for CreateSquadCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var billableOperationHandler billing_in.BillableOperationCommandHandler
+
+		err = c.Resolve(&billableOperationHandler)
+		if err != nil {
+			slog.Error("Failed to resolve BillableOperationCommandHandler for CreatePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		cmdHandler := squad_usecases.NewCreatePlayerProfileUseCase(billableOperationHandler, playerProfileWriter, playerProfileReader, groupWriter, groupReader, playerProfileHistoryWriter, mediaWriter)
 
 		return cmdHandler, nil
 	})
@@ -2158,6 +2338,167 @@ func InjectMongoDB(c container.Container) error {
 
 	if err != nil {
 		slog.Error("Failed to load tournament_in.TournamentReader.", "err", err)
+		panic(err)
+	}
+
+	// -----
+
+	// billing
+	err = c.Singleton(func() (*db.SubscriptionRepository, error) {
+		var client *mongo.Client
+		err := c.Resolve(&client)
+		if err != nil {
+			slog.Error("Failed to resolve mongo.Client for NamedSingleton SubscriptionRepository as generic MongoDBRepository.", "err", err)
+			return &db.SubscriptionRepository{}, err
+		}
+
+		var config common.Config
+
+		err = c.Resolve(&config)
+		if err != nil {
+			slog.Error("Failed to resolve config for db.SubscriptionRepository.", "err", err)
+			return nil, err
+		}
+
+		repo := db.NewSubscriptionRepository(client, config.MongoDB.DBName, billing_entities.Subscription{}, "subscriptions")
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load NamedSingleton SubscriptionRepository as generic MongoDBRepository.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (billing_out.SubscriptionReader, error) {
+		var repo *db.SubscriptionRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve SubscriptionRepository for billing_out.SubscriptionReader.", "err", err)
+			return nil, err
+		}
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load billing_out.SubscriptionReader.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (billing_out.SubscriptionWriter, error) {
+		var repo *db.SubscriptionRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve SubscriptionRepository for billing_out.SubscriptionWriter.", "err", err)
+			return nil, err
+		}
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load billing_out.SubscriptionWriter.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (*db.BillableEntryRepository, error) {
+		var client *mongo.Client
+		err := c.Resolve(&client)
+		if err != nil {
+			slog.Error("Failed to resolve mongo.Client for NamedSingleton BillableEntryRepository as generic MongoDBRepository.", "err", err)
+			return &db.BillableEntryRepository{}, err
+		}
+
+		var config common.Config
+
+		err = c.Resolve(&config)
+		if err != nil {
+			slog.Error("Failed to resolve config for db.BillableEntryRepository.", "err", err)
+			return nil, err
+		}
+
+		repo := db.NewBillableEntryRepository(client, config.MongoDB.DBName, billing_entities.BillableEntry{}, "billable_entry")
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load NamedSingleton BillableEntryRepository as generic MongoDBRepository.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (billing_out.BillableEntryReader, error) {
+		var repo *db.BillableEntryRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve BillableEntryRepository for billing_out.BillableEntryReader.", "err", err)
+			return nil, err
+		}
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load billing_out.BillableEntryReader.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (billing_out.BillableEntryWriter, error) {
+		var repo *db.BillableEntryRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve BillableEntryRepository for billing_out.BillableEntryWriter.", "err", err)
+			return nil, err
+		}
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load billing_out.BillableEntryWriter.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (*db.PlanRepository, error) {
+		var client *mongo.Client
+		err := c.Resolve(&client)
+		if err != nil {
+			slog.Error("Failed to resolve mongo.Client for NamedSingleton PlanRepository as generic MongoDBRepository.", "err", err)
+			return &db.PlanRepository{}, err
+		}
+
+		var config common.Config
+
+		err = c.Resolve(&config)
+		if err != nil {
+			slog.Error("Failed to resolve config for db.PlanRepository.", "err", err)
+			return nil, err
+		}
+
+		repo := db.NewPlanRepository(client, config.MongoDB.DBName, billing_entities.Plan{}, "plans")
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load NamedSingleton PlanRepository as generic MongoDBRepository.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (billing_out.PlanReader, error) {
+		var repo *db.PlanRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve PlanRepository for billing_out.PlanReader.", "err", err)
+			return nil, err
+		}
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load billing_out.PlanReader.", "err", err)
 		panic(err)
 	}
 

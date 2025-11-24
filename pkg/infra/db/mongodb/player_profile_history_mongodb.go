@@ -7,8 +7,8 @@ import (
 
 	"go.mongodb.org/mongo-driver/mongo"
 
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	squad_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/entities"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 )
 
 type PlayerProfileHistoryRepository struct {
@@ -21,10 +21,10 @@ func NewPlayerProfileHistoryRepository(client *mongo.Client, dbName string, enti
 		dbName:            dbName,
 		mappingCache:      make(map[string]CacheItem),
 		entityModel:       reflect.TypeOf(entityType),
-		bsonFieldMappings: make(map[string]string),
+		BsonFieldMappings: make(map[string]string),
 		collectionName:    collectionName,
 		entityName:        reflect.TypeOf(entityType).Name(),
-		queryableFields:   make(map[string]bool),
+		QueryableFields:   make(map[string]bool),
 		collection:        client.Database(dbName).Collection(collectionName),
 	}
 

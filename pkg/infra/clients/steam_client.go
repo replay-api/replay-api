@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	steamEntities "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/entities"
+	steamEntities "github.com/replay-api/replay-api/pkg/domain/steam/entities"
 )
 
 type SteamClient struct {

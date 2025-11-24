@@ -1,8 +1,8 @@
 package replay_in
 
 import (
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 )
 
 type EventReader interface {
