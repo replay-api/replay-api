@@ -152,3 +152,4 @@ When generating commits:
 4. no unnecessary adjectives
 5. github user style: direct, lowercase, factual
 6. if unsure, look at recent commits in `git log --oneline -20`
+7. **NEVER** add attribution footers like "Generated with Claude Code" or "Co-Authored-By: Claude"

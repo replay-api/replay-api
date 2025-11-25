@@ -52,6 +52,8 @@ import (
 	tournament_in "github.com/psavelis/team-pro/replay-api/pkg/domain/tournament/ports/in"
 	tournament_out "github.com/psavelis/team-pro/replay-api/pkg/domain/tournament/ports/out"
 	tournament_services "github.com/psavelis/team-pro/replay-api/pkg/domain/tournament/services"
+	tournament_usecases "github.com/psavelis/team-pro/replay-api/pkg/domain/tournament/usecases"
+	matchmaking_usecases "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/usecases"
 
 	wallet_in "github.com/psavelis/team-pro/replay-api/pkg/domain/wallet/ports/in"
 	wallet_out "github.com/psavelis/team-pro/replay-api/pkg/domain/wallet/ports/out"
@@ -2158,6 +2160,113 @@ func InjectMongoDB(c container.Container) error {
 
 	if err != nil {
 		slog.Error("Failed to load tournament_in.TournamentReader.", "err", err)
+		panic(err)
+	}
+
+	// Matchmaking Usecases
+	err = c.Singleton(func() (matchmaking_in.JoinMatchmakingQueueCommandHandler, error) {
+		var billableOperationHandler billing_in.BillableOperationCommandHandler
+		var sessionRepo matchmaking_out.MatchmakingSessionRepository
+		var poolRepo matchmaking_out.MatchmakingPoolRepository
+
+		if err := c.Resolve(&billableOperationHandler); err != nil {
+			slog.Error("Failed to resolve BillableOperationCommandHandler for JoinMatchmakingQueueUseCase.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&sessionRepo); err != nil {
+			slog.Error("Failed to resolve MatchmakingSessionRepository for JoinMatchmakingQueueUseCase.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&poolRepo); err != nil {
+			slog.Error("Failed to resolve MatchmakingPoolRepository for JoinMatchmakingQueueUseCase.", "err", err)
+			return nil, err
+		}
+
+		return matchmaking_usecases.NewJoinMatchmakingQueueUseCase(billableOperationHandler, sessionRepo, poolRepo), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load JoinMatchmakingQueueCommandHandler.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (matchmaking_in.LeaveMatchmakingQueueCommandHandler, error) {
+		var billableOperationHandler billing_in.BillableOperationCommandHandler
+		var sessionRepo matchmaking_out.MatchmakingSessionRepository
+
+		if err := c.Resolve(&billableOperationHandler); err != nil {
+			slog.Error("Failed to resolve BillableOperationCommandHandler for LeaveMatchmakingQueueUseCase.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&sessionRepo); err != nil {
+			slog.Error("Failed to resolve MatchmakingSessionRepository for LeaveMatchmakingQueueUseCase.", "err", err)
+			return nil, err
+		}
+
+		return matchmaking_usecases.NewLeaveMatchmakingQueueUseCase(billableOperationHandler, sessionRepo), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load LeaveMatchmakingQueueCommandHandler.", "err", err)
+		panic(err)
+	}
+
+	// Tournament Usecases
+	err = c.Singleton(func() (*tournament_usecases.CreateTournamentUseCase, error) {
+		var billableOperationHandler billing_in.BillableOperationCommandHandler
+		var tournamentRepo tournament_out.TournamentRepository
+
+		if err := c.Resolve(&billableOperationHandler); err != nil {
+			slog.Error("Failed to resolve BillableOperationCommandHandler for CreateTournamentUseCase.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&tournamentRepo); err != nil {
+			slog.Error("Failed to resolve TournamentRepository for CreateTournamentUseCase.", "err", err)
+			return nil, err
+		}
+
+		return tournament_usecases.NewCreateTournamentUseCase(billableOperationHandler, tournamentRepo), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load CreateTournamentUseCase.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (*tournament_usecases.RegisterForTournamentUseCase, error) {
+		var billableOperationHandler billing_in.BillableOperationCommandHandler
+		var tournamentRepo tournament_out.TournamentRepository
+
+		if err := c.Resolve(&billableOperationHandler); err != nil {
+			slog.Error("Failed to resolve BillableOperationCommandHandler for RegisterForTournamentUseCase.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&tournamentRepo); err != nil {
+			slog.Error("Failed to resolve TournamentRepository for RegisterForTournamentUseCase.", "err", err)
+			return nil, err
+		}
+
+		return tournament_usecases.NewRegisterForTournamentUseCase(billableOperationHandler, tournamentRepo), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load RegisterForTournamentUseCase.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (*tournament_usecases.GenerateBracketsUseCase, error) {
+		var billableOperationHandler billing_in.BillableOperationCommandHandler
+		var tournamentRepo tournament_out.TournamentRepository
+
+		if err := c.Resolve(&billableOperationHandler); err != nil {
+			slog.Error("Failed to resolve BillableOperationCommandHandler for GenerateBracketsUseCase.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&tournamentRepo); err != nil {
+			slog.Error("Failed to resolve TournamentRepository for GenerateBracketsUseCase.", "err", err)
+			return nil, err
+		}
+
+		return tournament_usecases.NewGenerateBracketsUseCase(billableOperationHandler, tournamentRepo), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load GenerateBracketsUseCase.", "err", err)
 		panic(err)
 	}
 
