@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
+	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	common "github.com/replay-api/replay-api/pkg/domain"
 	iam_out "github.com/replay-api/replay-api/pkg/domain/iam/ports/out"
 	media_out "github.com/replay-api/replay-api/pkg/domain/media/ports/out"
@@ -18,16 +20,18 @@ import (
 )
 
 type UpdateSquadUseCase struct {
-	SquadWriter         squad_out.SquadWriter
-	SquadReader         squad_out.SquadReader
-	GroupWriter         iam_out.GroupWriter
-	GroupReader         iam_out.GroupReader
-	SquadHistoryWriter  squad_out.SquadHistoryWriter
-	PlayerProfileReader squad_in.PlayerProfileReader
-	MediaWriter         media_out.MediaWriter
+	billableOperationHandler billing_in.BillableOperationCommandHandler
+	SquadWriter              squad_out.SquadWriter
+	SquadReader              squad_out.SquadReader
+	GroupWriter              iam_out.GroupWriter
+	GroupReader              iam_out.GroupReader
+	SquadHistoryWriter       squad_out.SquadHistoryWriter
+	PlayerProfileReader      squad_in.PlayerProfileReader
+	MediaWriter              media_out.MediaWriter
 }
 
 func NewUpdateSquadUseCase(
+	billableOperationHandler billing_in.BillableOperationCommandHandler,
 	squadWriter squad_out.SquadWriter,
 	squadHistoryWriter squad_out.SquadHistoryWriter,
 	squadReader squad_out.SquadReader,
@@ -37,13 +41,14 @@ func NewUpdateSquadUseCase(
 	mediaWriter media_out.MediaWriter,
 ) *UpdateSquadUseCase {
 	return &UpdateSquadUseCase{
-		SquadWriter:         squadWriter,
-		SquadHistoryWriter:  squadHistoryWriter,
-		SquadReader:         squadReader,
-		GroupWriter:         groupWriter,
-		GroupReader:         groupReader,
-		PlayerProfileReader: playerProfileReader,
-		MediaWriter:         mediaWriter,
+		billableOperationHandler: billableOperationHandler,
+		SquadWriter:              squadWriter,
+		SquadHistoryWriter:       squadHistoryWriter,
+		SquadReader:              squadReader,
+		GroupWriter:              groupWriter,
+		GroupReader:              groupReader,
+		PlayerProfileReader:      playerProfileReader,
+		MediaWriter:              mediaWriter,
 	}
 }
 
@@ -65,6 +70,18 @@ func (uc *UpdateSquadUseCase) Exec(ctx context.Context, squadID uuid.UUID, cmd s
 		return nil, fmt.Errorf("forbidden: user is not authorized to update this squad")
 	}
 
+	// Billing validation
+	billingCmd := billing_in.BillableOperationCommand{
+		OperationID: billing_entities.OperationTypeUpdateSquadProfile,
+		UserID:      common.GetResourceOwner(ctx).UserID,
+		Amount:      1,
+	}
+	err = uc.billableOperationHandler.Validate(ctx, billingCmd)
+	if err != nil {
+		slog.ErrorContext(ctx, "Billing validation failed for update squad profile", "error", err, "squad_id", squadID)
+		return nil, err
+	}
+
 	memberships, err := uc.ProcessMemberships(ctx, existingSquad, cmd.Members)
 	if err != nil {
 		return nil, err
@@ -78,6 +95,12 @@ func (uc *UpdateSquadUseCase) Exec(ctx context.Context, squadID uuid.UUID, cmd s
 	updatedSquad, err := uc.updateSquad(ctx, existingSquad, cmd, memberships, avatarURI)
 	if err != nil {
 		return nil, err
+	}
+
+	// Billing execution
+	_, _, err = uc.billableOperationHandler.Exec(ctx, billingCmd)
+	if err != nil {
+		slog.WarnContext(ctx, "Failed to execute billing for update squad profile", "error", err, "squad_id", squadID)
 	}
 
 	// TODO: remove old avatar/images
