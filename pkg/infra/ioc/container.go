@@ -1121,6 +1121,173 @@ func (b *ContainerBuilder) WithSquadAPI() *ContainerBuilder {
 
 	}
 
+	// squad_in.DeleteSquadCommandHandler
+	err = c.Singleton(func() (squad_in.DeleteSquadCommandHandler, error) {
+		var billableOperationHandler billing_in.BillableOperationCommandHandler
+		err := c.Resolve(&billableOperationHandler)
+		if err != nil {
+			slog.Error("Failed to resolve BillableOperationCommandHandler for DeleteSquadCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var squadReader squad_out.SquadReader
+		err = c.Resolve(&squadReader)
+		if err != nil {
+			slog.Error("Failed to resolve SquadReader for DeleteSquadCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var squadWriter squad_out.SquadWriter
+		err = c.Resolve(&squadWriter)
+		if err != nil {
+			slog.Error("Failed to resolve SquadWriter for DeleteSquadCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var squadHistoryWriter squad_out.SquadHistoryWriter
+		err = c.Resolve(&squadHistoryWriter)
+		if err != nil {
+			slog.Error("Failed to resolve SquadHistoryWriter for DeleteSquadCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		uc := squad_usecases.NewDeleteSquadUseCase(billableOperationHandler, squadReader, squadWriter, squadHistoryWriter)
+
+		return uc, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load DeleteSquadCommandHandler.", "err", err)
+		panic(err)
+	}
+
+	// squad_in.AddSquadMemberCommandHandler
+	err = c.Singleton(func() (squad_in.AddSquadMemberCommandHandler, error) {
+		var billableOperationHandler billing_in.BillableOperationCommandHandler
+		err := c.Resolve(&billableOperationHandler)
+		if err != nil {
+			slog.Error("Failed to resolve BillableOperationCommandHandler for AddSquadMemberCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var squadReader squad_out.SquadReader
+		err = c.Resolve(&squadReader)
+		if err != nil {
+			slog.Error("Failed to resolve SquadReader for AddSquadMemberCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var squadWriter squad_out.SquadWriter
+		err = c.Resolve(&squadWriter)
+		if err != nil {
+			slog.Error("Failed to resolve SquadWriter for AddSquadMemberCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var squadHistoryWriter squad_out.SquadHistoryWriter
+		err = c.Resolve(&squadHistoryWriter)
+		if err != nil {
+			slog.Error("Failed to resolve SquadHistoryWriter for AddSquadMemberCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var playerProfileReader squad_in.PlayerProfileReader
+		err = c.Resolve(&playerProfileReader)
+		if err != nil {
+			slog.Error("Failed to resolve PlayerProfileReader for AddSquadMemberCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		uc := squad_usecases.NewAddSquadMemberUseCase(billableOperationHandler, squadReader, squadWriter, squadHistoryWriter, playerProfileReader)
+
+		return uc, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load AddSquadMemberCommandHandler.", "err", err)
+		panic(err)
+	}
+
+	// squad_in.RemoveSquadMemberCommandHandler
+	err = c.Singleton(func() (squad_in.RemoveSquadMemberCommandHandler, error) {
+		var billableOperationHandler billing_in.BillableOperationCommandHandler
+		err := c.Resolve(&billableOperationHandler)
+		if err != nil {
+			slog.Error("Failed to resolve BillableOperationCommandHandler for RemoveSquadMemberCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var squadReader squad_out.SquadReader
+		err = c.Resolve(&squadReader)
+		if err != nil {
+			slog.Error("Failed to resolve SquadReader for RemoveSquadMemberCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var squadWriter squad_out.SquadWriter
+		err = c.Resolve(&squadWriter)
+		if err != nil {
+			slog.Error("Failed to resolve SquadWriter for RemoveSquadMemberCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var squadHistoryWriter squad_out.SquadHistoryWriter
+		err = c.Resolve(&squadHistoryWriter)
+		if err != nil {
+			slog.Error("Failed to resolve SquadHistoryWriter for RemoveSquadMemberCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		uc := squad_usecases.NewRemoveSquadMemberUseCase(billableOperationHandler, squadReader, squadWriter, squadHistoryWriter)
+
+		return uc, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load RemoveSquadMemberCommandHandler.", "err", err)
+		panic(err)
+	}
+
+	// squad_in.UpdateSquadMemberRoleCommandHandler
+	err = c.Singleton(func() (squad_in.UpdateSquadMemberRoleCommandHandler, error) {
+		var billableOperationHandler billing_in.BillableOperationCommandHandler
+		err := c.Resolve(&billableOperationHandler)
+		if err != nil {
+			slog.Error("Failed to resolve BillableOperationCommandHandler for UpdateSquadMemberRoleCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var squadReader squad_out.SquadReader
+		err = c.Resolve(&squadReader)
+		if err != nil {
+			slog.Error("Failed to resolve SquadReader for UpdateSquadMemberRoleCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var squadWriter squad_out.SquadWriter
+		err = c.Resolve(&squadWriter)
+		if err != nil {
+			slog.Error("Failed to resolve SquadWriter for UpdateSquadMemberRoleCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var squadHistoryWriter squad_out.SquadHistoryWriter
+		err = c.Resolve(&squadHistoryWriter)
+		if err != nil {
+			slog.Error("Failed to resolve SquadHistoryWriter for UpdateSquadMemberRoleCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		uc := squad_usecases.NewUpdateSquadMemberRoleUseCase(billableOperationHandler, squadReader, squadWriter, squadHistoryWriter)
+
+		return uc, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load UpdateSquadMemberRoleCommandHandler.", "err", err)
+		panic(err)
+	}
+
 	// InboundPorts
 	err = c.Singleton(func() (squad_in.SquadReader, error) {
 		var squadReader squad_out.SquadReader
