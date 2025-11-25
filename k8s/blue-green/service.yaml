@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: replay-rest-api-service
+  namespace: replay-api
+  labels:
+    app: replay-rest-api
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 4991
+      protocol: TCP
+      name: http
+  selector:
+    app: replay-rest-api
+    slot: blue  # Change to 'green' to switch traffic

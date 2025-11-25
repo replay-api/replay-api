@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: replay-api-config
+  namespace: replay-api
+data:
+  DEV_ENV: "kubernetes"
+  MONGO_URI: "mongodb://mongodb-service:27017/replay"
+  TMP_APP_REPLAY_FILES: "/app/replay_files/"
+  HTTP_PORT: "4991"
+  RPC_PORT: "50051"
+  LOG_LEVEL: "info"

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: replay-api
+  labels:
+    name: replay-api
+    environment: production
