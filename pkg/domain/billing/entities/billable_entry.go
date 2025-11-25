@@ -30,12 +30,14 @@ const (
 
 	// SQUAD
 	OperationTypeCreateSquadProfile      BillableOperationKey = "CreateSquadProfile"
+	OperationTypeUpdateSquadProfile      BillableOperationKey = "UpdateSquadProfile"
 	OperationTypeDeleteSquadProfile      BillableOperationKey = "DeleteSquadProfile"
 	OperationTypePlayersPerSquadAmount   BillableOperationKey = "PlayersPerSquadAmount"
 	OperationTypeAddSquadMember          BillableOperationKey = "AddSquadMember"
 	OperationTypeRemoveSquadMember       BillableOperationKey = "RemoveSquadMember"
 	OperationTypeUpdateSquadMemberRole   BillableOperationKey = "UpdateSquadMemberRole"
 	OperationTypeCreatePlayerProfile     BillableOperationKey = "CreatePlayerProfile"
+	OperationTypeUpdatePlayerProfile     BillableOperationKey = "UpdatePlayerProfile"
 	OperationTypeDeletePlayerProfile     BillableOperationKey = "DeletePlayerProfile"
 	OperationTypeSquadProfileBoostAmount BillableOperationKey = "SquadProfileBoostAmount"
 
