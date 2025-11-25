@@ -53,7 +53,10 @@ func (ctrl *SquadController) CreateSquadHandler(apiContext context.Context) http
 
 		squad, err := ctrl.createSquadCommandHandler.Exec(r.Context(), createSquadCommand)
 		if err != nil {
-			slog.ErrorContext(r.Context(), "Failed to create SQUAD profile", "err", err)
+			slog.ErrorContext(r.Context(), "Failed to create squad",
+				"error", err,
+				"squad_name", createSquadCommand.Name,
+				"slug_uri", createSquadCommand.SlugURI)
 			if err.Error() == "Unauthorized" {
 				w.WriteHeader(http.StatusUnauthorized)
 			} else if strings.Contains(err.Error(), "already exists") {
@@ -65,7 +68,7 @@ func (ctrl *SquadController) CreateSquadHandler(apiContext context.Context) http
 
 				err = json.NewEncoder(w).Encode(errorJSON)
 				if err != nil {
-					slog.ErrorContext(r.Context(), "Failed to encode response", "err", err)
+					slog.ErrorContext(r.Context(), "Failed to encode response", "error", err)
 				}
 			} else if strings.Contains(err.Error(), "not found") {
 				w.WriteHeader(http.StatusNotFound)
@@ -76,7 +79,7 @@ func (ctrl *SquadController) CreateSquadHandler(apiContext context.Context) http
 
 				err = json.NewEncoder(w).Encode(errorJSON)
 				if err != nil {
-					slog.ErrorContext(r.Context(), "Failed to encode response", "err", err)
+					slog.ErrorContext(r.Context(), "Failed to encode response", "error", err)
 				}
 			} else {
 				w.WriteHeader(http.StatusInternalServerError)
@@ -84,9 +87,18 @@ func (ctrl *SquadController) CreateSquadHandler(apiContext context.Context) http
 			return
 		}
 
+		slog.InfoContext(r.Context(), "Squad created successfully",
+			"squad_id", squad.ID,
+			"squad_name", squad.Name,
+			"slug_uri", squad.SlugURI,
+			"group_id", squad.GroupID,
+			"user_id", r.Context().Value(common.UserIDKey))
+
 		err = json.NewEncoder(w).Encode(squad)
 		if err != nil {
-			slog.ErrorContext(r.Context(), "Failed to encode response", "err", err)
+			slog.ErrorContext(r.Context(), "Failed to encode response",
+				"error", err,
+				"squad_id", squad.ID)
 			return
 		}
 
