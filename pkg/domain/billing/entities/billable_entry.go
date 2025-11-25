@@ -41,16 +41,27 @@ const (
 	OperationTypeDeletePlayerProfile     BillableOperationKey = "DeletePlayerProfile"
 	OperationTypeSquadProfileBoostAmount BillableOperationKey = "SquadProfileBoostAmount"
 
-	// TOURNAMENT (plus+)
-	OperationTypeTournamentProfileAmount BillableOperationKey = "TournamentProfileAmount"
-
 	// MATCH-MAKING
+	OperationTypeJoinMatchmakingQueue            BillableOperationKey = "JoinMatchmakingQueue"
+	OperationTypeLeaveMatchmakingQueue           BillableOperationKey = "LeaveMatchmakingQueue"
+	OperationTypeCreateCustomLobby               BillableOperationKey = "CreateCustomLobby"
+	OperationTypeJoinLobby                       BillableOperationKey = "JoinLobby"
+	OperationTypeLeaveLobby                      BillableOperationKey = "LeaveLobby"
+	OperationTypeSetPlayerReady                  BillableOperationKey = "SetPlayerReady"
 	OperationTypeMatchMakingQueueAmount          BillableOperationKey = "MatchMakingQueueAmount"
 	OperationTypeMatchMakingCreateAmount         BillableOperationKey = "MatchMakingCreateAmount"
 	OperationTypeMatchMakingPriorityQueue        BillableOperationKey = "MatchMakingPriorityQueue"
 	OperationTypeMatchMakingCreateFeaturedBoosts BillableOperationKey = "MatchMakingCreateFeaturedBoosts"
 
-	OperationTypeMatchMakingTournamentAmount BillableOperationKey = "MatchMakingTournamentAmount" // TOURNAMENT (plus+)
+	// TOURNAMENT
+	OperationTypeCreateTournament                BillableOperationKey = "CreateTournament"
+	OperationTypeRegisterForTournament           BillableOperationKey = "RegisterForTournament"
+	OperationTypeUnregisterFromTournament        BillableOperationKey = "UnregisterFromTournament"
+	OperationTypeGenerateBrackets                BillableOperationKey = "GenerateBrackets"
+	OperationTypeCompleteMatch                   BillableOperationKey = "CompleteMatch"
+	OperationTypeCompleteTournament              BillableOperationKey = "CompleteTournament"
+	OperationTypeMatchMakingTournamentAmount     BillableOperationKey = "MatchMakingTournamentAmount" // TOURNAMENT (plus+)
+	OperationTypeTournamentProfileAmount         BillableOperationKey = "TournamentProfileAmount"
 
 	// STORE
 	OperationTypeStoreAmount                    BillableOperationKey = "StoreAmount"
