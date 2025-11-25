@@ -35,6 +35,40 @@ type UpdateSquadCommandHandler interface {
 	Exec(c context.Context, squadID uuid.UUID, cmd CreateOrUpdatedSquadCommand) (*squad_entities.Squad, error)
 }
 
+type DeleteSquadCommandHandler interface {
+	Exec(c context.Context, squadID uuid.UUID) error
+}
+
+type AddSquadMemberCommand struct {
+	SquadID  uuid.UUID                                `json:"squad_id"`
+	PlayerID uuid.UUID                                `json:"player_id"`
+	Type     squad_value_objects.SquadMembershipType `json:"type"`
+	Roles    []string                                 `json:"roles"`
+}
+
+type AddSquadMemberCommandHandler interface {
+	Exec(c context.Context, cmd AddSquadMemberCommand) (*squad_entities.Squad, error)
+}
+
+type RemoveSquadMemberCommand struct {
+	SquadID  uuid.UUID `json:"squad_id"`
+	PlayerID uuid.UUID `json:"player_id"`
+}
+
+type RemoveSquadMemberCommandHandler interface {
+	Exec(c context.Context, cmd RemoveSquadMemberCommand) (*squad_entities.Squad, error)
+}
+
+type UpdateSquadMemberRoleCommand struct {
+	SquadID  uuid.UUID `json:"squad_id"`
+	PlayerID uuid.UUID `json:"player_id"`
+	Roles    []string  `json:"roles"`
+}
+
+type UpdateSquadMemberRoleCommandHandler interface {
+	Exec(c context.Context, cmd UpdateSquadMemberRoleCommand) (*squad_entities.Squad, error)
+}
+
 type CreatePlayerProfileCommand struct {
 	GameID          common.GameIDKey         `json:"game_id"`
 	Nickname        string                   `json:"nickname"`
