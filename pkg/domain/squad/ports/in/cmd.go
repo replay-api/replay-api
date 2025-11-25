@@ -59,3 +59,11 @@ type UpdatePlayerCommand struct {
 	Roles           []string  `json:"roles"`
 	Description     string    `json:"description"`
 }
+
+type UpdatePlayerProfileCommandHandler interface {
+	Exec(c context.Context, cmd UpdatePlayerCommand) (*squad_entities.PlayerProfile, error)
+}
+
+type DeletePlayerProfileCommandHandler interface {
+	Exec(c context.Context, playerID uuid.UUID) error
+}

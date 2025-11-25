@@ -32,6 +32,7 @@ const (
 	OperationTypeCreateSquadProfile      BillableOperationKey = "CreateSquadProfile"
 	OperationTypePlayersPerSquadAmount   BillableOperationKey = "PlayersPerSquadAmount"
 	OperationTypeCreatePlayerProfile     BillableOperationKey = "CreatePlayerProfile"
+	OperationTypeDeletePlayerProfile     BillableOperationKey = "DeletePlayerProfile"
 	OperationTypeSquadProfileBoostAmount BillableOperationKey = "SquadProfileBoostAmount"
 
 	// TOURNAMENT (plus+)

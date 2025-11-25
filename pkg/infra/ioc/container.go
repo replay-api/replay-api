@@ -971,6 +971,86 @@ func (b *ContainerBuilder) WithSquadAPI() *ContainerBuilder {
 		panic(err)
 	}
 
+	// squad_in.UpdatePlayerProfileCommandHandler
+	err = c.Singleton(func() (squad_in.UpdatePlayerProfileCommandHandler, error) {
+		var playerProfileReader squad_out.PlayerProfileReader
+		err := c.Resolve(&playerProfileReader)
+		if err != nil {
+			slog.Error("Failed to resolve PlayerProfileReader for UpdatePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var playerProfileWriter squad_out.PlayerProfileWriter
+		err = c.Resolve(&playerProfileWriter)
+		if err != nil {
+			slog.Error("Failed to resolve PlayerProfileWriter for UpdatePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var playerProfileHistoryWriter squad_out.PlayerProfileHistoryWriter
+		err = c.Resolve(&playerProfileHistoryWriter)
+		if err != nil {
+			slog.Error("Failed to resolve PlayerProfileHistoryWriter for UpdatePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var mediaWriter media_out.MediaWriter
+		err = c.Resolve(&mediaWriter)
+		if err != nil {
+			slog.Error("Failed to resolve MediaWriter for UpdatePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		uc := squad_usecases.NewUpdatePlayerUseCase(playerProfileReader, playerProfileWriter, playerProfileHistoryWriter, mediaWriter)
+
+		return uc, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load UpdatePlayerProfileCommandHandler.", "err", err)
+		panic(err)
+	}
+
+	// squad_in.DeletePlayerProfileCommandHandler
+	err = c.Singleton(func() (squad_in.DeletePlayerProfileCommandHandler, error) {
+		var billableOperationHandler billing_in.BillableOperationCommandHandler
+		err := c.Resolve(&billableOperationHandler)
+		if err != nil {
+			slog.Error("Failed to resolve BillableOperationCommandHandler for DeletePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var playerProfileReader squad_out.PlayerProfileReader
+		err = c.Resolve(&playerProfileReader)
+		if err != nil {
+			slog.Error("Failed to resolve PlayerProfileReader for DeletePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var playerProfileWriter squad_out.PlayerProfileWriter
+		err = c.Resolve(&playerProfileWriter)
+		if err != nil {
+			slog.Error("Failed to resolve PlayerProfileWriter for DeletePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var playerProfileHistoryWriter squad_out.PlayerProfileHistoryWriter
+		err = c.Resolve(&playerProfileHistoryWriter)
+		if err != nil {
+			slog.Error("Failed to resolve PlayerProfileHistoryWriter for DeletePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		uc := squad_usecases.NewDeletePlayerUseCase(billableOperationHandler, playerProfileReader, playerProfileWriter, playerProfileHistoryWriter)
+
+		return uc, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load DeletePlayerProfileCommandHandler.", "err", err)
+		panic(err)
+	}
+
 	// squad_in.CreateSquadCommandHandler
 	err = c.Singleton(func() (squad_in.CreateSquadCommandHandler, error) {
 		var squadWriter squad_out.SquadWriter
