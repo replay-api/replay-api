@@ -61,16 +61,45 @@ go test ./pkg/domain/...
 ```
 
 **Integration Tests** (require infrastructure):
-```bash
-# Start test infrastructure first
-docker-compose -f docker-compose.test.yml up -d
 
+1. **Start MongoDB for tests:**
+```bash
+# Using Docker (recommended for local development)
+docker run -d --name replay-api-test-mongo -p 37019:27017 mongo:7
+
+# Or use the existing MongoDB instance
+export MONGO_URI=mongodb://host.docker.internal:37019
+```
+
+2. **Run tests:**
+```bash
 # Run all tests
 go test -v ./...
 
-# Cleanup
-docker-compose -f docker-compose.test.yml down -v
+# Run tests in Docker (automatically uses host.docker.internal)
+docker run --rm \
+  -v "$(pwd)":/app \
+  -w /app \
+  --add-host host.docker.internal:host-gateway \
+  golang:1.23 \
+  go test -v ./...
 ```
+
+3. **Cleanup:**
+```bash
+docker stop replay-api-test-mongo
+docker rm replay-api-test-mongo
+```
+
+**MongoDB Configuration:**
+
+Tests read MongoDB connection from environment variables:
+- `MONGO_URI`: MongoDB connection string (default: `mongodb://host.docker.internal:37019`)
+- Tests automatically append the database name (`/replay`)
+
+**Local vs Docker Testing:**
+- **Local tests**: Use `MONGO_URI=mongodb://127.0.0.1:37019` for local MongoDB
+- **Docker tests**: Use `host.docker.internal:37019` (default, works with `--add-host` flag)
 
 ### Test Failures
 

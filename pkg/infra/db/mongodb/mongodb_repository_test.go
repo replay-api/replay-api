@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -102,12 +103,18 @@ var (
 	clientOnce     sync.Once
 )
 
+func getMongoURI() string {
+	if uri := os.Getenv("MONGO_URI"); uri != "" {
+		return uri + "/" + dbName
+	}
+	return "mongodb://host.docker.internal:37019/" + dbName
+}
+
 func getClient() (*mongo.Client, error) {
 	var err error
 	if clientInstance == nil {
 		clientOnce.Do(func() {
-			opt := options.Client().ApplyURI("mongodb://127.0.0.1:37019/replay")
-			// review: refactor (dry/config)
+			opt := options.Client().ApplyURI(getMongoURI())
 			clientInstance, err = mongo.Connect(context.Background(), opt)
 		})
 	}
@@ -121,7 +128,7 @@ func TestMongoDBRepository_Query(t *testing.T) {
 	}
 
 	// Establish a connection to a real MongoDB database
-	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI("mongodb://127.0.0.1:37019/replay"))
+	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(getMongoURI()))
 	if err != nil {
 		t.Fatalf("Error connecting to MongoDB: %v", err)
 	}
@@ -534,7 +541,7 @@ func TestGetBSONFieldNameFromSearchableValue(t *testing.T) {
 	}
 
 	// Establish a connection to a real MongoDB database
-	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI("mongodb://127.0.0.1:37019/replay"))
+	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(getMongoURI()))
 	if err != nil {
 		t.Fatalf("Error connecting to MongoDB: %v", err)
 	}
@@ -699,7 +706,7 @@ func TestMongoDBRepository_EnsureTenancy(t *testing.T) {
 	}
 
 	// Establish a connection to a real MongoDB database
-	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI("mongodb://127.0.0.1:37019/replay"))
+	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(getMongoURI()))
 	if err != nil {
 		t.Fatalf("Error connecting to MongoDB: %v", err)
 	}
