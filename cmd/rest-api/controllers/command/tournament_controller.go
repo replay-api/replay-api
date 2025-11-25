@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
-	"time"
 
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
@@ -88,7 +87,7 @@ func (c *TournamentCommandController) CreateTournamentHandler(apiContext context
 
 		// Create command
 		cmd := tournament_in.CreateTournamentCommand{
-			ResourceOwner:     common.GetResourceOwner(r.Context()),
+			ResourceOwner:     common.NewResourceOwner(organizerID, common.UserScope, "", ""),
 			Name:              req.Name,
 			Description:       req.Description,
 			GameID:            common.GameIDKey(req.GameID),

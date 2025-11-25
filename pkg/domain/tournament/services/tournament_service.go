@@ -179,13 +179,18 @@ func (s *TournamentService) RegisterPlayer(ctx context.Context, cmd tournament_i
 	// Charge entry fee if required
 	if !tournament.EntryFee.IsZero() {
 		// Create wallet transaction command
-		deductCmd := wallet_in.DeductEntryFeeCommand{
-			UserID:   cmd.PlayerID,
-			Currency: string(tournament.Currency),
-			Amount:   tournament.EntryFee.Dollars(),
+		debitCmd := wallet_in.DebitWalletCommand{
+			UserID:      cmd.PlayerID,
+			Amount:      tournament.EntryFee,
+			Currency:    tournament.Currency,
+			Description: fmt.Sprintf("Tournament entry fee: %s", tournament.Name),
+			Metadata: map[string]interface{}{
+				"tournament_id": tournament.ID.String(),
+				"type":          "tournament_entry",
+			},
 		}
 
-		if err := s.walletCommand.DeductEntryFee(ctx, deductCmd); err != nil {
+		if _, err := s.walletCommand.DebitWallet(ctx, debitCmd); err != nil {
 			// Rollback registration
 			_ = tournament.UnregisterPlayer(cmd.PlayerID)
 			slog.ErrorContext(ctx, "failed to charge entry fee", "player_id", cmd.PlayerID, "error", err)
@@ -229,14 +234,18 @@ func (s *TournamentService) UnregisterPlayer(ctx context.Context, cmd tournament
 
 	// Refund entry fee if charged
 	if !tournament.EntryFee.IsZero() {
-		refundCmd := wallet_in.RefundCommand{
-			UserID:   cmd.PlayerID,
-			Currency: string(tournament.Currency),
-			Amount:   tournament.EntryFee.Dollars(),
-			Reason:   fmt.Sprintf("Tournament entry refund: %s", tournament.Name),
+		creditCmd := wallet_in.CreditWalletCommand{
+			UserID:      cmd.PlayerID,
+			Amount:      tournament.EntryFee,
+			Currency:    tournament.Currency,
+			Description: fmt.Sprintf("Tournament entry refund: %s", tournament.Name),
+			Metadata: map[string]interface{}{
+				"tournament_id": tournament.ID.String(),
+				"type":          "tournament_refund",
+			},
 		}
 
-		if err := s.walletCommand.Refund(ctx, refundCmd); err != nil {
+		if _, err := s.walletCommand.CreditWallet(ctx, creditCmd); err != nil {
 			slog.ErrorContext(ctx, "failed to refund entry fee", "player_id", cmd.PlayerID, "error", err)
 			// Continue with unregistration even if refund fails (manual intervention needed)
 		} else {
@@ -337,13 +346,19 @@ func (s *TournamentService) CompleteTournament(ctx context.Context, cmd tourname
 	// Distribute prizes to winners
 	for _, winner := range cmd.Winners {
 		if !winner.Prize.IsZero() {
-			addPrizeCmd := wallet_in.AddPrizeCommand{
-				UserID:   winner.PlayerID,
-				Currency: string(tournament.Currency),
-				Amount:   winner.Prize.Dollars(),
+			creditCmd := wallet_in.CreditWalletCommand{
+				UserID:      winner.PlayerID,
+				Amount:      winner.Prize,
+				Currency:    tournament.Currency,
+				Description: fmt.Sprintf("Tournament prize: %s (Placement: %d)", tournament.Name, winner.Placement),
+				Metadata: map[string]interface{}{
+					"tournament_id": tournament.ID.String(),
+					"placement":     winner.Placement,
+					"type":          "tournament_prize",
+				},
 			}
 
-			if err := s.walletCommand.AddPrize(ctx, addPrizeCmd); err != nil {
+			if _, err := s.walletCommand.CreditWallet(ctx, creditCmd); err != nil {
 				slog.ErrorContext(ctx, "failed to distribute prize", "player_id", winner.PlayerID, "error", err)
 				// Continue distributing other prizes even if one fails
 			} else {
@@ -376,14 +391,19 @@ func (s *TournamentService) CancelTournament(ctx context.Context, cmd tournament
 	// Issue refunds to all participants
 	if !tournament.EntryFee.IsZero() {
 		for _, participant := range tournament.Participants {
-			refundCmd := wallet_in.RefundCommand{
-				UserID:   participant.PlayerID,
-				Currency: string(tournament.Currency),
-				Amount:   tournament.EntryFee.Dollars(),
-				Reason:   fmt.Sprintf("Tournament cancellation refund: %s - %s", tournament.Name, cmd.Reason),
+			creditCmd := wallet_in.CreditWalletCommand{
+				UserID:      participant.PlayerID,
+				Amount:      tournament.EntryFee,
+				Currency:    tournament.Currency,
+				Description: fmt.Sprintf("Tournament cancellation refund: %s", tournament.Name),
+				Metadata: map[string]interface{}{
+					"tournament_id": tournament.ID.String(),
+					"type":          "tournament_cancellation_refund",
+					"reason":        cmd.Reason,
+				},
 			}
 
-			if err := s.walletCommand.Refund(ctx, refundCmd); err != nil {
+			if _, err := s.walletCommand.CreditWallet(ctx, creditCmd); err != nil {
 				slog.ErrorContext(ctx, "failed to refund participant", "player_id", participant.PlayerID, "error", err)
 			} else {
 				slog.InfoContext(ctx, "participant refunded", "player_id", participant.PlayerID)
