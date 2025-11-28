@@ -214,14 +214,14 @@ func RequireOwnerOrAdminRole(resourceType common.ResourceType, roleChecker func(
 	}
 }
 
-// VisibilityMiddleware validates that the user can access resources based on visibility rules
-func VisibilityMiddleware(resourceType common.ResourceType) mux.MiddlewareFunc {
+// ResourceVisibilityMiddleware validates that the user can access resources based on visibility rules
+func ResourceVisibilityMiddleware(resourceType common.ResourceType) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
 
 			// Get intended audience from context (set by search middleware)
-			intendedAudience := ctx.Value(common.IntendedAudienceKey)
+			intendedAudience := ctx.Value(common.IntendedAudienceCtxKey)
 			if intendedAudience == nil {
 				// Default to user-level audience
 				intendedAudience = common.UserAudienceIDKey

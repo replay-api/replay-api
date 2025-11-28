@@ -148,13 +148,33 @@ func (m *VisibilityMiddleware) canAccessResource(ctx context.Context, resource i
 func (m *VisibilityMiddleware) extractBaseEntity(resource interface{}) *common.BaseEntity {
 	switch r := resource.(type) {
 	case *replay_entities.ReplayFile:
-		return &r.BaseEntity
+		return &common.BaseEntity{
+			ID:            r.ID,
+			ResourceOwner: r.ResourceOwner,
+			CreatedAt:     r.CreatedAt,
+			UpdatedAt:     r.UpdatedAt,
+		}
 	case *replay_entities.Match:
-		return &r.BaseEntity
+		return &common.BaseEntity{
+			ID:            r.ID,
+			ResourceOwner: r.ResourceOwner,
+			CreatedAt:     r.CreatedAt,
+			UpdatedAt:     r.UpdatedAt,
+		}
 	case replay_entities.ReplayFile:
-		return &r.BaseEntity
+		return &common.BaseEntity{
+			ID:            r.ID,
+			ResourceOwner: r.ResourceOwner,
+			CreatedAt:     r.CreatedAt,
+			UpdatedAt:     r.UpdatedAt,
+		}
 	case replay_entities.Match:
-		return &r.BaseEntity
+		return &common.BaseEntity{
+			ID:            r.ID,
+			ResourceOwner: r.ResourceOwner,
+			CreatedAt:     r.CreatedAt,
+			UpdatedAt:     r.UpdatedAt,
+		}
 	default:
 		if hasBaseEntity, ok := resource.(interface{ GetBaseEntity() *common.BaseEntity }); ok {
 			return hasBaseEntity.GetBaseEntity()
