@@ -6,13 +6,49 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/shopspring/decimal"
 	common "github.com/replay-api/replay-api/pkg/domain"
 	tournament_entities "github.com/replay-api/replay-api/pkg/domain/tournament/entities"
 	tournament_usecases "github.com/replay-api/replay-api/pkg/domain/tournament/usecases"
+	wallet_vo "github.com/replay-api/replay-api/pkg/domain/wallet/value-objects"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
+
+func createTournamentWithParticipants(count int, format tournament_entities.TournamentFormat, status tournament_entities.TournamentStatus) *tournament_entities.Tournament {
+	participants := make([]tournament_entities.TournamentPlayer, count)
+	for i := 0; i < count; i++ {
+		participants[i] = tournament_entities.TournamentPlayer{
+			PlayerID:     uuid.New(),
+			DisplayName:  "Player" + string(rune('A'+i)),
+			Seed:         i + 1,
+			RegisteredAt: time.Now().UTC(),
+			Status:       "registered",
+		}
+	}
+
+	startTime := time.Now().UTC().Add(1 * time.Hour)
+	resourceOwner := common.ResourceOwner{
+		UserID:   uuid.New(),
+		TenantID: uuid.New(),
+	}
+
+	return &tournament_entities.Tournament{
+		BaseEntity:        common.NewUnrestrictedEntity(resourceOwner),
+		Name:              "Test Tournament",
+		Format:            format,
+		MaxParticipants:   16,
+		MinParticipants:   count,
+		Status:            status,
+		Participants:      participants,
+		Matches:           []tournament_entities.TournamentMatch{},
+		StartTime:         startTime,
+		RegistrationOpen:  time.Now().UTC().Add(-24 * time.Hour),
+		RegistrationClose: startTime.Add(-1 * time.Hour),
+		EntryFee:          wallet_vo.NewAmount(10.0),
+		Currency:          "USD",
+		OrganizerID:       uuid.New(),
+	}
+}
 
 func TestGenerateBrackets_Success_SingleElimination(t *testing.T) {
 	mockBilling := new(MockBillableOperationHandler)
@@ -29,33 +65,8 @@ func TestGenerateBrackets_Success_SingleElimination(t *testing.T) {
 	ctx = context.WithValue(ctx, common.UserIDKey, userID)
 	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
 
-	tournamentID := uuid.New()
-
-	// create tournament with 8 participants
-	participants := make([]tournament_entities.TournamentParticipant, 8)
-	for i := 0; i < 8; i++ {
-		participants[i] = tournament_entities.TournamentParticipant{
-			PlayerID:    uuid.New(),
-			DisplayName: "Player" + string(rune(i)),
-			Seed:        i + 1,
-			RegisteredAt: time.Now().UTC(),
-		}
-	}
-
-	startTime := time.Now().UTC().Add(1 * time.Hour)
-	tournament := &tournament_entities.Tournament{
-		ID:              tournamentID,
-		Name:            "Test Tournament",
-		Format:          tournament_entities.TournamentFormatSingleElimination,
-		MaxParticipants: 16,
-		MinParticipants: 8,
-		Status:          tournament_entities.TournamentStatusReady,
-		Participants:    participants,
-		Matches:         []tournament_entities.TournamentMatch{},
-		StartTime:       startTime,
-		CreatedAt:       time.Now().UTC(),
-		UpdatedAt:       time.Now().UTC(),
-	}
+	tournament := createTournamentWithParticipants(8, tournament_entities.TournamentFormatSingleElimination, tournament_entities.TournamentStatusReady)
+	tournamentID := tournament.ID
 
 	// mock tournament retrieval
 	mockTournamentRepo.On("FindByID", mock.Anything, tournamentID).Return(tournament, nil)
@@ -67,9 +78,7 @@ func TestGenerateBrackets_Success_SingleElimination(t *testing.T) {
 	mockTournamentRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
 
 	// mock billing execution
-	entryID := uuid.New()
-	amount := 1.0
-	mockBilling.On("Exec", mock.Anything, mock.Anything).Return(&entryID, &amount, nil)
+	mockBilling.On("Exec", mock.Anything, mock.Anything).Return(nil, nil, nil)
 
 	err := usecase.Exec(ctx, tournamentID)
 
@@ -93,29 +102,8 @@ func TestGenerateBrackets_Success_DoubleElimination(t *testing.T) {
 	ctx = context.WithValue(ctx, common.UserIDKey, userID)
 	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
 
-	tournamentID := uuid.New()
-
-	// create tournament with 8 participants
-	participants := make([]tournament_entities.TournamentParticipant, 8)
-	for i := 0; i < 8; i++ {
-		participants[i] = tournament_entities.TournamentParticipant{
-			PlayerID:     uuid.New(),
-			DisplayName:  "Player" + string(rune(i)),
-			Seed:         i + 1,
-			RegisteredAt: time.Now().UTC(),
-		}
-	}
-
-	startTime := time.Now().UTC().Add(1 * time.Hour)
-	tournament := &tournament_entities.Tournament{
-		ID:              tournamentID,
-		Format:          tournament_entities.TournamentFormatDoubleElimination,
-		MaxParticipants: 16,
-		MinParticipants: 8,
-		Status:          tournament_entities.TournamentStatusReady,
-		Participants:    participants,
-		StartTime:       startTime,
-	}
+	tournament := createTournamentWithParticipants(8, tournament_entities.TournamentFormatDoubleElimination, tournament_entities.TournamentStatusReady)
+	tournamentID := tournament.ID
 
 	// mock tournament retrieval
 	mockTournamentRepo.On("FindByID", mock.Anything, tournamentID).Return(tournament, nil)
@@ -127,9 +115,7 @@ func TestGenerateBrackets_Success_DoubleElimination(t *testing.T) {
 	mockTournamentRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
 
 	// mock billing execution
-	entryID := uuid.New()
-	amount := 1.0
-	mockBilling.On("Exec", mock.Anything, mock.Anything).Return(&entryID, &amount, nil)
+	mockBilling.On("Exec", mock.Anything, mock.Anything).Return(nil, nil, nil)
 
 	err := usecase.Exec(ctx, tournamentID)
 
@@ -153,29 +139,9 @@ func TestGenerateBrackets_Success_RoundRobin(t *testing.T) {
 	ctx = context.WithValue(ctx, common.UserIDKey, userID)
 	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
 
-	tournamentID := uuid.New()
-
-	// create tournament with 6 participants (for round robin)
-	participants := make([]tournament_entities.TournamentParticipant, 6)
-	for i := 0; i < 6; i++ {
-		participants[i] = tournament_entities.TournamentParticipant{
-			PlayerID:     uuid.New(),
-			DisplayName:  "Player" + string(rune(i)),
-			Seed:         i + 1,
-			RegisteredAt: time.Now().UTC(),
-		}
-	}
-
-	startTime := time.Now().UTC().Add(1 * time.Hour)
-	tournament := &tournament_entities.Tournament{
-		ID:              tournamentID,
-		Format:          tournament_entities.TournamentFormatRoundRobin,
-		MaxParticipants: 16,
-		MinParticipants: 4,
-		Status:          tournament_entities.TournamentStatusReady,
-		Participants:    participants,
-		StartTime:       startTime,
-	}
+	tournament := createTournamentWithParticipants(6, tournament_entities.TournamentFormatRoundRobin, tournament_entities.TournamentStatusReady)
+	tournament.MinParticipants = 4
+	tournamentID := tournament.ID
 
 	// mock tournament retrieval
 	mockTournamentRepo.On("FindByID", mock.Anything, tournamentID).Return(tournament, nil)
@@ -187,9 +153,7 @@ func TestGenerateBrackets_Success_RoundRobin(t *testing.T) {
 	mockTournamentRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
 
 	// mock billing execution
-	entryID := uuid.New()
-	amount := 1.0
-	mockBilling.On("Exec", mock.Anything, mock.Anything).Return(&entryID, &amount, nil)
+	mockBilling.On("Exec", mock.Anything, mock.Anything).Return(nil, nil, nil)
 
 	err := usecase.Exec(ctx, tournamentID)
 
@@ -213,29 +177,8 @@ func TestGenerateBrackets_Success_Swiss(t *testing.T) {
 	ctx = context.WithValue(ctx, common.UserIDKey, userID)
 	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
 
-	tournamentID := uuid.New()
-
-	// create tournament with 8 participants
-	participants := make([]tournament_entities.TournamentParticipant, 8)
-	for i := 0; i < 8; i++ {
-		participants[i] = tournament_entities.TournamentParticipant{
-			PlayerID:     uuid.New(),
-			DisplayName:  "Player" + string(rune(i)),
-			Seed:         i + 1,
-			RegisteredAt: time.Now().UTC(),
-		}
-	}
-
-	startTime := time.Now().UTC().Add(1 * time.Hour)
-	tournament := &tournament_entities.Tournament{
-		ID:              tournamentID,
-		Format:          tournament_entities.TournamentFormatSwiss,
-		MaxParticipants: 16,
-		MinParticipants: 8,
-		Status:          tournament_entities.TournamentStatusReady,
-		Participants:    participants,
-		StartTime:       startTime,
-	}
+	tournament := createTournamentWithParticipants(8, tournament_entities.TournamentFormatSwiss, tournament_entities.TournamentStatusReady)
+	tournamentID := tournament.ID
 
 	// mock tournament retrieval
 	mockTournamentRepo.On("FindByID", mock.Anything, tournamentID).Return(tournament, nil)
@@ -247,9 +190,7 @@ func TestGenerateBrackets_Success_Swiss(t *testing.T) {
 	mockTournamentRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
 
 	// mock billing execution
-	entryID := uuid.New()
-	amount := 1.0
-	mockBilling.On("Exec", mock.Anything, mock.Anything).Return(&entryID, &amount, nil)
+	mockBilling.On("Exec", mock.Anything, mock.Anything).Return(nil, nil, nil)
 
 	err := usecase.Exec(ctx, tournamentID)
 
@@ -316,24 +257,9 @@ func TestGenerateBrackets_WrongStatus(t *testing.T) {
 	ctx = context.WithValue(ctx, common.UserIDKey, userID)
 	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
 
-	tournamentID := uuid.New()
-
-	// create tournament in wrong status
-	tournament := &tournament_entities.Tournament{
-		ID:              tournamentID,
-		Status:          tournament_entities.TournamentStatusRegistering, // wrong status
-		MinParticipants: 8,
-		Participants: []tournament_entities.TournamentParticipant{
-			{PlayerID: uuid.New()},
-			{PlayerID: uuid.New()},
-			{PlayerID: uuid.New()},
-			{PlayerID: uuid.New()},
-			{PlayerID: uuid.New()},
-			{PlayerID: uuid.New()},
-			{PlayerID: uuid.New()},
-			{PlayerID: uuid.New()},
-		},
-	}
+	// create tournament in wrong status (registration instead of ready)
+	tournament := createTournamentWithParticipants(8, tournament_entities.TournamentFormatSingleElimination, tournament_entities.TournamentStatusRegistration)
+	tournamentID := tournament.ID
 
 	// mock tournament retrieval
 	mockTournamentRepo.On("FindByID", mock.Anything, tournamentID).Return(tournament, nil)
@@ -360,18 +286,10 @@ func TestGenerateBrackets_NotEnoughParticipants(t *testing.T) {
 	ctx = context.WithValue(ctx, common.UserIDKey, userID)
 	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
 
-	tournamentID := uuid.New()
-
-	// create tournament with not enough participants
-	tournament := &tournament_entities.Tournament{
-		ID:              tournamentID,
-		Status:          tournament_entities.TournamentStatusReady,
-		MinParticipants: 8,
-		Participants: []tournament_entities.TournamentParticipant{
-			{PlayerID: uuid.New()},
-			{PlayerID: uuid.New()},
-		}, // only 2, need 8
-	}
+	// create tournament with only 2 participants but needs 8
+	tournament := createTournamentWithParticipants(2, tournament_entities.TournamentFormatSingleElimination, tournament_entities.TournamentStatusReady)
+	tournament.MinParticipants = 8
+	tournamentID := tournament.ID
 
 	// mock tournament retrieval
 	mockTournamentRepo.On("FindByID", mock.Anything, tournamentID).Return(tournament, nil)
@@ -398,26 +316,8 @@ func TestGenerateBrackets_BillingValidationFails(t *testing.T) {
 	ctx = context.WithValue(ctx, common.UserIDKey, userID)
 	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
 
-	tournamentID := uuid.New()
-
-	// create valid tournament
-	participants := make([]tournament_entities.TournamentParticipant, 8)
-	for i := 0; i < 8; i++ {
-		participants[i] = tournament_entities.TournamentParticipant{
-			PlayerID: uuid.New(),
-			Seed:     i + 1,
-		}
-	}
-
-	tournament := &tournament_entities.Tournament{
-		ID:              tournamentID,
-		Format:          tournament_entities.TournamentFormatSingleElimination,
-		Status:          tournament_entities.TournamentStatusReady,
-		MinParticipants: 8,
-		Participants:    participants,
-		StartTime:       time.Now().UTC().Add(1 * time.Hour),
-		EntryFee:        decimal.NewFromFloat(10.0),
-	}
+	tournament := createTournamentWithParticipants(8, tournament_entities.TournamentFormatSingleElimination, tournament_entities.TournamentStatusReady)
+	tournamentID := tournament.ID
 
 	// mock tournament retrieval
 	mockTournamentRepo.On("FindByID", mock.Anything, tournamentID).Return(tournament, nil)

@@ -6,14 +6,41 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/shopspring/decimal"
 	common "github.com/replay-api/replay-api/pkg/domain"
 	tournament_entities "github.com/replay-api/replay-api/pkg/domain/tournament/entities"
 	tournament_in "github.com/replay-api/replay-api/pkg/domain/tournament/ports/in"
 	tournament_usecases "github.com/replay-api/replay-api/pkg/domain/tournament/usecases"
+	wallet_vo "github.com/replay-api/replay-api/pkg/domain/wallet/value-objects"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
+
+func createRegistrationTournament(status tournament_entities.TournamentStatus) *tournament_entities.Tournament {
+	startTime := time.Now().UTC().Add(24 * time.Hour)
+	registrationOpen := time.Now().UTC().Add(-1 * time.Hour)
+	registrationClose := startTime.Add(-1 * time.Hour)
+
+	resourceOwner := common.ResourceOwner{
+		UserID:   uuid.New(),
+		TenantID: uuid.New(),
+	}
+
+	return &tournament_entities.Tournament{
+		BaseEntity:        common.NewUnrestrictedEntity(resourceOwner),
+		Name:              "Test Tournament",
+		Format:            tournament_entities.TournamentFormatSingleElimination,
+		MaxParticipants:   16,
+		MinParticipants:   8,
+		EntryFee:          wallet_vo.NewAmount(10.0),
+		Currency:          "USD",
+		StartTime:         startTime,
+		RegistrationOpen:  registrationOpen,
+		RegistrationClose: registrationClose,
+		Status:            status,
+		Participants:      []tournament_entities.TournamentPlayer{},
+		OrganizerID:       uuid.New(),
+	}
+}
 
 func TestRegisterForTournament_Success(t *testing.T) {
 	mockBilling := new(MockBillableOperationHandler)
@@ -30,36 +57,14 @@ func TestRegisterForTournament_Success(t *testing.T) {
 	ctx = context.WithValue(ctx, common.UserIDKey, userID)
 	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
 
-	tournamentID := uuid.New()
+	tournament := createRegistrationTournament(tournament_entities.TournamentStatusRegistration)
+	tournamentID := tournament.ID
 	playerID := uuid.New()
 
 	cmd := tournament_in.RegisterPlayerCommand{
 		TournamentID: tournamentID,
 		PlayerID:     playerID,
 		DisplayName:  "Player123",
-	}
-
-	// create tournament in registration period
-	startTime := time.Now().UTC().Add(24 * time.Hour)
-	registrationOpen := time.Now().UTC().Add(-1 * time.Hour)
-	registrationClose := startTime.Add(-1 * time.Hour)
-
-	tournament := &tournament_entities.Tournament{
-		ID:                tournamentID,
-		Name:              "Test Tournament",
-		Format:            tournament_entities.TournamentFormatSingleElimination,
-		MaxParticipants:   16,
-		MinParticipants:   8,
-		EntryFee:          decimal.NewFromFloat(10.0),
-		Currency:          "USD",
-		StartTime:         startTime,
-		RegistrationOpen:  registrationOpen,
-		RegistrationClose: registrationClose,
-		Status:            tournament_entities.TournamentStatusRegistering,
-		Participants:      []tournament_entities.TournamentParticipant{},
-		OrganizerID:       uuid.New(),
-		CreatedAt:         time.Now().UTC(),
-		UpdatedAt:         time.Now().UTC(),
 	}
 
 	// mock tournament retrieval
@@ -72,9 +77,7 @@ func TestRegisterForTournament_Success(t *testing.T) {
 	mockTournamentRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
 
 	// mock billing execution
-	entryID := uuid.New()
-	amount := 10.0
-	mockBilling.On("Exec", mock.Anything, mock.Anything).Return(&entryID, &amount, nil)
+	mockBilling.On("Exec", mock.Anything, mock.Anything).Return(nil, nil, nil)
 
 	err := usecase.Exec(ctx, cmd)
 
@@ -153,27 +156,13 @@ func TestRegisterForTournament_BillingValidationFails(t *testing.T) {
 	ctx = context.WithValue(ctx, common.UserIDKey, userID)
 	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
 
-	tournamentID := uuid.New()
+	tournament := createRegistrationTournament(tournament_entities.TournamentStatusRegistration)
+	tournamentID := tournament.ID
 
 	cmd := tournament_in.RegisterPlayerCommand{
 		TournamentID: tournamentID,
 		PlayerID:     uuid.New(),
 		DisplayName:  "Player123",
-	}
-
-	// create tournament
-	startTime := time.Now().UTC().Add(24 * time.Hour)
-	registrationOpen := time.Now().UTC().Add(-1 * time.Hour)
-	registrationClose := startTime.Add(-1 * time.Hour)
-
-	tournament := &tournament_entities.Tournament{
-		ID:                tournamentID,
-		EntryFee:          decimal.NewFromFloat(10.0),
-		StartTime:         startTime,
-		RegistrationOpen:  registrationOpen,
-		RegistrationClose: registrationClose,
-		Status:            tournament_entities.TournamentStatusRegistering,
-		Participants:      []tournament_entities.TournamentParticipant{},
 	}
 
 	// mock tournament retrieval
@@ -204,29 +193,13 @@ func TestRegisterForTournament_UpdateFails(t *testing.T) {
 	ctx = context.WithValue(ctx, common.UserIDKey, userID)
 	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
 
-	tournamentID := uuid.New()
+	tournament := createRegistrationTournament(tournament_entities.TournamentStatusRegistration)
+	tournamentID := tournament.ID
 
 	cmd := tournament_in.RegisterPlayerCommand{
 		TournamentID: tournamentID,
 		PlayerID:     uuid.New(),
 		DisplayName:  "Player123",
-	}
-
-	// create tournament
-	startTime := time.Now().UTC().Add(24 * time.Hour)
-	registrationOpen := time.Now().UTC().Add(-1 * time.Hour)
-	registrationClose := startTime.Add(-1 * time.Hour)
-
-	tournament := &tournament_entities.Tournament{
-		ID:                tournamentID,
-		MaxParticipants:   16,
-		MinParticipants:   8,
-		EntryFee:          decimal.NewFromFloat(10.0),
-		StartTime:         startTime,
-		RegistrationOpen:  registrationOpen,
-		RegistrationClose: registrationClose,
-		Status:            tournament_entities.TournamentStatusRegistering,
-		Participants:      []tournament_entities.TournamentParticipant{},
 	}
 
 	// mock tournament retrieval
