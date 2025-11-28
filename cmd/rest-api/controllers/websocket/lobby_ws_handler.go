@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-	wsHub "github.com/psavelis/team-pro/replay-api/pkg/infra/websocket"
+	wsHub "github.com/replay-api/replay-api/pkg/infra/websocket"
 )
 
 type LobbyWebSocketHandler struct {

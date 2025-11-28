@@ -5,14 +5,15 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	tournament_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/tournament/entities"
-	tournament_in "github.com/psavelis/team-pro/replay-api/pkg/domain/tournament/ports/in"
-	wallet_vo "github.com/psavelis/team-pro/replay-api/pkg/domain/wallet/value-objects"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	tournament_entities "github.com/replay-api/replay-api/pkg/domain/tournament/entities"
+	tournament_in "github.com/replay-api/replay-api/pkg/domain/tournament/ports/in"
+	wallet_vo "github.com/replay-api/replay-api/pkg/domain/wallet/value-objects"
 )
 
 type TournamentCommandController struct {
@@ -85,9 +86,10 @@ func (c *TournamentCommandController) CreateTournamentHandler(apiContext context
 			return
 		}
 
-		// Create command
+		// Create command - use resource owner from context
+		resourceOwner := common.GetResourceOwner(r.Context())
 		cmd := tournament_in.CreateTournamentCommand{
-			ResourceOwner:     common.NewResourceOwner(organizerID, common.UserScope, "", ""),
+			ResourceOwner:     resourceOwner,
 			Name:              req.Name,
 			Description:       req.Description,
 			GameID:            common.GameIDKey(req.GameID),

@@ -11,10 +11,10 @@ import (
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	squad_in "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/in"
-	squad_out "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/out"
-	squad_value_objects "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/value-objects"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
+	squad_out "github.com/replay-api/replay-api/pkg/domain/squad/ports/out"
+	squad_value_objects "github.com/replay-api/replay-api/pkg/domain/squad/value-objects"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -91,7 +91,7 @@ func (ctrl *SquadController) CreateSquadHandler(apiContext context.Context) http
 			"squad_id", squad.ID,
 			"squad_name", squad.Name,
 			"slug_uri", squad.SlugURI,
-			"group_id", squad.GroupID,
+			"group_id", squad.ResourceOwner.GroupID,
 			"user_id", r.Context().Value(common.UserIDKey))
 
 		err = json.NewEncoder(w).Encode(squad)
@@ -158,20 +158,32 @@ func (ctrl *SquadController) AddMemberHandler(apiContext context.Context) http.H
 
 		squad := results[0]
 
-		// Add member to membership map
-		if squad.Membership == nil {
-			squad.Membership = make(map[string]squad_value_objects.SquadMembership)
+		// Parse player ID
+		playerUUID, err := uuid.Parse(req.PlayerID)
+		if err != nil {
+			http.Error(w, "invalid player_id format", http.StatusBadRequest)
+			return
 		}
 
+		// Check if member already exists in slice
+		for _, m := range squad.Membership {
+			if m.PlayerProfileID == playerUUID {
+				http.Error(w, "player already a member of this squad", http.StatusConflict)
+				return
+			}
+		}
+
+		// Add member to membership slice
 		now := time.Now()
 		memberType := req.Type
 		if memberType == "" {
 			memberType = squad_value_objects.SquadMembershipTypeMember
 		}
 
-		squad.Membership[req.PlayerID] = squad_value_objects.SquadMembership{
-			Type:  memberType,
-			Roles: req.Roles,
+		newMembership := squad_value_objects.SquadMembership{
+			PlayerProfileID: playerUUID,
+			Type:            memberType,
+			Roles:           req.Roles,
 			Status: map[time.Time]squad_value_objects.SquadMembershipStatus{
 				now: squad_value_objects.SquadMembershipStatusActive,
 			},
@@ -179,6 +191,7 @@ func (ctrl *SquadController) AddMemberHandler(apiContext context.Context) http.H
 				now: memberType,
 			},
 		}
+		squad.Membership = append(squad.Membership, newMembership)
 
 		// Update squad in database
 		var squadWriter squad_out.SquadWriter
@@ -233,14 +246,30 @@ func (ctrl *SquadController) RemoveMemberHandler(apiContext context.Context) htt
 
 		squad := results[0]
 
-		// Check if member exists
-		if squad.Membership == nil || squad.Membership[playerID].Type == "" {
+		// Parse player ID
+		playerUUID, err := uuid.Parse(playerID)
+		if err != nil {
+			http.Error(w, "invalid player_id format", http.StatusBadRequest)
+			return
+		}
+
+		// Find and remove member from membership slice
+		memberFound := false
+		newMembership := make([]squad_value_objects.SquadMembership, 0, len(squad.Membership))
+		for _, m := range squad.Membership {
+			if m.PlayerProfileID == playerUUID {
+				memberFound = true
+				continue // Skip this member (effectively removing them)
+			}
+			newMembership = append(newMembership, m)
+		}
+
+		if !memberFound {
 			http.Error(w, "member not found in squad", http.StatusNotFound)
 			return
 		}
 
-		// Remove member from membership map
-		delete(squad.Membership, playerID)
+		squad.Membership = newMembership
 
 		// Update squad in database
 		var squadWriter squad_out.SquadWriter
@@ -304,13 +333,29 @@ func (ctrl *SquadController) UpdateMemberRoleHandler(apiContext context.Context)
 
 		squad := results[0]
 
-		if squad.Membership == nil || squad.Membership[playerID].Type == "" {
+		// Parse player ID
+		playerUUID, err := uuid.Parse(playerID)
+		if err != nil {
+			http.Error(w, "invalid player_id format", http.StatusBadRequest)
+			return
+		}
+
+		// Find member in slice
+		memberIndex := -1
+		for i, m := range squad.Membership {
+			if m.PlayerProfileID == playerUUID {
+				memberIndex = i
+				break
+			}
+		}
+
+		if memberIndex == -1 {
 			http.Error(w, "member not found in squad", http.StatusNotFound)
 			return
 		}
 
 		// Update member role
-		membership := squad.Membership[playerID]
+		membership := squad.Membership[memberIndex]
 		if req.Type != "" {
 			membership.Type = req.Type
 			if membership.History == nil {
@@ -321,7 +366,7 @@ func (ctrl *SquadController) UpdateMemberRoleHandler(apiContext context.Context)
 		if req.Roles != nil {
 			membership.Roles = req.Roles
 		}
-		squad.Membership[playerID] = membership
+		squad.Membership[memberIndex] = membership
 
 		var squadWriter squad_out.SquadWriter
 		if err := ctrl.container.Resolve(&squadWriter); err != nil {

@@ -1,16 +1,16 @@
 package cmd_controllers
 
 import (
-"context"
-"encoding/json"
-"log/slog"
-"net/http"
+	"context"
+	"encoding/json"
+	"log/slog"
+	"net/http"
 
-"github.com/golobby/container/v3"
-"github.com/google/uuid"
-"github.com/gorilla/mux"
-matchmaking_in "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/ports/in"
-matchmaking_vo "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/value-objects"
+	"github.com/golobby/container/v3"
+	"github.com/google/uuid"
+	"github.com/gorilla/mux"
+	matchmaking_in "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/in"
+	matchmaking_vo "github.com/replay-api/replay-api/pkg/domain/matchmaking/value-objects"
 )
 
 type LobbyController struct {

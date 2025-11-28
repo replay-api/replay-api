@@ -9,8 +9,8 @@ import (
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	tournament_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/tournament/entities"
-	tournament_in "github.com/psavelis/team-pro/replay-api/pkg/domain/tournament/ports/in"
+	tournament_entities "github.com/replay-api/replay-api/pkg/domain/tournament/entities"
+	tournament_in "github.com/replay-api/replay-api/pkg/domain/tournament/ports/in"
 )
 
 type TournamentQueryController struct {

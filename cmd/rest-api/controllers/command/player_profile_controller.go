@@ -10,9 +10,9 @@ import (
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	squad_in "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/in"
-	squad_out "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/out"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
+	squad_out "github.com/replay-api/replay-api/pkg/domain/squad/ports/out"
 )
 
 type PlayerProfileController struct {
