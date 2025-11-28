@@ -22,7 +22,7 @@ func TestSmoke_WalletCreation(t *testing.T) {
 	resourceOwner := common.ResourceOwner{UserID: userID}
 
 	// Create EVM address
-	evmAddress, err := wallet_vo.NewEVMAddress("0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb")
+	evmAddress, err := wallet_vo.NewEVMAddress("0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0")
 	require.NoError(t, err, "Valid EVM address should be accepted")
 
 	// Create wallet
@@ -250,8 +250,8 @@ func TestSmoke_EVMAddressValidation(t *testing.T) {
 		address string
 		wantErr bool
 	}{
-		{"Valid address", "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb", false},
-		{"Valid lowercase", "0x742d35cc6634c0532925a3b844bc9e7595f0beb", false},
+		{"Valid address", "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0", false},
+		{"Valid lowercase", "0x742d35cc6634c0532925a3b844bc9e7595f0beb0", false},
 		{"Invalid - too short", "0x742d35", true},
 		{"Invalid - no 0x prefix", "742d35Cc6634C0532925a3b844Bc9e7595f0bEb", true},
 		{"Invalid - not hex", "0xGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG", true},
@@ -275,7 +275,7 @@ func createTestWallet(t *testing.T) *wallet_entities.UserWallet {
 
 	userID := uuid.New()
 	resourceOwner := common.ResourceOwner{UserID: userID}
-	evmAddress, err := wallet_vo.NewEVMAddress("0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb")
+	evmAddress, err := wallet_vo.NewEVMAddress("0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0")
 	require.NoError(t, err)
 
 	wallet, err := wallet_entities.NewUserWallet(resourceOwner, evmAddress)
@@ -288,7 +288,7 @@ func createTestWallet(t *testing.T) *wallet_entities.UserWallet {
 func BenchmarkWalletDeposit(b *testing.B) {
 	userID := uuid.New()
 	resourceOwner := common.ResourceOwner{UserID: userID}
-	evmAddress, _ := wallet_vo.NewEVMAddress("0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb")
+	evmAddress, _ := wallet_vo.NewEVMAddress("0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0")
 	wallet, _ := wallet_entities.NewUserWallet(resourceOwner, evmAddress)
 	amount := wallet_vo.NewAmount(10.00)
 
