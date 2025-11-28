@@ -1,15 +1,15 @@
 package websocket
 
 import (
-"context"
-"encoding/json"
-"log/slog"
-"sync"
-"time"
+	"context"
+	"encoding/json"
+	"log/slog"
+	"sync"
+	"time"
 
-"github.com/google/uuid"
-"github.com/gorilla/websocket"
-matchmaking_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/entities"
+	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
+	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
 )
 
 // Message types for WebSocket protocol
@@ -188,6 +188,41 @@ for _, client := range h.clients {
 close(client.Send)
 }
 slog.Info("WebSocket hub shut down")
+}
+
+// BroadcastFromKafka handles events received from Kafka and broadcasts to WebSocket clients
+// This method is designed to be called by the Kafka consumer
+func (h *WebSocketHub) BroadcastFromKafka(eventType string, lobbyID *uuid.UUID, payload json.RawMessage) {
+message := &WebSocketMessage{
+Type:      eventType,
+LobbyID:   lobbyID,
+Payload:   payload,
+Timestamp: time.Now().Unix(),
+}
+
+h.broadcast <- message
+}
+
+// BroadcastRaw sends a raw WebSocketMessage to the broadcast channel
+func (h *WebSocketHub) BroadcastRaw(message *WebSocketMessage) {
+h.broadcast <- message
+}
+
+// GetConnectedClientsCount returns the total number of connected clients
+func (h *WebSocketHub) GetConnectedClientsCount() int {
+h.mu.RLock()
+defer h.mu.RUnlock()
+return len(h.clients)
+}
+
+// GetLobbyClientsCount returns the number of clients subscribed to a specific lobby
+func (h *WebSocketHub) GetLobbyClientsCount(lobbyID uuid.UUID) int {
+h.mu.RLock()
+defer h.mu.RUnlock()
+if clients, exists := h.lobbyRooms[lobbyID]; exists {
+return len(clients)
+}
+return 0
 }
 
 // WritePump sends messages from the hub to the websocket connection

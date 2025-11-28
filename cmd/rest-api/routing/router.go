@@ -7,13 +7,14 @@ import (
 
 	"github.com/golobby/container/v3"
 	"github.com/gorilla/mux"
-	"github.com/psavelis/team-pro/replay-api/cmd/rest-api/controllers"
-	cmd_controllers "github.com/psavelis/team-pro/replay-api/cmd/rest-api/controllers/command"
-	websocket_controllers "github.com/psavelis/team-pro/replay-api/cmd/rest-api/controllers/websocket"
-	query_controllers "github.com/psavelis/team-pro/replay-api/cmd/rest-api/controllers/query"
-	"github.com/psavelis/team-pro/replay-api/cmd/rest-api/middlewares"
-	matchmaking_in "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/ports/in"
-	websocket "github.com/psavelis/team-pro/replay-api/pkg/infra/websocket"
+	"github.com/replay-api/replay-api/cmd/rest-api/controllers"
+	cmd_controllers "github.com/replay-api/replay-api/cmd/rest-api/controllers/command"
+	query_controllers "github.com/replay-api/replay-api/cmd/rest-api/controllers/query"
+	websocket_controllers "github.com/replay-api/replay-api/cmd/rest-api/controllers/websocket"
+	"github.com/replay-api/replay-api/cmd/rest-api/middlewares"
+	matchmaking_in "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/in"
+	"github.com/replay-api/replay-api/pkg/infra/metrics"
+	websocket "github.com/replay-api/replay-api/pkg/infra/websocket"
 )
 
 const (
@@ -29,6 +30,8 @@ const (
 	Onboard       string = "/onboarding"
 	OnboardSteam  string = "/onboarding/steam"
 	OnboardGoogle string = "/onboarding/google"
+	OnboardEmail  string = "/onboarding/email"
+	AuthLogin     string = "/auth/login"
 
 	PlayerProfile string = "/players"
 
@@ -47,6 +50,7 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	healthController := controllers.NewHealthController(container)
 	steamController := controllers.NewSteamController(&container)
 	googleController := controllers.NewGoogleController(&container)
+	emailController := controllers.NewEmailController(&container)
 	matchController := query_controllers.NewMatchQueryController(container)
 	eventController := query_controllers.NewEventQueryController(container)
 	groupController := query_controllers.NewGroupController(&container)
@@ -57,6 +61,7 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	prizePoolQueryController := query_controllers.NewPrizePoolQueryController(container)
 	tournamentCommandController := cmd_controllers.NewTournamentCommandController(container)
 	tournamentQueryController := query_controllers.NewTournamentQueryController(container)
+	walletQueryController := query_controllers.NewWalletQueryController(container)
 
 	// Prize pool matchmaking controllers
 	var lobbyCommand matchmaking_in.LobbyCommand
@@ -79,10 +84,17 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	r.Use(mux.CORSMethodMiddleware(r))
 	r.Use(resourceContextMiddleware.Handler)
 
-	// r.Use(middlewares.NewLoggerMiddleware().Handler)
-	// r.Use(middlewares.NewRecoveryMiddleware().Handler)
-	// r.Use(middlewares.NewResourceContextMiddleware().Handler)
-	// r.Use(middlewares.NewAuthMiddleware().Handler)
+	// Enable rate limiting (100 requests per minute per IP)
+	rateLimitMiddleware := middlewares.NewRateLimitMiddleware()
+	r.Use(rateLimitMiddleware.Handler)
+
+	// Enable auth middleware for protected routes
+	authMiddleware := middlewares.NewAuthMiddleware()
+	r.Use(authMiddleware.Handler)
+
+	// Enable request signing for sensitive financial operations
+	requestSigningMiddleware := middlewares.NewRequestSigningMiddleware()
+	r.Use(requestSigningMiddleware.Handler)
 
 	// cors
 
@@ -92,15 +104,28 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	// health
 	r.HandleFunc(Health, healthController.HealthCheck(ctx)).Methods("GET")
 
+	// Prometheus metrics
+	r.Handle("/metrics", metrics.Handler()).Methods("GET")
+
 	r.HandleFunc(CI, func(w http.ResponseWriter, r *http.Request) {
 		slog.Info("CI route up.")
 		http.ServeFile(w, r, "/app/coverage/coverage.html")
 	}).Methods("GET")
 
 	// onboarding/steam
+	r.HandleFunc(OnboardSteam, OptionsHandler).Methods("OPTIONS")
 	r.HandleFunc(OnboardSteam, steamController.OnboardSteamUser(ctx)).Methods("POST")
 
+	r.HandleFunc(OnboardGoogle, OptionsHandler).Methods("OPTIONS")
 	r.HandleFunc(OnboardGoogle, googleController.OnboardGoogleUser(ctx)).Methods("POST")
+
+	// onboarding/email
+	r.HandleFunc(OnboardEmail, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(OnboardEmail, emailController.OnboardEmailUser(ctx)).Methods("POST")
+
+	// auth/login
+	r.HandleFunc(AuthLogin, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(AuthLogin, emailController.LoginEmailUser(ctx)).Methods("POST")
 
 	// Matches API
 	r.HandleFunc(Match, matchController.DefaultSearchHandler).Methods("GET")
@@ -168,11 +193,11 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	// IAM API
 	r.HandleFunc(Group, groupController.HandleListMemberGroups).Methods("GET")
 
-	// Matchmaking API
-	r.HandleFunc("/matchmaking/queue", matchmakingController.JoinQueueHandler(ctx)).Methods("POST")
-	r.HandleFunc("/matchmaking/queue/{session_id}", matchmakingController.LeaveQueueHandler(ctx)).Methods("DELETE")
-	r.HandleFunc("/matchmaking/session/{session_id}", matchmakingController.GetSessionStatusHandler(ctx)).Methods("GET")
-	r.HandleFunc("/matchmaking/pools/{game_id}", matchmakingController.GetPoolStatsHandler(ctx)).Methods("GET")
+	// Match-Making API
+	r.HandleFunc("/match-making/queue", matchmakingController.JoinQueueHandler(ctx)).Methods("POST")
+	r.HandleFunc("/match-making/queue/{session_id}", matchmakingController.LeaveQueueHandler(ctx)).Methods("DELETE")
+	r.HandleFunc("/match-making/session/{session_id}", matchmakingController.GetSessionStatusHandler(ctx)).Methods("GET")
+	r.HandleFunc("/match-making/pools/{game_id}", matchmakingController.GetPoolStatsHandler(ctx)).Methods("GET")
 
 	// Prize Pool Lobby API
 	r.HandleFunc("/api/lobbies", lobbyController.CreateLobbyHandler(ctx)).Methods("POST")
@@ -203,6 +228,22 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	r.HandleFunc("/tournaments/{id}/start", tournamentCommandController.StartTournamentHandler(ctx)).Methods("POST")
 	r.HandleFunc("/players/{player_id}/tournaments", tournamentQueryController.GetPlayerTournamentsHandler).Methods("GET")
 	r.HandleFunc("/organizers/{organizer_id}/tournaments", tournamentQueryController.GetOrganizerTournamentsHandler).Methods("GET")
+
+	// Wallet API
+	r.HandleFunc("/wallet/balance", walletQueryController.GetWalletBalanceHandler).Methods("GET")
+	r.HandleFunc("/wallet/transactions", walletQueryController.GetWalletTransactionsHandler).Methods("GET")
+
+	// Payment API
+	paymentController := cmd_controllers.NewPaymentController(container)
+	r.HandleFunc("/payments", paymentController.CreatePaymentIntentHandler(ctx)).Methods("POST")
+	r.HandleFunc("/payments", paymentController.GetUserPaymentsHandler(ctx)).Methods("GET")
+	r.HandleFunc("/payments/{payment_id}", paymentController.GetPaymentHandler(ctx)).Methods("GET")
+	r.HandleFunc("/payments/{payment_id}/confirm", paymentController.ConfirmPaymentHandler(ctx)).Methods("POST")
+	r.HandleFunc("/payments/{payment_id}/cancel", paymentController.CancelPaymentHandler(ctx)).Methods("POST")
+	r.HandleFunc("/payments/{payment_id}/refund", paymentController.RefundPaymentHandler(ctx)).Methods("POST")
+
+	// Stripe Webhook (no auth required)
+	r.HandleFunc("/webhooks/stripe", paymentController.StripeWebhookHandler(ctx)).Methods("POST")
 
 	return r
 }

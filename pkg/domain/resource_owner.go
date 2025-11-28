@@ -15,25 +15,60 @@ type ResourceOwner struct {
 	UserID   uuid.UUID `json:"user_id" bson:"user_id"`     // EndUserID represents the ID of the end user who owns the resource.
 }
 
-var AdminAudienceIDKeys = make(map[IntendedAudienceKey]bool, 0)
+// adminAudienceKeys is an immutable map of audience keys that have admin privileges
+// Using a function to return the map ensures thread-safety without global mutable state
+var adminAudienceKeys = map[IntendedAudienceKey]bool{
+	TenantAudienceIDKey:            true,
+	ClientApplicationAudienceIDKey: true,
+}
 
+// IsAdmin checks if the current context has admin-level access
+// Admin access is granted to TenantAudienceIDKey and ClientApplicationAudienceIDKey
 func IsAdmin(userContext context.Context) bool {
-	if len(AdminAudienceIDKeys) == 0 {
-		AdminAudienceIDKeys[TenantAudienceIDKey] = true
-		AdminAudienceIDKeys[ClientApplicationAudienceIDKey] = true
-	}
-
 	audience, ok := userContext.Value(AudienceKey).(IntendedAudienceKey)
 	if !ok {
 		return false
 	}
 
-	if _, ok := AdminAudienceIDKeys[audience]; !ok {
+	return adminAudienceKeys[audience]
+}
+
+// IsAuthenticated checks if the current context represents an authenticated user
+func IsAuthenticated(ctx context.Context) bool {
+	isAuth, ok := ctx.Value(AuthenticatedKey).(bool)
+	return ok && isAuth
+}
+
+// CanAccessResource checks if the current user can access a resource based on visibility
+func CanAccessResource(ctx context.Context, resourceOwner ResourceOwner, visibilityType VisibilityTypeKey) bool {
+	currentOwner := GetResourceOwner(ctx)
+
+	// Public resources are always accessible within the same tenant
+	if visibilityType == PublicVisibilityTypeKey && currentOwner.TenantID == resourceOwner.TenantID {
+		return true
+	}
+
+	// Must be authenticated for non-public resources
+	if !IsAuthenticated(ctx) {
 		return false
 	}
 
-	return AdminAudienceIDKeys[audience]
+	// User owns the resource
+	if currentOwner.UserID != uuid.Nil && currentOwner.UserID == resourceOwner.UserID {
+		return true
+	}
 
+	// User is in the same group
+	if currentOwner.GroupID != uuid.Nil && currentOwner.GroupID == resourceOwner.GroupID {
+		return true
+	}
+
+	// Restricted visibility - check client access
+	if visibilityType == RestrictedVisibilityTypeKey {
+		return currentOwner.ClientID != uuid.Nil && currentOwner.ClientID == resourceOwner.ClientID
+	}
+
+	return false
 }
 
 func GetResourceOwner(userContext context.Context) ResourceOwner {
@@ -80,4 +115,14 @@ func (ro ResourceOwner) IsGroup() bool {
 
 func (ro ResourceOwner) IsUser() bool {
 	return ro.TenantID != uuid.Nil && ro.UserID != uuid.Nil
+}
+
+// NewResourceOwner creates a ResourceOwner from the provided IDs
+func NewResourceOwner(tenantID, clientID, groupID, userID uuid.UUID) ResourceOwner {
+	return ResourceOwner{
+		TenantID: tenantID,
+		ClientID: clientID,
+		GroupID:  groupID,
+		UserID:   userID,
+	}
 }

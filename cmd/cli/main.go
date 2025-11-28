@@ -1,5 +1,10 @@
 package main
 
+// main is a placeholder - CLI functionality is currently disabled
+func main() {
+	// TODO: Implement CLI commands for database migrations
+}
+
 // import (
 // 	"database/sql"
 // 	"fmt"

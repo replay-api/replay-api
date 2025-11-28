@@ -1,18 +1,18 @@
 package matchmaking_services
 
 import (
-"context"
-"fmt"
-"log/slog"
+	"context"
+	"fmt"
+	"log/slog"
 
-"github.com/google/uuid"
-common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-matchmaking_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/entities"
-matchmaking_in "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/ports/in"
-matchmaking_out "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/ports/out"
-wallet_in "github.com/psavelis/team-pro/replay-api/pkg/domain/wallet/ports/in"
-wallet_vo "github.com/psavelis/team-pro/replay-api/pkg/domain/wallet/value-objects"
-ws "github.com/psavelis/team-pro/replay-api/pkg/infra/websocket"
+	"github.com/google/uuid"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
+	matchmaking_in "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/in"
+	matchmaking_out "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/out"
+	wallet_in "github.com/replay-api/replay-api/pkg/domain/wallet/ports/in"
+	wallet_vo "github.com/replay-api/replay-api/pkg/domain/wallet/value-objects"
+	ws "github.com/replay-api/replay-api/pkg/infra/websocket"
 )
 
 // LobbyOrchestrationService coordinates lobby → prize pool → wallet operations with Saga pattern

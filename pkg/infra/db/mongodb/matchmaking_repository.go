@@ -9,8 +9,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	matchmaking_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/entities"
-	matchmaking_out "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/ports/out"
+	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
+	matchmaking_out "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/out"
 )
 
 const (

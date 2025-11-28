@@ -10,9 +10,9 @@ import (
 	common "github.com/replay-api/replay-api/pkg/domain"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
-	matchmaking_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/entities"
-	matchmaking_in "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/ports/in"
-	matchmaking_out "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/ports/out"
+	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
+	matchmaking_in "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/in"
+	matchmaking_out "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/out"
 )
 
 // JoinMatchmakingQueueUseCase handles player joining matchmaking queue

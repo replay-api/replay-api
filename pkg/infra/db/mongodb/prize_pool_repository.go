@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	matchmaking_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/entities"
-	matchmaking_out "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/ports/out"
+	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
+	matchmaking_out "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/out"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -30,8 +30,8 @@ func NewMongoPrizePoolRepository(mongoClient *mongo.Client, dbName string) match
 			entityModel:       entityModel,
 			collectionName:    "prize_pools",
 			entityName:        "PrizePool",
-			bsonFieldMappings: make(map[string]string),
-			queryableFields:   make(map[string]bool),
+			BsonFieldMappings: make(map[string]string),
+			QueryableFields:   make(map[string]bool),
 		},
 	}
 

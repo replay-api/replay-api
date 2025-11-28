@@ -3,11 +3,9 @@ package squad_usecases
 import (
 	"context"
 	"log/slog"
-	"time"
 
-	"github.com/google/uuid"
-	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
+	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	common "github.com/replay-api/replay-api/pkg/domain"
 	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
@@ -54,13 +52,16 @@ func (uc *UpdateSquadMemberRoleUseCase) Exec(ctx context.Context, cmd squad_in.U
 
 	squad := squads[0]
 
-	// 3. Check if member exists
-	if squad.Membership == nil {
-		return nil, common.NewErrNotFound(common.ResourceTypeSquad, "MemberID", cmd.PlayerID.String())
+	// 3. Find member in slice
+	memberIndex := -1
+	for i, m := range squad.Membership {
+		if m.PlayerProfileID == cmd.PlayerID {
+			memberIndex = i
+			break
+		}
 	}
 
-	member, exists := squad.Membership[cmd.PlayerID.String()]
-	if !exists {
+	if memberIndex == -1 {
 		return nil, common.NewErrNotFound(common.ResourceTypeSquad, "MemberID", cmd.PlayerID.String())
 	}
 
@@ -77,8 +78,7 @@ func (uc *UpdateSquadMemberRoleUseCase) Exec(ctx context.Context, cmd squad_in.U
 	}
 
 	// 5. Update member roles
-	member.Roles = cmd.Roles
-	squad.Membership[cmd.PlayerID.String()] = member
+	squad.Membership[memberIndex].Roles = cmd.Roles
 
 	// 6. Update squad
 	updatedSquad, err := uc.SquadWriter.Update(ctx, &squad)
@@ -88,9 +88,9 @@ func (uc *UpdateSquadMemberRoleUseCase) Exec(ctx context.Context, cmd squad_in.U
 	}
 
 	// 7. Execute billing
-	err = uc.billableOperationHandler.Exec(ctx, billingCmd)
-	if err != nil {
-		slog.WarnContext(ctx, "Failed to execute billing for update squad member role", "error", err, "squad_id", cmd.SquadID)
+	_, _, billingErr := uc.billableOperationHandler.Exec(ctx, billingCmd)
+	if billingErr != nil {
+		slog.WarnContext(ctx, "Failed to execute billing for update squad member role", "error", billingErr, "squad_id", cmd.SquadID)
 	}
 
 	// 8. Record history - using SquadMemberPromoted as generic role update action

@@ -1,0 +1,89 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: payment-metrics
+  namespace: replay-api
+  labels:
+    app: replay-api
+    component: payments
+spec:
+  selector:
+    matchLabels:
+      app: replay-rest-api
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: payment-alerts
+  namespace: replay-api
+  labels:
+    app: replay-api
+    component: payments
+spec:
+  groups:
+    - name: payment-alerts
+      rules:
+        # Alert on high payment failure rate
+        - alert: HighPaymentFailureRate
+          expr: |
+            (
+              sum(rate(payment_failures_total[5m]))
+              /
+              sum(rate(payment_attempts_total[5m]))
+            ) > 0.1
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "High payment failure rate detected"
+            description: "Payment failure rate is above 10% for the last 5 minutes"
+
+        # Alert on payment processing latency
+        - alert: HighPaymentLatency
+          expr: |
+            histogram_quantile(0.99, sum(rate(payment_processing_duration_seconds_bucket[5m])) by (le))
+            > 30
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High payment processing latency"
+            description: "99th percentile payment processing time is above 30 seconds"
+
+        # Alert on Stripe webhook failures
+        - alert: StripeWebhookFailures
+          expr: |
+            sum(rate(stripe_webhook_failures_total[5m])) > 0.1
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Stripe webhook processing failures"
+            description: "Stripe webhooks are failing to process"
+
+        # Alert on pending payment timeout
+        - alert: PendingPaymentTimeout
+          expr: |
+            count(payment_pending_duration_seconds > 3600) > 10
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Too many pending payments"
+            description: "More than 10 payments have been pending for over 1 hour"
+
+        # Alert on suspicious activity
+        - alert: SuspiciousPaymentActivity
+          expr: |
+            sum(rate(payment_fraud_flags_total[15m])) > 5
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Suspicious payment activity detected"
+            description: "Multiple fraud flags triggered in short period"

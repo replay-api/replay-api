@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: strapi-cms
+
+commonLabels:
+  app.kubernetes.io/name: strapi-cms
+  app.kubernetes.io/component: content-management
+  app.kubernetes.io/part-of: leetgaming-platform
+  app.kubernetes.io/managed-by: kustomize
+
+resources:
+  - 00-namespace.yaml
+  - 01-configmap.yaml
+  - 02-secrets.yaml
+  - 03-postgres-statefulset.yaml
+  - 04-redis-deployment.yaml
+  - 05-strapi-deployment.yaml
+  - 06-hpa.yaml
+  - 07-ingress.yaml
+  - 08-network-policy.yaml
+
+# Configuration for different environments
+# Use overlays for staging/production customizations

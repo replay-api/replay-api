@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	wallet_vo "github.com/psavelis/team-pro/replay-api/pkg/domain/wallet/value-objects"
+	wallet_vo "github.com/replay-api/replay-api/pkg/domain/wallet/value-objects"
 )
 
 // DistributionRule defines how prize money is distributed

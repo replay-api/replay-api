@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	matchmaking_vo "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/value-objects"
-	wallet_vo "github.com/psavelis/team-pro/replay-api/pkg/domain/wallet/value-objects"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	matchmaking_vo "github.com/replay-api/replay-api/pkg/domain/matchmaking/value-objects"
+	wallet_vo "github.com/replay-api/replay-api/pkg/domain/wallet/value-objects"
 )
 
 // PrizePool is an aggregate root representing accumulated prize money for a match

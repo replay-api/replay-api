@@ -7,9 +7,10 @@ import (
 
 	"github.com/google/uuid"
 	common "github.com/replay-api/replay-api/pkg/domain"
-	matchmaking_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/entities"
-	matchmaking_in "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/ports/in"
-	matchmaking_usecases "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/usecases"
+	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
+	matchmaking_in "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/in"
+	matchmaking_usecases "github.com/replay-api/replay-api/pkg/domain/matchmaking/usecases"
+	matchmaking_vo "github.com/replay-api/replay-api/pkg/domain/matchmaking/value-objects"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -36,29 +37,29 @@ func TestLeaveLobby_Success(t *testing.T) {
 		PlayerID: playerID,
 	}
 
-	// create lobby with the player
-	lobby := &matchmaking_entities.MatchmakingLobby{
-		ID:               lobbyID,
-		CreatorID:        uuid.New(),
-		GameID:           "cs2",
-		Region:           "us-east",
-		Tier:             matchmaking_entities.TierFree,
-		DistributionRule: matchmaking_entities.DistributionRuleRandom,
-		MaxPlayers:       10,
-		AutoFill:         true,
-		InviteOnly:       false,
-		Players: []matchmaking_entities.LobbyPlayer{
-			{
-				PlayerID: playerID,
-				MMR:      1500,
-				IsReady:  false,
-				JoinedAt: time.Now().UTC(),
-			},
-		},
-		Status:    matchmaking_entities.LobbyStatusWaiting,
-		CreatedAt: time.Now().UTC(),
-		UpdatedAt: time.Now().UTC(),
+	// create lobby with the player using proper entity structure
+	resourceOwner := common.ResourceOwner{
+		TenantID: uuid.New(),
+		ClientID: uuid.New(),
+		GroupID:  uuid.New(),
+		UserID:   uuid.New(),
 	}
+	lobby, _ := matchmaking_entities.NewMatchmakingLobby(
+		resourceOwner,
+		uuid.New(), // creator
+		"cs2",
+		"us-east",
+		string(matchmaking_entities.TierFree),
+		matchmaking_vo.DistributionRuleWinnerTakesAll,
+		10,
+		true,
+		false,
+	)
+	lobby.ID = lobbyID
+	// Add the player to the lobby
+	lobby.AddPlayer(playerID, 1500)
+	lobby.CreatedAt = time.Now().UTC()
+	lobby.UpdatedAt = time.Now().UTC()
 
 	// mock lobby retrieval
 	mockLobbyRepo.On("FindByID", mock.Anything, lobbyID).Return(lobby, nil)
@@ -70,9 +71,7 @@ func TestLeaveLobby_Success(t *testing.T) {
 	mockLobbyRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
 
 	// mock billing execution
-	entryID := uuid.New()
-	amount := 1.0
-	mockBilling.On("Exec", mock.Anything, mock.Anything).Return(&entryID, &amount, nil)
+	mockBilling.On("Exec", mock.Anything, mock.Anything).Return(nil, nil, nil)
 
 	err := usecase.Exec(ctx, cmd)
 
@@ -156,17 +155,25 @@ func TestLeaveLobby_BillingValidationFails(t *testing.T) {
 	}
 
 	// create lobby with the player
-	lobby := &matchmaking_entities.MatchmakingLobby{
-		ID:         lobbyID,
-		MaxPlayers: 10,
-		Players: []matchmaking_entities.LobbyPlayer{
-			{
-				PlayerID: playerID,
-				MMR:      1500,
-			},
-		},
-		Status: matchmaking_entities.LobbyStatusWaiting,
+	resourceOwner := common.ResourceOwner{
+		TenantID: uuid.New(),
+		ClientID: uuid.New(),
+		GroupID:  uuid.New(),
+		UserID:   uuid.New(),
 	}
+	lobby, _ := matchmaking_entities.NewMatchmakingLobby(
+		resourceOwner,
+		uuid.New(), // creator
+		"cs2",
+		"us-east",
+		string(matchmaking_entities.TierFree),
+		matchmaking_vo.DistributionRuleWinnerTakesAll,
+		10,
+		true,
+		false,
+	)
+	lobby.ID = lobbyID
+	lobby.AddPlayer(playerID, 1500)
 
 	// mock lobby retrieval
 	mockLobbyRepo.On("FindByID", mock.Anything, lobbyID).Return(lobby, nil)
@@ -203,13 +210,25 @@ func TestLeaveLobby_PlayerNotInLobby(t *testing.T) {
 		PlayerID: playerID,
 	}
 
-	// create lobby without the player
-	lobby := &matchmaking_entities.MatchmakingLobby{
-		ID:         lobbyID,
-		MaxPlayers: 10,
-		Players:    []matchmaking_entities.LobbyPlayer{}, // empty
-		Status:     matchmaking_entities.LobbyStatusWaiting,
+	// create lobby without the player (only creator is there)
+	resourceOwner := common.ResourceOwner{
+		TenantID: uuid.New(),
+		ClientID: uuid.New(),
+		GroupID:  uuid.New(),
+		UserID:   uuid.New(),
 	}
+	lobby, _ := matchmaking_entities.NewMatchmakingLobby(
+		resourceOwner,
+		uuid.New(), // creator (different from playerID)
+		"cs2",
+		"us-east",
+		string(matchmaking_entities.TierFree),
+		matchmaking_vo.DistributionRuleWinnerTakesAll,
+		10,
+		true,
+		false,
+	)
+	lobby.ID = lobbyID
 
 	// mock lobby retrieval
 	mockLobbyRepo.On("FindByID", mock.Anything, lobbyID).Return(lobby, nil)

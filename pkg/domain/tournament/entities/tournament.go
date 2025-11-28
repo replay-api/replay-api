@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	wallet_vo "github.com/psavelis/team-pro/replay-api/pkg/domain/wallet/value-objects"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	wallet_vo "github.com/replay-api/replay-api/pkg/domain/wallet/value-objects"
 )
 
 // Tournament is an aggregate root representing a competitive gaming tournament

@@ -5,9 +5,9 @@ import (
 	"log/slog"
 	"time"
 
-	matchmaking_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/entities"
-	matchmaking_out "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/ports/out"
-	wallet_in "github.com/psavelis/team-pro/replay-api/pkg/domain/wallet/ports/in"
+	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
+	matchmaking_out "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/out"
+	wallet_in "github.com/replay-api/replay-api/pkg/domain/wallet/ports/in"
 )
 
 type PrizeDistributionJob struct {

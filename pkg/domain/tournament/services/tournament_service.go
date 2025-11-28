@@ -6,10 +6,10 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	tournament_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/tournament/entities"
-	tournament_in "github.com/psavelis/team-pro/replay-api/pkg/domain/tournament/ports/in"
-	tournament_out "github.com/psavelis/team-pro/replay-api/pkg/domain/tournament/ports/out"
-	wallet_in "github.com/psavelis/team-pro/replay-api/pkg/domain/wallet/ports/in"
+	tournament_entities "github.com/replay-api/replay-api/pkg/domain/tournament/entities"
+	tournament_in "github.com/replay-api/replay-api/pkg/domain/tournament/ports/in"
+	tournament_out "github.com/replay-api/replay-api/pkg/domain/tournament/ports/out"
+	wallet_in "github.com/replay-api/replay-api/pkg/domain/wallet/ports/in"
 )
 
 // TournamentService implements tournament management business logic
@@ -182,7 +182,7 @@ func (s *TournamentService) RegisterPlayer(ctx context.Context, cmd tournament_i
 		debitCmd := wallet_in.DebitWalletCommand{
 			UserID:      cmd.PlayerID,
 			Amount:      tournament.EntryFee,
-			Currency:    tournament.Currency,
+			Currency:    string(tournament.Currency),
 			Description: fmt.Sprintf("Tournament entry fee: %s", tournament.Name),
 			Metadata: map[string]interface{}{
 				"tournament_id": tournament.ID.String(),
@@ -237,7 +237,7 @@ func (s *TournamentService) UnregisterPlayer(ctx context.Context, cmd tournament
 		creditCmd := wallet_in.CreditWalletCommand{
 			UserID:      cmd.PlayerID,
 			Amount:      tournament.EntryFee,
-			Currency:    tournament.Currency,
+			Currency:    string(tournament.Currency),
 			Description: fmt.Sprintf("Tournament entry refund: %s", tournament.Name),
 			Metadata: map[string]interface{}{
 				"tournament_id": tournament.ID.String(),
@@ -349,7 +349,7 @@ func (s *TournamentService) CompleteTournament(ctx context.Context, cmd tourname
 			creditCmd := wallet_in.CreditWalletCommand{
 				UserID:      winner.PlayerID,
 				Amount:      winner.Prize,
-				Currency:    tournament.Currency,
+				Currency:    string(tournament.Currency),
 				Description: fmt.Sprintf("Tournament prize: %s (Placement: %d)", tournament.Name, winner.Placement),
 				Metadata: map[string]interface{}{
 					"tournament_id": tournament.ID.String(),
@@ -394,7 +394,7 @@ func (s *TournamentService) CancelTournament(ctx context.Context, cmd tournament
 			creditCmd := wallet_in.CreditWalletCommand{
 				UserID:      participant.PlayerID,
 				Amount:      tournament.EntryFee,
-				Currency:    tournament.Currency,
+				Currency:    string(tournament.Currency),
 				Description: fmt.Sprintf("Tournament cancellation refund: %s", tournament.Name),
 				Metadata: map[string]interface{}{
 					"tournament_id": tournament.ID.String(),

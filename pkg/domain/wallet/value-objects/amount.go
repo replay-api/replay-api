@@ -57,6 +57,16 @@ func (a Amount) ToFloat() float64 {
 	return a.Dollars()
 }
 
+// ToFloat64 returns the amount as a float64 (alias for ToFloat)
+func (a Amount) ToFloat64() float64 {
+	return a.Dollars()
+}
+
+// ToCents returns the amount in cents (alias for Cents)
+func (a Amount) ToCents() int64 {
+	return a.cents
+}
+
 // Add adds two amounts
 func (a Amount) Add(other Amount) Amount {
 	return Amount{cents: a.cents + other.cents}

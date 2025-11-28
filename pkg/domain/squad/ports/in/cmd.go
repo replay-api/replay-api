@@ -2,6 +2,8 @@ package squad_in
 
 import (
 	"context"
+	"errors"
+	"strings"
 
 	"github.com/google/uuid"
 	common "github.com/replay-api/replay-api/pkg/domain"
@@ -27,6 +29,26 @@ type CreateSquadMembershipInput struct {
 	Roles  []string                                  `json:"roles" bson:"roles"`
 }
 
+// Validate validates the CreateOrUpdatedSquadCommand
+func (c *CreateOrUpdatedSquadCommand) Validate() error {
+	if strings.TrimSpace(c.Name) == "" {
+		return errors.New("name is required")
+	}
+	if len(c.Name) > 50 {
+		return errors.New("name cannot exceed 50 characters")
+	}
+	if c.GameID == "" {
+		return errors.New("game_id is required")
+	}
+	if c.Symbol != "" && len(c.Symbol) > 10 {
+		return errors.New("symbol cannot exceed 10 characters")
+	}
+	if len(c.Description) > 500 {
+		return errors.New("description cannot exceed 500 characters")
+	}
+	return nil
+}
+
 type CreateSquadCommandHandler interface {
 	Exec(c context.Context, cmd CreateOrUpdatedSquadCommand) (*squad_entities.Squad, error)
 }
@@ -40,10 +62,21 @@ type DeleteSquadCommandHandler interface {
 }
 
 type AddSquadMemberCommand struct {
-	SquadID  uuid.UUID                                `json:"squad_id"`
-	PlayerID uuid.UUID                                `json:"player_id"`
+	SquadID  uuid.UUID                               `json:"squad_id"`
+	PlayerID uuid.UUID                               `json:"player_id"`
 	Type     squad_value_objects.SquadMembershipType `json:"type"`
-	Roles    []string                                 `json:"roles"`
+	Roles    []string                                `json:"roles"`
+}
+
+// Validate validates the AddSquadMemberCommand
+func (c *AddSquadMemberCommand) Validate() error {
+	if c.SquadID == uuid.Nil {
+		return errors.New("squad_id is required")
+	}
+	if c.PlayerID == uuid.Nil {
+		return errors.New("player_id is required")
+	}
+	return nil
 }
 
 type AddSquadMemberCommandHandler interface {
@@ -55,6 +88,17 @@ type RemoveSquadMemberCommand struct {
 	PlayerID uuid.UUID `json:"player_id"`
 }
 
+// Validate validates the RemoveSquadMemberCommand
+func (c *RemoveSquadMemberCommand) Validate() error {
+	if c.SquadID == uuid.Nil {
+		return errors.New("squad_id is required")
+	}
+	if c.PlayerID == uuid.Nil {
+		return errors.New("player_id is required")
+	}
+	return nil
+}
+
 type RemoveSquadMemberCommandHandler interface {
 	Exec(c context.Context, cmd RemoveSquadMemberCommand) (*squad_entities.Squad, error)
 }
@@ -63,6 +107,17 @@ type UpdateSquadMemberRoleCommand struct {
 	SquadID  uuid.UUID `json:"squad_id"`
 	PlayerID uuid.UUID `json:"player_id"`
 	Roles    []string  `json:"roles"`
+}
+
+// Validate validates the UpdateSquadMemberRoleCommand
+func (c *UpdateSquadMemberRoleCommand) Validate() error {
+	if c.SquadID == uuid.Nil {
+		return errors.New("squad_id is required")
+	}
+	if c.PlayerID == uuid.Nil {
+		return errors.New("player_id is required")
+	}
+	return nil
 }
 
 type UpdateSquadMemberRoleCommandHandler interface {
@@ -80,6 +135,23 @@ type CreatePlayerProfileCommand struct {
 	VisibilityType  common.VisibilityTypeKey `json:"visibility_type"`
 }
 
+// Validate validates the CreatePlayerProfileCommand
+func (c *CreatePlayerProfileCommand) Validate() error {
+	if c.GameID == "" {
+		return errors.New("game_id is required")
+	}
+	if strings.TrimSpace(c.Nickname) == "" {
+		return errors.New("nickname is required")
+	}
+	if len(c.Nickname) > 30 {
+		return errors.New("nickname cannot exceed 30 characters")
+	}
+	if len(c.Description) > 500 {
+		return errors.New("description cannot exceed 500 characters")
+	}
+	return nil
+}
+
 type CreatePlayerProfileCommandHandler interface {
 	Exec(c context.Context, cmd CreatePlayerProfileCommand) (*squad_entities.PlayerProfile, error)
 }
@@ -92,6 +164,20 @@ type UpdatePlayerCommand struct {
 	SlugURI         string    `json:"slug_uri"`
 	Roles           []string  `json:"roles"`
 	Description     string    `json:"description"`
+}
+
+// Validate validates the UpdatePlayerCommand
+func (c *UpdatePlayerCommand) Validate() error {
+	if c.PlayerID == uuid.Nil {
+		return errors.New("player_id is required")
+	}
+	if c.Nickname != "" && len(c.Nickname) > 30 {
+		return errors.New("nickname cannot exceed 30 characters")
+	}
+	if len(c.Description) > 500 {
+		return errors.New("description cannot exceed 500 characters")
+	}
+	return nil
 }
 
 type UpdatePlayerProfileCommandHandler interface {

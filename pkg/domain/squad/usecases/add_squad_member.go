@@ -5,9 +5,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/google/uuid"
-	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
+	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	common "github.com/replay-api/replay-api/pkg/domain"
 	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
@@ -69,8 +68,8 @@ func (uc *AddSquadMemberUseCase) Exec(ctx context.Context, cmd squad_in.AddSquad
 	}
 
 	// 4. Check if member already exists
-	if squad.Membership != nil {
-		if _, exists := squad.Membership[cmd.PlayerID.String()]; exists {
+	for _, m := range squad.Membership {
+		if m.PlayerProfileID == cmd.PlayerID {
 			return nil, common.NewErrAlreadyExists(common.ResourceTypeSquad, "MemberID", cmd.PlayerID.String())
 		}
 	}
@@ -88,20 +87,17 @@ func (uc *AddSquadMemberUseCase) Exec(ctx context.Context, cmd squad_in.AddSquad
 	}
 
 	// 6. Add member to squad
-	if squad.Membership == nil {
-		squad.Membership = make(map[string]squad_value_objects.SquadMembership)
-	}
-
 	now := time.Now()
 	memberType := cmd.Type
 	if memberType == "" {
 		memberType = squad_value_objects.SquadMembershipTypeMember
 	}
 
-	squad.Membership[cmd.PlayerID.String()] = squad_value_objects.SquadMembership{
-		UserID: players[0].ResourceOwner.UserID,
-		Type:   memberType,
-		Roles:  cmd.Roles,
+	newMembership := squad_value_objects.SquadMembership{
+		UserID:          players[0].ResourceOwner.UserID,
+		PlayerProfileID: cmd.PlayerID,
+		Type:            memberType,
+		Roles:           cmd.Roles,
 		Status: map[time.Time]squad_value_objects.SquadMembershipStatus{
 			now: squad_value_objects.SquadMembershipStatusActive,
 		},
@@ -109,6 +105,7 @@ func (uc *AddSquadMemberUseCase) Exec(ctx context.Context, cmd squad_in.AddSquad
 			now: memberType,
 		},
 	}
+	squad.Membership = append(squad.Membership, newMembership)
 
 	// 7. Update squad
 	updatedSquad, err := uc.SquadWriter.Update(ctx, &squad)
@@ -118,9 +115,9 @@ func (uc *AddSquadMemberUseCase) Exec(ctx context.Context, cmd squad_in.AddSquad
 	}
 
 	// 8. Execute billing
-	err = uc.billableOperationHandler.Exec(ctx, billingCmd)
-	if err != nil {
-		slog.WarnContext(ctx, "Failed to execute billing for add squad member", "error", err, "squad_id", cmd.SquadID)
+	_, _, billingErr := uc.billableOperationHandler.Exec(ctx, billingCmd)
+	if billingErr != nil {
+		slog.WarnContext(ctx, "Failed to execute billing for add squad member", "error", billingErr, "squad_id", cmd.SquadID)
 	}
 
 	// 9. Record history

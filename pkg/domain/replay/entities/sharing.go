@@ -1,6 +1,7 @@
 package entities
 
 import (
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -71,4 +72,15 @@ type ShareToken struct {
 
 func (s ShareToken) GetID() uuid.UUID {
 	return s.ID
+}
+
+// Validate validates the ShareToken entity
+func (s *ShareToken) Validate() error {
+	if s.ResourceID == uuid.Nil {
+		return errors.New("resource_id is required")
+	}
+	if s.ResourceType == "" {
+		return errors.New("resource_type is required")
+	}
+	return nil
 }

@@ -76,9 +76,9 @@ func (uc *DeleteSquadUseCase) Exec(ctx context.Context, squadID uuid.UUID) error
 	}
 
 	// 5. Execute billing
-	err = uc.billableOperationHandler.Exec(ctx, billingCmd)
-	if err != nil {
-		slog.WarnContext(ctx, "Failed to execute billing for delete squad", "error", err, "squad_id", squadID)
+	_, _, billingErr := uc.billableOperationHandler.Exec(ctx, billingCmd)
+	if billingErr != nil {
+		slog.WarnContext(ctx, "Failed to execute billing for delete squad", "error", billingErr, "squad_id", squadID)
 	}
 
 	// 6. Record history

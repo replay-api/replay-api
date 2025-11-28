@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	wallet_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/wallet/entities"
-	wallet_out "github.com/psavelis/team-pro/replay-api/pkg/domain/wallet/ports/out"
+	wallet_entities "github.com/replay-api/replay-api/pkg/domain/wallet/entities"
+	wallet_out "github.com/replay-api/replay-api/pkg/domain/wallet/ports/out"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -29,8 +29,8 @@ func NewMongoWalletRepository(mongoClient *mongo.Client, dbName string) wallet_o
 			entityModel:       entityModel,
 			collectionName:    "wallets",
 			entityName:        "UserWallet",
-			bsonFieldMappings: make(map[string]string),
-			queryableFields:   make(map[string]bool),
+			BsonFieldMappings: make(map[string]string),
+			QueryableFields:   make(map[string]bool),
 		},
 	}
 

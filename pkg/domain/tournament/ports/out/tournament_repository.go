@@ -5,7 +5,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	tournament_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/tournament/entities"
+	tournament_entities "github.com/replay-api/replay-api/pkg/domain/tournament/entities"
 )
 
 // TournamentRepository defines persistence operations for tournaments

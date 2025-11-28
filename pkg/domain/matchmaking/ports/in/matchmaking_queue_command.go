@@ -2,9 +2,10 @@ package matchmaking_in
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
-	matchmaking_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/entities"
+	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
 )
 
 // JoinMatchmakingQueueCommandHandler handles joining matchmaking queue
@@ -32,10 +33,50 @@ type JoinMatchmakingQueueCommand struct {
 	PriorityBoost bool
 }
 
+// Validate validates the JoinMatchmakingQueueCommand
+func (c *JoinMatchmakingQueueCommand) Validate() error {
+	if c.PlayerID == uuid.Nil {
+		return errors.New("player_id is required")
+	}
+	if c.GameID == "" {
+		return errors.New("game_id is required")
+	}
+	if c.GameMode == "" {
+		return errors.New("game_mode is required")
+	}
+	if c.Region == "" {
+		return errors.New("region is required")
+	}
+	if !c.TeamFormat.IsValid() {
+		return errors.New("invalid team_format")
+	}
+	if c.PlayerMMR < 0 {
+		return errors.New("player_mmr cannot be negative")
+	}
+	if c.MaxPing <= 0 {
+		c.MaxPing = 150 // default max ping
+	}
+	if c.PlayerRole != nil && !PlayerRole(*c.PlayerRole).IsValid() {
+		return errors.New("invalid player_role")
+	}
+	return nil
+}
+
 // LeaveMatchmakingQueueCommand request to leave matchmaking queue
 type LeaveMatchmakingQueueCommand struct {
 	SessionID uuid.UUID
 	PlayerID  uuid.UUID
+}
+
+// Validate validates the LeaveMatchmakingQueueCommand
+func (c *LeaveMatchmakingQueueCommand) Validate() error {
+	if c.SessionID == uuid.Nil {
+		return errors.New("session_id is required")
+	}
+	if c.PlayerID == uuid.Nil {
+		return errors.New("player_id is required")
+	}
+	return nil
 }
 
 // TeamFormat defines the team size for matchmaking

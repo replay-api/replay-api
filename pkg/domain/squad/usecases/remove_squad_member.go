@@ -4,9 +4,8 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/google/uuid"
-	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
+	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	common "github.com/replay-api/replay-api/pkg/domain"
 	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
@@ -54,11 +53,16 @@ func (uc *RemoveSquadMemberUseCase) Exec(ctx context.Context, cmd squad_in.Remov
 	squad := squads[0]
 
 	// 3. Check if member exists
-	if squad.Membership == nil {
-		return nil, common.NewErrNotFound(common.ResourceTypeSquad, "MemberID", cmd.PlayerID.String())
+	memberFound := false
+	memberIndex := -1
+	for i, m := range squad.Membership {
+		if m.PlayerProfileID == cmd.PlayerID {
+			memberFound = true
+			memberIndex = i
+			break
+		}
 	}
-
-	if _, exists := squad.Membership[cmd.PlayerID.String()]; !exists {
+	if !memberFound {
 		return nil, common.NewErrNotFound(common.ResourceTypeSquad, "MemberID", cmd.PlayerID.String())
 	}
 
@@ -74,8 +78,8 @@ func (uc *RemoveSquadMemberUseCase) Exec(ctx context.Context, cmd squad_in.Remov
 		return nil, err
 	}
 
-	// 5. Remove member from squad
-	delete(squad.Membership, cmd.PlayerID.String())
+	// 5. Remove member from squad (slice removal)
+	squad.Membership = append(squad.Membership[:memberIndex], squad.Membership[memberIndex+1:]...)
 
 	// 6. Update squad
 	updatedSquad, err := uc.SquadWriter.Update(ctx, &squad)
@@ -85,9 +89,9 @@ func (uc *RemoveSquadMemberUseCase) Exec(ctx context.Context, cmd squad_in.Remov
 	}
 
 	// 7. Execute billing
-	err = uc.billableOperationHandler.Exec(ctx, billingCmd)
-	if err != nil {
-		slog.WarnContext(ctx, "Failed to execute billing for remove squad member", "error", err, "squad_id", cmd.SquadID)
+	_, _, billingErr := uc.billableOperationHandler.Exec(ctx, billingCmd)
+	if billingErr != nil {
+		slog.WarnContext(ctx, "Failed to execute billing for remove squad member", "error", billingErr, "squad_id", cmd.SquadID)
 	}
 
 	// 8. Record history

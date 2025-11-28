@@ -6,9 +6,9 @@ import (
 
 	"github.com/google/uuid"
 	common "github.com/replay-api/replay-api/pkg/domain"
-	matchmaking_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/entities"
-	matchmaking_in "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/ports/in"
-	matchmaking_usecases "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/usecases"
+	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
+	matchmaking_in "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/in"
+	matchmaking_usecases "github.com/replay-api/replay-api/pkg/domain/matchmaking/usecases"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -50,9 +50,7 @@ func TestLeaveMatchmakingQueue_Success(t *testing.T) {
 	mockSessionRepo.On("UpdateStatus", mock.Anything, sessionID, matchmaking_entities.StatusCancelled).Return(nil)
 
 	// mock billing execution
-	entryID := uuid.New()
-	amount := 1.0
-	mockBilling.On("Exec", mock.Anything, mock.Anything).Return(&entryID, &amount, nil)
+	mockBilling.On("Exec", mock.Anything, mock.Anything).Return(nil, nil, nil)
 
 	err := usecase.Exec(ctx, cmd)
 
@@ -175,11 +173,11 @@ func TestLeaveMatchmakingQueue_CannotLeaveFromStatus(t *testing.T) {
 		PlayerID:  playerID,
 	}
 
-	// mock session already completed
+	// mock session already matched (can't leave)
 	session := &matchmaking_entities.MatchmakingSession{
 		ID:       sessionID,
 		PlayerID: playerID,
-		Status:   matchmaking_entities.StatusCompleted,
+		Status:   matchmaking_entities.StatusMatched,
 	}
 	mockSessionRepo.On("GetByID", mock.Anything, sessionID).Return(session, nil)
 

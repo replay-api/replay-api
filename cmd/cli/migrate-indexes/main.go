@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
-	db "github.com/psavelis/team-pro/replay-api/pkg/infra/db/mongodb"
+	db "github.com/replay-api/replay-api/pkg/infra/db/mongodb"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )

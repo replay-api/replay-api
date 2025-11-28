@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	tournament_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/tournament/entities"
-	tournament_out "github.com/psavelis/team-pro/replay-api/pkg/domain/tournament/ports/out"
+	tournament_entities "github.com/replay-api/replay-api/pkg/domain/tournament/entities"
+	tournament_out "github.com/replay-api/replay-api/pkg/domain/tournament/ports/out"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -30,8 +30,8 @@ func NewMongoTournamentRepository(mongoClient *mongo.Client, dbName string) tour
 			entityModel:       entityModel,
 			collectionName:    "tournaments",
 			entityName:        "Tournament",
-			bsonFieldMappings: make(map[string]string),
-			queryableFields:   make(map[string]bool),
+			BsonFieldMappings: make(map[string]string),
+			QueryableFields:   make(map[string]bool),
 		},
 	}
 

@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: payment-config
+  namespace: replay-api
+  labels:
+    app: replay-api
+    component: payments
+data:
+  # Payment Feature Flags
+  PAYMENTS_ENABLED: "true"
+  STRIPE_ENABLED: "true"
+  PAYPAL_ENABLED: "true"
+  CRYPTO_ENABLED: "true"
+
+  # Payment Limits (in cents for fiat, wei for crypto)
+  MIN_DEPOSIT_AMOUNT: "500"        # $5.00 minimum
+  MAX_DEPOSIT_AMOUNT: "1000000"    # $10,000 maximum
+  MIN_WITHDRAWAL_AMOUNT: "1000"    # $10.00 minimum
+  MAX_WITHDRAWAL_AMOUNT: "500000"  # $5,000 maximum
+
+  # Daily Limits
+  MAX_DAILY_DEPOSITS: "5"
+  MAX_DAILY_WITHDRAWALS: "3"
+  MAX_DAILY_DEPOSIT_AMOUNT: "2000000"   # $20,000
+  MAX_DAILY_WITHDRAWAL_AMOUNT: "1000000" # $10,000
+
+  # Processing Configuration
+  PAYMENT_TIMEOUT_SECONDS: "3600"  # 1 hour for pending payments
+  WEBHOOK_RETRY_ATTEMPTS: "3"
+  WEBHOOK_RETRY_DELAY_SECONDS: "60"
+
+  # Supported Currencies
+  SUPPORTED_FIAT_CURRENCIES: "usd,eur,gbp"
+  SUPPORTED_CRYPTO_TOKENS: "USDC,USDT"
+  SUPPORTED_CHAINS: "1,137,42161,8453"  # Ethereum, Polygon, Arbitrum, Base
+
+  # Fee Configuration (basis points - 100 = 1%)
+  PLATFORM_FEE_BPS: "250"  # 2.5% platform fee
+  MIN_PLATFORM_FEE: "50"   # $0.50 minimum fee
+
+  # Anti-Fraud Configuration
+  MAX_DAILY_PRIZE_WINNINGS: "50000"  # $500/day limit
+  REQUIRE_KYC_THRESHOLD: "100000"    # $1,000 cumulative requires KYC
+  SUSPICIOUS_ACTIVITY_THRESHOLD: "5" # 5 failed attempts triggers review

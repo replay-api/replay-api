@@ -8,10 +8,10 @@ import (
 
 	//	"golang.org/x/oauth2/jwt"
 
-	"github.com/psavelis/team-pro/replay-api/cmd/rest-api/routing"
-	ioc "github.com/psavelis/team-pro/replay-api/pkg/infra/ioc"
-	jobs "github.com/psavelis/team-pro/replay-api/pkg/app/jobs"
-	websocket "github.com/psavelis/team-pro/replay-api/pkg/infra/websocket"
+	"github.com/replay-api/replay-api/cmd/rest-api/routing"
+	jobs "github.com/replay-api/replay-api/pkg/app/jobs"
+	ioc "github.com/replay-api/replay-api/pkg/infra/ioc"
+	websocket "github.com/replay-api/replay-api/pkg/infra/websocket"
 )
 
 func main() {
@@ -47,8 +47,13 @@ func main() {
 
 	router := routing.NewRouter(ctx, c)
 
-	slog.InfoContext(ctx, "Starting server on port 4991")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 
-	http.ListenAndServe(":4991", router)
+	slog.InfoContext(ctx, "Starting server on port "+port)
+
+	http.ListenAndServe(":"+port, router)
 
 }

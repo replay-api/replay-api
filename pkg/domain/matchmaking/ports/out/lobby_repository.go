@@ -5,8 +5,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-matchmaking_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/entities"
-)// LobbyRepository defines persistence operations for lobbies
+	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
+) // LobbyRepository defines persistence operations for lobbies
 type LobbyRepository interface {
 	Save(ctx context.Context, lobby *matchmaking_entities.MatchmakingLobby) error
 	FindByID(ctx context.Context, id uuid.UUID) (*matchmaking_entities.MatchmakingLobby, error)

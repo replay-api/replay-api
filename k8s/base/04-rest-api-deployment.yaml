@@ -34,8 +34,12 @@ spec:
           envFrom:
             - configMapRef:
                 name: replay-api-config
+            - configMapRef:
+                name: payment-config
             - secretRef:
                 name: replay-api-secrets
+            - secretRef:
+                name: payment-provider-secrets
           volumeMounts:
             - name: replay-files
               mountPath: /app/replay_files

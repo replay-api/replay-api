@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	tournament_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/tournament/entities"
-	tournament_in "github.com/psavelis/team-pro/replay-api/pkg/domain/tournament/ports/in"
-	tournament_out "github.com/psavelis/team-pro/replay-api/pkg/domain/tournament/ports/out"
+	tournament_entities "github.com/replay-api/replay-api/pkg/domain/tournament/entities"
+	tournament_in "github.com/replay-api/replay-api/pkg/domain/tournament/ports/in"
+	tournament_out "github.com/replay-api/replay-api/pkg/domain/tournament/ports/out"
 )
 
 // TournamentReaderService implements tournament query operations

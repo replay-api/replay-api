@@ -1,0 +1,280 @@
+name: Deploy to Kubernetes (Blue-Green)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment (blue or green)'
+        required: true
+        type: choice
+        options:
+          - blue
+          - green
+      image_tag:
+        description: 'Docker image tag to deploy'
+        required: true
+        type: string
+      auto_switch:
+        description: 'Automatically switch traffic after deployment'
+        required: false
+        type: boolean
+        default: false
+      cluster:
+        description: 'Kubernetes cluster'
+        required: true
+        type: choice
+        options:
+          - production
+          - staging
+
+  # Auto-deploy on main branch (to green environment)
+  push:
+    branches:
+      - main
+
+env:
+  KUBECTL_VERSION: '1.28.0'
+  NAMESPACE: 'replay-api'
+
+jobs:
+  deploy-k8s:
+    name: Deploy to K8s (${{ github.event.inputs.environment || 'green' }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set deployment parameters
+        id: params
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+            echo "image_tag=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
+            echo "auto_switch=${{ github.event.inputs.auto_switch }}" >> $GITHUB_OUTPUT
+            echo "cluster=${{ github.event.inputs.cluster }}" >> $GITHUB_OUTPUT
+          else
+            # Auto-deploy from main branch to green environment
+            echo "environment=green" >> $GITHUB_OUTPUT
+            echo "image_tag=${{ github.sha }}" >> $GITHUB_OUTPUT
+            echo "auto_switch=false" >> $GITHUB_OUTPUT
+            echo "cluster=production" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: ${{ env.KUBECTL_VERSION }}
+
+      - name: Configure kubectl for EKS
+        run: |
+          if [ "${{ steps.params.outputs.cluster }}" == "production" ]; then
+            aws eks update-kubeconfig --name replay-api-prod --region ${{ secrets.AWS_REGION }}
+          else
+            aws eks update-kubeconfig --name replay-api-staging --region ${{ secrets.AWS_REGION }}
+          fi
+
+      - name: Verify cluster connection
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Create namespace if not exists
+        run: |
+          kubectl get namespace ${{ env.NAMESPACE }} || kubectl apply -f k8s/base/namespace.yaml
+
+      - name: Apply K8s base configuration
+        run: |
+          # Apply ConfigMap
+          kubectl apply -f k8s/base/configmap.yaml -n ${{ env.NAMESPACE }}
+
+          # Apply Services
+          kubectl apply -f k8s/base/service.yaml -n ${{ env.NAMESPACE }}
+
+          # Apply HPA and PDB
+          kubectl apply -f k8s/base/hpa.yaml -n ${{ env.NAMESPACE }}
+
+      - name: Deploy MongoDB (if not exists)
+        run: |
+          if ! kubectl get statefulset mongodb -n ${{ env.NAMESPACE }} &>/dev/null; then
+            echo "Deploying MongoDB StatefulSet..."
+            kubectl apply -f k8s/base/mongodb-statefulset.yaml -n ${{ env.NAMESPACE }}
+
+            # Wait for MongoDB to be ready
+            kubectl wait --for=condition=ready pod -l app=mongodb -n ${{ env.NAMESPACE }} --timeout=5m
+          else
+            echo "MongoDB already deployed, skipping..."
+          fi
+
+      - name: Update deployment image
+        run: |
+          kubectl set image deployment/wallet-api-${{ steps.params.outputs.environment }} \
+            wallet-api=leetgaming/replay-api:${{ steps.params.outputs.image_tag }} \
+            -n ${{ env.NAMESPACE }}
+
+      - name: Scale up target environment
+        run: |
+          CURRENT_REPLICAS=$(kubectl get deployment wallet-api-${{ steps.params.outputs.environment }} -n ${{ env.NAMESPACE }} -o jsonpath='{.spec.replicas}')
+          if [ "$CURRENT_REPLICAS" -eq 0 ]; then
+            echo "Scaling ${{ steps.params.outputs.environment }} from 0 to 3 replicas..."
+            kubectl scale deployment wallet-api-${{ steps.params.outputs.environment }} --replicas=3 -n ${{ env.NAMESPACE }}
+          fi
+
+      - name: Wait for deployment rollout
+        run: |
+          kubectl rollout status deployment/wallet-api-${{ steps.params.outputs.environment }} \
+            -n ${{ env.NAMESPACE }} \
+            --timeout=5m
+
+      - name: Run health checks
+        run: |
+          # Get a pod from the target environment
+          POD=$(kubectl get pods -n ${{ env.NAMESPACE }} \
+            -l "app=wallet-api,version=${{ steps.params.outputs.environment }}" \
+            -o jsonpath='{.items[0].metadata.name}')
+
+          echo "Testing health endpoint on pod: $POD"
+
+          # Test health endpoints
+          kubectl exec -n ${{ env.NAMESPACE }} "$POD" -- curl -sf http://localhost:8080/health/ready
+          kubectl exec -n ${{ env.NAMESPACE }} "$POD" -- curl -sf http://localhost:8080/health/live
+
+      - name: Run smoke tests
+        run: |
+          # Port-forward to the target service
+          kubectl port-forward -n ${{ env.NAMESPACE }} \
+            service/wallet-api-${{ steps.params.outputs.environment }} 8080:80 &
+          PF_PID=$!
+          sleep 5
+
+          # Run smoke tests
+          curl -sf http://localhost:8080/health/ready || (kill $PF_PID && exit 1)
+
+          kill $PF_PID
+          echo "✓ Smoke tests passed"
+
+      - name: Switch traffic to new environment
+        if: steps.params.outputs.auto_switch == 'true'
+        run: |
+          CURRENT_ENV=$(kubectl get service wallet-api -n ${{ env.NAMESPACE }} -o jsonpath='{.spec.selector.version}')
+
+          echo "Current active environment: $CURRENT_ENV"
+          echo "Switching traffic to: ${{ steps.params.outputs.environment }}"
+
+          # Update service selector
+          kubectl patch service wallet-api -n ${{ env.NAMESPACE }} \
+            -p '{"spec":{"selector":{"version":"${{ steps.params.outputs.environment }}"}}}'
+
+          # Monitor for errors
+          sleep 30
+          ERROR_COUNT=$(kubectl logs -n ${{ env.NAMESPACE }} \
+            -l "app=wallet-api,version=${{ steps.params.outputs.environment }}" \
+            --since=30s | grep -c "ERROR" || echo "0")
+
+          if [ "$ERROR_COUNT" -gt 10 ]; then
+            echo "WARNING: High error count detected ($ERROR_COUNT errors)"
+            exit 1
+          fi
+
+          echo "✓ Traffic switched successfully"
+
+      - name: Scale down old environment
+        if: steps.params.outputs.auto_switch == 'true'
+        run: |
+          CURRENT_ENV=$(kubectl get service wallet-api -n ${{ env.NAMESPACE }} -o jsonpath='{.spec.selector.version}')
+
+          if [ "$CURRENT_ENV" == "blue" ]; then
+            OLD_ENV="green"
+          else
+            OLD_ENV="blue"
+          fi
+
+          echo "Scaling down $OLD_ENV environment..."
+          kubectl scale deployment wallet-api-$OLD_ENV --replicas=0 -n ${{ env.NAMESPACE }}
+
+      - name: Deployment summary
+        run: |
+          echo "═══════════════════════════════════════════════"
+          echo "  Deployment Summary"
+          echo "═══════════════════════════════════════════════"
+          echo "Deployed: leetgaming/replay-api:${{ steps.params.outputs.image_tag }}"
+          echo "Environment: ${{ steps.params.outputs.environment }}"
+          echo "Cluster: ${{ steps.params.outputs.cluster }}"
+          echo "Active traffic: $(kubectl get service wallet-api -n ${{ env.NAMESPACE }} -o jsonpath='{.spec.selector.version}')"
+          echo "Blue replicas: $(kubectl get deployment wallet-api-blue -n ${{ env.NAMESPACE }} -o jsonpath='{.spec.replicas}')"
+          echo "Green replicas: $(kubectl get deployment wallet-api-green -n ${{ env.NAMESPACE }} -o jsonpath='{.spec.replicas}')"
+          echo "═══════════════════════════════════════════════"
+
+      - name: Notify Slack on success
+        if: success()
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "✅ Wallet API deployed to K8s",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Wallet API Deployment Successful*\n• Environment: `${{ steps.params.outputs.environment }}`\n• Image: `leetgaming/replay-api:${{ steps.params.outputs.image_tag }}`\n• Cluster: `${{ steps.params.outputs.cluster }}`\n• Auto-switched: `${{ steps.params.outputs.auto_switch }}`"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Notify Slack on failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "❌ Wallet API deployment failed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Wallet API Deployment Failed*\n• Environment: `${{ steps.params.outputs.environment }}`\n• Image: `leetgaming/replay-api:${{ steps.params.outputs.image_tag }}`\n• Cluster: `${{ steps.params.outputs.cluster }}`\n• Check logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  rollback:
+    name: Rollback Deployment
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.rollback == 'true'
+
+    steps:
+      - name: Configure kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Switch back to previous environment
+        run: |
+          CURRENT_ENV=$(kubectl get service wallet-api -n ${{ env.NAMESPACE }} -o jsonpath='{.spec.selector.version}')
+
+          if [ "$CURRENT_ENV" == "blue" ]; then
+            ROLLBACK_ENV="green"
+          else
+            ROLLBACK_ENV="blue"
+          fi
+
+          echo "Rolling back from $CURRENT_ENV to $ROLLBACK_ENV"
+
+          kubectl patch service wallet-api -n ${{ env.NAMESPACE }} \
+            -p "{\"spec\":{\"selector\":{\"version\":\"$ROLLBACK_ENV\"}}}"
+
+          echo "✓ Rolled back to $ROLLBACK_ENV"

@@ -8,8 +8,8 @@ import (
 	common "github.com/replay-api/replay-api/pkg/domain"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
-	tournament_in "github.com/psavelis/team-pro/replay-api/pkg/domain/tournament/ports/in"
-	tournament_out "github.com/psavelis/team-pro/replay-api/pkg/domain/tournament/ports/out"
+	tournament_in "github.com/replay-api/replay-api/pkg/domain/tournament/ports/in"
+	tournament_out "github.com/replay-api/replay-api/pkg/domain/tournament/ports/out"
 )
 
 // RegisterForTournamentUseCase handles player registration for tournaments

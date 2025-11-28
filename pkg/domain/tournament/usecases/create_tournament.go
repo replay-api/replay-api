@@ -8,9 +8,9 @@ import (
 	common "github.com/replay-api/replay-api/pkg/domain"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
-	tournament_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/tournament/entities"
-	tournament_in "github.com/psavelis/team-pro/replay-api/pkg/domain/tournament/ports/in"
-	tournament_out "github.com/psavelis/team-pro/replay-api/pkg/domain/tournament/ports/out"
+	tournament_entities "github.com/replay-api/replay-api/pkg/domain/tournament/entities"
+	tournament_in "github.com/replay-api/replay-api/pkg/domain/tournament/ports/in"
+	tournament_out "github.com/replay-api/replay-api/pkg/domain/tournament/ports/out"
 )
 
 // CreateTournamentUseCase handles tournament creation

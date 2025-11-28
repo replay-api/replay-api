@@ -34,6 +34,8 @@ const (
 	ResourceTypePage           ResourceType = "Pages"          //
 	ResourceTypeFriends        ResourceType = "Friends"
 	ResourceTypeList           ResourceType = "List" // recurse root resources (?)
+	ResourceTypePayment        ResourceType = "Payments"
+	ResourceTypeWallet         ResourceType = "Wallets"
 	// ResourceTypeMe         ResourceType = "Me"
 	// ResourceTypeCustom     ResourceType = "Custom"
 	// ResourceTypePublic     ResourceType = "Public"

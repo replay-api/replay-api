@@ -763,6 +763,44 @@ func (r *MongoDBRepository[T]) Search(ctx context.Context, s common.Search) ([]T
 func (r *MongoDBRepository[T]) GetByID(queryCtx context.Context, id uuid.UUID) (*T, error) {
 	var entity T
 
+	// Build RLS filter to ensure tenant isolation
+	rlsFilter, err := r.buildRLSFilter(queryCtx)
+	if err != nil {
+		slog.WarnContext(queryCtx, "RLS.GetByID: failed to build RLS filter, using ID-only query", "error", err)
+		// Fallback to ID-only for unauthenticated public endpoints
+		query := bson.D{
+			bson.E{Key: "_id", Value: id},
+		}
+		err := r.collection.FindOne(queryCtx, query).Decode(&entity)
+		if err != nil {
+			slog.ErrorContext(queryCtx, err.Error())
+			return nil, err
+		}
+		return &entity, nil
+	}
+
+	// Apply RLS filter with ID
+	query := bson.M{
+		"_id": id,
+		"$and": bson.A{
+			rlsFilter,
+		},
+	}
+
+	err = r.collection.FindOne(queryCtx, query).Decode(&entity)
+	if err != nil {
+		slog.ErrorContext(queryCtx, "RLS.GetByID: entity not found or access denied", "id", id, "error", err)
+		return nil, err
+	}
+
+	return &entity, nil
+}
+
+// GetByIDUnsafe bypasses RLS - use only for system-level operations
+// SECURITY: This function should only be called by internal system processes
+func (r *MongoDBRepository[T]) GetByIDUnsafe(queryCtx context.Context, id uuid.UUID) (*T, error) {
+	var entity T
+
 	query := bson.D{
 		bson.E{Key: "_id", Value: id},
 	}
@@ -776,7 +814,41 @@ func (r *MongoDBRepository[T]) GetByID(queryCtx context.Context, id uuid.UUID) (
 	return &entity, nil
 }
 
-func (r *MongoDBRepository[T]) Update(createCtx context.Context, entity *T) (*T, error) {
+func (r *MongoDBRepository[T]) Update(updateCtx context.Context, entity *T) (*T, error) {
+	id := (*entity).GetID()
+
+	// Build RLS filter to ensure user can only update their own resources
+	rlsFilter, err := r.buildRLSFilter(updateCtx)
+	if err != nil {
+		slog.WarnContext(updateCtx, "RLS.Update: failed to build RLS filter", "error", err)
+		return nil, fmt.Errorf("RLS.Update: unauthorized - %w", err)
+	}
+
+	// Apply RLS filter with ID to ensure ownership
+	filter := bson.M{
+		"_id": id,
+		"$and": bson.A{
+			rlsFilter,
+		},
+	}
+
+	result, err := r.collection.UpdateOne(updateCtx, filter, bson.M{"$set": entity})
+	if err != nil {
+		slog.ErrorContext(updateCtx, "RLS.Update: update failed", "error", err, "entity", entity)
+		return nil, err
+	}
+
+	if result.MatchedCount == 0 {
+		slog.WarnContext(updateCtx, "RLS.Update: entity not found or access denied", "id", id)
+		return nil, fmt.Errorf("RLS.Update: entity not found or access denied")
+	}
+
+	return entity, nil
+}
+
+// UpdateUnsafe bypasses RLS - use only for system-level operations
+// SECURITY: This function should only be called by internal system processes
+func (r *MongoDBRepository[T]) UpdateUnsafe(createCtx context.Context, entity *T) (*T, error) {
 	id := (*entity).GetID()
 
 	_, err := r.collection.UpdateOne(createCtx, bson.M{"_id": id}, bson.M{"$set": entity})
@@ -786,4 +858,98 @@ func (r *MongoDBRepository[T]) Update(createCtx context.Context, entity *T) (*T,
 	}
 
 	return entity, nil
+}
+
+// buildRLSFilter creates a MongoDB filter based on the current user's context
+// This enforces Row Level Security by filtering based on tenant, client, group, and user IDs
+func (r *MongoDBRepository[T]) buildRLSFilter(ctx context.Context) (bson.M, error) {
+	resourceOwner := common.GetResourceOwner(ctx)
+
+	// Require at least tenant ID for RLS
+	if resourceOwner.TenantID == uuid.Nil {
+		return nil, fmt.Errorf("RLS: tenant_id is required")
+	}
+
+	// Check if user is authenticated
+	isAuthenticated, _ := ctx.Value(common.AuthenticatedKey).(bool)
+	if !isAuthenticated {
+		// For unauthenticated users, only allow public visibility
+		return bson.M{
+			"$or": bson.A{
+				bson.M{
+					"resource_owner.tenant_id": resourceOwner.TenantID,
+					"visibility_type":          common.PublicVisibilityTypeKey,
+				},
+				bson.M{
+					"baseentity.resource_owner.tenant_id": resourceOwner.TenantID,
+					"baseentity.visibility_type":          common.PublicVisibilityTypeKey,
+				},
+			},
+		}, nil
+	}
+
+	// For authenticated users, build filter based on their context
+	userID := resourceOwner.UserID
+	groupID := resourceOwner.GroupID
+	clientID := resourceOwner.ClientID
+	tenantID := resourceOwner.TenantID
+
+	// Build OR conditions for resource access
+	orConditions := bson.A{}
+
+	// User's own resources
+	if userID != uuid.Nil {
+		orConditions = append(orConditions,
+			bson.M{"resource_owner.user_id": userID},
+			bson.M{"baseentity.resource_owner.user_id": userID},
+		)
+	}
+
+	// User's group resources
+	if groupID != uuid.Nil {
+		orConditions = append(orConditions,
+			bson.M{"resource_owner.group_id": groupID},
+			bson.M{"baseentity.resource_owner.group_id": groupID},
+		)
+	}
+
+	// Public resources within the tenant
+	orConditions = append(orConditions,
+		bson.M{
+			"resource_owner.tenant_id": tenantID,
+			"visibility_type":          common.PublicVisibilityTypeKey,
+		},
+		bson.M{
+			"baseentity.resource_owner.tenant_id": tenantID,
+			"baseentity.visibility_type":          common.PublicVisibilityTypeKey,
+		},
+	)
+
+	// Client-level resources (if user has client access)
+	if clientID != uuid.Nil {
+		orConditions = append(orConditions,
+			bson.M{
+				"resource_owner.client_id": clientID,
+				"visibility_type":          common.RestrictedVisibilityTypeKey,
+			},
+			bson.M{
+				"baseentity.resource_owner.client_id": clientID,
+				"baseentity.visibility_type":          common.RestrictedVisibilityTypeKey,
+			},
+		)
+	}
+
+	return bson.M{
+		"$and": bson.A{
+			// Enforce tenant isolation
+			bson.M{
+				"$or": bson.A{
+					bson.M{"resource_owner.tenant_id": tenantID},
+					bson.M{"baseentity.resource_owner.tenant_id": tenantID},
+				},
+			},
+			// Apply visibility/ownership filter
+			bson.M{"$or": orConditions},
+		},
+	}, nil
 }

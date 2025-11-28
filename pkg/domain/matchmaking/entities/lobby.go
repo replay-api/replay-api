@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	matchmaking_vo "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/value-objects"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	matchmaking_vo "github.com/replay-api/replay-api/pkg/domain/matchmaking/value-objects"
 )
 
 // PlayerSlot represents a slot in a matchmaking lobby

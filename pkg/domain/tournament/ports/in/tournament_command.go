@@ -3,12 +3,14 @@ package tournament_in
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	tournament_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/tournament/entities"
-	wallet_vo "github.com/psavelis/team-pro/replay-api/pkg/domain/wallet/value-objects"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	tournament_entities "github.com/replay-api/replay-api/pkg/domain/tournament/entities"
+	wallet_vo "github.com/replay-api/replay-api/pkg/domain/wallet/value-objects"
 )
 
 // CreateTournamentCommand represents the data needed to create a tournament
@@ -31,6 +33,47 @@ type CreateTournamentCommand struct {
 	OrganizerID       uuid.UUID
 }
 
+// Validate validates the CreateTournamentCommand
+func (c *CreateTournamentCommand) Validate() error {
+	if strings.TrimSpace(c.Name) == "" {
+		return errors.New("name is required")
+	}
+	if len(c.Name) > 100 {
+		return errors.New("name cannot exceed 100 characters")
+	}
+	if c.GameID == "" {
+		return errors.New("game_id is required")
+	}
+	if c.GameMode == "" {
+		return errors.New("game_mode is required")
+	}
+	if c.Region == "" {
+		return errors.New("region is required")
+	}
+	if c.MaxParticipants < 2 {
+		return errors.New("max_participants must be at least 2")
+	}
+	if c.MinParticipants < 2 {
+		return errors.New("min_participants must be at least 2")
+	}
+	if c.MinParticipants > c.MaxParticipants {
+		return errors.New("min_participants cannot exceed max_participants")
+	}
+	if c.OrganizerID == uuid.Nil {
+		return errors.New("organizer_id is required")
+	}
+	if c.StartTime.IsZero() {
+		return errors.New("start_time is required")
+	}
+	if c.RegistrationClose.IsZero() {
+		return errors.New("registration_close is required")
+	}
+	if c.RegistrationClose.After(c.StartTime) {
+		return errors.New("registration_close must be before start_time")
+	}
+	return nil
+}
+
 // UpdateTournamentCommand represents updates to a tournament
 type UpdateTournamentCommand struct {
 	TournamentID      uuid.UUID
@@ -42,11 +85,45 @@ type UpdateTournamentCommand struct {
 	Rules             *tournament_entities.TournamentRules
 }
 
+// Validate validates the UpdateTournamentCommand
+func (c *UpdateTournamentCommand) Validate() error {
+	if c.TournamentID == uuid.Nil {
+		return errors.New("tournament_id is required")
+	}
+	if c.Name != nil && strings.TrimSpace(*c.Name) == "" {
+		return errors.New("name cannot be empty")
+	}
+	if c.Name != nil && len(*c.Name) > 100 {
+		return errors.New("name cannot exceed 100 characters")
+	}
+	if c.MaxParticipants != nil && *c.MaxParticipants < 2 {
+		return errors.New("max_participants must be at least 2")
+	}
+	return nil
+}
+
 // RegisterPlayerCommand represents a player registration
 type RegisterPlayerCommand struct {
 	TournamentID uuid.UUID
 	PlayerID     uuid.UUID
 	DisplayName  string
+}
+
+// Validate validates the RegisterPlayerCommand
+func (c *RegisterPlayerCommand) Validate() error {
+	if c.TournamentID == uuid.Nil {
+		return errors.New("tournament_id is required")
+	}
+	if c.PlayerID == uuid.Nil {
+		return errors.New("player_id is required")
+	}
+	if strings.TrimSpace(c.DisplayName) == "" {
+		return errors.New("display_name is required")
+	}
+	if len(c.DisplayName) > 50 {
+		return errors.New("display_name cannot exceed 50 characters")
+	}
+	return nil
 }
 
 // UnregisterPlayerCommand represents a player unregistration
@@ -55,16 +132,52 @@ type UnregisterPlayerCommand struct {
 	PlayerID     uuid.UUID
 }
 
+// Validate validates the UnregisterPlayerCommand
+func (c *UnregisterPlayerCommand) Validate() error {
+	if c.TournamentID == uuid.Nil {
+		return errors.New("tournament_id is required")
+	}
+	if c.PlayerID == uuid.Nil {
+		return errors.New("player_id is required")
+	}
+	return nil
+}
+
 // CompleteTournamentCommand represents tournament completion
 type CompleteTournamentCommand struct {
 	TournamentID uuid.UUID
 	Winners      []tournament_entities.TournamentWinner
 }
 
+// Validate validates the CompleteTournamentCommand
+func (c *CompleteTournamentCommand) Validate() error {
+	if c.TournamentID == uuid.Nil {
+		return errors.New("tournament_id is required")
+	}
+	if len(c.Winners) == 0 {
+		return errors.New("winners is required")
+	}
+	return nil
+}
+
 // CancelTournamentCommand represents tournament cancellation
 type CancelTournamentCommand struct {
 	TournamentID uuid.UUID
 	Reason       string
+}
+
+// Validate validates the CancelTournamentCommand
+func (c *CancelTournamentCommand) Validate() error {
+	if c.TournamentID == uuid.Nil {
+		return errors.New("tournament_id is required")
+	}
+	if strings.TrimSpace(c.Reason) == "" {
+		return errors.New("reason is required")
+	}
+	if len(c.Reason) > 500 {
+		return errors.New("reason cannot exceed 500 characters")
+	}
+	return nil
 }
 
 // TournamentCommand defines operations for managing tournaments

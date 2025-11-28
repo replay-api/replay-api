@@ -8,8 +8,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	common "github.com/replay-api/replay-api/pkg/domain"
-	tournament_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/tournament/entities"
-	tournament_usecases "github.com/psavelis/team-pro/replay-api/pkg/domain/tournament/usecases"
+	tournament_entities "github.com/replay-api/replay-api/pkg/domain/tournament/entities"
+	tournament_usecases "github.com/replay-api/replay-api/pkg/domain/tournament/usecases"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )

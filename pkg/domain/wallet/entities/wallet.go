@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	wallet_vo "github.com/psavelis/team-pro/replay-api/pkg/domain/wallet/value-objects"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	wallet_vo "github.com/replay-api/replay-api/pkg/domain/wallet/value-objects"
 )
 
 // UserWallet is an aggregate root representing a user's blockchain wallet
@@ -200,4 +200,27 @@ func (w *UserWallet) Validate() error {
 	}
 
 	return nil
+}
+
+// TransactionStatus represents the status of a coordinated transaction
+type TransactionStatus string
+
+const (
+	TransactionStatusPending    TransactionStatus = "Pending"
+	TransactionStatusCompleted  TransactionStatus = "Completed"
+	TransactionStatusFailed     TransactionStatus = "Failed"
+	TransactionStatusRolledBack TransactionStatus = "RolledBack"
+)
+
+// WalletTransaction represents a coordinated wallet transaction
+type WalletTransaction struct {
+	ID           uuid.UUID              `json:"id"`
+	WalletID     uuid.UUID              `json:"wallet_id"`
+	Type         string                 `json:"type"` // Deposit, Withdrawal, EntryFee, Prize, Debit, Credit
+	Status       TransactionStatus      `json:"status"`
+	LedgerTxID   *uuid.UUID             `json:"ledger_tx_id,omitempty"`
+	StartedAt    time.Time              `json:"started_at"`
+	CompletedAt  *time.Time             `json:"completed_at,omitempty"`
+	ErrorMessage string                 `json:"error_message,omitempty"`
+	Metadata     map[string]interface{} `json:"metadata"`
 }

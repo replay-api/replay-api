@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	matchmaking_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/entities"
+	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
 )
 
 // MatchmakingSessionRepository handles persistence of matchmaking sessions

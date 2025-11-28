@@ -78,3 +78,7 @@ docker-compose.dev.yml
 credentials/
 secrets/
 config/local.*
+
+jira.env
+**/jira.env
+./scripts/jira.env

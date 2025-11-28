@@ -6,45 +6,14 @@ import (
 
 	"github.com/google/uuid"
 	common "github.com/replay-api/replay-api/pkg/domain"
-	matchmaking_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/entities"
-	matchmaking_in "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/ports/in"
-	matchmaking_out "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/ports/out"
-	matchmaking_usecases "github.com/psavelis/team-pro/replay-api/pkg/domain/matchmaking/usecases"
+	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
+	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
+	matchmaking_in "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/in"
+	matchmaking_usecases "github.com/replay-api/replay-api/pkg/domain/matchmaking/usecases"
+	matchmaking_vo "github.com/replay-api/replay-api/pkg/domain/matchmaking/value-objects"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
-
-type MockLobbyRepository struct {
-	mock.Mock
-}
-
-func (m *MockLobbyRepository) Save(ctx context.Context, lobby *matchmaking_entities.MatchmakingLobby) error {
-	args := m.Called(ctx, lobby)
-	return args.Error(0)
-}
-
-func (m *MockLobbyRepository) FindByID(ctx context.Context, id uuid.UUID) (*matchmaking_entities.MatchmakingLobby, error) {
-	args := m.Called(ctx, id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*matchmaking_entities.MatchmakingLobby), args.Error(1)
-}
-
-func (m *MockLobbyRepository) Update(ctx context.Context, lobby *matchmaking_entities.MatchmakingLobby) error {
-	args := m.Called(ctx, lobby)
-	return args.Error(0)
-}
-
-func (m *MockLobbyRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	args := m.Called(ctx, id)
-	return args.Error(0)
-}
-
-func (m *MockLobbyRepository) FindActiveLobbies(ctx context.Context, filters matchmaking_out.LobbyFilters) ([]*matchmaking_entities.MatchmakingLobby, error) {
-	args := m.Called(ctx, filters)
-	return args.Get(0).([]*matchmaking_entities.MatchmakingLobby), args.Error(1)
-}
 
 func TestCreateCustomLobby_Success(t *testing.T) {
 	mockBilling := new(MockBillableOperationHandler)
@@ -66,8 +35,8 @@ func TestCreateCustomLobby_Success(t *testing.T) {
 		CreatorID:        creatorID,
 		GameID:           "cs2",
 		Region:           "us-east",
-		Tier:             matchmaking_entities.TierPremium,
-		DistributionRule: matchmaking_entities.DistributionRuleRandom,
+		Tier:             string(matchmaking_entities.TierPremium),
+		DistributionRule: matchmaking_vo.DistributionRuleWinnerTakesAll,
 		MaxPlayers:       10,
 		AutoFill:         true,
 		InviteOnly:       false,
@@ -79,10 +48,9 @@ func TestCreateCustomLobby_Success(t *testing.T) {
 	// mock lobby save
 	mockLobbyRepo.On("Save", mock.Anything, mock.Anything).Return(nil)
 
-	// mock billing execution
-	entryID := uuid.New()
-	amount := 1.0
-	mockBilling.On("Exec", mock.Anything, mock.Anything).Return(&entryID, &amount, nil)
+	// mock billing execution - return proper BillableEntry
+	mockEntry := &billing_entities.BillableEntry{}
+	mockBilling.On("Exec", mock.Anything, mock.Anything).Return(mockEntry, nil, nil)
 
 	lobby, err := usecase.CreateLobby(ctx, cmd)
 
@@ -203,9 +171,12 @@ func TestCreateCustomLobby_SaveFails(t *testing.T) {
 	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
 
 	cmd := matchmaking_in.CreateLobbyCommand{
-		CreatorID:  uuid.New(),
-		GameID:     "cs2",
-		MaxPlayers: 10,
+		CreatorID:        uuid.New(),
+		GameID:           "cs2",
+		Region:           "us-east",
+		Tier:             string(matchmaking_entities.TierFree),
+		DistributionRule: matchmaking_vo.DistributionRuleWinnerTakesAll,
+		MaxPlayers:       10,
 	}
 
 	// mock billing validation

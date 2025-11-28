@@ -5,7 +5,7 @@ import (
 "context"
 
 "github.com/google/uuid"
-wallet_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/wallet/entities"
+wallet_entities "github.com/replay-api/replay-api/pkg/domain/wallet/entities"
 )
 
 // WalletRepository defines persistence operations for wallets
