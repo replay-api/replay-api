@@ -1,3 +1,5 @@
+//go:build !smoke
+
 package rest_api_test
 
 import (

@@ -1,3 +1,5 @@
+//go:build !smoke
+
 package ioc_test
 
 import (
