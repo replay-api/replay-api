@@ -1,0 +1,25 @@
+# Kustomization for Observability Stack
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: leetgaming
+
+resources:
+  - prometheus.yaml
+  - prometheus-alerts.yaml
+  - grafana.yaml
+  - kafka-ui.yaml
+  - k8s-dashboard.yaml
+
+configMapGenerator:
+  - name: grafana-extra-dashboards
+    options:
+      disableNameSuffixHash: true
+    files:
+      - dashboards/kubernetes-cluster.json
+      - dashboards/api-performance.json
+      - dashboards/mongodb.json
+
+labels:
+  - pairs:
+      component: observability

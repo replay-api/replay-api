@@ -1,0 +1,119 @@
+# Kafka UI (AKHQ) - Full-featured Kafka management UI
+# Provides: Topic browsing, Consumer groups, Schema Registry, KSQLDB integration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-ui-config
+  namespace: leetgaming
+data:
+  application.yml: |
+    akhq:
+      connections:
+        leetgaming-kafka:
+          properties:
+            bootstrap.servers: "leetgaming-kafka-kafka-bootstrap:9092"
+          schema-registry:
+            url: "http://schema-registry:8081"
+          ksqldb:
+            - name: "ksqldb"
+              url: "http://ksqldb-server:8088"
+      security:
+        default-group: admin
+        groups:
+          admin:
+            name: admin
+            roles:
+              - topic/read
+              - topic/insert
+              - topic/delete
+              - topic/config/update
+              - node/read
+              - node/config/update
+              - topic/data/read
+              - topic/data/insert
+              - topic/data/delete
+              - group/read
+              - group/delete
+              - group/offsets/update
+              - registry/read
+              - registry/insert
+              - registry/update
+              - registry/delete
+              - registry/version/delete
+              - ksqldb/execute
+              - ksqldb/read
+              - connect/read
+              - connect/insert
+              - connect/update
+              - connect/delete
+              - connect/state/update
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-ui
+  namespace: leetgaming
+  labels:
+    app: kafka-ui
+    tier: observability
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka-ui
+  template:
+    metadata:
+      labels:
+        app: kafka-ui
+        tier: observability
+    spec:
+      containers:
+        - name: kafka-ui
+          image: tchiotludo/akhq:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          volumeMounts:
+            - name: config
+              mountPath: /app/application.yml
+              subPath: application.yml
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 30
+      volumes:
+        - name: config
+          configMap:
+            name: kafka-ui-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-ui-service
+  namespace: leetgaming
+  labels:
+    app: kafka-ui
+spec:
+  type: NodePort
+  ports:
+    - port: 8082
+      targetPort: 8080
+      nodePort: 30082
+      name: http
+  selector:
+    app: kafka-ui
