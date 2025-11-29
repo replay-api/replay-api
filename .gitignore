@@ -82,3 +82,7 @@ config/local.*
 jira.env
 **/jira.env
 ./scripts/jira.env
+# Build binaries
+main
+replay-api
+seed
