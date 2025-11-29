@@ -2977,6 +2977,6 @@ func (b *ContainerBuilder) Close(c container.Container) {
 	err := c.Resolve(&client)
 
 	if client != nil && err == nil {
-		client.Disconnect(context.TODO())
+		_ = client.Disconnect(context.TODO())
 	}
 }

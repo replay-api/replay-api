@@ -122,7 +122,7 @@ func TestMatchMetadataRepository_Search(t *testing.T) {
 	}
 
 	collection := client.Database(dbName).Collection(collectionName)
-	defer collection.Drop(defaultContext) // Clean up after tests
+	defer func() { _ = collection.Drop(defaultContext) }() // Clean up after tests
 
 	interfaceMap := make([]interface{}, len(sampleMatches))
 	for i, m := range sampleMatches {

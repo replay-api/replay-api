@@ -35,7 +35,7 @@ func TestE2E_WalletLifecycle(t *testing.T) {
 	mongoURI := getMongoTestURI()
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoURI))
 	require.NoError(t, err, "Failed to connect to MongoDB")
-	defer client.Disconnect(ctx)
+	defer func() { _ = client.Disconnect(ctx) }()
 
 	// Create test database
 	dbName := "replay_test_" + uuid.New().String()
@@ -323,7 +323,7 @@ func BenchmarkDeposit(b *testing.B) {
 
 	mongoURI := getMongoTestURI()
 	client, _ := mongo.Connect(ctx, options.Client().ApplyURI(mongoURI))
-	defer client.Disconnect(ctx)
+	defer func() { _ = client.Disconnect(ctx) }()
 
 	dbName := "replay_bench_" + uuid.New().String()
 	db := client.Database(dbName)

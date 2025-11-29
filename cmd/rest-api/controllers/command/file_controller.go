@@ -26,7 +26,7 @@ func (ctlr *FileController) UploadHandler(apiContext context.Context) http.Handl
 		w.Header().Set("Access-Control-Allow-Methods", "POST")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		// r.Body = http.MaxBytesReader(w, r.Body, 32<<57)
-		r.ParseMultipartForm(32 << 50)
+		_ = r.ParseMultipartForm(32 << 50)
 
 		reqContext := context.WithValue(r.Context(), common.GameIDParamKey, r.FormValue("game_id"))
 

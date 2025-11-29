@@ -110,7 +110,7 @@ func TestE2E_PaymentLifecycle(t *testing.T) {
 	mongoURI := getMongoTestURI()
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoURI))
 	require.NoError(t, err, "Failed to connect to MongoDB")
-	defer client.Disconnect(ctx)
+	defer func() { _ = client.Disconnect(ctx) }()
 
 	// Create test database
 	dbName := "replay_payment_test_" + uuid.New().String()
@@ -401,7 +401,7 @@ func TestPaymentRepository_UniqueConstraints(t *testing.T) {
 	mongoURI := getMongoTestURI()
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoURI))
 	require.NoError(t, err)
-	defer client.Disconnect(ctx)
+	defer func() { _ = client.Disconnect(ctx) }()
 
 	dbName := "replay_payment_unique_test_" + uuid.New().String()
 	defer client.Database(dbName).Drop(ctx)
@@ -448,7 +448,7 @@ func BenchmarkPaymentCreation(b *testing.B) {
 
 	mongoURI := getMongoTestURI()
 	client, _ := mongo.Connect(ctx, options.Client().ApplyURI(mongoURI))
-	defer client.Disconnect(ctx)
+	defer func() { _ = client.Disconnect(ctx) }()
 
 	dbName := "replay_payment_bench_" + uuid.New().String()
 	defer client.Database(dbName).Drop(ctx)

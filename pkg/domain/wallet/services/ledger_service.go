@@ -451,7 +451,7 @@ func (s *LedgerService) ExecuteWithIdempotency(
 
 	// Mark as completed
 	op.MarkCompleted(resultID, nil)
-	s.idempotencyRepo.Update(ctx, op)
+	_ = s.idempotencyRepo.Update(ctx, op)
 
 	return resultID, nil
 }

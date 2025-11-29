@@ -182,17 +182,17 @@ func (uc *UpdateSquadUseCase) ProcessMemberships(ctx context.Context, squad *squ
 		if exists {
 			action := uc.GetPromotedOrDemotedStatus(ctx, squad, existingMembership)
 			if action != squad_entities.SquadMemberAdded {
-				uc.SquadHistoryWriter.Create(ctx, squad_entities.NewSquadHistory(squad.ID, userID, action, common.GetResourceOwner(ctx)))
+				_, _ = uc.SquadHistoryWriter.Create(ctx, squad_entities.NewSquadHistory(squad.ID, userID, action, common.GetResourceOwner(ctx)))
 			}
 			existingMembership.Type = v.Type
 			existingMembership.Roles = squad_common.Unique(v.Roles)
 			if len(existingMembership.Status) == 0 || existingMembership.Status[latestStatusTime(existingMembership.Status)] != v.Status {
 				existingMembership.Status[time.Now()] = v.Status
-				uc.SquadHistoryWriter.Create(ctx, squad_entities.NewSquadHistory(squad.ID, userID, squad_entities.SquadMemberAdded, common.GetResourceOwner(ctx)))
+				_, _ = uc.SquadHistoryWriter.Create(ctx, squad_entities.NewSquadHistory(squad.ID, userID, squad_entities.SquadMemberAdded, common.GetResourceOwner(ctx)))
 			}
 		} else {
 			memberships[playerProfileID] = squad_value_objects.NewSquadMembership(userID, playerProfileID, v.Type, squad_common.Unique(v.Roles), v.Status, v.Type)
-			uc.SquadHistoryWriter.Create(ctx, squad_entities.NewSquadHistory(squad.ID, userID, squad_entities.SquadMemberAdded, common.GetResourceOwner(ctx)))
+			_, _ = uc.SquadHistoryWriter.Create(ctx, squad_entities.NewSquadHistory(squad.ID, userID, squad_entities.SquadMemberAdded, common.GetResourceOwner(ctx)))
 		}
 	}
 	return memberships, nil

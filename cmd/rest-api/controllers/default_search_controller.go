@@ -70,5 +70,5 @@ func (c *DefaultSearchController[T]) DefaultSearchHandler(w http.ResponseWriter,
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(results)
+	_ = json.NewEncoder(w).Encode(results)
 }

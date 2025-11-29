@@ -120,7 +120,7 @@ func (c *EmailController) OnboardEmailUser(apiContext context.Context) http.Hand
 		w.Header().Set(ResourceOwnerIDHeaderKey, ridToken.GetID().String())
 		w.Header().Set(ResourceOwnerAudTypeHeaderKey, string(ridToken.IntendedAudience))
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(resultUser)
+		_ = json.NewEncoder(w).Encode(resultUser)
 	}
 }
 
@@ -182,6 +182,6 @@ func (c *EmailController) LoginEmailUser(apiContext context.Context) http.Handle
 		w.Header().Set(ResourceOwnerIDHeaderKey, ridToken.GetID().String())
 		w.Header().Set(ResourceOwnerAudTypeHeaderKey, string(ridToken.IntendedAudience))
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(emailUser)
+		_ = json.NewEncoder(w).Encode(emailUser)
 	}
 }

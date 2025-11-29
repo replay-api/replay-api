@@ -152,7 +152,7 @@ func (uc *CreatePlayerUseCase) Exec(c context.Context, cmd squad_in.CreatePlayer
 
 	history := squad_entities.NewPlayerProfileHistory(player.ID, squad_entities.PlayerHistoryActionCreate, common.GetResourceOwner(c))
 
-	uc.PlayerProfileHistoryWriter.Create(c, history)
+	_, _ = uc.PlayerProfileHistoryWriter.Create(c, history)
 
 	slog.InfoContext(c, "player profile created", "player_id", player.ID, "nickname", player.Nickname, "slug_uri", player.SlugURI)
 

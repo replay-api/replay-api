@@ -132,7 +132,7 @@ func TestMongoDBRepository_Query(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error connecting to MongoDB: %v", err)
 	}
-	defer client.Disconnect(context.Background())
+	defer func() { _ = client.Disconnect(context.Background()) }()
 
 	// Use a dedicated collection for testing
 	collectionName := "replay_files"
@@ -479,7 +479,7 @@ func TestMongoDBRepository_Query(t *testing.T) {
 			}
 
 			// clear
-			collection.DeleteMany(ctx, bson.M{})
+			_, _ = collection.DeleteMany(ctx, bson.M{})
 
 			rs, err := collection.InsertMany(ctx, data)
 			if err != nil {
@@ -545,7 +545,7 @@ func TestGetBSONFieldNameFromSearchableValue(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error connecting to MongoDB: %v", err)
 	}
-	defer client.Disconnect(context.Background())
+	defer func() { _ = client.Disconnect(context.Background()) }()
 
 	// Use a dedicated collection for testing
 	collectionName := "replay_files"
@@ -710,7 +710,7 @@ func TestMongoDBRepository_EnsureTenancy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error connecting to MongoDB: %v", err)
 	}
-	defer client.Disconnect(context.Background())
+	defer func() { _ = client.Disconnect(context.Background()) }()
 
 	// Use a dedicated collection for testing
 	collectionName := "replay_files"

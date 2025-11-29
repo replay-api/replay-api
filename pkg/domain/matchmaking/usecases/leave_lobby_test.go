@@ -57,7 +57,7 @@ func TestLeaveLobby_Success(t *testing.T) {
 	)
 	lobby.ID = lobbyID
 	// Add the player to the lobby
-	lobby.AddPlayer(playerID, 1500)
+	_ = lobby.AddPlayer(playerID, 1500)
 	lobby.CreatedAt = time.Now().UTC()
 	lobby.UpdatedAt = time.Now().UTC()
 
@@ -173,7 +173,7 @@ func TestLeaveLobby_BillingValidationFails(t *testing.T) {
 		false,
 	)
 	lobby.ID = lobbyID
-	lobby.AddPlayer(playerID, 1500)
+	_ = lobby.AddPlayer(playerID, 1500)
 
 	// mock lobby retrieval
 	mockLobbyRepo.On("FindByID", mock.Anything, lobbyID).Return(lobby, nil)

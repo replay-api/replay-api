@@ -54,6 +54,8 @@ func main() {
 
 	slog.InfoContext(ctx, "Starting server on port "+port)
 
-	http.ListenAndServe(":"+port, router)
+	if err := http.ListenAndServe(":"+port, router); err != nil {
+		slog.ErrorContext(ctx, "Server error", "err", err)
+	}
 
 }

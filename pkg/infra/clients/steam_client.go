@@ -35,7 +35,7 @@ func (c *SteamClient) Details(token string) (*steamEntities.SteamUser, error) {
 	defer res.Body.Close()
 
 	var steamUser steamEntities.SteamUser
-	json.NewDecoder(res.Body).Decode(&steamUser)
+	_ = json.NewDecoder(res.Body).Decode(&steamUser)
 
 	return &steamUser, nil
 }

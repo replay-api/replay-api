@@ -150,7 +150,7 @@ func (uc *CreateSquadUseCase) Exec(ctx context.Context, cmd squad_in.CreateOrUpd
 		},
 	}
 
-	uc.billableOperationHandler.Validate(ctx, billingCmd)
+	_ = uc.billableOperationHandler.Validate(ctx, billingCmd)
 
 	memberships := make([]squad_value_objects.SquadMembership, 0)
 	membershipMap := make(map[uuid.UUID]interface{})
@@ -223,7 +223,7 @@ func (uc *CreateSquadUseCase) Exec(ctx context.Context, cmd squad_in.CreateOrUpd
 		rxn,
 	)
 
-	uc.SquadHistoryWriter.Create(ctx, squadHistory)
+	_, _ = uc.SquadHistoryWriter.Create(ctx, squadHistory)
 
 	return squad, nil
 }
