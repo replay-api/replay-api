@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: replay-api-config
+  namespace: leetgaming
+data:
+  # API Configuration
+  DEV_ENV: "true"
+  REPLAY_API_PORT: "8080"
+  LOG_LEVEL: "INFO"
+  LOG_FORMAT: "json"
+
+  # Database Configuration
+  MONGO_URI: "mongodb://admin:dev-mongo-password-change-me@mongodb-service:27017/leetgaming?authSource=admin"
+  MONGODB_DATABASE: "leetgaming"
+
+  # CORS Configuration
+  CORS_ALLOWED_ORIGIN: "http://localhost:3030"
+  ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:3030,http://localhost:30300"
+
+  # Authentication (must match frontend)
+  STEAM_VHASH_SOURCE: "82DA0F0D0135FEA0F5DDF6F96528B48A"
+  STEAM_SECRET: "placeholder_steam_secret"
+  GOOGLE_CLIENT_ID: "372418068163-p1qrol4rppgstv6r51dq1hgblomfcfm5.apps.googleusercontent.com"
+
+  # Prize Pool Configuration
+  PRIZE_POOL_PLATFORM_CONTRIBUTION: "0.50"
+  MIN_PRIZE_POOL: "1.00"
+  MAX_PRIZE_POOL: "1000.00"
+
+  # Entry Fees by Tier (USD)
+  ENTRY_FEE_FREE: "0.00"
+  ENTRY_FEE_PREMIUM: "1.00"
+  ENTRY_FEE_PRO: "2.00"
+  ENTRY_FEE_ELITE: "5.00"
+
+  # Matchmaking Configuration
+  DEFAULT_MMR_RANGE: "200"
+  AI_SKILL_ADJUSTMENT_ENABLED: "true"
+  LOBBY_READY_CHECK_TIMEOUT_SECONDS: "60"
+  MATCH_ACCEPT_TIMEOUT_SECONDS: "30"
+  MAX_QUEUE_TIME_SECONDS: "600"
+
+  # Rate Limiting
+  RATE_LIMIT_ENABLED: "true"
+  RATE_LIMIT_REQUESTS_PER_MINUTE: "60"
+  RATE_LIMIT_BURST: "10"

@@ -2,6 +2,70 @@
 .PHONY: docker-down
 .PHONY: test-kafka
 .PHONY: coverage
+.PHONY: up
+.PHONY: down
+.PHONY: seed
+
+#========================================
+# Development Environment (make up/down)
+#========================================
+
+up: ## Start the complete development environment with seed data
+	@echo "$(CC)Starting LeetGaming PRO Development Environment$(CEND)"
+	@echo ""
+	@echo "$(CC)Step 1/6: Creating Kind cluster...$(CEND)"
+	@kind create cluster --config=kind-config.yaml --name=leetgaming-local 2>/dev/null || echo "Cluster already exists"
+	@kubectl cluster-info --context kind-leetgaming-local
+	@echo ""
+	@echo "$(CC)Step 2/6: Building and loading images...$(CEND)"
+	@docker build -t replay-api:latest -f cmd/rest-api/Dockerfile.rest-api . || { echo "$(CR)Failed to build API image$(CEND)"; exit 1; }
+	@kind load docker-image replay-api:latest --name=leetgaming-local
+	@echo ""
+	@echo "$(CC)Step 3/6: Applying Kubernetes manifests...$(CEND)"
+	@kubectl apply -k k8s/local/
+	@echo ""
+	@echo "$(CC)Step 4/6: Waiting for pods to be ready...$(CEND)"
+	@kubectl wait --for=condition=ready pod -l app=mongodb -n leetgaming --timeout=300s 2>/dev/null || true
+	@kubectl wait --for=condition=ready pod -l app=replay-api -n leetgaming --timeout=300s 2>/dev/null || true
+	@echo ""
+	@echo "$(CC)Step 5/6: Seeding database...$(CEND)"
+	@sleep 10
+	@kubectl delete job database-seed -n leetgaming 2>/dev/null || true
+	@kubectl apply -f k8s/local/seed-job.yaml
+	@kubectl wait --for=condition=complete job/database-seed -n leetgaming --timeout=120s 2>/dev/null || kubectl logs -l job-name=database-seed -n leetgaming
+	@echo ""
+	@echo "$(CC)Step 6/6: Starting port forwards...$(CEND)"
+	@pkill -f "port-forward" 2>/dev/null || true
+	@sleep 1
+	@kubectl port-forward svc/replay-api-service 8080:8080 -n leetgaming &
+	@echo ""
+	@echo "$(CG)✅ Development environment is ready!$(CEND)"
+	@echo ""
+	@echo "$(CC)Available endpoints:$(CEND)"
+	@echo "  - API:      http://localhost:8080"
+	@echo "  - Health:   http://localhost:8080/health"
+	@echo ""
+	@echo "$(CC)Useful commands:$(CEND)"
+	@echo "  - Stop environment:    make down"
+	@echo "  - View API logs:       kubectl logs -f -l app=replay-api -n leetgaming"
+	@echo "  - Run seeds again:     make seed"
+	@echo "  - Check status:        kubectl get pods -n leetgaming"
+
+down: ## Stop and clean up the development environment
+	@echo "$(CR)Stopping LeetGaming PRO Development Environment$(CEND)"
+	@pkill -f "port-forward" 2>/dev/null || true
+	@kind delete cluster --name=leetgaming-local 2>/dev/null || true
+	@echo "$(CG)✅ Environment stopped$(CEND)"
+
+status: ## Check status of the development environment
+	@echo "$(CC)LeetGaming PRO Development Environment Status$(CEND)"
+	@echo ""
+	@kubectl get pods -n leetgaming 2>/dev/null || echo "Cluster not running"
+	@echo ""
+	@kubectl get svc -n leetgaming 2>/dev/null || true
+
+logs: ## Tail API logs
+	@kubectl logs -f -l app=replay-api -n leetgaming --tail=100
 
 build-rest-api:
 	@echo "Building API"
@@ -36,8 +100,17 @@ docker-down:
 
 test-coverage:
 	@go test -covermode=atomic -coverprofile=coverage.out ./...
-	@mkdir -p ./.coverage  
-	@go tool cover -html=coverage.out -o ./.coverage/coverage.html 
+	@mkdir -p ./.coverage
+	@go tool cover -html=coverage.out -o ./.coverage/coverage.html
+
+seed: ## Seed database with realistic esports data
+	@echo "🌱 Seeding database with esports teams and players..."
+	@go run ./cmd/cli/seed/main.go
+	@echo "✅ Seed completed!"
+
+build-seed: ## Build the seed CLI
+	@echo "🔨 Building seed CLI..."
+	@CGO_ENABLED=0 go build -o seed-cli ./cmd/cli/seed/main.go 
 
 proto:
 	@echo "Generating proto files"

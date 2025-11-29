@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: replay-api
+  namespace: leetgaming
+  labels:
+    app: replay-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: replay-api
+  template:
+    metadata:
+      labels:
+        app: replay-api
+    spec:
+      containers:
+        - name: replay-api
+          image: replay-api:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          envFrom:
+            - configMapRef:
+                name: replay-api-config
+            - secretRef:
+                name: replay-api-secrets
+          volumeMounts:
+            - name: replay-files
+              mountPath: /app/replay_files
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: replay-files
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: replay-api-service
+  namespace: leetgaming
+  labels:
+    app: replay-api
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: replay-api

@@ -1,8 +1,7 @@
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
-name: replay-api-cluster
+name: leetgaming-local
 nodes:
-  # control plane node
   - role: control-plane
     kubeadmConfigPatches:
       - |
@@ -23,10 +22,6 @@ nodes:
       - containerPort: 30443
         hostPort: 30443
         protocol: TCP
-  # worker nodes for high availability
-  - role: worker
-  - role: worker
-  - role: worker
 networking:
   apiServerAddress: "0.0.0.0"
   apiServerPort: 6443

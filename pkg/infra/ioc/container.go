@@ -133,10 +133,13 @@ func (b *ContainerBuilder) Build() container.Container {
 
 func (b *ContainerBuilder) WithEnvFile() *ContainerBuilder {
 	if os.Getenv("DEV_ENV") == "true" {
-		err := godotenv.Load()
-		if err != nil {
-			slog.Error("Failed to load .env file")
-			panic(err)
+		if _, err := os.Stat(".env"); err == nil {
+			if loadErr := godotenv.Load(); loadErr != nil {
+				slog.Error("Failed to load .env file")
+				panic(loadErr)
+			}
+		} else {
+			slog.Info("No .env file found, using environment variables from system")
 		}
 	}
 

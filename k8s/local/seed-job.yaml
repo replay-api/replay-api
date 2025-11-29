@@ -1,0 +1,25 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: database-seed
+  namespace: leetgaming
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: seed
+          image: replay-api:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/app/seed"]
+          envFrom:
+            - configMapRef:
+                name: replay-api-config
+            - secretRef:
+                name: replay-api-secrets
+          env:
+            - name: MONGO_URI
+              value: "mongodb://admin:dev-mongo-password-change-me@mongodb-service:27017/leetgaming?authSource=admin"
+            - name: MONGO_DB_NAME
+              value: "leetgaming"
