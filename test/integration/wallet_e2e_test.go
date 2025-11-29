@@ -70,7 +70,7 @@ func TestE2E_WalletLifecycle(t *testing.T) {
 	ctx = context.WithValue(ctx, common.ClientIDKey, common.TeamPROAppClientID)
 
 	// Create wallet
-	evmAddress, err := wallet_vo.NewEVMAddress("0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb")
+	evmAddress, err := wallet_vo.NewEVMAddress("0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0")
 	require.NoError(t, err)
 
 	wallet, err := wallet_entities.NewUserWallet(resourceOwner, evmAddress)
