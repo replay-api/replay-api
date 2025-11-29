@@ -20,7 +20,7 @@ import (
 	payment_in "github.com/replay-api/replay-api/pkg/domain/payment/ports/in"
 	payment_out "github.com/replay-api/replay-api/pkg/domain/payment/ports/out"
 	payment_services "github.com/replay-api/replay-api/pkg/domain/payment/services"
-	mongodb "github.com/replay-api/replay-api/pkg/infra/db/mongodb"
+	db "github.com/replay-api/replay-api/pkg/infra/db/mongodb"
 )
 
 // MockStripeAdapter is a mock implementation of the Stripe adapter for testing
@@ -116,7 +116,7 @@ func TestE2E_PaymentLifecycle(t *testing.T) {
 	dbName := "replay_payment_test_" + uuid.New().String()
 
 	// Initialize payment repository
-	paymentRepo := mongodb.NewPaymentMongoDBRepository(client, dbName)
+	paymentRepo := db.NewPaymentMongoDBRepository(client, dbName)
 
 	// Create mock Stripe adapter
 	mockStripe := &MockStripeAdapter{}
@@ -283,7 +283,7 @@ func TestE2E_PaymentLifecycle(t *testing.T) {
 	// Test 8: Idempotency - duplicate payment intent should return existing
 	t.Run("Idempotency_DuplicatePaymentIntent", func(t *testing.T) {
 		// Create first payment
-		result1, err := paymentService.CreatePaymentIntent(ctx, payment_in.CreatePaymentIntentCommand{
+		_, err := paymentService.CreatePaymentIntent(ctx, payment_in.CreatePaymentIntentCommand{
 			UserID:      userID,
 			WalletID:    walletID,
 			Amount:      750,
@@ -295,7 +295,7 @@ func TestE2E_PaymentLifecycle(t *testing.T) {
 
 		// Count payments for user
 		paymentsBefore, _ := paymentRepo.FindByUserID(ctx, userID, payment_out.PaymentFilters{Limit: 100})
-		countBefore := len(paymentsBefore)
+		assert.GreaterOrEqual(t, len(paymentsBefore), 1, "Should have at least one payment")
 
 		// Attempt to create with same idempotency key would return existing
 		// Note: In our implementation, each NewPayment generates a new idempotency key
@@ -406,7 +406,7 @@ func TestPaymentRepository_UniqueConstraints(t *testing.T) {
 	dbName := "replay_payment_unique_test_" + uuid.New().String()
 	defer client.Database(dbName).Drop(ctx)
 
-	paymentRepo := mongodb.NewPaymentMongoDBRepository(client, dbName)
+	paymentRepo := db.NewPaymentMongoDBRepository(client, dbName)
 
 	userID := uuid.New()
 	walletID := uuid.New()
@@ -453,7 +453,7 @@ func BenchmarkPaymentCreation(b *testing.B) {
 	dbName := "replay_payment_bench_" + uuid.New().String()
 	defer client.Database(dbName).Drop(ctx)
 
-	paymentRepo := mongodb.NewPaymentMongoDBRepository(client, dbName)
+	paymentRepo := db.NewPaymentMongoDBRepository(client, dbName)
 	mockStripe := &MockStripeAdapter{}
 	paymentService := payment_services.NewPaymentService(paymentRepo, nil, mockStripe)
 
