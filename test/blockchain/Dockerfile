@@ -1,5 +1,8 @@
 FROM node:20-alpine
 
+# Install curl for healthchecks
+RUN apk add --no-cache curl
+
 WORKDIR /app
 
 # Install dependencies
