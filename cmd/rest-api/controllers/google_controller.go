@@ -83,6 +83,6 @@ func (c *GoogleController) OnboardGoogleUser(apiContext context.Context) http.Ha
 		w.Header().Set(ResourceOwnerIDHeaderKey, ridToken.GetID().String())
 		w.Header().Set(ResourceOwnerAudTypeHeaderKey, string(ridToken.IntendedAudience))
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(googleUser)
+		_ = json.NewEncoder(w).Encode(googleUser)
 	}
 }

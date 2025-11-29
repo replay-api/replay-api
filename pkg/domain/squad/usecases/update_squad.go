@@ -217,7 +217,7 @@ func (uc *UpdateSquadUseCase) updateSquad(ctx context.Context, squad *squad_enti
 	if err != nil {
 		return nil, err
 	}
-	uc.SquadHistoryWriter.Create(ctx, squad_entities.NewSquadHistory(updatedSquad.GetID(), common.GetResourceOwner(ctx).UserID, squad_entities.SquadUpdated, common.GetResourceOwner(ctx)))
+	_, _ = uc.SquadHistoryWriter.Create(ctx, squad_entities.NewSquadHistory(updatedSquad.GetID(), common.GetResourceOwner(ctx).UserID, squad_entities.SquadUpdated, common.GetResourceOwner(ctx)))
 	return updatedSquad, nil
 }
 

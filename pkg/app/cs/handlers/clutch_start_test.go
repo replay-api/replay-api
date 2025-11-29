@@ -31,24 +31,19 @@ type testMatrixArgs struct {
 	eventInfo    evt.Kill
 }
 
-type demoInfoCsParserMock interface {
-	infocs.Parser
-}
-
-type demoInfoCsGameStateMock interface {
-	infocs.GameState
-}
+// Ensure mockParser implements the required interface
+var _ infocs.Parser = (*mockParser)(nil)
 
 type mockParser struct {
 	mock.Mock
 }
 
-// Cancel implements demoInfoCsParserMock.
+// Cancel implements infocs.Parser.
 func (m *mockParser) Cancel() {
 	panic("unimplemented")
 }
 
-// Close implements demoInfoCsParserMock.
+// Close implements infocs.Parser.
 func (m *mockParser) Close() error {
 	panic("unimplemented")
 }

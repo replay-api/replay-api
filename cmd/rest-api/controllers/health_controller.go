@@ -21,6 +21,6 @@ func (hc *HealthController) HealthCheck(apiContext context.Context) http.Handler
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 
-		json.NewEncoder(w).Encode(`{ status: "ok" }`)
+		_ = json.NewEncoder(w).Encode(`{ status: "ok" }`)
 	}
 }

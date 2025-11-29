@@ -22,8 +22,8 @@ const (
 	ProductionBaseURL = "https://api-m.paypal.com"
 )
 
-// PayPal order status mapping
-var paypalStatusMap = map[string]payment_entities.PaymentStatus{
+// PayPal order status mapping (reserved for future webhook handling)
+var _ = map[string]payment_entities.PaymentStatus{
 	"CREATED":   payment_entities.PaymentStatusPending,
 	"SAVED":     payment_entities.PaymentStatusPending,
 	"APPROVED":  payment_entities.PaymentStatusProcessing,
