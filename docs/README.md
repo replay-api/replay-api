@@ -335,39 +335,22 @@ Deployment Process:
 
 ---
 
-## Quick Links
+## 📖 Quick Links
 
-### API Reference
-- [REST API Endpoints](./api/ENDPOINTS.md) - Complete REST API reference with examples
-
-### Architecture
-- [Domain Model](./architecture/DOMAIN_MODEL.md) - Entity relationships and Mermaid diagrams
-- [System Architecture](./architecture/TECHNICAL_ARCHITECTURE.md) - Detailed technical architecture
-- [Wallet System](./architecture/WALLET_SYSTEM.md) - Financial-grade wallet implementation
-- [Data Models](./architecture/DATA_MODELS.md) - Database schemas
-
-### Development
-- [Developer Onboarding Guide](./development/ONBOARDING.md) - Quick start for new developers
-- [Local Development Setup](./development/LOCAL_SETUP.md) - Environment setup
-- [Testing Strategy](./testing/TESTING.md) - Comprehensive testing guide
+### Getting Started
+1. [Developer Onboarding Guide](./development/ONBOARDING.md)
+2. [Local Development Setup](./development/LOCAL_SETUP.md)
+3. [Running Tests](./testing/TESTING_STRATEGY.md)
 
 ### Deployment
-- [Kubernetes Setup](./deployment/KUBERNETES.md) - Container orchestration
-- [Blue-Green Deployment](./deployment/BLUE_GREEN.md) - Zero-downtime deployments
-- [Monitoring Setup](./deployment/MONITORING.md) - Observability stack
+1. [Kubernetes Setup](./deployment/KUBERNETES.md)
+2. [Blue-Green Deployment](./deployment/BLUE_GREEN.md)
+3. [Monitoring Setup](./deployment/MONITORING.md)
 
-### Diagrams
-- [Architecture Diagrams](./diagrams/ARCHITECTURE.md) - Visual system diagrams
-
----
-
-## Related Documentation
-
-| Repository | Description | Link |
-|------------|-------------|------|
-| Root | Project overview | [docs/README.md](../../docs/README.md) |
-| Frontend | Web client | [leetgaming-pro-web/docs/](../../leetgaming-pro-web/docs/README.md) |
-| K8s | Infrastructure | [docs/architecture/DEPLOYMENT.md](../../docs/architecture/DEPLOYMENT.md) |
+### Architecture
+1. [System Architecture](./architecture/TECHNICAL_ARCHITECTURE.md)
+2. [Wallet System](./architecture/WALLET_SYSTEM.md)
+3. [Data Models](./architecture/DATA_MODELS.md)
 
 ---
 
