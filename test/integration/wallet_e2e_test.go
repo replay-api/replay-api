@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
@@ -22,8 +23,16 @@ import (
 	db "github.com/replay-api/replay-api/pkg/infra/db/mongodb"
 )
 
+// isReplicaSet checks if MongoDB is running as a replica set (required for transactions)
+func isReplicaSet(ctx context.Context, client *mongo.Client) bool {
+	var result bson.M
+	err := client.Database("admin").RunCommand(ctx, bson.D{{Key: "replSetGetStatus", Value: 1}}).Decode(&result)
+	return err == nil
+}
+
 // TestE2E_WalletLifecycle tests the complete wallet lifecycle with real MongoDB
 // NO MOCKS - Production-grade integration test
+// NOTE: This test requires MongoDB to run as a replica set for transaction support
 func TestE2E_WalletLifecycle(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping E2E test in short mode")
@@ -36,6 +45,11 @@ func TestE2E_WalletLifecycle(t *testing.T) {
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoURI))
 	require.NoError(t, err, "Failed to connect to MongoDB")
 	defer func() { _ = client.Disconnect(ctx) }()
+
+	// Check if MongoDB supports transactions (requires replica set)
+	if !isReplicaSet(ctx, client) {
+		t.Skip("Skipping wallet lifecycle test: MongoDB transactions require replica set mode")
+	}
 
 	// Create test database
 	dbName := "replay_test_" + uuid.New().String()
@@ -324,12 +338,21 @@ func getMongoTestURI() string {
 }
 
 // BenchmarkDeposit benchmarks deposit operations
+// NOTE: This benchmark requires MongoDB to run as a replica set for transaction support
 func BenchmarkDeposit(b *testing.B) {
 	ctx := context.Background()
 
 	mongoURI := getMongoTestURI()
-	client, _ := mongo.Connect(ctx, options.Client().ApplyURI(mongoURI))
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoURI))
+	if err != nil {
+		b.Skip("Skipping benchmark: Failed to connect to MongoDB")
+	}
 	defer func() { _ = client.Disconnect(ctx) }()
+
+	// Check if MongoDB supports transactions (requires replica set)
+	if !isReplicaSet(ctx, client) {
+		b.Skip("Skipping benchmark: MongoDB transactions require replica set mode")
+	}
 
 	dbName := "replay_bench_" + uuid.New().String()
 	database := client.Database(dbName)
@@ -355,7 +378,7 @@ func BenchmarkDeposit(b *testing.B) {
 	ctx = context.WithValue(ctx, common.TenantIDKey, common.TeamPROTenantID)
 	ctx = context.WithValue(ctx, common.ClientIDKey, common.TeamPROAppClientID)
 
-	evmAddress, _ := wallet_vo.NewEVMAddress("0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb")
+	evmAddress, _ := wallet_vo.NewEVMAddress("0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0")
 	wallet, _ := wallet_entities.NewUserWallet(resourceOwner, evmAddress)
 	walletRepo.Save(ctx, wallet)
 
