@@ -456,12 +456,16 @@ func getResultOptions(limitParam []string, skipParam []string) common.SearchResu
 
 	if len(limitParam) > 0 {
 		limitInt, _ := strconv.Atoi(limitParam[0])
-		limit = uint(limitInt)
+		if limitInt > 0 {
+			limit = uint(limitInt) // #nosec G115 - bounds checked
+		}
 	}
 
 	if len(skipParam) > 0 {
 		offsetInt, _ := strconv.Atoi(skipParam[0])
-		offset = uint(offsetInt)
+		if offsetInt > 0 {
+			offset = uint(offsetInt) // #nosec G115 - bounds checked
+		}
 	}
 
 	return common.SearchResultOptions{

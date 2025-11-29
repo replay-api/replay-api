@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
 	//	"golang.org/x/oauth2/jwt"
 
@@ -54,7 +55,15 @@ func main() {
 
 	slog.InfoContext(ctx, "Starting server on port "+port)
 
-	if err := http.ListenAndServe(":"+port, router); err != nil {
+	server := &http.Server{
+		Addr:         ":" + port,
+		Handler:      router,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+
+	if err := server.ListenAndServe(); err != nil {
 		slog.ErrorContext(ctx, "Server error", "err", err)
 	}
 

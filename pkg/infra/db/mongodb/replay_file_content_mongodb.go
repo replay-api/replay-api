@@ -34,7 +34,7 @@ func NewReplayFileContentRepository(client *mongo.Client) *ReplayFileContentRepo
 
 func (r *ReplayFileContentRepository) GetByID(ctx context.Context, replayFileID uuid.UUID) (io.ReadSeekCloser, error) {
 	fileName := replayFileID.String() + ".dem"
-	file, err := os.Create("/app/replay_files/" + fileName)
+	file, err := os.Create("/app/replay_files/" + fileName) // #nosec G304 - filename from UUID is safe
 	if err != nil {
 		slog.ErrorContext(ctx, "error creating file", "err", err)
 		return nil, err
@@ -51,7 +51,7 @@ func (r *ReplayFileContentRepository) GetByID(ctx context.Context, replayFileID 
 
 	_ = file.Truncate(0)
 
-	file, err = os.Open("/app/replay_files/" + fileName)
+	file, err = os.Open("/app/replay_files/" + fileName) // #nosec G304 - filename from UUID is safe
 	if err != nil {
 		slog.ErrorContext(ctx, "error opening file", "err", err)
 		return nil, err

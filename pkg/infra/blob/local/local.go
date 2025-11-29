@@ -28,7 +28,7 @@ func (adp *LocalFileAdapter) Put(ctx context.Context, replayFileID uuid.UUID, re
 		slog.ErrorContext(ctx, "error reading replay file", "error", err)
 	}
 
-	file, err := os.Create(path)
+	file, err := os.Create(path) // #nosec G304 - path is constructed from UUID
 	if err != nil {
 		slog.ErrorContext(ctx, "error writing replay file", "error", err)
 	}
@@ -45,7 +45,7 @@ func (adp *LocalFileAdapter) Put(ctx context.Context, replayFileID uuid.UUID, re
 
 func (adapter *LocalFileAdapter) GetByID(ctx context.Context, replayFileID uuid.UUID) (*os.File, error) {
 	path := "/app/replay_files/" + replayFileID.String() + ".dem"
-	file, err := os.Open(path)
+	file, err := os.Open(path) // #nosec G304 - path is constructed from UUID
 	if err != nil {
 		slog.ErrorContext(ctx, "Local.GetByID: error reading replay file", "error", err)
 		return nil, err

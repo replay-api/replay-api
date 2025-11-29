@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/replay-api/replay-api/pkg/infra/metrics"
 )
@@ -48,7 +49,16 @@ func main() {
 
 	log.Printf("Starting minimal API server on port %s", port)
 	log.Printf("Prometheus metrics available at /metrics")
-	if err := http.ListenAndServe(":"+port, handler); err != nil {
+
+	server := &http.Server{
+		Addr:         ":" + port,
+		Handler:      handler,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+
+	if err := server.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
 }
