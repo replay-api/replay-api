@@ -1,3 +1,5 @@
+//go:build !smoke
+
 package query_controllers_test
 
 import (
