@@ -165,7 +165,7 @@ func (ctlr *FileController) GetReplayMetadata(apiContext context.Context) http.H
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(results[0])
+		_ = json.NewEncoder(w).Encode(results[0])
 	}
 }
 

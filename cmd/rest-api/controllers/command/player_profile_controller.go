@@ -85,7 +85,7 @@ func (ctrl *PlayerProfileController) CreatePlayerProfileHandler(apiContext conte
 					"code":  "CONFLICT",
 					"error": err.Error(),
 				}
-				json.NewEncoder(w).Encode(errorJSON)
+				_ = json.NewEncoder(w).Encode(errorJSON)
 			} else {
 				w.WriteHeader(http.StatusInternalServerError)
 			}
@@ -100,7 +100,7 @@ func (ctrl *PlayerProfileController) CreatePlayerProfileHandler(apiContext conte
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(player)
+		_ = json.NewEncoder(w).Encode(player)
 	}
 }
 
@@ -141,7 +141,7 @@ func (ctrl *PlayerProfileController) GetPlayerProfileHandler(apiContext context.
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(results[0])
+		_ = json.NewEncoder(w).Encode(results[0])
 	}
 }
 
@@ -214,7 +214,7 @@ func (ctrl *PlayerProfileController) UpdatePlayerProfileHandler(apiContext conte
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(updatedProfile)
+		_ = json.NewEncoder(w).Encode(updatedProfile)
 	}
 }
 

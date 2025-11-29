@@ -110,7 +110,7 @@ func (ctrl *LobbyController) CreateLobbyHandler(apiContext context.Context) http
 		}
 
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 		slog.InfoContext(apiContext, "lobby created successfully", "lobby_id", lobby.ID)
 	}
 }
@@ -161,7 +161,7 @@ func (ctrl *LobbyController) JoinLobbyHandler(apiContext context.Context) http.H
 		}
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 		slog.InfoContext(apiContext, "player joined lobby", "lobby_id", lobbyID, "player_id", playerID)
 	}
 }
@@ -205,7 +205,7 @@ func (ctrl *LobbyController) LeaveLobbyHandler(apiContext context.Context) http.
 		}
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 		slog.InfoContext(apiContext, "player left lobby", "lobby_id", lobbyID, "player_id", playerID)
 	}
 }
@@ -258,7 +258,7 @@ func (ctrl *LobbyController) SetPlayerReadyHandler(apiContext context.Context) h
 		}
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 		slog.InfoContext(apiContext, "player ready status updated", "lobby_id", lobbyID, "player_id", playerID, "is_ready", reqBody.IsReady)
 	}
 }
@@ -296,7 +296,7 @@ func (ctrl *LobbyController) StartMatchHandler(apiContext context.Context) http.
 		}
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 		slog.InfoContext(apiContext, "match started", "lobby_id", lobbyID)
 	}
 }
@@ -340,7 +340,7 @@ func (ctrl *LobbyController) CancelLobbyHandler(apiContext context.Context) http
 		}
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 		slog.InfoContext(apiContext, "lobby cancelled", "lobby_id", lobbyID)
 	}
 }

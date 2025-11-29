@@ -141,7 +141,7 @@ func (ctrl *PaymentController) CreatePaymentIntentHandler(apiContext context.Con
 		}
 
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}
 }
 
@@ -173,7 +173,7 @@ func (ctrl *PaymentController) GetPaymentHandler(apiContext context.Context) htt
 		}
 
 		response := paymentToResponse(payment)
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}
 }
 
@@ -206,7 +206,7 @@ func (ctrl *PaymentController) GetUserPaymentsHandler(apiContext context.Context
 			response[i] = paymentToResponse(p)
 		}
 
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}
 }
 
@@ -265,7 +265,7 @@ func (ctrl *PaymentController) ConfirmPaymentHandler(apiContext context.Context)
 		}
 
 		response := paymentToResponse(payment)
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}
 }
 
@@ -312,7 +312,7 @@ func (ctrl *PaymentController) CancelPaymentHandler(apiContext context.Context) 
 		}
 
 		response := paymentToResponse(payment)
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}
 }
 
@@ -361,7 +361,7 @@ func (ctrl *PaymentController) RefundPaymentHandler(apiContext context.Context) 
 		}
 
 		response := paymentToResponse(payment)
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}
 }
 

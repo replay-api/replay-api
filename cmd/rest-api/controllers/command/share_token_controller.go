@@ -106,7 +106,7 @@ func (c *ShareTokenController) CreateShareToken(ctx context.Context) http.Handle
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 
 		slog.InfoContext(ctx, "Share token created", "token_id", token.ID, "resource_id", req.ResourceID)
 	}
@@ -162,7 +162,7 @@ func (c *ShareTokenController) GetShareToken(ctx context.Context) http.HandlerFu
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}
 }
 
@@ -230,7 +230,7 @@ func (c *ShareTokenController) ListShareTokens(ctx context.Context) http.Handler
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}
 }
 

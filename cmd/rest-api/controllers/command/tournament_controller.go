@@ -255,7 +255,7 @@ func (c *TournamentCommandController) RegisterPlayerHandler(apiContext context.C
 		}
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{"status": "registered"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "registered"})
 	}
 }
 
@@ -298,7 +298,7 @@ func (c *TournamentCommandController) UnregisterPlayerHandler(apiContext context
 		}
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{"status": "unregistered"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "unregistered"})
 	}
 }
 
@@ -321,7 +321,7 @@ func (c *TournamentCommandController) StartTournamentHandler(apiContext context.
 		}
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{"status": "started"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "started"})
 	}
 }
 

@@ -163,7 +163,7 @@ func (rsm *RequestSigningMiddleware) Handler(next http.Handler) http.Handler {
 		if err != nil {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": false,
 				"error":   "Invalid timestamp format",
 				"code":    "INVALID_TIMESTAMP",
@@ -181,7 +181,7 @@ func (rsm *RequestSigningMiddleware) Handler(next http.Handler) http.Handler {
 			)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": false,
 				"error":   "Request timestamp expired or invalid",
 				"code":    "TIMESTAMP_EXPIRED",
@@ -197,7 +197,7 @@ func (rsm *RequestSigningMiddleware) Handler(next http.Handler) http.Handler {
 			)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": false,
 				"error":   "Request nonce already used",
 				"code":    "DUPLICATE_NONCE",
@@ -210,7 +210,7 @@ func (rsm *RequestSigningMiddleware) Handler(next http.Handler) http.Handler {
 		if err != nil {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": false,
 				"error":   "Failed to read request body",
 				"code":    "BODY_READ_ERROR",
@@ -227,7 +227,7 @@ func (rsm *RequestSigningMiddleware) Handler(next http.Handler) http.Handler {
 			)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusForbidden)
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": false,
 				"error":   "Invalid request signature",
 				"code":    "INVALID_SIGNATURE",

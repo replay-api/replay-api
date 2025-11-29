@@ -209,7 +209,7 @@ func (ctrl *SquadController) AddMemberHandler(apiContext context.Context) http.H
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(updatedSquad)
+		_ = json.NewEncoder(w).Encode(updatedSquad)
 	}
 }
 
@@ -382,7 +382,7 @@ func (ctrl *SquadController) UpdateMemberRoleHandler(apiContext context.Context)
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(updatedSquad)
+		_ = json.NewEncoder(w).Encode(updatedSquad)
 	}
 }
 
@@ -423,7 +423,7 @@ func (ctrl *SquadController) GetSquadHandler(apiContext context.Context) http.Ha
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(results[0])
+		_ = json.NewEncoder(w).Encode(results[0])
 	}
 }
 
@@ -505,7 +505,7 @@ func (ctrl *SquadController) UpdateSquadHandler(apiContext context.Context) http
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(updatedSquad)
+		_ = json.NewEncoder(w).Encode(updatedSquad)
 	}
 }
 

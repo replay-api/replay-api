@@ -125,7 +125,7 @@ func (ctrl *MatchmakingController) JoinQueueHandler(apiContext context.Context) 
 		}
 
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}
 }
 
@@ -154,7 +154,7 @@ func (ctrl *MatchmakingController) GetPoolStatsHandler(apiContext context.Contex
 		stats := ctrl.generatePoolStats(gameID, gameMode, region)
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(stats)
+		_ = json.NewEncoder(w).Encode(stats)
 	}
 }
 
@@ -183,7 +183,7 @@ func (ctrl *MatchmakingController) LeaveQueueHandler(apiContext context.Context)
 		}
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{
+		_ = json.NewEncoder(w).Encode(map[string]string{
 			"message":    "left queue successfully",
 			"session_id": sessionID,
 		})
@@ -238,7 +238,7 @@ func (ctrl *MatchmakingController) GetSessionStatusHandler(apiContext context.Co
 		}
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}
 }
 
