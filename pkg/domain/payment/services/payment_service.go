@@ -150,6 +150,9 @@ func (s *PaymentService) ConfirmPayment(ctx context.Context, cmd payment_in.Conf
 					"payment_id", payment.ID,
 					"error", err)
 				// Payment succeeded but wallet credit failed - needs manual intervention
+				if payment.Metadata == nil {
+					payment.Metadata = make(map[string]any)
+				}
 				payment.Metadata["wallet_credit_error"] = err.Error()
 			}
 		}
@@ -205,6 +208,9 @@ func (s *PaymentService) RefundPayment(ctx context.Context, cmd payment_in.Refun
 
 	// Update payment status
 	payment.MarkRefunded()
+	if payment.Metadata == nil {
+		payment.Metadata = make(map[string]any)
+	}
 	payment.Metadata["refund_id"] = refundResp.RefundID
 	payment.Metadata["refund_amount"] = refundResp.Amount
 	payment.Metadata["refund_reason"] = cmd.Reason
@@ -299,6 +305,9 @@ func (s *PaymentService) ProcessWebhook(ctx context.Context, cmd payment_in.Proc
 				slog.ErrorContext(ctx, "failed to credit wallet from webhook",
 					"payment_id", payment.ID,
 					"error", err)
+				if payment.Metadata == nil {
+					payment.Metadata = make(map[string]any)
+				}
 				payment.Metadata["wallet_credit_error"] = err.Error()
 			}
 		}
