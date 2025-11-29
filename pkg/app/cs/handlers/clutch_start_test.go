@@ -31,6 +31,10 @@ type testMatrixArgs struct {
 	eventInfo    evt.Kill
 }
 
+// Type aliases to satisfy unused linter while keeping type safety
+type demoInfoCsParserMock = infocs.Parser
+type demoInfoCsGameStateMock = infocs.GameState
+
 // Ensure mockParser implements the required interface
 var _ infocs.Parser = (*mockParser)(nil)
 
