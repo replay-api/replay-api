@@ -110,7 +110,7 @@ func (am *AuthMiddleware) Handler(next http.Handler) http.Handler {
 
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusUnauthorized)
-				json.NewEncoder(w).Encode(map[string]interface{}{
+				_ = json.NewEncoder(w).Encode(map[string]interface{}{
 					"success": false,
 					"error":   "Authentication required",
 					"code":    "UNAUTHORIZED",

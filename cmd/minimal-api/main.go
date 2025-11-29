@@ -17,7 +17,7 @@ type HealthResponse struct {
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(HealthResponse{
+	_ = json.NewEncoder(w).Encode(HealthResponse{
 		Status:  "healthy",
 		Service: "replay-api",
 		Version: "1.0.0-minimal",
@@ -36,7 +36,7 @@ func main() {
 	mux.HandleFunc("/api/health", healthHandler)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
+		_ = json.NewEncoder(w).Encode(map[string]string{
 			"message": "LeetGaming Replay API - Minimal Mode",
 			"status":  "running",
 		})
