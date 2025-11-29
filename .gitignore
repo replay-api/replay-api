@@ -85,4 +85,5 @@ jira.env
 # Build binaries
 main
 replay-api
-seed
+/seed
+!cmd/cli/seed/
