@@ -13,13 +13,13 @@ require (
 	github.com/markus-wa/godispatch v1.4.1
 	github.com/prometheus/client_golang v1.19.0
 	github.com/segmentio/kafka-go v0.4.49
-	github.com/shopspring/decimal v1.4.0
 	github.com/streadway/amqp v1.1.0
 	github.com/stretchr/testify v1.9.0
 	github.com/stripe/stripe-go/v76 v76.25.0
 	go.mongodb.org/mongo-driver v1.15.0
+	golang.org/x/crypto v0.45.0
 	google.golang.org/grpc v1.58.3
-	google.golang.org/protobuf v1.33.0
+	google.golang.org/protobuf v1.36.10
 )
 
 require (
@@ -48,7 +48,6 @@ require (
 	github.com/xdg-go/scram v1.1.2 // indirect
 	github.com/xdg-go/stringprep v1.0.4 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d // indirect
-	golang.org/x/crypto v0.45.0 // indirect
 	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa // indirect
 	golang.org/x/net v0.47.0 // indirect
 	golang.org/x/sync v0.18.0 // indirect
