@@ -502,5 +502,5 @@ func (c *SearchController[T]) HandleSearchRequest(w http.ResponseWriter, r *http
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK) // TODO: check if have other headers, check for internal error etc
-	json.NewEncoder(w).Encode(result)
+	_ = json.NewEncoder(w).Encode(result)
 }

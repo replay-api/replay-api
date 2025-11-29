@@ -47,5 +47,5 @@ func (c *GroupController) HandleListMemberGroups(w http.ResponseWriter, r *http.
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(groupsAndMemberships)
+	_ = json.NewEncoder(w).Encode(groupsAndMemberships)
 }

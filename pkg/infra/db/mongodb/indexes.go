@@ -29,7 +29,7 @@ func GetAllIndexes() []IndexDefinition {
 				{Key: "status", Value: 1},
 				{Key: "created_at", Value: -1},
 			},
-			Options: options.Index().SetBackground(true),
+			Options: options.Index(),
 		},
 		{
 			Collection: "matchmaking_sessions",
@@ -38,7 +38,7 @@ func GetAllIndexes() []IndexDefinition {
 				{Key: "player_id", Value: 1},
 				{Key: "status", Value: 1},
 			},
-			Options: options.Index().SetBackground(true),
+			Options: options.Index(),
 		},
 		{
 			Collection: "matchmaking_sessions",
@@ -49,7 +49,7 @@ func GetAllIndexes() []IndexDefinition {
 				{Key: "preferences.region", Value: 1},
 				{Key: "preferences.tier", Value: 1},
 			},
-			Options: options.Index().SetBackground(true),
+			Options: options.Index(),
 		},
 		{
 			Collection: "matchmaking_sessions",
@@ -58,7 +58,6 @@ func GetAllIndexes() []IndexDefinition {
 				{Key: "expires_at", Value: 1},
 			},
 			Options: options.Index().
-				SetBackground(true).
 				SetExpireAfterSeconds(0), // TTL index - documents expire at expires_at time
 		},
 
@@ -72,7 +71,6 @@ func GetAllIndexes() []IndexDefinition {
 				{Key: "region", Value: 1},
 			},
 			Options: options.Index().
-				SetBackground(true).
 				SetUnique(true), // Only one pool per game/mode/region
 		},
 		{
@@ -82,7 +80,7 @@ func GetAllIndexes() []IndexDefinition {
 				{Key: "is_active", Value: 1},
 				{Key: "updated_at", Value: -1},
 			},
-			Options: options.Index().SetBackground(true),
+			Options: options.Index(),
 		},
 
 		// Prize Pools Indexes
@@ -93,7 +91,7 @@ func GetAllIndexes() []IndexDefinition {
 				{Key: "status", Value: 1},
 				{Key: "escrow_end_time", Value: 1},
 			},
-			Options: options.Index().SetBackground(true),
+			Options: options.Index(),
 		},
 		{
 			Collection: "prize_pools",
@@ -102,7 +100,6 @@ func GetAllIndexes() []IndexDefinition {
 				{Key: "match_id", Value: 1},
 			},
 			Options: options.Index().
-				SetBackground(true).
 				SetUnique(true), // One prize pool per match
 		},
 		{
@@ -113,7 +110,7 @@ func GetAllIndexes() []IndexDefinition {
 				{Key: "region", Value: 1},
 				{Key: "created_at", Value: -1},
 			},
-			Options: options.Index().SetBackground(true),
+			Options: options.Index(),
 		},
 
 		// Lobbies Indexes
@@ -124,7 +121,7 @@ func GetAllIndexes() []IndexDefinition {
 				{Key: "status", Value: 1},
 				{Key: "created_at", Value: -1},
 			},
-			Options: options.Index().SetBackground(true),
+			Options: options.Index(),
 		},
 		{
 			Collection: "lobbies",
@@ -133,7 +130,7 @@ func GetAllIndexes() []IndexDefinition {
 				{Key: "creator_id", Value: 1},
 				{Key: "status", Value: 1},
 			},
-			Options: options.Index().SetBackground(true),
+			Options: options.Index(),
 		},
 		{
 			Collection: "lobbies",
@@ -144,7 +141,7 @@ func GetAllIndexes() []IndexDefinition {
 				{Key: "tier", Value: 1},
 				{Key: "status", Value: 1},
 			},
-			Options: options.Index().SetBackground(true),
+			Options: options.Index(),
 		},
 
 		// Wallets Indexes
@@ -155,7 +152,6 @@ func GetAllIndexes() []IndexDefinition {
 				{Key: "user_id", Value: 1},
 			},
 			Options: options.Index().
-				SetBackground(true).
 				SetUnique(true), // One wallet per user
 		},
 		{
@@ -165,7 +161,6 @@ func GetAllIndexes() []IndexDefinition {
 				{Key: "evm_address.address", Value: 1},
 			},
 			Options: options.Index().
-				SetBackground(true).
 				SetSparse(true), // Not all wallets have EVM addresses
 		},
 		{
@@ -174,7 +169,7 @@ func GetAllIndexes() []IndexDefinition {
 			Keys: bson.D{
 				{Key: "transactions.created_at", Value: -1},
 			},
-			Options: options.Index().SetBackground(true),
+			Options: options.Index(),
 		},
 
 		// Tournaments Indexes
@@ -185,7 +180,7 @@ func GetAllIndexes() []IndexDefinition {
 				{Key: "status", Value: 1},
 				{Key: "start_time", Value: 1},
 			},
-			Options: options.Index().SetBackground(true),
+			Options: options.Index(),
 		},
 		{
 			Collection: "tournaments",
@@ -195,7 +190,7 @@ func GetAllIndexes() []IndexDefinition {
 				{Key: "region", Value: 1},
 				{Key: "start_time", Value: 1},
 			},
-			Options: options.Index().SetBackground(true),
+			Options: options.Index(),
 		},
 		{
 			Collection: "tournaments",
@@ -204,7 +199,7 @@ func GetAllIndexes() []IndexDefinition {
 				{Key: "organizer_id", Value: 1},
 				{Key: "created_at", Value: -1},
 			},
-			Options: options.Index().SetBackground(true),
+			Options: options.Index(),
 		},
 		{
 			Collection: "tournaments",
@@ -212,7 +207,7 @@ func GetAllIndexes() []IndexDefinition {
 			Keys: bson.D{
 				{Key: "participants.player_id", Value: 1},
 			},
-			Options: options.Index().SetBackground(true),
+			Options: options.Index(),
 		},
 		{
 			Collection: "tournaments",
@@ -221,7 +216,7 @@ func GetAllIndexes() []IndexDefinition {
 				{Key: "registration_open", Value: 1},
 				{Key: "registration_close", Value: 1},
 			},
-			Options: options.Index().SetBackground(true),
+			Options: options.Index(),
 		},
 
 		// Player Profiles Indexes
@@ -231,7 +226,7 @@ func GetAllIndexes() []IndexDefinition {
 			Keys: bson.D{
 				{Key: "user_id", Value: 1},
 			},
-			Options: options.Index().SetBackground(true),
+			Options: options.Index(),
 		},
 		{
 			Collection: "player_profiles",
@@ -240,7 +235,6 @@ func GetAllIndexes() []IndexDefinition {
 				{Key: "steam_id", Value: 1},
 			},
 			Options: options.Index().
-				SetBackground(true).
 				SetSparse(true),
 		},
 		{
@@ -249,7 +243,7 @@ func GetAllIndexes() []IndexDefinition {
 			Keys: bson.D{
 				{Key: "display_name", Value: 1},
 			},
-			Options: options.Index().SetBackground(true),
+			Options: options.Index(),
 		},
 
 		// Squads Indexes
@@ -259,7 +253,7 @@ func GetAllIndexes() []IndexDefinition {
 			Keys: bson.D{
 				{Key: "leader_id", Value: 1},
 			},
-			Options: options.Index().SetBackground(true),
+			Options: options.Index(),
 		},
 		{
 			Collection: "squads",
@@ -267,7 +261,7 @@ func GetAllIndexes() []IndexDefinition {
 			Keys: bson.D{
 				{Key: "members.player_id", Value: 1},
 			},
-			Options: options.Index().SetBackground(true),
+			Options: options.Index(),
 		},
 	}
 }

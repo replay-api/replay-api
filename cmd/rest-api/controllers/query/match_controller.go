@@ -111,12 +111,12 @@ func (c *MatchQueryController) GetMatchDetailHandler(w http.ResponseWriter, r *h
 	matchDetail := map[string]any{
 		"match": match,
 		"metadata": map[string]any{
-			"has_events": match.Events != nil && len(match.Events) > 0,
+			"has_events": len(match.Events) > 0,
 			"has_rounds": len(match.Scoreboard.TeamScoreboards) > 0,
 		},
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(matchDetail)
+	_ = json.NewEncoder(w).Encode(matchDetail)
 }
