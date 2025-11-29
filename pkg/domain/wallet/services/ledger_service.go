@@ -439,13 +439,13 @@ func (s *LedgerService) ExecuteWithIdempotency(
 		operationType,
 		nil, // TODO: Store request payload if needed
 	)
-	s.idempotencyRepo.Create(ctx, op)
+	_ = s.idempotencyRepo.Create(ctx, op)
 
 	// Execute operation
 	resultID, err := operation()
 	if err != nil {
 		op.MarkFailed(err.Error())
-		s.idempotencyRepo.Update(ctx, op)
+		_ = s.idempotencyRepo.Update(ctx, op)
 		return uuid.Nil, err
 	}
 

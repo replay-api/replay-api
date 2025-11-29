@@ -72,7 +72,7 @@ cmd.InviteOnly,
 	_, err = s.createPrizePool(ctx, prizePoolCmd)
 	if err != nil {
 		// Rollback: delete lobby
-		s.lobbyRepo.Delete(ctx, lobby.ID)
+		_ = s.lobbyRepo.Delete(ctx, lobby.ID)
 		return nil, fmt.Errorf("failed to create prize pool: %w", err)
 	}
 
@@ -119,7 +119,7 @@ func (s *LobbyOrchestrationService) JoinLobby(ctx context.Context, cmd matchmaki
 			Amount:   entryFee,
 			Reason:   "failed to join lobby",
 		}
-		s.walletCommand.Refund(ctx, refundCmd)
+		_ = s.walletCommand.Refund(ctx, refundCmd)
 		return fmt.Errorf("failed to add player: %w", err)
 	}
 
@@ -128,15 +128,15 @@ func (s *LobbyOrchestrationService) JoinLobby(ctx context.Context, cmd matchmaki
 
 	if err := prizePool.AddPlayerContribution(cmd.PlayerID, prizePoolAmount); err != nil {
 		// Rollback: remove from lobby + refund
-		lobby.RemovePlayer(cmd.PlayerID)
-		s.lobbyRepo.Update(ctx, lobby)
+		_ = lobby.RemovePlayer(cmd.PlayerID)
+		_ = s.lobbyRepo.Update(ctx, lobby)
 		refundCmd := wallet_in.RefundCommand{
 			UserID:   cmd.PlayerID,
 			Currency: string(prizePool.Currency),
 			Amount:   entryFee,
 			Reason:   "failed to add prize contribution",
 		}
-		s.walletCommand.Refund(ctx, refundCmd)
+		_ = s.walletCommand.Refund(ctx, refundCmd)
 		return fmt.Errorf("failed to add prize contribution: %w", err)
 	}
 

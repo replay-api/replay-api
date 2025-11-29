@@ -165,7 +165,7 @@ func (p *PayPalAdapter) CreatePaymentIntent(ctx context.Context, req payment_out
 
 	if resp.StatusCode != http.StatusCreated {
 		var errResp map[string]interface{}
-		json.NewDecoder(resp.Body).Decode(&errResp)
+		_ = json.NewDecoder(resp.Body).Decode(&errResp)
 		return nil, fmt.Errorf("order creation failed: %v", errResp)
 	}
 
@@ -221,7 +221,7 @@ func (p *PayPalAdapter) ConfirmPayment(ctx context.Context, req payment_out.Conf
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		var errResp map[string]interface{}
-		json.NewDecoder(resp.Body).Decode(&errResp)
+		_ = json.NewDecoder(resp.Body).Decode(&errResp)
 		return nil, fmt.Errorf("capture failed: %v", errResp)
 	}
 
@@ -299,7 +299,7 @@ func (p *PayPalAdapter) RefundPayment(ctx context.Context, req payment_out.Refun
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		var errResp map[string]interface{}
-		json.NewDecoder(resp.Body).Decode(&errResp)
+		_ = json.NewDecoder(resp.Body).Decode(&errResp)
 		return nil, fmt.Errorf("refund failed: %v", errResp)
 	}
 
