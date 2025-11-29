@@ -133,7 +133,7 @@ func (s *EmailVerificationService) VerifyEmail(ctx context.Context, cmd auth_in.
 	// Check if expired
 	if verification.IsExpired() {
 		verification.Status = auth_entities.VerificationStatusExpired
-		s.verificationRepo.Update(ctx, verification)
+		_ = s.verificationRepo.Update(ctx, verification)
 
 		return &auth_in.VerificationResult{
 			Success: false,
@@ -222,7 +222,7 @@ func (s *EmailVerificationService) GetVerificationStatus(ctx context.Context, us
 	// Check and update expired status
 	if verification.IsExpired() && verification.Status == auth_entities.VerificationStatusPending {
 		verification.Status = auth_entities.VerificationStatusExpired
-		s.verificationRepo.Update(ctx, verification)
+		_ = s.verificationRepo.Update(ctx, verification)
 	}
 
 	return verification, nil

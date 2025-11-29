@@ -255,7 +255,7 @@ func (p *PayPalAdapter) ConfirmPayment(ctx context.Context, req payment_out.Conf
 		len(captureResp.PurchaseUnits[0].Payments.Captures) > 0 {
 		fee := captureResp.PurchaseUnits[0].Payments.Captures[0].SellerPayableBreakdown.PayPalFee.Value
 		var feeFloat float64
-		fmt.Sscanf(fee, "%f", &feeFloat)
+		_, _ = fmt.Sscanf(fee, "%f", &feeFloat)
 		providerFee = int64(feeFloat * 100) // Convert to cents
 	}
 
@@ -316,7 +316,7 @@ func (p *PayPalAdapter) RefundPayment(ctx context.Context, req payment_out.Refun
 	}
 
 	var amount float64
-	fmt.Sscanf(refundResp.Amount.Value, "%f", &amount)
+	_, _ = fmt.Sscanf(refundResp.Amount.Value, "%f", &amount)
 
 	return &payment_out.RefundResponse{
 		RefundID: refundResp.ID,

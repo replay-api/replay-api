@@ -150,7 +150,7 @@ func (s *MFAService) InitiateMFA(ctx context.Context, userID uuid.UUID, action s
 	}
 
 	// Invalidate previous pending sessions
-	s.mfaSessionRepo.InvalidatePreviousSessions(ctx, userID)
+	_ = s.mfaSessionRepo.InvalidatePreviousSessions(ctx, userID)
 
 	// Send verification code via email
 	verification, err := s.verificationService.SendVerificationEmail(ctx, auth_in.SendVerificationEmailCommand{
@@ -221,7 +221,7 @@ func (s *MFAService) VerifyMFA(ctx context.Context, sessionID uuid.UUID, code st
 	})
 	if err != nil {
 		session.IncrementAttempts()
-		s.mfaSessionRepo.Update(ctx, session)
+		_ = s.mfaSessionRepo.Update(ctx, session)
 
 		return &MFAVerificationResult{
 			Success:           false,
@@ -248,7 +248,7 @@ func (s *MFAService) VerifyMFA(ctx context.Context, sessionID uuid.UUID, code st
 	}
 
 	session.IncrementAttempts()
-	s.mfaSessionRepo.Update(ctx, session)
+	_ = s.mfaSessionRepo.Update(ctx, session)
 
 	return &MFAVerificationResult{
 		Success:           false,
@@ -310,8 +310,8 @@ func (s *MFAService) UseRecoveryCode(ctx context.Context, sessionID uuid.UUID, c
 
 	if settings.UseRecoveryCode(code) {
 		session.MarkVerified()
-		s.mfaSessionRepo.Update(ctx, session)
-		s.mfaSettingsRepo.Update(ctx, settings)
+		_ = s.mfaSessionRepo.Update(ctx, session)
+		_ = s.mfaSettingsRepo.Update(ctx, settings)
 
 		slog.WarnContext(ctx, "Recovery code used",
 			"user_id", session.UserID,

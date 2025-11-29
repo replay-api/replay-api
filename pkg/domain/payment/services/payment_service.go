@@ -135,7 +135,7 @@ func (s *PaymentService) ConfirmPayment(ctx context.Context, cmd payment_in.Conf
 	})
 	if err != nil {
 		payment.MarkFailed(err.Error())
-		s.paymentRepo.Update(ctx, payment)
+		_ = s.paymentRepo.Update(ctx, payment)
 		return nil, fmt.Errorf("failed to confirm payment: %w", err)
 	}
 

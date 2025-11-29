@@ -233,7 +233,7 @@ for {
 select {
 case message, ok := <-c.Send:
 if !ok {
-c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+_ = c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 return
 }
 

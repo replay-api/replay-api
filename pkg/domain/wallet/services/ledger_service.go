@@ -356,7 +356,7 @@ func (s *LedgerService) RecordRefund(
 
 	// Mark originals as reversed
 	for i, entry := range entries {
-		s.ledgerRepo.MarkAsReversed(ctx, entry.ID, reversalEntries[i].ID)
+		_ = s.ledgerRepo.MarkAsReversed(ctx, entry.ID, reversalEntries[i].ID)
 	}
 
 	slog.InfoContext(ctx, "refund recorded in ledger",
