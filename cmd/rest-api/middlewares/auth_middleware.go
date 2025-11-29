@@ -17,16 +17,29 @@ type AuthMiddleware struct {
 func NewAuthMiddleware() *AuthMiddleware {
 	return &AuthMiddleware{
 		publicPaths: map[string]bool{
-			"/health":           true,
-			"/ready":            true,
-			"/coverage":         true,
-			"/onboarding/steam": true,
+			"/health":            true,
+			"/ready":             true,
+			"/coverage":          true,
+			"/metrics":           true,
+			"/onboarding/steam":  true,
 			"/onboarding/google": true,
-			"/onboarding/email": true,
-			"/auth/login":       true,
-			"/webhooks/stripe":  true,
+			"/onboarding/email":  true,
+			"/auth/login":        true,
+			"/webhooks/stripe":   true,
 		},
 	}
+}
+
+// publicPostPaths returns paths that allow POST without authentication
+func (am *AuthMiddleware) isPublicPostPath(path string) bool {
+	publicPostPaths := map[string]bool{
+		"/onboarding/steam":  true,
+		"/onboarding/google": true,
+		"/onboarding/email":  true,
+		"/auth/login":        true,
+		"/webhooks/stripe":   true,
+	}
+	return publicPostPaths[path]
 }
 
 // isPublicPath checks if the given path is a public endpoint
@@ -71,8 +84,14 @@ func (am *AuthMiddleware) Handler(next http.Handler) http.Handler {
 			return
 		}
 
-		// Public paths don't require authentication
+		// Public paths don't require authentication for read methods
 		if am.isPublicPath(path) && isReadOnlyMethod(method) {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Allow POST for public post paths (onboarding, login, webhooks)
+		if method == http.MethodPost && am.isPublicPostPath(path) {
 			next.ServeHTTP(w, r)
 			return
 		}
