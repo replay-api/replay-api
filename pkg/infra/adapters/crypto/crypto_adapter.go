@@ -272,7 +272,7 @@ func (c *CryptoAdapter) ParseWebhook(payload []byte, signature string) (*payment
 	}
 
 	// Verify the transfer is to our deposit address
-	if strings.ToLower(event.ToAddress) != strings.ToLower(c.depositAddress) {
+	if !strings.EqualFold(event.ToAddress, c.depositAddress) {
 		return nil, fmt.Errorf("transfer not to our deposit address")
 	}
 

@@ -150,7 +150,7 @@ func (rsm *RequestSigningMiddleware) Handler(next http.Handler) http.Handler {
 			)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": false,
 				"error":   "Request signing required for this endpoint",
 				"code":    "SIGNATURE_REQUIRED",
