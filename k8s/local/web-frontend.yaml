@@ -31,12 +31,15 @@ spec:
               value: "production"
             - name: PORT
               value: "3030"
-            - name: NEXT_PUBLIC_API_URL
-              value: "http://replay-api-service:8080"
-            - name: NEXT_PUBLIC_REPLAY_API_URL
-              value: "http://replay-api-service:8080"
+            # Server-side API URL (internal K8s service)
             - name: REPLAY_API_URL
               value: "http://replay-api-service:8080"
+            # Client-side API URL (browser needs external URL via port-forward)
+            - name: NEXT_PUBLIC_API_URL
+              value: "http://localhost:8080"
+            - name: NEXT_PUBLIC_REPLAY_API_URL
+              value: "http://localhost:8080"
+            # NextAuth configuration
             - name: NEXTAUTH_URL
               value: "http://localhost:3030"
             - name: LEET_GAMING_PRO_URL
