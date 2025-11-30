@@ -5,10 +5,10 @@ import (
 
 	dem "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs"
 	evt "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs/events"
-	event_factory "github.com/psavelis/team-pro/replay-api/pkg/app/cs/factories"
-	"github.com/psavelis/team-pro/replay-api/pkg/app/cs/state"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	"github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
+	event_factory "github.com/replay-api/replay-api/pkg/app/cs/factories"
+	"github.com/replay-api/replay-api/pkg/app/cs/state"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	"github.com/replay-api/replay-api/pkg/domain/replay/entities"
 )
 
 func GenericGameEvent(p dem.Parser, matchContext *state.CS2MatchContext, out chan *entities.GameEvent) func(e evt.GenericGameEvent) {
@@ -37,6 +37,6 @@ func GenericGameEvent(p dem.Parser, matchContext *state.CS2MatchContext, out cha
 		}
 
 		// out <- *gameEvent
-		slog.Warn("skipping generic event", "gameEvent", gameEvent)
+		slog.Warn("skipping generic event", "gameEvent.Type", gameEvent.Type)
 	}
 }

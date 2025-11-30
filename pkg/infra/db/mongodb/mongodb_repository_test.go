@@ -4,15 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	cs_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/cs/entities"
-	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
-	db "github.com/psavelis/team-pro/replay-api/pkg/infra/db/mongodb"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	cs_entity "github.com/replay-api/replay-api/pkg/domain/cs/entities"
+	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
+	db "github.com/replay-api/replay-api/pkg/infra/db/mongodb"
 	"github.com/stretchr/testify/assert"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -36,18 +37,17 @@ func Test_Mongo_QueryBuilder(t *testing.T) {
 	r := db.NewReplayFileMetadataRepository(client, dbName, replay_entity.ReplayFile{}, "replay_files")
 
 	r.InitQueryableFields(map[string]bool{
-		"ID":               true,
-		"GameID":           true,
-		"NetworkID":        true,
-		"Size":             true,
-		"InternalURI":      true,
-		"Status":           true,
-		"Error":            true,
-		"Header":           true,
-		"Header.Filestamp": true,
-		"ResourceOwner":    true,
-		"CreatedAt":        true,
-		"UpdatedAt":        true,
+		"ID":            true,
+		"GameID":        true,
+		"NetworkID":     true,
+		"Size":          true,
+		"InternalURI":   true,
+		"Status":        true,
+		"Error":         true,
+		"Header":        true,
+		"ResourceOwner": true,
+		"CreatedAt":     true,
+		"UpdatedAt":     true,
 	}, map[string]string{
 		"ID":                     "_id",
 		"GameID":                 "game_id",
@@ -60,7 +60,6 @@ func Test_Mongo_QueryBuilder(t *testing.T) {
 		"ResourceOwner":          "resource_owner",
 		"CreatedAt":              "created_at",
 		"UpdatedAt":              "updated_at",
-		"Header.Filestamp":       "header.filestamp",
 		"ResourceOwner.TenantID": "resource_owner.tenant_id",
 		"ResourceOwner.UserID":   "resource_owner.user_id",
 		"ResourceOwner.GroupID":  "resource_owner.group_id",
@@ -104,12 +103,18 @@ var (
 	clientOnce     sync.Once
 )
 
+func getMongoURI() string {
+	if uri := os.Getenv("MONGO_URI"); uri != "" {
+		return uri + "/" + dbName
+	}
+	return "mongodb://host.docker.internal:37019/" + dbName
+}
+
 func getClient() (*mongo.Client, error) {
 	var err error
 	if clientInstance == nil {
 		clientOnce.Do(func() {
-			opt := options.Client().ApplyURI("mongodb://127.0.0.1:37019/replay")
-			// review: refactor (dry/config)
+			opt := options.Client().ApplyURI(getMongoURI())
 			clientInstance, err = mongo.Connect(context.Background(), opt)
 		})
 	}
@@ -123,11 +128,11 @@ func TestMongoDBRepository_Query(t *testing.T) {
 	}
 
 	// Establish a connection to a real MongoDB database
-	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI("mongodb://127.0.0.1:37019/replay"))
+	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(getMongoURI()))
 	if err != nil {
 		t.Fatalf("Error connecting to MongoDB: %v", err)
 	}
-	defer client.Disconnect(context.Background())
+	defer func() { _ = client.Disconnect(context.Background()) }()
 
 	// Use a dedicated collection for testing
 	collectionName := "replay_files"
@@ -142,18 +147,17 @@ func TestMongoDBRepository_Query(t *testing.T) {
 	}
 
 	repo.InitQueryableFields(map[string]bool{
-		"ID":               true,
-		"GameID":           true,
-		"NetworkID":        true,
-		"Size":             true,
-		"InternalURI":      true,
-		"Status":           true,
-		"Error":            true,
-		"Header":           true,
-		"Header.Filestamp": true,
-		"ResourceOwner":    true,
-		"CreatedAt":        true,
-		"UpdatedAt":        true,
+		"ID":            true,
+		"GameID":        true,
+		"NetworkID":     true,
+		"Size":          true,
+		"InternalURI":   true,
+		"Status":        true,
+		"Error":         true,
+		"Header":        true,
+		"ResourceOwner": true,
+		"CreatedAt":     true,
+		"UpdatedAt":     true,
 	}, map[string]string{
 		"ID":                     "_id",
 		"GameID":                 "game_id",
@@ -166,7 +170,6 @@ func TestMongoDBRepository_Query(t *testing.T) {
 		"ResourceOwner":          "resource_owner",
 		"CreatedAt":              "created_at",
 		"UpdatedAt":              "updated_at",
-		"Header.Filestamp":       "header.filestamp",
 		"ResourceOwner.TenantID": "resource_owner.tenant_id",
 		"ResourceOwner.UserID":   "resource_owner.user_id",
 		"ResourceOwner.GroupID":  "resource_owner.group_id",
@@ -476,7 +479,7 @@ func TestMongoDBRepository_Query(t *testing.T) {
 			}
 
 			// clear
-			collection.DeleteMany(ctx, bson.M{})
+			_, _ = collection.DeleteMany(ctx, bson.M{})
 
 			rs, err := collection.InsertMany(ctx, data)
 			if err != nil {
@@ -538,11 +541,11 @@ func TestGetBSONFieldNameFromSearchableValue(t *testing.T) {
 	}
 
 	// Establish a connection to a real MongoDB database
-	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI("mongodb://127.0.0.1:37019/replay"))
+	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(getMongoURI()))
 	if err != nil {
 		t.Fatalf("Error connecting to MongoDB: %v", err)
 	}
-	defer client.Disconnect(context.Background())
+	defer func() { _ = client.Disconnect(context.Background()) }()
 
 	// Use a dedicated collection for testing
 	collectionName := "replay_files"
@@ -703,11 +706,11 @@ func TestMongoDBRepository_EnsureTenancy(t *testing.T) {
 	}
 
 	// Establish a connection to a real MongoDB database
-	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI("mongodb://127.0.0.1:37019/replay"))
+	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(getMongoURI()))
 	if err != nil {
 		t.Fatalf("Error connecting to MongoDB: %v", err)
 	}
-	defer client.Disconnect(context.Background())
+	defer func() { _ = client.Disconnect(context.Background()) }()
 
 	// Use a dedicated collection for testing
 	collectionName := "replay_files"
@@ -872,6 +875,153 @@ func TestMongoDBRepository_EnsureTenancy(t *testing.T) {
 				assert.Fail(t, "expectedError, expectedErrorPart expectedAgg must be set")
 			}
 
+		})
+	}
+}
+
+func TestMongoDBRepository_AddProjection(t *testing.T) {
+	tests := []struct {
+		name               string
+		queryableFields    map[string]bool
+		bsonFieldMappings  map[string]string
+		search             common.Search
+		expectedProjection bson.M
+	}{
+		{
+			name: "Basic Projection - All Fields",
+			queryableFields: map[string]bool{
+				"ID":        true,
+				"GameID":    true,
+				"NetworkID": true,
+			},
+			bsonFieldMappings: map[string]string{
+				"ID":        "_id",
+				"GameID":    "game_id",
+				"NetworkID": "network_id",
+			},
+			search: common.Search{},
+			expectedProjection: bson.M{
+				"_id":        1,
+				"game_id":    1,
+				"network_id": 1,
+			},
+		},
+		{
+			name: "Pick Specific Fields",
+			queryableFields: map[string]bool{
+				"ID":        true,
+				"GameID":    true,
+				"NetworkID": true,
+			},
+			bsonFieldMappings: map[string]string{
+				"ID":        "_id",
+				"GameID":    "game_id",
+				"NetworkID": "network_id",
+			},
+			search: common.Search{
+				ResultOptions: common.SearchResultOptions{
+					PickFields: []string{"ID", "GameID"},
+				},
+			},
+			expectedProjection: bson.M{
+				"_id":     1,
+				"game_id": 1,
+			},
+		},
+		{
+			name: "Omit Specific Fields",
+			queryableFields: map[string]bool{
+				"ID":        true,
+				"GameID":    true,
+				"NetworkID": true,
+			},
+			bsonFieldMappings: map[string]string{
+				"ID":        "_id",
+				"GameID":    "game_id",
+				"NetworkID": "network_id",
+			},
+			search: common.Search{
+				ResultOptions: common.SearchResultOptions{
+					OmitFields: []string{"NetworkID"},
+				},
+			},
+			expectedProjection: bson.M{
+				"_id":        1,
+				"game_id":    1,
+				"network_id": 0,
+			},
+		},
+		{
+			name: "Full Text Search",
+			queryableFields: map[string]bool{
+				"ID":     true,
+				"GameID": true,
+			},
+			bsonFieldMappings: map[string]string{
+				"ID":     "_id",
+				"GameID": "game_id",
+			},
+			search: common.Search{
+				SearchParams: []common.SearchAggregation{
+					{
+						Params: []common.SearchParameter{
+							{FullTextSearchParam: "search text"},
+						},
+					},
+				},
+			},
+			expectedProjection: bson.M{
+				"_id":     1,
+				"game_id": 1,
+				"score":   bson.M{"$meta": "textScore"},
+			},
+		},
+		// {
+		// 	name: "Include Params with PickFields",
+		// 	queryableFields: map[string]bool{
+		// 		"ID":     true,
+		// 		"GameID": true,
+		// 	},
+		// 	bsonFieldMappings: map[string]string{
+		// 		"ID":     "_id",
+		// 		"GameID": "game_id",
+		// 	},
+		// 	search: common.Search{
+		// 		IncludeParams: []common.IncludeParam{
+		// 			{
+		// 				From:       common.ResourceType("foreign"),
+		// 				PickFields: []string{"ForeignField"},
+		// 			},
+		// 		},
+		// 	},
+		// 	expectedProjection: bson.M{
+		// 		"_id":                           1,
+		// 		"game_id":                       1,
+		// 		"Includes.foreign.ForeignField": 1,
+		// 	},
+		// },
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &db.MongoDBRepository[common.Entity]{
+				QueryableFields:   tt.queryableFields,
+				BsonFieldMappings: tt.bsonFieldMappings,
+			}
+
+			pipe := []bson.M{}
+			pipe = repo.AddProjection(pipe, tt.search)
+
+			if len(pipe) != 1 {
+				t.Fatalf("Expected pipeline length 1, got %d", len(pipe))
+			}
+
+			projectionStage, ok := pipe[0]["$project"].(bson.M)
+			if !ok {
+				t.Fatalf("Expected $project stage, got %v", pipe[0])
+			}
+
+			assert.Equal(t, tt.expectedProjection, projectionStage)
 		})
 	}
 }

@@ -12,7 +12,9 @@ const (
 	// Parameters
 	GameIDParamKey  ContextKey = "game_id"
 	MatchIDParamKey ContextKey = "match_id"
+	ResourceIDKey   ContextKey = "resource_id"
 
-	AudienceKey      ContextKey = "aud"
-	AuthenticatedKey ContextKey = "auth"
+	AudienceKey            ContextKey = "aud"
+	AuthenticatedKey       ContextKey = "auth"
+	IntendedAudienceCtxKey ContextKey = "intended_audience"
 )

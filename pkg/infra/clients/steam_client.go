@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	steamEntities "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/entities"
+	steamEntities "github.com/replay-api/replay-api/pkg/domain/steam/entities"
 )
 
 type SteamClient struct {
@@ -29,13 +29,13 @@ func NewSteamClient() *SteamClient {
 func (c *SteamClient) Details(token string) (*steamEntities.SteamUser, error) {
 	res, err := c.HttpClient.Get("https://api.steampowered.com/ISteamUserOAuth/GetTokenDetails/v1/?access_token=" + token)
 	if err != nil {
-		slog.Error("Failed to get token details", err)
+		slog.Error("Failed to get token details", "error", err)
 		return nil, err
 	}
 	defer res.Body.Close()
 
 	var steamUser steamEntities.SteamUser
-	json.NewDecoder(res.Body).Decode(&steamUser)
+	_ = json.NewDecoder(res.Body).Decode(&steamUser)
 
 	return &steamUser, nil
 }

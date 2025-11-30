@@ -7,8 +7,9 @@ import (
 	"net/http"
 
 	"github.com/golobby/container/v3"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	replay_in "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/ports/in"
+	"github.com/google/uuid"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	replay_in "github.com/replay-api/replay-api/pkg/domain/replay/ports/in"
 )
 
 type FileController struct {
@@ -25,7 +26,7 @@ func (ctlr *FileController) UploadHandler(apiContext context.Context) http.Handl
 		w.Header().Set("Access-Control-Allow-Methods", "POST")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		// r.Body = http.MaxBytesReader(w, r.Body, 32<<57)
-		r.ParseMultipartForm(32 << 50)
+		_ = r.ParseMultipartForm(32 << 50)
 
 		reqContext := context.WithValue(r.Context(), common.GameIDParamKey, r.FormValue("game_id"))
 
@@ -111,3 +112,95 @@ func (ctlr *FileController) UploadHandler(apiContext context.Context) http.Handl
 // 		// w.WriteHeader(http.StatusOK)
 // 	}
 // }
+
+// GetReplayMetadata handles GET /games/{game_id}/replays/{id}
+func (ctlr *FileController) GetReplayMetadata(apiContext context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := r.URL.Query()
+		replayID := vars.Get("id")
+		gameID := vars.Get("game_id")
+
+		if replayID == "" || gameID == "" {
+			slog.Error("GetReplayMetadata: missing replay_id or game_id")
+			http.Error(w, "replay_id and game_id are required", http.StatusBadRequest)
+			return
+		}
+
+		var replayFileReader replay_in.ReplayFileReader
+		err := ctlr.container.Resolve(&replayFileReader)
+		if err != nil {
+			slog.Error("GetReplayMetadata: failed to resolve ReplayFileReader", "err", err)
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+
+		// Build search using strongly typed aggregations
+		idUUID, err := uuid.Parse(replayID)
+		if err != nil {
+			slog.Error("GetReplayMetadata: invalid replay_id UUID", "replay_id", replayID, "err", err)
+			http.Error(w, "invalid replay_id", http.StatusBadRequest)
+			return
+		}
+
+		valueParams := []common.SearchableValue{
+			{Field: "ID", Values: []interface{}{idUUID}, Operator: common.EqualsOperator},
+		}
+		if gameID != "" {
+			valueParams = append(valueParams, common.SearchableValue{Field: "GameID", Values: []interface{}{gameID}, Operator: common.EqualsOperator})
+		}
+
+		search := common.NewSearchByValues(r.Context(), valueParams, common.SearchResultOptions{Limit: 1}, common.UserAudienceIDKey)
+		results, err := replayFileReader.Search(r.Context(), search)
+		if err != nil {
+			slog.Error("GetReplayMetadata: error searching replay", "err", err)
+			http.Error(w, "error fetching replay", http.StatusInternalServerError)
+			return
+		}
+
+		if len(results) == 0 {
+			slog.Warn("GetReplayMetadata: replay not found", "replay_id", replayID)
+			http.Error(w, "replay not found", http.StatusNotFound)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(results[0])
+	}
+}
+
+// DownloadReplayFile handles GET /games/{game_id}/replays/{id}/download
+func (ctlr *FileController) DownloadReplayFile(apiContext context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Implementation would stream the file from storage
+		// This is a placeholder for the download endpoint
+		http.Error(w, "Download endpoint not yet implemented - requires S3/MinIO integration", http.StatusNotImplemented)
+	}
+}
+
+// DeleteReplayFile handles DELETE /games/{game_id}/replays/{id}
+func (ctlr *FileController) DeleteReplayFile(apiContext context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Implementation would delete from both storage and database
+		// This is a placeholder for the delete endpoint
+		http.Error(w, "Delete endpoint not yet implemented - requires S3/MinIO integration", http.StatusNotImplemented)
+	}
+}
+
+// UpdateReplayMetadata handles PUT /games/{game_id}/replays/{id}
+func (ctlr *FileController) UpdateReplayMetadata(apiContext context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Implementation would update replay metadata (title, description, visibility, etc.)
+		// This is a placeholder for the update endpoint
+		http.Error(w, "Update endpoint not yet implemented", http.StatusNotImplemented)
+	}
+}
+
+// GetReplayProcessingStatus handles GET /games/{game_id}/replays/{id}/status
+func (ctlr *FileController) GetReplayProcessingStatus(apiContext context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Implementation would return processing status
+		// This is a placeholder for the status endpoint
+		http.Error(w, "Status endpoint not yet implemented", http.StatusNotImplemented)
+	}
+}

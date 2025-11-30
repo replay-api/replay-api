@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	infocs "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs/common"
-	cs_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/cs/entities"
+	cs_entity "github.com/replay-api/replay-api/pkg/domain/cs/entities"
 )
 
 func createPlayerWithEquipment(equipments ...infocs.EquipmentType) *infocs.Player {

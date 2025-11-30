@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"os"
 
 	"github.com/golobby/container/v3"
-	steam_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/entities"
-	steam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/ports/in"
+	steam_entity "github.com/replay-api/replay-api/pkg/domain/steam/entities"
+	steam_in "github.com/replay-api/replay-api/pkg/domain/steam/ports/in"
 )
 
 type SteamController struct {
@@ -29,9 +30,14 @@ func NewSteamController(container *container.Container) *SteamController {
 
 func (c *SteamController) OnboardSteamUser(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "localhost:3000") // TODO: >>> config
-		w.Header().Set("Access-Control-Allow-Methods", "POST")
+		corsOrigin := os.Getenv("CORS_ALLOWED_ORIGIN")
+		if corsOrigin == "" {
+			corsOrigin = "http://localhost:3030"
+		}
+		w.Header().Set("Access-Control-Allow-Origin", corsOrigin)
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Expose-Headers", "X-Resource-Owner-ID, X-Intended-Audience")
 
 		if r.Body == nil {
 			slog.ErrorContext(r.Context(), "no request body", "request.Body", r.Body)
@@ -73,10 +79,10 @@ func (c *SteamController) OnboardSteamUser(apiContext context.Context) http.Hand
 			return
 		}
 
-		w.WriteHeader(http.StatusCreated)
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set(ResourceOwnerIDHeaderKey, ridToken.GetID().String())
 		w.Header().Set(ResourceOwnerAudTypeHeaderKey, string(ridToken.IntendedAudience))
-		json.NewEncoder(w).Encode(steamUser)
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(steamUser)
 	}
 }

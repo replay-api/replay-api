@@ -1,0 +1,134 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: strapi-cms-netpol
+  namespace: strapi-cms
+spec:
+  podSelector:
+    matchLabels:
+      app: strapi-cms
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow traffic from ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 1337
+
+    # Allow traffic from replay-api namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: replay-api
+      ports:
+        - protocol: TCP
+          port: 1337
+
+  egress:
+    # Allow DNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+
+    # Allow PostgreSQL
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres-strapi
+      ports:
+        - protocol: TCP
+          port: 5432
+
+    # Allow Redis
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis-strapi
+      ports:
+        - protocol: TCP
+          port: 6379
+
+    # Allow external HTTPS (for S3 uploads, webhooks)
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-strapi-netpol
+  namespace: strapi-cms
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres-strapi
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow from Strapi only
+    - from:
+        - podSelector:
+            matchLabels:
+              app: strapi-cms
+      ports:
+        - protocol: TCP
+          port: 5432
+
+  egress:
+    # Allow DNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis-strapi-netpol
+  namespace: strapi-cms
+spec:
+  podSelector:
+    matchLabels:
+      app: redis-strapi
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow from Strapi only
+    - from:
+        - podSelector:
+            matchLabels:
+              app: strapi-cms
+      ports:
+        - protocol: TCP
+          port: 6379
+
+  egress:
+    # Allow DNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53

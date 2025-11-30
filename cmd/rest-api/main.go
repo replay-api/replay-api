@@ -5,11 +5,14 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
 	//	"golang.org/x/oauth2/jwt"
 
-	"github.com/psavelis/team-pro/replay-api/cmd/rest-api/routing"
-	ioc "github.com/psavelis/team-pro/replay-api/pkg/infra/ioc"
+	"github.com/replay-api/replay-api/cmd/rest-api/routing"
+	jobs "github.com/replay-api/replay-api/pkg/app/jobs"
+	ioc "github.com/replay-api/replay-api/pkg/infra/ioc"
+	websocket "github.com/replay-api/replay-api/pkg/infra/websocket"
 )
 
 func main() {
@@ -25,10 +28,43 @@ func main() {
 
 	defer builder.Close(c)
 
+	// Start WebSocket Hub
+	var wsHub *websocket.WebSocketHub
+	if err := c.Resolve(&wsHub); err != nil {
+		slog.ErrorContext(ctx, "Failed to resolve WebSocket hub", "error", err)
+		panic(err)
+	}
+	go wsHub.Run(ctx)
+	slog.InfoContext(ctx, "WebSocket hub started")
+
+	// Start Prize Distribution Job
+	var prizeJob *jobs.PrizeDistributionJob
+	if err := c.Resolve(&prizeJob); err != nil {
+		slog.ErrorContext(ctx, "Failed to resolve PrizeDistributionJob", "error", err)
+		panic(err)
+	}
+	go prizeJob.Run(ctx)
+	slog.InfoContext(ctx, "Prize distribution job started")
+
 	router := routing.NewRouter(ctx, c)
 
-	slog.InfoContext(ctx, "Starting server on port 4991")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 
-	http.ListenAndServe(":4991", router)
+	slog.InfoContext(ctx, "Starting server on port "+port)
+
+	server := &http.Server{
+		Addr:         ":" + port,
+		Handler:      router,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+
+	if err := server.ListenAndServe(); err != nil {
+		slog.ErrorContext(ctx, "Server error", "err", err)
+	}
 
 }

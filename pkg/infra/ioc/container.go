@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"time"
 
 	// env
 	"github.com/joho/godotenv"
@@ -13,12 +14,12 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	// repositories/db
-	db "github.com/psavelis/team-pro/replay-api/pkg/infra/db/mongodb"
+	db "github.com/replay-api/replay-api/pkg/infra/db/mongodb"
 
 	// messageBroker (kafka/rabbit)
 
 	// encryption
-	encryption "github.com/psavelis/team-pro/replay-api/pkg/infra/crypto"
+	encryption "github.com/replay-api/replay-api/pkg/infra/crypto"
 
 	// container
 	container "github.com/golobby/container/v3"
@@ -26,41 +27,72 @@ import (
 	// local files
 
 	// ports
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	google_in "github.com/psavelis/team-pro/replay-api/pkg/domain/google/ports/in"
-	google_out "github.com/psavelis/team-pro/replay-api/pkg/domain/google/ports/out"
-	google_use_cases "github.com/psavelis/team-pro/replay-api/pkg/domain/google/use_cases"
-	metadata "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/services/metadata"
-	squad_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/entities"
-	squad_in "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/in"
-	squad_out "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/out"
-	squad_services "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/services"
-	squad_usecases "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/usecases"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	email_entities "github.com/replay-api/replay-api/pkg/domain/email/entities"
+	email_in "github.com/replay-api/replay-api/pkg/domain/email/ports/in"
+	email_out "github.com/replay-api/replay-api/pkg/domain/email/ports/out"
+	email_use_cases "github.com/replay-api/replay-api/pkg/domain/email/use_cases"
+	google_in "github.com/replay-api/replay-api/pkg/domain/google/ports/in"
+	google_out "github.com/replay-api/replay-api/pkg/domain/google/ports/out"
+	google_use_cases "github.com/replay-api/replay-api/pkg/domain/google/use_cases"
+	metadata "github.com/replay-api/replay-api/pkg/domain/replay/services/metadata"
+	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
+	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
+	squad_out "github.com/replay-api/replay-api/pkg/domain/squad/ports/out"
+	squad_services "github.com/replay-api/replay-api/pkg/domain/squad/services"
+	squad_usecases "github.com/replay-api/replay-api/pkg/domain/squad/usecases"
 
-	replay_in "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/ports/in"
-	replay_out "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/ports/out"
+	replay_in "github.com/replay-api/replay-api/pkg/domain/replay/ports/in"
+	replay_out "github.com/replay-api/replay-api/pkg/domain/replay/ports/out"
 
-	steam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/ports/in"
-	steam_out "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/ports/out"
-	steam_query_services "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/services"
+	steam_in "github.com/replay-api/replay-api/pkg/domain/steam/ports/in"
+	steam_out "github.com/replay-api/replay-api/pkg/domain/steam/ports/out"
+	steam_query_services "github.com/replay-api/replay-api/pkg/domain/steam/services"
 
-	iam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/in"
-	iam_out "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/out"
-	iam_query_services "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/services"
+	matchmaking_in "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/in"
+	matchmaking_out "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/out"
+	matchmaking_services "github.com/replay-api/replay-api/pkg/domain/matchmaking/services"
+
+	matchmaking_usecases "github.com/replay-api/replay-api/pkg/domain/matchmaking/usecases"
+	tournament_in "github.com/replay-api/replay-api/pkg/domain/tournament/ports/in"
+	tournament_out "github.com/replay-api/replay-api/pkg/domain/tournament/ports/out"
+	tournament_services "github.com/replay-api/replay-api/pkg/domain/tournament/services"
+	tournament_usecases "github.com/replay-api/replay-api/pkg/domain/tournament/usecases"
+
+	wallet_in "github.com/replay-api/replay-api/pkg/domain/wallet/ports/in"
+	wallet_out "github.com/replay-api/replay-api/pkg/domain/wallet/ports/out"
+	wallet_services "github.com/replay-api/replay-api/pkg/domain/wallet/services"
+	wallet_usecases "github.com/replay-api/replay-api/pkg/domain/wallet/usecases"
+
+	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
+	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
+	billing_out "github.com/replay-api/replay-api/pkg/domain/billing/ports/out"
+	billing_services "github.com/replay-api/replay-api/pkg/domain/billing/services"
+	billing_usecases "github.com/replay-api/replay-api/pkg/domain/billing/usecases"
+
+	media_out "github.com/replay-api/replay-api/pkg/domain/media/ports/out"
+	media_adapter "github.com/replay-api/replay-api/pkg/infra/adapters/media"
+
+	websocket "github.com/replay-api/replay-api/pkg/infra/websocket"
+
+	iam_in "github.com/replay-api/replay-api/pkg/domain/iam/ports/in"
+	iam_out "github.com/replay-api/replay-api/pkg/domain/iam/ports/out"
+	iam_query_services "github.com/replay-api/replay-api/pkg/domain/iam/services"
 
 	// domain
-	google_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/google/entities"
-	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
-	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
-	steam_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/entities"
+	google_entities "github.com/replay-api/replay-api/pkg/domain/google/entities"
+	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
+	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
+	steam_entity "github.com/replay-api/replay-api/pkg/domain/steam/entities"
 
 	// app
-	cs_app "github.com/psavelis/team-pro/replay-api/pkg/app/cs"
+	cs_app "github.com/replay-api/replay-api/pkg/app/cs"
+	jobs "github.com/replay-api/replay-api/pkg/app/jobs"
 
 	// usecases
-	iam_use_cases "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/use_cases"
-	replay_use_cases "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/use_cases"
-	steam_use_cases "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/use_cases"
+	iam_use_cases "github.com/replay-api/replay-api/pkg/domain/iam/use_cases"
+	replay_use_cases "github.com/replay-api/replay-api/pkg/domain/replay/use_cases"
+	steam_use_cases "github.com/replay-api/replay-api/pkg/domain/steam/use_cases"
 )
 
 type ContainerBuilder struct {
@@ -101,10 +133,13 @@ func (b *ContainerBuilder) Build() container.Container {
 
 func (b *ContainerBuilder) WithEnvFile() *ContainerBuilder {
 	if os.Getenv("DEV_ENV") == "true" {
-		err := godotenv.Load()
-		if err != nil {
-			slog.Error("Failed to load .env file")
-			panic(err)
+		if _, err := os.Stat(".env"); err == nil {
+			if loadErr := godotenv.Load(); loadErr != nil {
+				slog.Error("Failed to load .env file")
+				panic(loadErr)
+			}
+		} else {
+			slog.Info("No .env file found, using environment variables from system")
 		}
 	}
 
@@ -501,6 +536,88 @@ func (b *ContainerBuilder) WithInboundPorts() *ContainerBuilder {
 		panic(err)
 	}
 
+	// Email auth use cases
+	err = c.Singleton(func() (email_in.OnboardEmailUserCommand, error) {
+		var emailUserWriter email_out.EmailUserWriter
+		err := c.Resolve(&emailUserWriter)
+		if err != nil {
+			slog.Error("Failed to resolve EmailUserWriter for OnboardEmailUserCommand.", "err", err)
+			return nil, err
+		}
+
+		var emailUserReader email_out.EmailUserReader
+		err = c.Resolve(&emailUserReader)
+		if err != nil {
+			slog.Error("Failed to resolve EmailUserReader for OnboardEmailUserCommand.", "err", err)
+			return nil, err
+		}
+
+		var vHashWriter email_out.VHashWriter
+		err = c.Resolve(&vHashWriter)
+		if err != nil {
+			slog.Error("Failed to resolve VHashWriter for OnboardEmailUserCommand.", "err", err)
+			return nil, err
+		}
+
+		var passwordHasher email_out.PasswordHasher
+		err = c.Resolve(&passwordHasher)
+		if err != nil {
+			slog.Error("Failed to resolve PasswordHasher for OnboardEmailUserCommand.", "err", err)
+			return nil, err
+		}
+
+		var onboardOpenIDUser iam_in.OnboardOpenIDUserCommandHandler
+		err = c.Resolve(&onboardOpenIDUser)
+		if err != nil {
+			slog.Error("Failed to resolve OnboardOpenIDUserCommandHandler for OnboardEmailUserCommand.", "err", err)
+			return nil, err
+		}
+
+		return email_use_cases.NewOnboardEmailUserUseCase(emailUserWriter, emailUserReader, vHashWriter, passwordHasher, onboardOpenIDUser), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load OnboardEmailUserCommand.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (email_in.LoginEmailUserCommand, error) {
+		var emailUserReader email_out.EmailUserReader
+		err := c.Resolve(&emailUserReader)
+		if err != nil {
+			slog.Error("Failed to resolve EmailUserReader for LoginEmailUserCommand.", "err", err)
+			return nil, err
+		}
+
+		var vHashWriter email_out.VHashWriter
+		err = c.Resolve(&vHashWriter)
+		if err != nil {
+			slog.Error("Failed to resolve VHashWriter for LoginEmailUserCommand.", "err", err)
+			return nil, err
+		}
+
+		var passwordHasher email_out.PasswordHasher
+		err = c.Resolve(&passwordHasher)
+		if err != nil {
+			slog.Error("Failed to resolve PasswordHasher for LoginEmailUserCommand.", "err", err)
+			return nil, err
+		}
+
+		var createRIDToken iam_in.CreateRIDTokenCommand
+		err = c.Resolve(&createRIDToken)
+		if err != nil {
+			slog.Error("Failed to resolve CreateRIDTokenCommand for LoginEmailUserCommand.", "err", err)
+			return nil, err
+		}
+
+		return email_use_cases.NewLoginEmailUserUseCase(emailUserReader, vHashWriter, passwordHasher, createRIDToken), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load LoginEmailUserCommand.", "err", err)
+		panic(err)
+	}
+
 	err = c.Singleton(func() (iam_in.VerifyRIDKeyCommand, error) {
 		var rIDWriter iam_out.RIDTokenWriter
 		err := c.Resolve(&rIDWriter)
@@ -699,6 +816,82 @@ func (b *ContainerBuilder) WithSquadAPI() *ContainerBuilder {
 		panic(err)
 	}
 
+	// Squad History Repository
+	err = c.Singleton(func() (*db.SquadHistoryRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve mongo.Client for SquadHistoryRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for SquadHistoryRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewSquadHistoryRepository(client, config.MongoDB.DBName, squad_entities.SquadHistory{}, "squad_history"), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load SquadHistoryRepository.", "err", err)
+		panic(err)
+	}
+
+	// SquadHistoryWriter interface
+	err = c.Singleton(func() (squad_out.SquadHistoryWriter, error) {
+		var repo *db.SquadHistoryRepository
+		if err := c.Resolve(&repo); err != nil {
+			slog.Error("Failed to resolve SquadHistoryRepository for SquadHistoryWriter.", "err", err)
+			return nil, err
+		}
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load squad_out.SquadHistoryWriter.", "err", err)
+		panic(err)
+	}
+
+	// Player Profile History Repository
+	err = c.Singleton(func() (*db.PlayerProfileHistoryRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve mongo.Client for PlayerProfileHistoryRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for PlayerProfileHistoryRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewPlayerProfileHistoryRepository(client, config.MongoDB.DBName, squad_entities.PlayerProfileHistory{}, "player_profile_history"), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load PlayerProfileHistoryRepository.", "err", err)
+		panic(err)
+	}
+
+	// PlayerProfileHistoryWriter interface
+	err = c.Singleton(func() (squad_out.PlayerProfileHistoryWriter, error) {
+		var repo *db.PlayerProfileHistoryRepository
+		if err := c.Resolve(&repo); err != nil {
+			slog.Error("Failed to resolve PlayerProfileHistoryRepository for PlayerProfileHistoryWriter.", "err", err)
+			return nil, err
+		}
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load squad_out.PlayerProfileHistoryWriter.", "err", err)
+		panic(err)
+	}
+
 	err = c.Singleton(func() (squad_out.PlayerProfileReader, error) {
 		var repo *db.PlayerProfileRepository
 		err = c.Resolve(&repo)
@@ -749,10 +942,24 @@ func (b *ContainerBuilder) WithSquadAPI() *ContainerBuilder {
 	}
 
 	err = c.Singleton(func() (squad_in.CreatePlayerProfileCommandHandler, error) {
+		var billableOperationHandler billing_in.BillableOperationCommandHandler
+		err := c.Resolve(&billableOperationHandler)
+		if err != nil {
+			slog.Error("Failed to resolve BillableOperationCommandHandler for CreatePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
 		var playerWriter squad_out.PlayerProfileWriter
-		err := c.Resolve(&playerWriter)
+		err = c.Resolve(&playerWriter)
 		if err != nil {
 			slog.Error("Failed to resolve PlayerProfileWriter for CreatePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var playerProfileReader squad_out.PlayerProfileReader
+		err = c.Resolve(&playerProfileReader)
+		if err != nil {
+			slog.Error("Failed to resolve PlayerProfileReader for CreatePlayerProfileCommandHandler.", "err", err)
 			return nil, err
 		}
 
@@ -777,14 +984,14 @@ func (b *ContainerBuilder) WithSquadAPI() *ContainerBuilder {
 			return nil, err
 		}
 
-		var playerProfileReader squad_out.PlayerProfileReader
-		err = c.Resolve(&playerProfileReader)
+		var mediaWriter media_out.MediaWriter
+		err = c.Resolve(&mediaWriter)
 		if err != nil {
-			slog.Error("Failed to resolve PlayerProfileReader for CreatePlayerProfileCommandHandler.", "err", err)
+			slog.Error("Failed to resolve MediaWriter for CreatePlayerProfileCommandHandler.", "err", err)
 			return nil, err
 		}
 
-		uc := squad_usecases.NewCreatePlayerProfileUseCase(playerWriter, playerProfileReader, groupWriter, groupReader, playerProfileHistoryWriter)
+		uc := squad_usecases.NewCreatePlayerProfileUseCase(billableOperationHandler, playerWriter, playerProfileReader, groupWriter, groupReader, playerProfileHistoryWriter, mediaWriter)
 
 		return uc, nil
 	})
@@ -794,31 +1001,152 @@ func (b *ContainerBuilder) WithSquadAPI() *ContainerBuilder {
 		panic(err)
 	}
 
+	// squad_in.UpdatePlayerProfileCommandHandler
+	err = c.Singleton(func() (squad_in.UpdatePlayerProfileCommandHandler, error) {
+		var billableOperationHandler billing_in.BillableOperationCommandHandler
+		err := c.Resolve(&billableOperationHandler)
+		if err != nil {
+			slog.Error("Failed to resolve BillableOperationCommandHandler for UpdatePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var playerProfileReader squad_in.PlayerProfileReader
+		err = c.Resolve(&playerProfileReader)
+		if err != nil {
+			slog.Error("Failed to resolve PlayerProfileReader for UpdatePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var playerWriter squad_out.PlayerProfileWriter
+		err = c.Resolve(&playerWriter)
+		if err != nil {
+			slog.Error("Failed to resolve PlayerProfileWriter for UpdatePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var playerProfileHistoryWriter squad_out.PlayerProfileHistoryWriter
+		err = c.Resolve(&playerProfileHistoryWriter)
+		if err != nil {
+			slog.Error("Failed to resolve PlayerProfileHistoryWriter for UpdatePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var mediaWriter media_out.MediaWriter
+		err = c.Resolve(&mediaWriter)
+		if err != nil {
+			slog.Error("Failed to resolve MediaWriter for UpdatePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		uc := squad_usecases.NewUpdatePlayerUseCase(billableOperationHandler, playerProfileReader, playerWriter, playerProfileHistoryWriter, mediaWriter)
+
+		return uc, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load UpdatePlayerProfileCommandHandler.", "err", err)
+		panic(err)
+	}
+
+	// squad_in.DeletePlayerProfileCommandHandler
+	err = c.Singleton(func() (squad_in.DeletePlayerProfileCommandHandler, error) {
+		var billableOperationHandler billing_in.BillableOperationCommandHandler
+		err := c.Resolve(&billableOperationHandler)
+		if err != nil {
+			slog.Error("Failed to resolve BillableOperationCommandHandler for DeletePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var playerProfileReader squad_in.PlayerProfileReader
+		err = c.Resolve(&playerProfileReader)
+		if err != nil {
+			slog.Error("Failed to resolve PlayerProfileReader for DeletePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var playerWriter squad_out.PlayerProfileWriter
+		err = c.Resolve(&playerWriter)
+		if err != nil {
+			slog.Error("Failed to resolve PlayerProfileWriter for DeletePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var playerProfileHistoryWriter squad_out.PlayerProfileHistoryWriter
+		err = c.Resolve(&playerProfileHistoryWriter)
+		if err != nil {
+			slog.Error("Failed to resolve PlayerProfileHistoryWriter for DeletePlayerProfileCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		uc := squad_usecases.NewDeletePlayerUseCase(billableOperationHandler, playerProfileReader, playerWriter, playerProfileHistoryWriter)
+
+		return uc, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load DeletePlayerProfileCommandHandler.", "err", err)
+		panic(err)
+	}
+
 	// squad_in.CreateSquadCommandHandler
 	err = c.Singleton(func() (squad_in.CreateSquadCommandHandler, error) {
 		var squadWriter squad_out.SquadWriter
 		err := c.Resolve(&squadWriter)
 		if err != nil {
+			slog.Error("Failed to resolve SquadWriter for CreateSquadCommandHandler.", "err", err)
+			return nil, err
+		}
 
-			slog.Error("Failed to resolve PlayerProfileWriter for CreatePlayerProfileCommandHandler.", "err", err)
+		var squadHistoryWriter squad_out.SquadHistoryWriter
+		err = c.Resolve(&squadHistoryWriter)
+		if err != nil {
+			slog.Error("Failed to resolve SquadHistoryWriter for CreateSquadCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var squadReader squad_out.SquadReader
+		err = c.Resolve(&squadReader)
+		if err != nil {
+			slog.Error("Failed to resolve SquadReader for CreateSquadCommandHandler.", "err", err)
 			return nil, err
 		}
 
 		var groupWriter iam_out.GroupWriter
 		err = c.Resolve(&groupWriter)
 		if err != nil {
-			slog.Error("Failed to resolve GroupWriter for CreatePlayerProfileCommandHandler.", "err", err)
+			slog.Error("Failed to resolve GroupWriter for CreateSquadCommandHandler.", "err", err)
 			return nil, err
 		}
 
 		var groupReader iam_out.GroupReader
 		err = c.Resolve(&groupReader)
 		if err != nil {
-			slog.Error("Failed to resolve GroupReader for CreatePlayerProfileCommandHandler.", "err", err)
+			slog.Error("Failed to resolve GroupReader for CreateSquadCommandHandler.", "err", err)
 			return nil, err
 		}
 
-		cmdHandler := squad_usecases.NewCreateSquadUseCase(squadWriter, groupWriter, groupReader)
+		var playerProfileReader squad_in.PlayerProfileReader
+		err = c.Resolve(&playerProfileReader)
+		if err != nil {
+			slog.Error("Failed to resolve PlayerProfileReader for CreateSquadCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var mediaWriter media_out.MediaWriter
+		err = c.Resolve(&mediaWriter)
+		if err != nil {
+			slog.Error("Failed to resolve MediaWriter for CreateSquadCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		var billableOperationHandler billing_in.BillableOperationCommandHandler
+		err = c.Resolve(&billableOperationHandler)
+		if err != nil {
+			slog.Error("Failed to resolve BillableOperationCommandHandler for CreateSquadCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		cmdHandler := squad_usecases.NewCreateSquadUseCase(squadWriter, squadHistoryWriter, squadReader, groupWriter, groupReader, playerProfileReader, mediaWriter, billableOperationHandler)
 
 		return cmdHandler, nil
 	})
@@ -846,78 +1174,7 @@ func (b *ContainerBuilder) WithSquadAPI() *ContainerBuilder {
 		panic(err)
 	}
 
-	err = c.Singleton(func() (squad_in.CreateSquadCommandHandler, error) {
-		var squadWriter squad_out.SquadWriter
-		err := c.Resolve(&squadWriter)
-		if err != nil {
-			slog.Error("Failed to resolve SquadWriter for CreatePlayerCommandHandler.", "err", err)
-			return nil, err
-		}
-
-		var groupWriter iam_out.GroupWriter
-		err = c.Resolve(&groupWriter)
-		if err != nil {
-			slog.Error("Failed to resolve GroupWriter for CreatePlayerCommandHandler.", "err", err)
-			return nil, err
-		}
-
-		var groupReader iam_out.GroupReader
-		err = c.Resolve(&groupReader)
-		if err != nil {
-			slog.Error("Failed to resolve GroupReader for CreatePlayerCommandHandler.", "err", err)
-			return nil, err
-		}
-
-		cmdHandler := squad_usecases.NewCreateSquadUseCase(squadWriter, groupWriter, groupReader)
-
-		return cmdHandler, nil
-	})
-
-	if err != nil {
-		slog.Error("Failed to load CreateSquadCommandHandler.")
-		panic(err)
-	}
-	// squad_in.CreatePlayerProfileCommandHandler
-	err = c.Singleton(func() (squad_in.CreatePlayerProfileCommandHandler, error) {
-		var playerProfileWriter squad_out.PlayerProfileWriter
-		err := c.Resolve(&playerProfileWriter)
-		if err != nil {
-			slog.Error("Failed to resolve PlayerProfileWriter for CreatePlayerProfileCommandHandler.", "err", err)
-			return nil, err
-		}
-
-		var groupWriter iam_out.GroupWriter
-		err = c.Resolve(&groupWriter)
-		if err != nil {
-			slog.Error("Failed to resolve GroupWriter for CreatePlayerProfileCommandHandler.", "err", err)
-			return nil, err
-		}
-
-		var groupReader iam_out.GroupReader
-		err = c.Resolve(&groupReader)
-		if err != nil {
-			slog.Error("Failed to resolve GroupReader for CreatePlayerProfileCommandHandler.", "err", err)
-			return nil, err
-		}
-
-		var playerProfileHistoryWriter squad_out.PlayerProfileHistoryWriter
-		err = c.Resolve(&playerProfileHistoryWriter)
-		if err != nil {
-			slog.Error("Failed to resolve PlayerProfileHistoryWriter for CreatePlayerProfileCommandHandler.", "err", err)
-			return nil, err
-		}
-
-		var playerProfileReader squad_out.PlayerProfileReader
-		err = c.Resolve(&playerProfileReader)
-		if err != nil {
-			slog.Error("Failed to resolve PlayerProfileReader for CreatePlayerProfileCommandHandler.", "err", err)
-			return nil, err
-		}
-
-		cmdHandler := squad_usecases.NewCreatePlayerProfileUseCase(playerProfileWriter, playerProfileReader, groupWriter, groupReader, playerProfileHistoryWriter)
-
-		return cmdHandler, nil
-	})
+	// NOTE: CreateSquadCommandHandler and CreatePlayerProfileCommandHandler are already registered above
 
 	return b
 
@@ -1254,6 +1511,91 @@ func InjectMongoDB(c container.Container) error {
 		panic(err)
 	}
 
+	// SHARE TOKEN REPOSITORY
+	err = c.Singleton(func() (*db.ShareTokenRepository, error) {
+		var client *mongo.Client
+		err := c.Resolve(&client)
+		if err != nil {
+			slog.Error("Failed to resolve mongo.Client for ShareTokenRepository.", "err", err)
+			return nil, err
+		}
+
+		var config common.Config
+		err = c.Resolve(&config)
+		if err != nil {
+			slog.Error("Failed to resolve config for ShareTokenRepository.", "err", err)
+			return nil, err
+		}
+
+		repo := db.NewShareTokenRepository(client, config.MongoDB.DBName, replay_entity.ShareToken{}, "share_tokens")
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load ShareTokenRepository.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (replay_out.ShareTokenReader, error) {
+		var repo *db.ShareTokenRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve ShareTokenRepository for replay_out.ShareTokenReader.", "err", err)
+			return nil, err
+		}
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load replay_out.ShareTokenReader.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (replay_out.ShareTokenWriter, error) {
+		var repo *db.ShareTokenRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve ShareTokenRepository for replay_out.ShareTokenWriter.", "err", err)
+			return nil, err
+		}
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load replay_out.ShareTokenWriter.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (replay_in.ShareTokenReader, error) {
+		var shareTokenReader replay_out.ShareTokenReader
+		err := c.Resolve(&shareTokenReader)
+		if err != nil {
+			slog.Error("Failed to resolve ShareTokenReader for replay_in.ShareTokenReader.", "err", err)
+			return nil, err
+		}
+		return metadata.NewShareTokenQueryService(shareTokenReader), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load replay_in.ShareTokenReader.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (replay_in.ShareTokenCommand, error) {
+		var shareTokenWriter replay_out.ShareTokenWriter
+		err := c.Resolve(&shareTokenWriter)
+		if err != nil {
+			slog.Error("Failed to resolve ShareTokenWriter for replay_in.ShareTokenCommand.", "err", err)
+			return nil, err
+		}
+		return metadata.NewShareTokenCommandService(shareTokenWriter), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load replay_in.ShareTokenCommand.", "err", err)
+		panic(err)
+	}
+
 	// err = c.Singleton(func() (replay_out.BadgeReader, error) {
 	// 	var repo *db.BadgeRepository
 	// 	err = c.Resolve(&repo)
@@ -1489,6 +1831,93 @@ func InjectMongoDB(c container.Container) error {
 	}
 
 	// end-google
+
+	// EMAIL repo
+	err = c.Singleton(func() (*db.EmailUserRepository, error) {
+		var client *mongo.Client
+		err := c.Resolve(&client)
+		if err != nil {
+			slog.Error("Failed to resolve mongo.Client for NamedSingleton EmailUserRepository as generic MongoDBRepository.", "err", err)
+			return nil, err
+		}
+
+		var config common.Config
+
+		err = c.Resolve(&config)
+		if err != nil {
+			slog.Error("Failed to resolve config for db.EmailUserRepository.", "err", err)
+			return nil, err
+		}
+
+		repo := db.NewEmailUserMongoDBRepository(client, config.MongoDB.DBName, email_entities.EmailUser{}, "email_users")
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load NamedSingleton EmailUserRepository as generic MongoDBRepository.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (email_out.EmailUserWriter, error) {
+		var repo *db.EmailUserRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve EmailUserRepository for email_out.EmailUserWriter.", "err", err)
+			return nil, err
+		}
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load EmailUserWriter.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (email_out.EmailUserReader, error) {
+		var repo *db.EmailUserRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve EmailUserRepository for email_out.EmailUserReader.", "err", err)
+			return nil, err
+		}
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load EmailUserReader.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (email_out.VHashWriter, error) {
+		var config common.Config
+
+		err := c.Resolve(&config)
+		if err != nil {
+			slog.Error("Failed to resolve config for email_out.VHashWriter.", "err", err)
+			return nil, err
+		}
+
+		return encryption.NewSHA256VHasherAdapter(config.Auth.SteamConfig.VHashSource), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load email VHashWriter.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (email_out.PasswordHasher, error) {
+		return encryption.NewBcryptPasswordHasherAdapter(10), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load PasswordHasher.", "err", err)
+		panic(err)
+	}
+
+	// end-email
 
 	// rid
 	err = c.Singleton(func() (*db.RIDTokenRepository, error) {
@@ -1793,6 +2222,741 @@ func InjectMongoDB(c container.Container) error {
 		panic(err)
 	}
 
+	// ----- Matchmaking & Wallet (Prize Pool System) -----
+
+	// WebSocket Hub (Singleton)
+	err = c.Singleton(func() *websocket.WebSocketHub {
+		hub := websocket.NewWebSocketHub()
+		return hub
+	})
+
+	if err != nil {
+		slog.Error("Failed to load *websocket.WebSocketHub.", "err", err)
+		panic(err)
+	}
+
+	// Lobby Repository
+	err = c.Singleton(func() (matchmaking_out.LobbyRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve *mongo.Client for MongoLobbyRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for MongoLobbyRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewMongoLobbyRepository(client, config.MongoDB.DBName), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load matchmaking_out.LobbyRepository.", "err", err)
+		panic(err)
+	}
+
+	// Prize Pool Repository
+	err = c.Singleton(func() (matchmaking_out.PrizePoolRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve *mongo.Client for MongoPrizePoolRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for MongoPrizePoolRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewMongoPrizePoolRepository(client, config.MongoDB.DBName), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load matchmaking_out.PrizePoolRepository.", "err", err)
+		panic(err)
+	}
+
+	// Tournament Repository
+	err = c.Singleton(func() (tournament_out.TournamentRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve *mongo.Client for MongoTournamentRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for MongoTournamentRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewMongoTournamentRepository(client, config.MongoDB.DBName), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load tournament_out.TournamentRepository.", "err", err)
+		panic(err)
+	}
+
+	// Wallet Repository
+	err = c.Singleton(func() (wallet_out.WalletRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve *mongo.Client for MongoWalletRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for MongoWalletRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewMongoWalletRepository(client, config.MongoDB.DBName), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load wallet_out.WalletRepository.", "err", err)
+		panic(err)
+	}
+
+	// Ledger Repository
+	err = c.Singleton(func() (wallet_out.LedgerRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve mongo.Client for LedgerRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for LedgerRepository.", "err", err)
+			return nil, err
+		}
+
+		database := client.Database(config.MongoDB.DBName)
+		return db.NewLedgerRepository(database), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load wallet_out.LedgerRepository.", "err", err)
+		panic(err)
+	}
+
+	// Idempotency Repository
+	err = c.Singleton(func() (wallet_out.IdempotencyRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve mongo.Client for IdempotencyRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for IdempotencyRepository.", "err", err)
+			return nil, err
+		}
+
+		database := client.Database(config.MongoDB.DBName)
+		return db.NewIdempotencyRepository(database), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load wallet_out.IdempotencyRepository.", "err", err)
+		panic(err)
+	}
+
+	// Ledger Service
+	err = c.Singleton(func() (*wallet_services.LedgerService, error) {
+		var ledgerRepo wallet_out.LedgerRepository
+		var idempotencyRepo wallet_out.IdempotencyRepository
+
+		if err := c.Resolve(&ledgerRepo); err != nil {
+			slog.Error("Failed to resolve wallet_out.LedgerRepository for LedgerService.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&idempotencyRepo); err != nil {
+			slog.Error("Failed to resolve wallet_out.IdempotencyRepository for LedgerService.", "err", err)
+			return nil, err
+		}
+
+		return wallet_services.NewLedgerService(ledgerRepo, idempotencyRepo), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load *wallet_services.LedgerService.", "err", err)
+		panic(err)
+	}
+
+	// Transaction Coordinator
+	err = c.Singleton(func() (*wallet_services.TransactionCoordinator, error) {
+		var walletRepo wallet_out.WalletRepository
+		var ledgerService *wallet_services.LedgerService
+
+		if err := c.Resolve(&walletRepo); err != nil {
+			slog.Error("Failed to resolve wallet_out.WalletRepository for TransactionCoordinator.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&ledgerService); err != nil {
+			slog.Error("Failed to resolve *wallet_services.LedgerService for TransactionCoordinator.", "err", err)
+			return nil, err
+		}
+
+		return wallet_services.NewTransactionCoordinator(walletRepo, ledgerService), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load *wallet_services.TransactionCoordinator.", "err", err)
+		panic(err)
+	}
+
+	// Wallet Service
+	err = c.Singleton(func() (wallet_in.WalletCommand, error) {
+		var repo wallet_out.WalletRepository
+		var coordinator *wallet_services.TransactionCoordinator
+
+		if err := c.Resolve(&repo); err != nil {
+			slog.Error("Failed to resolve wallet_out.WalletRepository for WalletService.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&coordinator); err != nil {
+			slog.Error("Failed to resolve *wallet_services.TransactionCoordinator for WalletService.", "err", err)
+			return nil, err
+		}
+
+		return wallet_services.NewWalletService(repo, coordinator), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load wallet_in.WalletCommand.", "err", err)
+		panic(err)
+	}
+
+	// Wallet Query Service
+	err = c.Singleton(func() (wallet_in.WalletQuery, error) {
+		var walletRepo wallet_out.WalletRepository
+		var ledgerRepo wallet_out.LedgerRepository
+
+		if err := c.Resolve(&walletRepo); err != nil {
+			slog.Error("Failed to resolve wallet_out.WalletRepository for WalletQueryService.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&ledgerRepo); err != nil {
+			slog.Error("Failed to resolve wallet_out.LedgerRepository for WalletQueryService.", "err", err)
+			return nil, err
+		}
+
+		return wallet_usecases.NewWalletQueryService(walletRepo, ledgerRepo), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load wallet_in.WalletQuery.", "err", err)
+		panic(err)
+	}
+
+	// Media Writer (no-op for now)
+	err = c.Singleton(func() (media_out.MediaWriter, error) {
+		return media_adapter.NewNoopMediaAdapter(), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load media_out.MediaWriter.", "err", err)
+		panic(err)
+	}
+
+	// Billing - BillableEntry Repository
+	err = c.Singleton(func() (*db.BillableEntryRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve mongo.Client for BillableEntryRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for BillableEntryRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewBillableEntryRepository(client, config.MongoDB.DBName, billing_entities.BillableEntry{}, "billable_entries"), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load BillableEntryRepository.", "err", err)
+		panic(err)
+	}
+
+	// BillableEntryWriter interface
+	err = c.Singleton(func() (billing_out.BillableEntryWriter, error) {
+		var repo *db.BillableEntryRepository
+		if err := c.Resolve(&repo); err != nil {
+			slog.Error("Failed to resolve BillableEntryRepository for BillableEntryWriter.", "err", err)
+			return nil, err
+		}
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load billing_out.BillableEntryWriter.", "err", err)
+		panic(err)
+	}
+
+	// BillableEntryReader interface
+	err = c.Singleton(func() (billing_out.BillableEntryReader, error) {
+		var repo *db.BillableEntryRepository
+		if err := c.Resolve(&repo); err != nil {
+			slog.Error("Failed to resolve BillableEntryRepository for BillableEntryReader.", "err", err)
+			return nil, err
+		}
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load billing_out.BillableEntryReader.", "err", err)
+		panic(err)
+	}
+
+	// Billing - Subscription Repository
+	err = c.Singleton(func() (*db.SubscriptionRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve mongo.Client for SubscriptionRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for SubscriptionRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewSubscriptionRepository(client, config.MongoDB.DBName, billing_entities.Subscription{}, "subscriptions"), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load SubscriptionRepository.", "err", err)
+		panic(err)
+	}
+
+	// SubscriptionWriter interface
+	err = c.Singleton(func() (billing_out.SubscriptionWriter, error) {
+		var repo *db.SubscriptionRepository
+		if err := c.Resolve(&repo); err != nil {
+			slog.Error("Failed to resolve SubscriptionRepository for SubscriptionWriter.", "err", err)
+			return nil, err
+		}
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load billing_out.SubscriptionWriter.", "err", err)
+		panic(err)
+	}
+
+	// SubscriptionReader interface
+	err = c.Singleton(func() (billing_out.SubscriptionReader, error) {
+		var repo *db.SubscriptionRepository
+		if err := c.Resolve(&repo); err != nil {
+			slog.Error("Failed to resolve SubscriptionRepository for SubscriptionReader.", "err", err)
+			return nil, err
+		}
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load billing_out.SubscriptionReader.", "err", err)
+		panic(err)
+	}
+
+	// Billing - Plan Repository
+	err = c.Singleton(func() (*db.PlanRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve mongo.Client for PlanRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for PlanRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewPlanRepository(client, config.MongoDB.DBName, billing_entities.Plan{}, "plans"), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load PlanRepository.", "err", err)
+		panic(err)
+	}
+
+	// PlanReader interface
+	err = c.Singleton(func() (billing_out.PlanReader, error) {
+		var repo *db.PlanRepository
+		if err := c.Resolve(&repo); err != nil {
+			slog.Error("Failed to resolve PlanRepository for PlanReader.", "err", err)
+			return nil, err
+		}
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load billing_out.PlanReader.", "err", err)
+		panic(err)
+	}
+
+	// billing_in.PlanReader (query service)
+	err = c.Singleton(func() (billing_in.PlanReader, error) {
+		var planReader billing_out.PlanReader
+		if err := c.Resolve(&planReader); err != nil {
+			slog.Error("Failed to resolve billing_out.PlanReader for billing_in.PlanReader.", "err", err)
+			return nil, err
+		}
+		return billing_services.NewPlanQueryService(planReader), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load billing_in.PlanReader.", "err", err)
+		panic(err)
+	}
+
+	// billing_in.SubscriptionReader (query service)
+	err = c.Singleton(func() (billing_in.SubscriptionReader, error) {
+		var subscriptionReader billing_out.SubscriptionReader
+		if err := c.Resolve(&subscriptionReader); err != nil {
+			slog.Error("Failed to resolve billing_out.SubscriptionReader for billing_in.SubscriptionReader.", "err", err)
+			return nil, err
+		}
+		return billing_services.NewSubscriptionQueryService(subscriptionReader), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load billing_in.SubscriptionReader.", "err", err)
+		panic(err)
+	}
+
+	// BillableOperationCommandHandler
+	err = c.Singleton(func() (billing_in.BillableOperationCommandHandler, error) {
+		var billableEntryWriter billing_out.BillableEntryWriter
+		var billableEntryReader billing_out.BillableEntryReader
+		var subscriptionWriter billing_out.SubscriptionWriter
+		var subscriptionReader billing_out.SubscriptionReader
+		var planReader billing_out.PlanReader
+		var groupReader iam_out.GroupReader
+
+		if err := c.Resolve(&billableEntryWriter); err != nil {
+			slog.Error("Failed to resolve BillableEntryWriter for BillableOperationCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&billableEntryReader); err != nil {
+			slog.Error("Failed to resolve BillableEntryReader for BillableOperationCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&subscriptionWriter); err != nil {
+			slog.Error("Failed to resolve SubscriptionWriter for BillableOperationCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&subscriptionReader); err != nil {
+			slog.Error("Failed to resolve SubscriptionReader for BillableOperationCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&planReader); err != nil {
+			slog.Error("Failed to resolve PlanReader for BillableOperationCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&groupReader); err != nil {
+			slog.Error("Failed to resolve GroupReader for BillableOperationCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		return billing_usecases.NewCreateBillableEntryUseCase(
+			billableEntryWriter,
+			billableEntryReader,
+			subscriptionWriter,
+			subscriptionReader,
+			planReader,
+			groupReader,
+		), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load billing_in.BillableOperationCommandHandler.", "err", err)
+		panic(err)
+	}
+
+	// Matchmaking Session Repository
+	err = c.Singleton(func() (matchmaking_out.MatchmakingSessionRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve mongo.Client for MatchmakingSessionRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for MatchmakingSessionRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewMatchmakingSessionRepository(client, config.MongoDB.DBName), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load matchmaking_out.MatchmakingSessionRepository.", "err", err)
+		panic(err)
+	}
+
+	// Matchmaking Pool Repository
+	err = c.Singleton(func() (matchmaking_out.MatchmakingPoolRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve mongo.Client for MatchmakingPoolRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for MatchmakingPoolRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewMatchmakingPoolRepository(client, config.MongoDB.DBName), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load matchmaking_out.MatchmakingPoolRepository.", "err", err)
+		panic(err)
+	}
+
+	// Lobby Orchestration Service
+	err = c.Singleton(func() (matchmaking_in.LobbyCommand, error) {
+		var lobbyRepo matchmaking_out.LobbyRepository
+		var poolRepo matchmaking_out.PrizePoolRepository
+		var walletCmd wallet_in.WalletCommand
+		var wsHub *websocket.WebSocketHub
+
+		if err := c.Resolve(&lobbyRepo); err != nil {
+			slog.Error("Failed to resolve matchmaking_out.LobbyRepository for LobbyOrchestrationService.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&poolRepo); err != nil {
+			slog.Error("Failed to resolve matchmaking_out.PrizePoolRepository for LobbyOrchestrationService.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&walletCmd); err != nil {
+			slog.Error("Failed to resolve wallet_in.WalletCommand for LobbyOrchestrationService.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&wsHub); err != nil {
+			slog.Error("Failed to resolve *websocket.WebSocketHub for LobbyOrchestrationService.", "err", err)
+			return nil, err
+		}
+
+		return matchmaking_services.NewLobbyOrchestrationService(lobbyRepo, poolRepo, walletCmd, wsHub), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load matchmaking_in.LobbyCommand.", "err", err)
+		panic(err)
+	}
+
+	// Prize Distribution Job
+	err = c.Singleton(func() (*jobs.PrizeDistributionJob, error) {
+		var poolRepo matchmaking_out.PrizePoolRepository
+		var walletCmd wallet_in.WalletCommand
+
+		if err := c.Resolve(&poolRepo); err != nil {
+			slog.Error("Failed to resolve matchmaking_out.PrizePoolRepository for PrizeDistributionJob.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&walletCmd); err != nil {
+			slog.Error("Failed to resolve wallet_in.WalletCommand for PrizeDistributionJob.", "err", err)
+			return nil, err
+		}
+
+		// Run every 5 minutes
+		return jobs.NewPrizeDistributionJob(poolRepo, walletCmd, 5*time.Minute), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load *jobs.PrizeDistributionJob.", "err", err)
+		panic(err)
+	}
+
+	// Tournament Command Service
+	err = c.Singleton(func() (tournament_in.TournamentCommand, error) {
+		var tournamentRepo tournament_out.TournamentRepository
+		var walletCmd wallet_in.WalletCommand
+
+		if err := c.Resolve(&tournamentRepo); err != nil {
+			slog.Error("Failed to resolve tournament_out.TournamentRepository for TournamentService.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&walletCmd); err != nil {
+			slog.Error("Failed to resolve wallet_in.WalletCommand for TournamentService.", "err", err)
+			return nil, err
+		}
+
+		return tournament_services.NewTournamentService(tournamentRepo, walletCmd), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load tournament_in.TournamentCommand.", "err", err)
+		panic(err)
+	}
+
+	// Tournament Reader Service
+	err = c.Singleton(func() (tournament_in.TournamentReader, error) {
+		var tournamentRepo tournament_out.TournamentRepository
+
+		if err := c.Resolve(&tournamentRepo); err != nil {
+			slog.Error("Failed to resolve tournament_out.TournamentRepository for TournamentReaderService.", "err", err)
+			return nil, err
+		}
+
+		return tournament_services.NewTournamentReaderService(tournamentRepo), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load tournament_in.TournamentReader.", "err", err)
+		panic(err)
+	}
+
+	// Matchmaking Usecases
+	err = c.Singleton(func() (matchmaking_in.JoinMatchmakingQueueCommandHandler, error) {
+		var billableOperationHandler billing_in.BillableOperationCommandHandler
+		var sessionRepo matchmaking_out.MatchmakingSessionRepository
+		var poolRepo matchmaking_out.MatchmakingPoolRepository
+
+		if err := c.Resolve(&billableOperationHandler); err != nil {
+			slog.Error("Failed to resolve BillableOperationCommandHandler for JoinMatchmakingQueueUseCase.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&sessionRepo); err != nil {
+			slog.Error("Failed to resolve MatchmakingSessionRepository for JoinMatchmakingQueueUseCase.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&poolRepo); err != nil {
+			slog.Error("Failed to resolve MatchmakingPoolRepository for JoinMatchmakingQueueUseCase.", "err", err)
+			return nil, err
+		}
+
+		return matchmaking_usecases.NewJoinMatchmakingQueueUseCase(billableOperationHandler, sessionRepo, poolRepo), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load JoinMatchmakingQueueCommandHandler.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (matchmaking_in.LeaveMatchmakingQueueCommandHandler, error) {
+		var billableOperationHandler billing_in.BillableOperationCommandHandler
+		var sessionRepo matchmaking_out.MatchmakingSessionRepository
+
+		if err := c.Resolve(&billableOperationHandler); err != nil {
+			slog.Error("Failed to resolve BillableOperationCommandHandler for LeaveMatchmakingQueueUseCase.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&sessionRepo); err != nil {
+			slog.Error("Failed to resolve MatchmakingSessionRepository for LeaveMatchmakingQueueUseCase.", "err", err)
+			return nil, err
+		}
+
+		return matchmaking_usecases.NewLeaveMatchmakingQueueUseCase(billableOperationHandler, sessionRepo), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load LeaveMatchmakingQueueCommandHandler.", "err", err)
+		panic(err)
+	}
+
+	// Tournament Usecases
+	err = c.Singleton(func() (*tournament_usecases.CreateTournamentUseCase, error) {
+		var billableOperationHandler billing_in.BillableOperationCommandHandler
+		var tournamentRepo tournament_out.TournamentRepository
+
+		if err := c.Resolve(&billableOperationHandler); err != nil {
+			slog.Error("Failed to resolve BillableOperationCommandHandler for CreateTournamentUseCase.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&tournamentRepo); err != nil {
+			slog.Error("Failed to resolve TournamentRepository for CreateTournamentUseCase.", "err", err)
+			return nil, err
+		}
+
+		return tournament_usecases.NewCreateTournamentUseCase(billableOperationHandler, tournamentRepo), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load CreateTournamentUseCase.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (*tournament_usecases.RegisterForTournamentUseCase, error) {
+		var billableOperationHandler billing_in.BillableOperationCommandHandler
+		var tournamentRepo tournament_out.TournamentRepository
+
+		if err := c.Resolve(&billableOperationHandler); err != nil {
+			slog.Error("Failed to resolve BillableOperationCommandHandler for RegisterForTournamentUseCase.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&tournamentRepo); err != nil {
+			slog.Error("Failed to resolve TournamentRepository for RegisterForTournamentUseCase.", "err", err)
+			return nil, err
+		}
+
+		return tournament_usecases.NewRegisterForTournamentUseCase(billableOperationHandler, tournamentRepo), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load RegisterForTournamentUseCase.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (*tournament_usecases.GenerateBracketsUseCase, error) {
+		var billableOperationHandler billing_in.BillableOperationCommandHandler
+		var tournamentRepo tournament_out.TournamentRepository
+
+		if err := c.Resolve(&billableOperationHandler); err != nil {
+			slog.Error("Failed to resolve BillableOperationCommandHandler for GenerateBracketsUseCase.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&tournamentRepo); err != nil {
+			slog.Error("Failed to resolve TournamentRepository for GenerateBracketsUseCase.", "err", err)
+			return nil, err
+		}
+
+		return tournament_usecases.NewGenerateBracketsUseCase(billableOperationHandler, tournamentRepo), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load GenerateBracketsUseCase.", "err", err)
+		panic(err)
+	}
+
 	// -----
 
 	return nil
@@ -1816,6 +2980,6 @@ func (b *ContainerBuilder) Close(c container.Container) {
 	err := c.Resolve(&client)
 
 	if client != nil && err == nil {
-		client.Disconnect(context.TODO())
+		_ = client.Disconnect(context.TODO())
 	}
 }

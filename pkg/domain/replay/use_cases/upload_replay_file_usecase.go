@@ -6,9 +6,9 @@ import (
 	"io"
 	"log/slog"
 
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
-	replay_out "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/ports/out"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
+	replay_out "github.com/replay-api/replay-api/pkg/domain/replay/ports/out"
 )
 
 type UploadReplayFileUseCase struct {
@@ -48,7 +48,7 @@ func (usecase *UploadReplayFileUseCase) Exec(ctx context.Context, reader io.Read
 	if err != nil {
 		replayFile.Status = replay_entity.ReplayFileStatusFailed
 		replayFile.Error = err.Error()
-		usecase.MetadataWriter.Update(ctx, replayFile)
+		_, _ = usecase.MetadataWriter.Update(ctx, replayFile)
 		slog.ErrorContext(ctx, "error uploading replay data", "err", err, "replayFile", replayFile)
 		return nil, err
 	}

@@ -5,7 +5,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/mongo"
 
-	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
+	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
 )
 
 type GroupRepository struct {
@@ -18,10 +18,10 @@ func NewGroupRepository(client *mongo.Client, dbName string, entityType *iam_ent
 		dbName:            dbName,
 		mappingCache:      make(map[string]CacheItem),
 		entityModel:       reflect.TypeOf(entityType),
-		bsonFieldMappings: make(map[string]string),
+		BsonFieldMappings: make(map[string]string),
 		collectionName:    collectionName,
 		entityName:        reflect.TypeOf(entityType).Name(),
-		queryableFields:   make(map[string]bool),
+		QueryableFields:   make(map[string]bool),
 	}
 
 	repo.InitQueryableFields(map[string]bool{

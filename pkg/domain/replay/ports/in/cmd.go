@@ -5,7 +5,7 @@ import (
 	"io"
 
 	"github.com/google/uuid"
-	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
+	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 )
 
 // UploadReplayFileCommand is an interface that defines the contract for executing a command to upload a replay file.
@@ -32,4 +32,14 @@ type ProcessReplayFileCommand interface {
 // UpdateReplayFileHeaderCommand is an interface that defines the contract for updating a replay file header based on processed game events
 type UpdateReplayFileHeaderCommand interface {
 	Exec(ctx context.Context, replayFileID uuid.UUID) (*replay_entity.ReplayFile, error)
+}
+
+// ShareTokenCommand is an interface for share token management operations
+type ShareTokenCommand interface {
+	// CreateToken creates a new share token for a resource
+	Create(ctx context.Context, token *replay_entity.ShareToken) error
+	// RevokeToken revokes (deletes) a share token
+	Revoke(ctx context.Context, tokenID uuid.UUID) error
+	// UpdateToken updates share token properties
+	Update(ctx context.Context, token *replay_entity.ShareToken) error
 }

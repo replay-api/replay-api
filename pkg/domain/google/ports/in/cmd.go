@@ -3,8 +3,8 @@ package google_in
 import (
 	"context"
 
-	google_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/google/entities"
-	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
+	google_entities "github.com/replay-api/replay-api/pkg/domain/google/entities"
+	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
 )
 
 type OnboardGoogleUserCommand interface {

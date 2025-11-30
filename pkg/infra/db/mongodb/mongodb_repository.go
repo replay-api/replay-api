@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
+	common "github.com/replay-api/replay-api/pkg/domain"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -22,6 +22,8 @@ const (
 
 type CacheItem map[string]string
 
+var Repositories = make(map[common.ResourceType]interface{})
+
 type MongoDBRepository[T common.Entity] struct {
 	mongoClient       *mongo.Client
 	dbName            string
@@ -29,22 +31,92 @@ type MongoDBRepository[T common.Entity] struct {
 	entityModel       reflect.Type
 	collectionName    string
 	entityName        string
-	bsonFieldMappings map[string]string // Local mapping of field names
-	queryableFields   map[string]bool
+	BsonFieldMappings map[string]string // Local mapping of field names
+	QueryableFields   map[string]bool
 	collection        *mongo.Collection
+}
+
+func (r *MongoDBRepository[T]) CollectionName() string {
+	return r.collectionName
+}
+
+func (r *MongoDBRepository[T]) EntityName() string {
+	return r.entityName
+}
+
+func (r *MongoDBRepository[T]) addLookup(pipe []bson.M, s common.Search) ([]bson.M, error) {
+	for _, includeParam := range s.IncludeParams {
+		foreignRepo, ok := Repositories[includeParam.From].(*MongoDBRepository[common.Entity])
+		if !ok {
+			err := fmt.Errorf("repository for %s not found or invalid type", includeParam.From)
+			slog.Error("addLookup:foreignRepo", "err", err)
+			return nil, err
+		}
+
+		localField, err := r.GetBSONFieldName(includeParam.LocalField)
+		if err != nil {
+			slog.Error("addLookup:localField:GetBSONFieldName", "err", err)
+			return nil, err
+		}
+
+		foreignField, err := foreignRepo.GetBSONFieldName(includeParam.ForeignField)
+		if err != nil {
+			slog.Error("addLookup:foreignField:GetBSONFieldName", "err", err)
+			return nil, err
+		}
+
+		lookupStage := bson.M{
+			"$lookup": bson.M{
+				"from":         foreignRepo.CollectionName(),
+				"localField":   localField,   // ie.: _id OR baseentity._id
+				"foreignField": foreignField, // ie.: subscription_id
+				"as":           "includes." + foreignRepo.EntityName(),
+			},
+		}
+		pipe = append(pipe, lookupStage)
+
+		// Optionally add $unwind stage if needed
+		if !includeParam.IsArray {
+			unwindStage := bson.M{
+				"$unwind": bson.M{
+					"path":                       "$includes." + foreignRepo.EntityName(),
+					"preserveNullAndEmptyArrays": true,
+				},
+			}
+			pipe = append(pipe, unwindStage)
+		}
+	}
+	return pipe, nil
 }
 
 type MongoDBRepositoryBuilder[T common.BaseEntity] struct {
 }
 
 func (r *MongoDBRepository[T]) InitQueryableFields(queryableFields map[string]bool, bsonFieldMappings map[string]string) {
-	r.queryableFields = queryableFields
+	r.QueryableFields = queryableFields
 
 	for k, v := range bsonFieldMappings {
-		r.bsonFieldMappings[k] = v
+		r.BsonFieldMappings[k] = v
 	}
 
 	r.collection = r.mongoClient.Database(r.dbName).Collection(r.collectionName)
+
+	// Ensure text index is created for full-text search
+	textIndexFields := bson.D{}
+	for field := range queryableFields {
+		textIndexFields = append(textIndexFields, bson.E{Key: field, Value: "text"})
+	}
+	if len(textIndexFields) > 0 {
+		_, err := r.collection.Indexes().CreateOne(context.TODO(), mongo.IndexModel{
+			Keys:    textIndexFields,
+			Options: nil,
+		})
+		if err != nil {
+			slog.Error("InitQueryableFields: failed to create text index", "err", err)
+		}
+	}
+
+	Repositories[common.ResourceType(r.entityName)] = r
 }
 
 func (r *MongoDBRepository[T]) GetBSONFieldName(fieldName string) (string, error) {
@@ -90,12 +162,12 @@ func (r *MongoDBRepository[T]) GetBSONFieldName(fieldName string) (string, error
 }
 
 func (repo *MongoDBRepository[T]) Compile(ctx context.Context, searchParams []common.SearchAggregation, resultOptions common.SearchResultOptions) (*common.Search, error) {
-	err := common.ValidateSearchParameters(searchParams, repo.queryableFields)
+	err := common.ValidateSearchParameters(searchParams, repo.QueryableFields)
 	if err != nil {
 		return nil, fmt.Errorf("error validating search parameters: %v", err)
 	}
 
-	err = repo.ValidateBSONSetup(resultOptions, repo.bsonFieldMappings)
+	err = repo.ValidateBSONSetup(resultOptions, repo.BsonFieldMappings)
 	if err != nil {
 		return nil, fmt.Errorf("error validating result options: %v", err)
 	}
@@ -156,7 +228,14 @@ func (r *MongoDBRepository[T]) GetPipeline(queryCtx context.Context, s common.Se
 		return nil, err
 	}
 
-	pipe = r.addProjection(pipe, s)
+	pipe, err = r.addLookup(pipe, s)
+
+	if err != nil {
+		slog.ErrorContext(queryCtx, "GetPipeline: unable to build $lookup stage", "error", err)
+		return nil, err
+	}
+
+	pipe = r.AddProjection(pipe, s)
 	pipe = r.addSort(pipe, s)
 	pipe = r.addSkip(pipe, s)
 
@@ -195,6 +274,10 @@ func (r *MongoDBRepository[T]) addLimit(pipe []bson.M, s common.Search) ([]bson.
 }
 
 func (r *MongoDBRepository[T]) addSkip(pipe []bson.M, s common.Search) []bson.M {
+	if s.ResultOptions.Skip == 0 {
+		return pipe
+	}
+
 	pipe = append(pipe, bson.M{"$skip": s.ResultOptions.Skip})
 	return pipe
 }
@@ -204,11 +287,28 @@ func (r *MongoDBRepository[T]) addSort(pipe []bson.M, s common.Search) []bson.M 
 	for _, sortOption := range s.SortOptions {
 		sortFields = append(sortFields, bson.D{{Key: sortOption.Field, Value: sortOption.Direction}})
 	}
-	sortStage := bson.M{"$sort": sortFields}
+	for _, v := range s.SearchParams {
+		for _, p := range v.Params {
+			if p.FullTextSearchParam != "" {
+				sortFields = append(sortFields, bson.D{{Key: "score", Value: bson.D{{Key: "$meta", Value: "textScore"}}}})
 
-	if (sortFields != nil) && (len(sortFields) > 0) {
+				break
+			}
+		}
+	}
+
+	sortObject := bson.M{}
+	for _, field := range sortFields {
+		for _, kv := range field {
+			sortObject[kv.Key] = kv.Value
+		}
+	}
+
+	if len(sortObject) > 0 {
+		sortStage := bson.M{"$sort": sortObject}
 		pipe = append(pipe, sortStage)
 	}
+
 	return pipe
 }
 
@@ -229,24 +329,33 @@ func (r *MongoDBRepository[T]) addMatch(queryCtx context.Context, pipe []bson.M,
 	return pipe, nil
 }
 
+// TODO: return error instead of panic
 func (r *MongoDBRepository[T]) setMatchValues(queryCtx context.Context, params []common.SearchParameter, aggregate *bson.M, clause common.SearchAggregationClause) {
-	if r.queryableFields == nil {
+	if r.QueryableFields == nil {
 		panic(fmt.Errorf("queryableFields not initialized in MongoDBRepository of %s", r.entityName))
 	}
 
 	clauses := bson.A{}
 	for _, p := range params {
+		if p.FullTextSearchParam != "" {
+			// Full text search
+			clauses = append(clauses, bson.M{"$text": bson.M{"$search": p.FullTextSearchParam}})
+
+			slog.InfoContext(queryCtx, "query: $text", "value: %v", p.FullTextSearchParam)
+		}
+
 		// Handle ValueParams
 		for _, v := range p.ValueParams {
 			bsonFieldName, err := r.GetBSONFieldNameFromSearchableValue(v)
 			if err != nil {
 				panic(err) // Retain panic for irrecoverable errors
+				// slog.WarnContext(queryCtx, "setMatchValue GetBSONFieldNameFromSearchableValue", "err", err, "value", v)
 			}
 
 			// Check if the prefix is allowed
 			if strings.HasSuffix(v.Field, ".*") {
 				prefix := strings.TrimSuffix(v.Field, ".*")
-				if !isPrefixAllowed(prefix, r.queryableFields) {
+				if !isPrefixAllowed(prefix, r.QueryableFields) {
 					panic(fmt.Errorf("filtering on fields matching '%s.*' is not permitted", prefix))
 				}
 			}
@@ -373,7 +482,7 @@ func (r *MongoDBRepository[T]) GetBSONFieldNameFromSearchableValue(v common.Sear
 	}
 
 	// Direct lookup in the mapping
-	if bsonFieldName, ok := r.bsonFieldMappings[v.Field]; ok {
+	if bsonFieldName, ok := r.BsonFieldMappings[v.Field]; ok {
 		return bsonFieldName, nil
 	}
 
@@ -383,7 +492,7 @@ func (r *MongoDBRepository[T]) GetBSONFieldNameFromSearchableValue(v common.Sear
 		return "", fmt.Errorf("empty field not allowed. cant query")
 	}
 
-	return "", fmt.Errorf("field %s not found or not queryable in Entity: %s (Collection: %s. Queryable Fields: %v)", v.Field, r.entityName, r.collectionName, r.queryableFields)
+	return "", fmt.Errorf("field %s not found or not queryable in Entity: %s (Collection: %s. Queryable Fields: %v)", v.Field, r.entityName, r.collectionName, r.QueryableFields)
 }
 
 func (r *MongoDBRepository[T]) Create(ctx context.Context, entity *T) (*T, error) {
@@ -414,23 +523,77 @@ func (r *MongoDBRepository[T]) CreateMany(ctx context.Context, entities []*T) er
 	return nil
 }
 
-func (r *MongoDBRepository[T]) addProjection(pipe []bson.M, s common.Search) []bson.M {
-	var projection *bson.M
-	if len(s.ResultOptions.PickFields) > 0 {
-		projection = &bson.M{}
-		for _, field := range s.ResultOptions.PickFields {
-			(*projection)[field] = 1
-		}
-	} else if len(s.ResultOptions.OmitFields) > 0 {
-		projection = &bson.M{}
-		for _, field := range s.ResultOptions.OmitFields {
-			(*projection)[field] = 0
+func (r *MongoDBRepository[T]) AddProjection(pipe []bson.M, s common.Search) []bson.M {
+	projection := &bson.M{}
+	for field := range r.QueryableFields {
+		if bsonFieldName, ok := r.BsonFieldMappings[field]; ok {
+			(*projection)[bsonFieldName] = 1
+		} else {
+			slog.Warn("addProjection: field not found in mapping", "field", field)
 		}
 	}
 
-	if projection != nil {
-		pipe = append(pipe, bson.M{"$project": *projection})
+	if len(s.ResultOptions.PickFields) > 0 {
+		// Prioritize PickFields if both PickFields and OmitFields are specified
+		projection = &bson.M{}
+		for _, field := range s.ResultOptions.PickFields {
+			if bsonFieldName, ok := r.BsonFieldMappings[field]; ok {
+				(*projection)[bsonFieldName] = 1
+			} else {
+				slog.Warn("addProjection: field not found in mapping for pick", "field", field)
+			}
+		}
+	} else if len(s.ResultOptions.OmitFields) > 0 {
+		// Apply OmitFields only if PickFields is not specified
+		for _, field := range s.ResultOptions.OmitFields {
+			if bsonFieldName, ok := r.BsonFieldMappings[field]; ok {
+				(*projection)[bsonFieldName] = 0
+			} else {
+				slog.Warn("addProjection: field not found in mapping for omit", "field", field)
+			}
+		}
 	}
+
+	for _, v := range s.SearchParams {
+		for _, p := range v.Params {
+			if p.FullTextSearchParam != "" {
+				(*projection)["score"] = bson.M{"$meta": "textScore"}
+				break
+			}
+		}
+	}
+
+	if len(s.IncludeParams) > 0 {
+		for _, includeParam := range s.IncludeParams {
+			if len(includeParam.PickFields) > 0 {
+				for _, field := range includeParam.PickFields {
+					foreignRepo, ok := Repositories[includeParam.From].(*MongoDBRepository[common.Entity])
+					if !ok {
+						slog.Warn("addProjection:foreignRepo", "err", fmt.Errorf("repository for %s not found or invalid type", includeParam.From))
+						continue
+					}
+					f, err := foreignRepo.GetBSONFieldName(field)
+
+					if err != nil {
+						slog.Warn("addProjection:GetBSONFieldName", "err", err)
+						continue
+					}
+
+					fieldPath := "Includes." + foreignRepo.EntityName() + "." + f
+					if _, exists := (*projection)[fieldPath]; exists {
+						slog.Warn("addProjection: path collision detected, skipping field to avoid collision", "fieldPath", fieldPath)
+						continue
+					}
+					(*projection)[fieldPath] = 1
+				}
+			}
+		}
+	}
+
+	slog.Info("addProjection: projection", "projection", *projection)
+
+	pipe = append(pipe, bson.M{"$project": *projection})
+
 	return pipe
 }
 
@@ -500,6 +663,13 @@ func ensureClientID(ctx context.Context, agg bson.M, s common.Search) (bson.M, e
 func ensureUserOrGroupID(ctx context.Context, agg bson.M, s common.Search, aud common.IntendedAudienceKey) (bson.M, error) {
 	groupID := s.VisibilityOptions.RequestSource.GroupID
 	userID := s.VisibilityOptions.RequestSource.UserID
+
+	if groupID == uuid.Nil && userID == uuid.Nil {
+		slog.WarnContext(ctx, "TENANCY.GroupLevel: valid user_id or group_id is required in `common.Search`: %#v. Overwriting from context", "search", s)
+		groupID = common.GetResourceOwner(ctx).GroupID
+		userID = common.GetResourceOwner(ctx).UserID
+	}
+
 	userOK := userID != uuid.Nil
 	groupOK := groupID != uuid.Nil
 	noParams := !(userOK || groupOK)
@@ -593,8 +763,46 @@ func (r *MongoDBRepository[T]) Search(ctx context.Context, s common.Search) ([]T
 func (r *MongoDBRepository[T]) GetByID(queryCtx context.Context, id uuid.UUID) (*T, error) {
 	var entity T
 
+	// Build RLS filter to ensure tenant isolation
+	rlsFilter, err := r.buildRLSFilter(queryCtx)
+	if err != nil {
+		slog.WarnContext(queryCtx, "RLS.GetByID: failed to build RLS filter, using ID-only query", "error", err)
+		// Fallback to ID-only for unauthenticated public endpoints
+		query := bson.D{
+			bson.E{Key: "_id", Value: id},
+		}
+		err := r.collection.FindOne(queryCtx, query).Decode(&entity)
+		if err != nil {
+			slog.ErrorContext(queryCtx, err.Error())
+			return nil, err
+		}
+		return &entity, nil
+	}
+
+	// Apply RLS filter with ID
+	query := bson.M{
+		"_id": id,
+		"$and": bson.A{
+			rlsFilter,
+		},
+	}
+
+	err = r.collection.FindOne(queryCtx, query).Decode(&entity)
+	if err != nil {
+		slog.ErrorContext(queryCtx, "RLS.GetByID: entity not found or access denied", "id", id, "error", err)
+		return nil, err
+	}
+
+	return &entity, nil
+}
+
+// GetByIDUnsafe bypasses RLS - use only for system-level operations
+// SECURITY: This function should only be called by internal system processes
+func (r *MongoDBRepository[T]) GetByIDUnsafe(queryCtx context.Context, id uuid.UUID) (*T, error) {
+	var entity T
+
 	query := bson.D{
-		{Key: "_id", Value: id},
+		bson.E{Key: "_id", Value: id},
 	}
 
 	err := r.collection.FindOne(queryCtx, query).Decode(&entity)
@@ -606,7 +814,41 @@ func (r *MongoDBRepository[T]) GetByID(queryCtx context.Context, id uuid.UUID) (
 	return &entity, nil
 }
 
-func (r *MongoDBRepository[T]) Update(createCtx context.Context, entity *T) (*T, error) {
+func (r *MongoDBRepository[T]) Update(updateCtx context.Context, entity *T) (*T, error) {
+	id := (*entity).GetID()
+
+	// Build RLS filter to ensure user can only update their own resources
+	rlsFilter, err := r.buildRLSFilter(updateCtx)
+	if err != nil {
+		slog.WarnContext(updateCtx, "RLS.Update: failed to build RLS filter", "error", err)
+		return nil, fmt.Errorf("RLS.Update: unauthorized - %w", err)
+	}
+
+	// Apply RLS filter with ID to ensure ownership
+	filter := bson.M{
+		"_id": id,
+		"$and": bson.A{
+			rlsFilter,
+		},
+	}
+
+	result, err := r.collection.UpdateOne(updateCtx, filter, bson.M{"$set": entity})
+	if err != nil {
+		slog.ErrorContext(updateCtx, "RLS.Update: update failed", "error", err, "entity", entity)
+		return nil, err
+	}
+
+	if result.MatchedCount == 0 {
+		slog.WarnContext(updateCtx, "RLS.Update: entity not found or access denied", "id", id)
+		return nil, fmt.Errorf("RLS.Update: entity not found or access denied")
+	}
+
+	return entity, nil
+}
+
+// UpdateUnsafe bypasses RLS - use only for system-level operations
+// SECURITY: This function should only be called by internal system processes
+func (r *MongoDBRepository[T]) UpdateUnsafe(createCtx context.Context, entity *T) (*T, error) {
 	id := (*entity).GetID()
 
 	_, err := r.collection.UpdateOne(createCtx, bson.M{"_id": id}, bson.M{"$set": entity})
@@ -616,4 +858,98 @@ func (r *MongoDBRepository[T]) Update(createCtx context.Context, entity *T) (*T,
 	}
 
 	return entity, nil
+}
+
+// buildRLSFilter creates a MongoDB filter based on the current user's context
+// This enforces Row Level Security by filtering based on tenant, client, group, and user IDs
+func (r *MongoDBRepository[T]) buildRLSFilter(ctx context.Context) (bson.M, error) {
+	resourceOwner := common.GetResourceOwner(ctx)
+
+	// Require at least tenant ID for RLS
+	if resourceOwner.TenantID == uuid.Nil {
+		return nil, fmt.Errorf("RLS: tenant_id is required")
+	}
+
+	// Check if user is authenticated
+	isAuthenticated, _ := ctx.Value(common.AuthenticatedKey).(bool)
+	if !isAuthenticated {
+		// For unauthenticated users, only allow public visibility
+		return bson.M{
+			"$or": bson.A{
+				bson.M{
+					"resource_owner.tenant_id": resourceOwner.TenantID,
+					"visibility_type":          common.PublicVisibilityTypeKey,
+				},
+				bson.M{
+					"baseentity.resource_owner.tenant_id": resourceOwner.TenantID,
+					"baseentity.visibility_type":          common.PublicVisibilityTypeKey,
+				},
+			},
+		}, nil
+	}
+
+	// For authenticated users, build filter based on their context
+	userID := resourceOwner.UserID
+	groupID := resourceOwner.GroupID
+	clientID := resourceOwner.ClientID
+	tenantID := resourceOwner.TenantID
+
+	// Build OR conditions for resource access
+	orConditions := bson.A{}
+
+	// User's own resources
+	if userID != uuid.Nil {
+		orConditions = append(orConditions,
+			bson.M{"resource_owner.user_id": userID},
+			bson.M{"baseentity.resource_owner.user_id": userID},
+		)
+	}
+
+	// User's group resources
+	if groupID != uuid.Nil {
+		orConditions = append(orConditions,
+			bson.M{"resource_owner.group_id": groupID},
+			bson.M{"baseentity.resource_owner.group_id": groupID},
+		)
+	}
+
+	// Public resources within the tenant
+	orConditions = append(orConditions,
+		bson.M{
+			"resource_owner.tenant_id": tenantID,
+			"visibility_type":          common.PublicVisibilityTypeKey,
+		},
+		bson.M{
+			"baseentity.resource_owner.tenant_id": tenantID,
+			"baseentity.visibility_type":          common.PublicVisibilityTypeKey,
+		},
+	)
+
+	// Client-level resources (if user has client access)
+	if clientID != uuid.Nil {
+		orConditions = append(orConditions,
+			bson.M{
+				"resource_owner.client_id": clientID,
+				"visibility_type":          common.RestrictedVisibilityTypeKey,
+			},
+			bson.M{
+				"baseentity.resource_owner.client_id": clientID,
+				"baseentity.visibility_type":          common.RestrictedVisibilityTypeKey,
+			},
+		)
+	}
+
+	return bson.M{
+		"$and": bson.A{
+			// Enforce tenant isolation
+			bson.M{
+				"$or": bson.A{
+					bson.M{"resource_owner.tenant_id": tenantID},
+					bson.M{"baseentity.resource_owner.tenant_id": tenantID},
+				},
+			},
+			// Apply visibility/ownership filter
+			bson.M{"$or": orConditions},
+		},
+	}, nil
 }

@@ -7,8 +7,8 @@ import (
 	"github.com/google/uuid"
 	dem "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs"
 	infocs "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs/common"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	cs_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/cs/entities"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	cs_entity "github.com/replay-api/replay-api/pkg/domain/cs/entities"
 )
 
 type CS2MatchContext struct {

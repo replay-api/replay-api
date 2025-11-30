@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
-	db "github.com/psavelis/team-pro/replay-api/pkg/infra/db/mongodb"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
+	db "github.com/replay-api/replay-api/pkg/infra/db/mongodb"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -122,7 +122,7 @@ func TestMatchMetadataRepository_Search(t *testing.T) {
 	}
 
 	collection := client.Database(dbName).Collection(collectionName)
-	defer collection.Drop(defaultContext) // Clean up after tests
+	defer func() { _ = collection.Drop(defaultContext) }() // Clean up after tests
 
 	interfaceMap := make([]interface{}, len(sampleMatches))
 	for i, m := range sampleMatches {

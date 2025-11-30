@@ -1,0 +1,70 @@
+services:
+  # MongoDB for ledger and wallet persistence
+  mongodb-test:
+    image: mongo:7.0
+    container_name: replay-mongodb-test
+    ports:
+      - "27018:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: test
+      MONGO_INITDB_ROOT_PASSWORD: test123
+      MONGO_INITDB_DATABASE: replay_test
+    volumes:
+      - mongodb-test-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - test-network
+
+  # Hardhat local EVM node
+  hardhat-node:
+    build:
+      context: ./test/blockchain
+      dockerfile: Dockerfile
+    container_name: replay-hardhat-node
+    ports:
+      - "8545:8545"
+    command: npx hardhat node --hostname 0.0.0.0
+    volumes:
+      - ./test/blockchain:/app
+      - hardhat-node-modules:/app/node_modules
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "-X", "POST", "-H", "Content-Type: application/json", "-d", "{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}", "http://localhost:8545"]
+      interval: 10s
+      timeout: 10s
+      retries: 18
+      start_period: 60s
+    networks:
+      - test-network
+
+  # Contract deployer (runs once to deploy contracts)
+  contract-deployer:
+    build:
+      context: ./test/blockchain
+      dockerfile: Dockerfile
+    container_name: replay-contract-deployer
+    command: >
+      sh -c "
+        echo 'Waiting for Hardhat node...';
+        sleep 10;
+        npx hardhat run scripts/deploy.js --network localhost;
+      "
+    volumes:
+      - ./test/blockchain:/app
+      - hardhat-node-modules:/app/node_modules
+    depends_on:
+      hardhat-node:
+        condition: service_healthy
+    networks:
+      - test-network
+
+volumes:
+  mongodb-test-data:
+  hardhat-node-modules:
+
+networks:
+  test-network:
+    driver: bridge

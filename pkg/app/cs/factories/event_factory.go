@@ -4,9 +4,9 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/psavelis/team-pro/replay-api/pkg/app/cs/state"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
+	"github.com/replay-api/replay-api/pkg/app/cs/state"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 )
 
 func NewGameEvent[T any](eventType common.EventIDKey, matchContext *state.CS2MatchContext, roundIndex int, tickID common.TickIDType, gameTime time.Duration, payload T) (*replay_entity.GameEvent, error) {

@@ -5,10 +5,11 @@ import (
 	"log/slog"
 	"reflect"
 
+	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/mongo"
 
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	squad_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/entities"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 )
 
 type PlayerProfileRepository struct {
@@ -21,10 +22,10 @@ func NewPlayerProfileRepository(client *mongo.Client, dbName string, entityType 
 		dbName:            dbName,
 		mappingCache:      make(map[string]CacheItem),
 		entityModel:       reflect.TypeOf(entityType),
-		bsonFieldMappings: make(map[string]string),
+		BsonFieldMappings: make(map[string]string),
 		collectionName:    collectionName,
 		entityName:        reflect.TypeOf(entityType).Name(),
-		queryableFields:   make(map[string]bool),
+		QueryableFields:   make(map[string]bool),
 		collection:        client.Database(dbName).Collection(collectionName),
 	}
 
@@ -90,5 +91,36 @@ func (r *PlayerProfileRepository) Search(ctx context.Context, s common.Search) (
 		players = append(players, p)
 	}
 
+	slog.InfoContext(ctx, "player profile entity search successful", "players", players)
+
 	return players, nil
+}
+
+func (r *PlayerProfileRepository) Update(ctx context.Context, profile *squad_entities.PlayerProfile) (*squad_entities.PlayerProfile, error) {
+	filter := map[string]interface{}{"baseentity._id": profile.ID}
+	update := map[string]interface{}{"$set": profile}
+
+	_, err := r.collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		slog.ErrorContext(ctx, "error updating player profile", "err", err, "profile_id", profile.ID)
+		return nil, err
+	}
+
+	return profile, nil
+}
+
+func (r *PlayerProfileRepository) Delete(ctx context.Context, profileID uuid.UUID) error {
+	filter := map[string]interface{}{"baseentity._id": profileID}
+
+	result, err := r.collection.DeleteOne(ctx, filter)
+	if err != nil {
+		slog.ErrorContext(ctx, "error deleting player profile", "err", err, "profile_id", profileID)
+		return err
+	}
+
+	if result.DeletedCount == 0 {
+		return mongo.ErrNoDocuments
+	}
+
+	return nil
 }

@@ -1,31 +1,19 @@
-# dependencies
-# Use a local cache for the base image
-FROM --platform=$BUILDPLATFORM golang:1.23 AS dependencies
-WORKDIR /app 
-COPY go.mod go.sum ./
-RUN go mod download
-COPY . .
+# Minimal Dockerfile using pre-built binary
+# Build locally first: CGO_ENABLED=0 GOOS=linux go build -o replay-api ./cmd/rest-api/main.go
+FROM alpine:latest
 
-# build
-FROM --platform=$BUILDPLATFORM golang:1.23 AS build
+RUN apk --no-cache add ca-certificates tzdata
+
 WORKDIR /app
-COPY . /app
-# ENV DEV_ENV docker
-RUN CGO_ENABLED=0 go build -o replay-api-http-service ./cmd/rest-api/main.go
-RUN mkdir -p /app/replay_files
-RUN mkdir -p /app/coverage
-RUN chown -R ${DEV_ENV}:${DEV_ENV} /app/replay_files
-RUN chown -R ${DEV_ENV}:${DEV_ENV} /app/coverage
 
-# runtime
-FROM scratch AS runtime
-COPY --from=build /app/replay-api-http-service ./app/
-COPY --from=build /app/coverage ./app/coverage
+# Copy pre-built binary
+COPY replay-api ./
+
+# Create required directories
+RUN mkdir -p /app/replay_files /app/coverage
 
 # Set environment variable to increase stack size
 ENV GODEBUG=stackguard=99999000000000
 
-USER ${DEV_ENV}
-
-EXPOSE 4991
-CMD ["./app/replay-api-http-service"]
+EXPOSE 8080
+CMD ["./replay-api"]

@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	iam_dtos "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/dtos"
-	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	iam_dtos "github.com/replay-api/replay-api/pkg/domain/iam/dtos"
+	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
 )
 
 type ProfileReader interface {

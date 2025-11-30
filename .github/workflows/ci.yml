@@ -1,0 +1,287 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  GO_VERSION: '1.24'
+  NODE_VERSION: '20'
+
+jobs:
+  # Smoke tests - fast, no external dependencies
+  smoke-tests:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Run smoke tests
+        run: go test -v -short -tags=smoke ./...
+
+      - name: Verify build
+        run: go build ./cmd/rest-api
+
+  # Unit tests - no external services required
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Run unit tests
+        run: go test -v -short -race -coverprofile=coverage-unit.out ./pkg/domain/...
+
+      - name: Upload unit test coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage-unit.out
+          flags: unittests
+          name: unit-tests
+
+  # Integration tests - with MongoDB and Hardhat
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      mongodb:
+        image: mongo:7.0
+        env:
+          MONGO_INITDB_ROOT_USERNAME: test
+          MONGO_INITDB_ROOT_PASSWORD: test123
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd="mongosh --eval 'db.adminCommand(\"ping\")'"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: test/blockchain/package-lock.json
+
+      - name: Install Hardhat dependencies
+        working-directory: test/blockchain
+        run: npm ci
+
+      - name: Compile smart contracts
+        working-directory: test/blockchain
+        run: npx hardhat compile
+
+      - name: Start Hardhat node
+        working-directory: test/blockchain
+        run: |
+          npx hardhat node &
+          sleep 10
+
+      - name: Deploy contracts
+        working-directory: test/blockchain
+        run: npx hardhat run scripts/deploy.js --network localhost
+
+      - name: Wait for MongoDB
+        run: |
+          timeout 60 bash -c 'until nc -z localhost 27017; do sleep 2; done'
+          sleep 5
+
+      - name: Run integration tests
+        env:
+          MONGO_TEST_URI: mongodb://test:test123@localhost:27017/replay_test?authSource=admin
+          HARDHAT_RPC_URL: http://localhost:8545
+        run: |
+          go test -v -race -coverprofile=coverage-integration.out \
+            -tags=integration \
+            -timeout=10m \
+            ./test/integration/...
+
+      - name: Upload integration test coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage-integration.out
+          flags: integration
+          name: integration-tests
+
+  # E2E tests - complete system testing
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Start test infrastructure
+        run: docker compose -f docker-compose.test.yml up -d
+
+      - name: Wait for services
+        run: |
+          timeout 120 bash -c 'until nc -z localhost 27018; do sleep 2; done'
+          timeout 120 bash -c 'until curl -sf http://localhost:8545 > /dev/null 2>&1; do sleep 2; done'
+          sleep 15
+
+      - name: Run E2E tests
+        env:
+          MONGO_TEST_URI: mongodb://test:test123@localhost:27018/replay_test?authSource=admin
+          HARDHAT_RPC_URL: http://localhost:8545
+        run: |
+          go test -v -race -coverprofile=coverage-e2e.out \
+            -tags=e2e \
+            -timeout=20m \
+            ./test/integration/...
+
+      - name: Upload E2E test coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage-e2e.out
+          flags: e2e
+          name: e2e-tests
+
+      - name: Collect logs on failure
+        if: failure()
+        run: |
+          docker compose -f docker-compose.test.yml logs
+
+      - name: Cleanup
+        if: always()
+        run: docker compose -f docker-compose.test.yml down -v
+
+  # Lint and security checks
+  lint-and-security:
+    name: Lint & Security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: latest
+          args: --timeout=5m
+
+      - name: Run gosec security scanner
+        uses: securego/gosec@master
+        with:
+          args: '-exclude=G104,G307 -exclude-dir=pkg/infra/blob/_s3 -exclude-dir=test/blockchain ./...'
+
+  # Build and push Docker images (only on main)
+  build-and-push:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [smoke-tests, unit-tests, integration-tests, e2e-tests, lint-and-security]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            leetgaming/replay-api:latest
+            leetgaming/replay-api:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Performance benchmarks
+  benchmarks:
+    name: Performance Benchmarks
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      pull-requests: write
+    services:
+      mongodb:
+        image: mongo:7.0
+        env:
+          MONGO_INITDB_ROOT_USERNAME: test
+          MONGO_INITDB_ROOT_PASSWORD: test123
+        ports:
+          - 27017:27017
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Run benchmarks
+        env:
+          MONGO_TEST_URI: mongodb://test:test123@localhost:27017/replay_test?authSource=admin
+        run: |
+          go test -bench=. -benchmem -count=5 \
+            -timeout=15m \
+            ./test/integration/... | tee benchmark.txt
+
+      - name: Comment PR with benchmarks
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const benchmark = fs.readFileSync('benchmark.txt', 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## Benchmark Results\n\`\`\`\n${benchmark}\n\`\`\``
+            })

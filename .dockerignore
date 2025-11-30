@@ -1,0 +1,29 @@
+# Development and IDE
+.git
+.gitignore
+.idea
+.vscode
+*.md
+!README.md
+
+# OS generated
+.DS_Store
+Thumbs.db
+
+# Test files (optional)
+*_test.go
+test/
+coverage/
+
+# Build artifacts
+bin/
+dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Temp files
+*.tmp
+*.log

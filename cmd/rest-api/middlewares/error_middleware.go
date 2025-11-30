@@ -57,12 +57,12 @@ func ErrorMiddleware(next http.Handler) http.Handler {
 			}
 			jsonResponse, _ := json.Marshal(response)
 			w.Header().Set("Content-Type", "application/json")
-			w.Write(jsonResponse)
+			_, _ = w.Write(jsonResponse)
 
 			slog.ErrorContext(r.Context(), "ErrorMiddleware", "err", err, "Status", rr.statusCode)
 			return
 		} else {
-			slog.InfoContext(r.Context(), "ErrorMiddleware", "Status", rr.statusCode)
+			slog.InfoContext(r.Context(), "Success", "Status", rr.statusCode)
 		}
 	})
 }

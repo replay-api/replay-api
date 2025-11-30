@@ -2,9 +2,9 @@ package query_controllers
 
 import (
 	"github.com/golobby/container/v3"
-	controllers "github.com/psavelis/team-pro/replay-api/cmd/rest-api/controllers"
-	squad_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/entities"
-	squad_in "github.com/psavelis/team-pro/replay-api/pkg/domain/squad/ports/in"
+	controllers "github.com/replay-api/replay-api/cmd/rest-api/controllers"
+	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
+	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
 )
 
 type PlayerProfileQueryController struct {

@@ -1,8 +1,8 @@
 package steam_in
 
 import (
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	steam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/entities"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	steam_entities "github.com/replay-api/replay-api/pkg/domain/steam/entities"
 )
 
 type SteamUserReader interface {

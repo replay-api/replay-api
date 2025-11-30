@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	infocs "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs/common"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	cs_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/cs/entities"
-	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	cs_entity "github.com/replay-api/replay-api/pkg/domain/cs/entities"
+	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 )
 
 type CSRoundType = string

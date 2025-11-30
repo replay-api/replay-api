@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
+	common "github.com/replay-api/replay-api/pkg/domain"
 )
 
 type DefaultSearchController[T any] struct {
@@ -70,5 +70,5 @@ func (c *DefaultSearchController[T]) DefaultSearchHandler(w http.ResponseWriter,
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(results)
+	_ = json.NewEncoder(w).Encode(results)
 }

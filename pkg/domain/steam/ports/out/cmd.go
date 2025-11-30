@@ -3,7 +3,7 @@ package steam_out
 import (
 	"context"
 
-	steam_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/entities"
+	steam_entity "github.com/replay-api/replay-api/pkg/domain/steam/entities"
 )
 
 type SteamUserWriter interface {

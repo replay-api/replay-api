@@ -3,7 +3,7 @@ package entities
 import (
 	"github.com/golang/geo/r3"
 	"github.com/google/uuid"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
+	common "github.com/replay-api/replay-api/pkg/domain"
 )
 
 type CSPositioningStats struct {

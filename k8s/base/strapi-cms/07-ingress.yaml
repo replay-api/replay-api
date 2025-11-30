@@ -1,0 +1,57 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: strapi-cms-ingress
+  namespace: strapi-cms
+  labels:
+    app: strapi-cms
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  tls:
+    - hosts:
+        - cms.leetgaming.gg
+      secretName: strapi-cms-tls
+  rules:
+    - host: cms.leetgaming.gg
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: strapi-cms-service
+                port:
+                  number: 80
+
+---
+# Internal API Ingress (for replay-api to access CMS)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: strapi-cms-internal-ingress
+  namespace: strapi-cms
+  labels:
+    app: strapi-cms
+  annotations:
+    kubernetes.io/ingress.class: nginx-internal
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  rules:
+    - host: cms.internal.leetgaming.gg
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: strapi-cms-service
+                port:
+                  number: 80

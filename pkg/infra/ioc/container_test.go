@@ -1,3 +1,5 @@
+//go:build !smoke
+
 package ioc_test
 
 import (
@@ -7,12 +9,12 @@ import (
 
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
-	steam_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/entities"
-	steam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/ports/in"
-	steam_out "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/ports/out"
-	ioc "github.com/psavelis/team-pro/replay-api/pkg/infra/ioc"
+	steam_entity "github.com/replay-api/replay-api/pkg/domain/steam/entities"
+	steam_in "github.com/replay-api/replay-api/pkg/domain/steam/ports/in"
+	steam_out "github.com/replay-api/replay-api/pkg/domain/steam/ports/out"
+	ioc "github.com/replay-api/replay-api/pkg/infra/ioc"
 
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
+	common "github.com/replay-api/replay-api/pkg/domain"
 )
 
 var (
@@ -26,7 +28,7 @@ func getContainer() *container.Container {
 	os.Setenv("STEAM_VHASH_SOURCE", "82DA0F0D0135FEA0F5DDF6F96528B48A")
 
 	if c == nil {
-		instance := ioc.NewContainerBuilder().WithEnvFile().With(ioc.InjectMongoDB).WithInboundPorts().Build()
+		instance := ioc.NewContainerBuilder().WithEnvFile().With(ioc.InjectMongoDB).WithInboundPorts().WithSquadAPI().Build()
 		return &instance
 	}
 

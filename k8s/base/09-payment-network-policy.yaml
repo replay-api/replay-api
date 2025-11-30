@@ -1,0 +1,78 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: payment-network-policy
+  namespace: replay-api
+  labels:
+    app: replay-api
+    component: payments
+spec:
+  podSelector:
+    matchLabels:
+      app: replay-rest-api
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow traffic from ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 4991
+    # Allow internal cluster traffic
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: replay-api
+      ports:
+        - protocol: TCP
+          port: 4991
+  egress:
+    # Allow DNS resolution
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+    # Allow MongoDB connections
+    - to:
+        - podSelector:
+            matchLabels:
+              app: mongodb
+      ports:
+        - protocol: TCP
+          port: 27017
+    # Allow Stripe API
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 443
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: payment-webhook-ingress
+  namespace: replay-api
+  labels:
+    app: replay-api
+    component: payments
+spec:
+  podSelector:
+    matchLabels:
+      app: replay-rest-api
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow webhook traffic from payment providers
+    # Stripe IPs: https://stripe.com/docs/ips
+    - from:
+        - ipBlock:
+            cidr: 0.0.0.0/0  # In production, restrict to Stripe/PayPal IPs
+      ports:
+        - protocol: TCP
+          port: 4991

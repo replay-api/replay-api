@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: replay-rest-api
+  namespace: replay-api
+  labels:
+    app: replay-rest-api
+    version: stable
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: replay-rest-api
+      version: stable
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: replay-rest-api
+        version: stable
+    spec:
+      containers:
+        - name: replay-rest-api
+          image: replay-api:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 4991
+              name: http
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: replay-api-config
+            - configMapRef:
+                name: payment-config
+            - secretRef:
+                name: replay-api-secrets
+            - secretRef:
+                name: payment-provider-secrets
+          volumeMounts:
+            - name: replay-files
+              mountPath: /app/replay_files
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 4991
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 4991
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: replay-files
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: replay-rest-api-service
+  namespace: replay-api
+  labels:
+    app: replay-rest-api
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 4991
+      protocol: TCP
+      name: http
+  selector:
+    app: replay-rest-api

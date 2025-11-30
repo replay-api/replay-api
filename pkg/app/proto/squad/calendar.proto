@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package replayapi_squad_calendar;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "generated/squad;squad";
+
+message CalendarEvent {
+  string id = 1;
+  string tournament_id = 2;
+  repeated string squad_ids = 3;
+  repeated string player_ids = 4;
+  string category = 5;
+  google.protobuf.Timestamp start_time = 6;
+  google.protobuf.Timestamp end_time = 7;
+  string title = 8;
+  string description = 9;
+  string location = 10;
+  string region = 11;
+  string passphrase = 12;
+  string type = 13;
+  string game_id = 14;
+  string status = 15;
+  string url = 16;
+  string logo_uri = 17;
+}

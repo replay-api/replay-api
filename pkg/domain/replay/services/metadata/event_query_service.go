@@ -1,10 +1,10 @@
 package metadata
 
 import (
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
-	replay_in "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/ports/in"
-	replay_out "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/ports/out"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
+	replay_in "github.com/replay-api/replay-api/pkg/domain/replay/ports/in"
+	replay_out "github.com/replay-api/replay-api/pkg/domain/replay/ports/out"
 )
 
 type EventQueryService struct {

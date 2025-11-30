@@ -69,3 +69,21 @@ $RECYCLE.BIN/
 docker-compose.dev.yml
 ./docker-compose.dev.yml
 .env
+.env.*
+!.env.example
+
+# sensitive files
+*.pem
+*.key
+credentials/
+secrets/
+config/local.*
+
+jira.env
+**/jira.env
+./scripts/jira.env
+# Build binaries
+main
+replay-api
+/seed
+!cmd/cli/seed/

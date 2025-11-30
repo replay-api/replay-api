@@ -6,14 +6,14 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	iam_entities "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/entities"
-	iam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/iam/ports/in"
-	"github.com/psavelis/team-pro/replay-api/pkg/domain/steam"
-	steam_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/entities"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
+	iam_in "github.com/replay-api/replay-api/pkg/domain/iam/ports/in"
+	"github.com/replay-api/replay-api/pkg/domain/steam"
+	steam_entity "github.com/replay-api/replay-api/pkg/domain/steam/entities"
 
-	steam_in "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/ports/in"
-	steam_out "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/ports/out"
+	steam_in "github.com/replay-api/replay-api/pkg/domain/steam/ports/in"
+	steam_out "github.com/replay-api/replay-api/pkg/domain/steam/ports/out"
 )
 
 type OnboardSteamUserUseCase struct {

@@ -3,7 +3,7 @@ package db
 import (
 	"reflect"
 
-	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
+	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -17,25 +17,24 @@ func NewReplayFileMetadataRepository(client *mongo.Client, dbName string, entity
 		dbName:            dbName,
 		mappingCache:      make(map[string]CacheItem),
 		entityModel:       reflect.TypeOf(entityType),
-		bsonFieldMappings: make(map[string]string),
+		BsonFieldMappings: make(map[string]string),
 		collectionName:    collectionName,
 		entityName:        reflect.TypeOf(entityType).Name(),
-		queryableFields:   make(map[string]bool),
+		QueryableFields:   make(map[string]bool),
 	}
 
 	repo.InitQueryableFields(map[string]bool{
-		"ID":               true,
-		"GameID":           true,
-		"NetworkID":        true,
-		"Size":             true,
-		"InternalURI":      true,
-		"Status":           true,
-		"Error":            true,
-		"Header":           true,
-		"Header.Filestamp": true,
-		"ResourceOwner":    true,
-		"CreatedAt":        true,
-		"UpdatedAt":        true,
+		"ID":            true,
+		"GameID":        true,
+		"NetworkID":     true,
+		"Size":          true,
+		"InternalURI":   true,
+		"Status":        true,
+		"Error":         true,
+		"Header":        true,
+		"ResourceOwner": true,
+		"CreatedAt":     true,
+		"UpdatedAt":     true,
 	}, map[string]string{
 		"ID":                     "_id",
 		"GameID":                 "game_id",

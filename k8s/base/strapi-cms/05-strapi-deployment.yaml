@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: strapi-cms
+  namespace: strapi-cms
+  labels:
+    app: strapi-cms
+    version: stable
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: strapi-cms
+      version: stable
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: strapi-cms
+        version: stable
+    spec:
+      serviceAccountName: strapi-cms
+      containers:
+        - name: strapi-cms
+          image: leetgaming/strapi-cms:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 1337
+              name: http
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: strapi-cms-config
+            - secretRef:
+                name: strapi-cms-secrets
+          volumeMounts:
+            - name: strapi-uploads
+              mountPath: /app/public/uploads
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /_health
+              port: 1337
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /_health
+              port: 1337
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: false
+            allowPrivilegeEscalation: false
+      volumes:
+        - name: strapi-uploads
+          emptyDir: {}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - strapi-cms
+                topologyKey: kubernetes.io/hostname
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: strapi-cms-service
+  namespace: strapi-cms
+  labels:
+    app: strapi-cms
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 1337
+      protocol: TCP
+      name: http
+  selector:
+    app: strapi-cms

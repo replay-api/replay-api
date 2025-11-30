@@ -1,6 +1,6 @@
 package entities
 
-import common "github.com/psavelis/team-pro/replay-api/pkg/domain"
+import common "github.com/replay-api/replay-api/pkg/domain"
 
 type CSHitBoxType byte
 

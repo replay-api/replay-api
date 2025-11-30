@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
+	common "github.com/replay-api/replay-api/pkg/domain"
 )
 
 type MatchVisibility string
@@ -24,6 +24,7 @@ type Match struct {
 	ReplayFileID  uuid.UUID            `json:"replay_file_id" bson:"replay_file_id"`
 	GameID        common.GameIDKey     `json:"game_id" bson:"game_id"`
 	Scoreboard    Scoreboard           `json:"scoreboard" bson:"scoreboard"`
+	Teams         []Team               `json:"teams" bson:"teams"`
 	Events        []*GameEvent         `json:"game_events" bson:"game_events"`
 	Visibility    MatchVisibility      `json:"visibility" bson:"visibility"`
 	ShareTokens   []ShareToken         `json:"share_tokens" bson:"share_tokens"`
@@ -43,6 +44,7 @@ type Scoreboard struct {
 
 type TeamScoreboard struct {
 	Team        Team                      `json:"team" bson:"team"`
+	Side        string                    `json:"side" bson:"side"`
 	TeamScore   int                       `json:"team_score" bson:"team_score"`
 	TeamMVP     *PlayerMetadata           `json:"team_mvp" bson:"team_mvp"`
 	Players     []PlayerMetadata          `json:"players" bson:"playerss"`

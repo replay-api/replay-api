@@ -5,7 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 
-	steam_out "github.com/psavelis/team-pro/replay-api/pkg/domain/steam/ports/out"
+	steam_out "github.com/replay-api/replay-api/pkg/domain/steam/ports/out"
 )
 
 type SHA256VHasherAdapter struct {

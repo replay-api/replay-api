@@ -1,0 +1,83 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wallet-api-config
+  namespace: replay-api
+  labels:
+    app: wallet-api
+data:
+  # Application Configuration
+  APP_ENV: "production"
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+  PORT: "8080"
+  METRICS_PORT: "9090"
+
+  # Database Configuration
+  MONGO_DB_NAME: "replay_prod"
+  MONGO_MAX_POOL_SIZE: "100"
+  MONGO_MIN_POOL_SIZE: "10"
+  MONGO_MAX_IDLE_TIME_MS: "300000"  # 5 minutes
+  MONGO_CONNECT_TIMEOUT_MS: "10000"  # 10 seconds
+  MONGO_SERVER_SELECTION_TIMEOUT_MS: "5000"  # 5 seconds
+
+  # Wallet System Configuration
+  WALLET_DAILY_WITHDRAWAL_LIMIT_USD: "10000.00"
+  WALLET_DAILY_DEPOSIT_LIMIT_USD: "50000.00"
+  WALLET_DAILY_PRIZE_LIMIT_USD: "100000.00"
+  WALLET_MIN_WITHDRAWAL_USD: "10.00"
+  WALLET_MAX_WITHDRAWAL_USD: "25000.00"
+
+  # Idempotency Configuration
+  IDEMPOTENCY_TTL_HOURS: "24"
+
+  # Reconciliation Configuration
+  RECONCILIATION_CRON: "0 2 * * *"  # 2 AM daily
+  RECONCILIATION_BATCH_SIZE: "100"
+  RECONCILIATION_AUTO_CORRECT_THRESHOLD_USD: "1.00"  # Auto-correct discrepancies < $1
+
+  # Blockchain Configuration
+  ETHEREUM_CHAIN_ID: "1"
+  POLYGON_CHAIN_ID: "137"
+  ETHEREUM_CONFIRMATIONS_REQUIRED: "12"
+  POLYGON_CONFIRMATIONS_REQUIRED: "128"
+  BLOCKCHAIN_SYNC_INTERVAL_SECONDS: "15"
+
+  # Contract Addresses (Ethereum Mainnet)
+  USDC_CONTRACT_ADDRESS: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+  USDT_CONTRACT_ADDRESS: "0xdAC17F958D2ee523a2206206994597C13D831ec7"
+
+  # Rate Limiting
+  RATE_LIMIT_REQUESTS_PER_MINUTE: "100"
+  RATE_LIMIT_BURST: "200"
+
+  # Monitoring & Observability
+  ENABLE_PROMETHEUS: "true"
+  ENABLE_PPROF: "false"  # Disable profiling in production
+  ENABLE_REQUEST_LOGGING: "true"
+  REQUEST_ID_HEADER: "X-Request-ID"
+
+  # Health Check Configuration
+  HEALTH_CHECK_MONGODB_TIMEOUT_MS: "2000"
+  HEALTH_CHECK_BLOCKCHAIN_TIMEOUT_MS: "5000"
+
+  # Feature Flags
+  FEATURE_CRYPTO_WITHDRAWALS: "true"
+  FEATURE_NFT_TRANSFERS: "true"
+  FEATURE_GAME_CREDITS: "true"
+  FEATURE_AUTO_RECONCILIATION: "true"
+
+  # Cache Configuration
+  CACHE_TTL_SECONDS: "60"
+  CACHE_MAX_SIZE_MB: "256"
+
+  # Timeout Configuration
+  HTTP_READ_TIMEOUT_SECONDS: "30"
+  HTTP_WRITE_TIMEOUT_SECONDS: "30"
+  HTTP_IDLE_TIMEOUT_SECONDS: "120"
+  SHUTDOWN_TIMEOUT_SECONDS: "30"
+
+  # Distributed Tracing
+  JAEGER_SERVICE_NAME: "wallet-api"
+  JAEGER_SAMPLER_TYPE: "probabilistic"
+  JAEGER_SAMPLER_PARAM: "0.1"  # 10% sampling in production

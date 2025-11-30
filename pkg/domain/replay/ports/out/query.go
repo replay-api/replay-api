@@ -5,8 +5,8 @@ import (
 	"io"
 
 	"github.com/google/uuid"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
-	replay_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/replay/entities"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 )
 
 type EventsByGameReader interface {
@@ -40,4 +40,10 @@ type PlayerMetadataReader interface {
 
 type BadgeReader interface {
 	common.Searchable[replay_entity.Badge]
+}
+
+type ShareTokenReader interface {
+	common.Searchable[replay_entity.ShareToken]
+	FindByToken(ctx context.Context, tokenID uuid.UUID) (*replay_entity.ShareToken, error)
+	FindByResourceID(ctx context.Context, resourceID uuid.UUID) ([]replay_entity.ShareToken, error)
 }

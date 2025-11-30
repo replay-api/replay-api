@@ -3,7 +3,7 @@ package google_out
 import (
 	"context"
 
-	google_entity "github.com/psavelis/team-pro/replay-api/pkg/domain/google/entities"
+	google_entity "github.com/replay-api/replay-api/pkg/domain/google/entities"
 )
 
 type GoogleUserWriter interface {

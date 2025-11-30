@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: strapi-cms-config
+  namespace: strapi-cms
+  labels:
+    app: strapi-cms
+data:
+  # Application Settings
+  NODE_ENV: "production"
+  HOST: "0.0.0.0"
+  PORT: "1337"
+  APP_NAME: "LeetGaming CMS"
+
+  # URLs
+  PUBLIC_URL: "https://cms.leetgaming.gg"
+  ADMIN_URL: "https://cms.leetgaming.gg/admin"
+
+  # Database Settings
+  DATABASE_CLIENT: "postgres"
+  DATABASE_HOST: "postgres-strapi-service"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "strapi_cms"
+  DATABASE_SSL: "false"
+
+  # Upload Settings
+  UPLOAD_PROVIDER: "aws-s3"
+  AWS_S3_REGION: "us-east-1"
+  AWS_S3_BUCKET: "leetgaming-cms-uploads"
+
+  # Redis Cache
+  REDIS_HOST: "redis-strapi-service"
+  REDIS_PORT: "6379"
+  REDIS_DB: "0"
+
+  # Rate Limiting
+  RATE_LIMIT_ENABLED: "true"
+  RATE_LIMIT_MAX: "1000"
+  RATE_LIMIT_INTERVAL: "60000"
+
+  # Logging
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+
+  # CORS
+  CORS_ENABLED: "true"
+  CORS_ORIGIN: "https://leetgaming.gg,https://www.leetgaming.gg,https://admin.leetgaming.gg"
+
+  # Content Security
+  CONTENT_SECURITY_POLICY_ENABLED: "true"

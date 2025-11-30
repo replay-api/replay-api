@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: replay-rest-api-blue
+  namespace: replay-api
+  labels:
+    app: replay-rest-api
+    version: blue
+    slot: blue
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: replay-rest-api
+      version: blue
+  template:
+    metadata:
+      labels:
+        app: replay-rest-api
+        version: blue
+        slot: blue
+    spec:
+      containers:
+        - name: replay-rest-api
+          image: replay-api:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 4991
+              name: http
+          envFrom:
+            - configMapRef:
+                name: replay-api-config
+            - secretRef:
+                name: replay-api-secrets
+          volumeMounts:
+            - name: replay-files
+              mountPath: /app/replay_files
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 4991
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 4991
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: replay-files
+          emptyDir: {}

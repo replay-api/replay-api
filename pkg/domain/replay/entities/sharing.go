@@ -1,10 +1,11 @@
 package entities
 
 import (
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/psavelis/team-pro/replay-api/pkg/domain"
+	common "github.com/replay-api/replay-api/pkg/domain"
 )
 
 type ShareTokenStatus string
@@ -67,4 +68,19 @@ type ShareToken struct {
 	UpdatedAt     time.Time            `json:"updated_at" bson:"updated_at"`
 
 	// ShareToken    string               `json:"share_token" bson:"share_token"`
+}
+
+func (s ShareToken) GetID() uuid.UUID {
+	return s.ID
+}
+
+// Validate validates the ShareToken entity
+func (s *ShareToken) Validate() error {
+	if s.ResourceID == uuid.Nil {
+		return errors.New("resource_id is required")
+	}
+	if s.ResourceType == "" {
+		return errors.New("resource_type is required")
+	}
+	return nil
 }
