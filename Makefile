@@ -45,22 +45,31 @@ up: ## Start the complete development environment with seed data
 	@kubectl apply -f k8s/local/seed-job.yaml
 	@kubectl wait --for=condition=complete job/database-seed -n leetgaming --timeout=120s 2>/dev/null || kubectl logs -l job-name=database-seed -n leetgaming
 	@echo ""
-	@echo "$(CC)Step 7/7: Starting port forwards...$(CEND)"
+	@echo "$(CC)Step 7/8: Starting port forwards...$(CEND)"
 	@pkill -f "port-forward" 2>/dev/null || true
 	@sleep 1
 	@kubectl port-forward svc/replay-api-service 8080:8080 -n leetgaming &
 	@kubectl port-forward svc/web-frontend-service 3030:3030 -n leetgaming 2>/dev/null &
 	@kubectl port-forward svc/prometheus-service 9090:9090 -n leetgaming 2>/dev/null &
 	@kubectl port-forward svc/grafana-service 3000:3000 -n leetgaming 2>/dev/null &
+	@kubectl port-forward svc/kafka-ui-service 8082:8082 -n leetgaming 2>/dev/null &
+	@kubectl port-forward svc/k8s-dashboard-service 8081:8081 -n leetgaming 2>/dev/null &
+	@echo ""
+	@echo "$(CC)Step 8/8: Verifying services are accessible...$(CEND)"
+	@sleep 3
+	@echo -n "  API: "; curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/health 2>/dev/null || echo "waiting..."
+	@echo -n "  Web: "; curl -s -o /dev/null -w "%{http_code}" http://localhost:3030 2>/dev/null || echo "waiting..."
 	@echo ""
 	@echo "$(CG)✅ Development environment is ready!$(CEND)"
 	@echo ""
 	@echo "$(CC)Available endpoints:$(CEND)"
-	@echo "  - API:         http://localhost:8080"
-	@echo "  - Health:      http://localhost:8080/health"
-	@echo "  - Web:         http://localhost:3030"
-	@echo "  - Prometheus:  http://localhost:9090"
-	@echo "  - Grafana:     http://localhost:3000 (admin/admin)"
+	@echo "  - API:           http://localhost:8080"
+	@echo "  - Health:        http://localhost:8080/health"
+	@echo "  - Web:           http://localhost:3030"
+	@echo "  - Prometheus:    http://localhost:9090"
+	@echo "  - Grafana:       http://localhost:3000 (admin/admin)"
+	@echo "  - Kafka UI:      http://localhost:8082"
+	@echo "  - K8s Dashboard: http://localhost:8081"
 	@echo ""
 	@echo "$(CC)Useful commands:$(CEND)"
 	@echo "  - Stop environment:    make down"
