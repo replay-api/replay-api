@@ -9,3 +9,5 @@ resources:
   - configmap.yaml
   - mongodb.yaml
   - deployment.yaml
+  - web-frontend.yaml
+  - observability/

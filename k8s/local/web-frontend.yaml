@@ -1,0 +1,111 @@
+# Web Frontend Deployment (Next.js)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-frontend
+  namespace: leetgaming
+  labels:
+    app: web-frontend
+    tier: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web-frontend
+  template:
+    metadata:
+      labels:
+        app: web-frontend
+        tier: frontend
+    spec:
+      containers:
+        - name: web-frontend
+          image: leetgaming-web:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3030
+              name: http
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "3030"
+            - name: NEXT_PUBLIC_API_URL
+              value: "http://replay-api-service:8080"
+            - name: NEXT_PUBLIC_REPLAY_API_URL
+              value: "http://replay-api-service:8080"
+            - name: REPLAY_API_URL
+              value: "http://replay-api-service:8080"
+            - name: NEXTAUTH_URL
+              value: "http://localhost:3030"
+            - name: LEET_GAMING_PRO_URL
+              value: "http://localhost:3030"
+            - name: NEXTAUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: replay-api-secrets
+                  key: NEXTAUTH_SECRET
+            - name: STEAM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: replay-api-secrets
+                  key: STEAM_API_KEY
+            - name: STEAM_SECRET
+              valueFrom:
+                configMapKeyRef:
+                  name: replay-api-config
+                  key: STEAM_SECRET
+            - name: STEAM_VHASH_SOURCE
+              valueFrom:
+                configMapKeyRef:
+                  name: replay-api-config
+                  key: STEAM_VHASH_SOURCE
+            - name: GOOGLE_CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: replay-api-config
+                  key: GOOGLE_CLIENT_ID
+            - name: GOOGLE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: replay-api-secrets
+                  key: GOOGLE_CLIENT_SECRET
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3030
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3030
+            initialDelaySeconds: 10
+            periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-frontend-service
+  namespace: leetgaming
+  labels:
+    app: web-frontend
+spec:
+  type: NodePort
+  ports:
+    - port: 3030
+      targetPort: 3030
+      nodePort: 30300
+      protocol: TCP
+      name: http
+  selector:
+    app: web-frontend

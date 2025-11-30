@@ -1,0 +1,188 @@
+# Prometheus Alerting Rules for LeetGaming Platform
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-alerts
+  namespace: leetgaming
+data:
+  alerts.yml: |
+    groups:
+      - name: leetgaming-api
+        rules:
+          - alert: APIHighErrorRate
+            expr: sum(rate(http_requests_total{job="replay-api", status=~"5.."}[5m])) / sum(rate(http_requests_total{job="replay-api"}[5m])) > 0.05
+            for: 2m
+            labels:
+              severity: critical
+              service: replay-api
+            annotations:
+              summary: "High API error rate detected"
+              description: "API error rate is {{ $value | humanizePercentage }} (threshold: 5%)"
+
+          - alert: APIHighLatency
+            expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job="replay-api"}[5m])) by (le)) > 1
+            for: 5m
+            labels:
+              severity: warning
+              service: replay-api
+            annotations:
+              summary: "High API latency detected"
+              description: "95th percentile latency is {{ $value | humanizeDuration }} (threshold: 1s)"
+
+          - alert: APIDown
+            expr: up{job="replay-api"} == 0
+            for: 1m
+            labels:
+              severity: critical
+              service: replay-api
+            annotations:
+              summary: "API is down"
+              description: "The replay-api service has been down for more than 1 minute"
+
+          - alert: APIHighMemoryUsage
+            expr: go_memstats_alloc_bytes{job="replay-api"} > 500 * 1024 * 1024
+            for: 5m
+            labels:
+              severity: warning
+              service: replay-api
+            annotations:
+              summary: "High API memory usage"
+              description: "API memory usage is {{ $value | humanize1024 }}B (threshold: 500MB)"
+
+          - alert: APIHighGoroutines
+            expr: go_goroutines{job="replay-api"} > 1000
+            for: 5m
+            labels:
+              severity: warning
+              service: replay-api
+            annotations:
+              summary: "High number of goroutines"
+              description: "API has {{ $value }} goroutines (threshold: 1000)"
+
+      - name: leetgaming-mongodb
+        rules:
+          - alert: MongoDBDown
+            expr: up{job="mongodb"} == 0
+            for: 1m
+            labels:
+              severity: critical
+              service: mongodb
+            annotations:
+              summary: "MongoDB is down"
+              description: "MongoDB exporter has been down for more than 1 minute"
+
+          - alert: MongoDBHighConnections
+            expr: mongodb_ss_connections{conn_type="current"} > 100
+            for: 5m
+            labels:
+              severity: warning
+              service: mongodb
+            annotations:
+              summary: "High MongoDB connection count"
+              description: "MongoDB has {{ $value }} current connections (threshold: 100)"
+
+          - alert: MongoDBConnectionPoolExhausted
+            expr: mongodb_ss_connections{conn_type="available"} < 10
+            for: 2m
+            labels:
+              severity: critical
+              service: mongodb
+            annotations:
+              summary: "MongoDB connection pool nearly exhausted"
+              description: "Only {{ $value }} connections available"
+
+          - alert: MongoDBHighMemory
+            expr: mongodb_ss_mem_resident > 1024
+            for: 5m
+            labels:
+              severity: warning
+              service: mongodb
+            annotations:
+              summary: "High MongoDB memory usage"
+              description: "MongoDB resident memory is {{ $value }}MB (threshold: 1GB)"
+
+          - alert: MongoDBSlowOperations
+            expr: rate(mongodb_ss_opLatencies_latency{type="reads"}[5m]) / rate(mongodb_ss_opLatencies_ops{type="reads"}[5m]) > 100000
+            for: 5m
+            labels:
+              severity: warning
+              service: mongodb
+            annotations:
+              summary: "MongoDB slow read operations"
+              description: "Average read latency is {{ $value | humanize }}μs (threshold: 100ms)"
+
+      # Redis alerts removed - Redis not used in this deployment
+
+      - name: leetgaming-kubernetes
+        rules:
+          - alert: PodCrashLooping
+            expr: increase(kube_pod_container_status_restarts_total{namespace="leetgaming"}[1h]) > 5
+            for: 5m
+            labels:
+              severity: warning
+              service: kubernetes
+            annotations:
+              summary: "Pod crash looping"
+              description: "Pod {{ $labels.pod }} has restarted {{ $value }} times in the last hour"
+
+          - alert: PodNotReady
+            expr: kube_pod_status_phase{namespace="leetgaming", phase=~"Pending|Unknown"} == 1
+            for: 5m
+            labels:
+              severity: warning
+              service: kubernetes
+            annotations:
+              summary: "Pod not ready"
+              description: "Pod {{ $labels.pod }} has been in {{ $labels.phase }} state for more than 5 minutes"
+
+          - alert: HighPodMemoryUsage
+            expr: sum(container_memory_working_set_bytes{namespace="leetgaming", container!=""}) by (pod) / sum(kube_pod_container_resource_limits{namespace="leetgaming", resource="memory"}) by (pod) > 0.9
+            for: 5m
+            labels:
+              severity: warning
+              service: kubernetes
+            annotations:
+              summary: "High pod memory usage"
+              description: "Pod {{ $labels.pod }} memory usage is at {{ $value | humanizePercentage }} of limit"
+
+          - alert: HighPodCPUUsage
+            expr: sum(rate(container_cpu_usage_seconds_total{namespace="leetgaming", container!=""}[5m])) by (pod) / sum(kube_pod_container_resource_limits{namespace="leetgaming", resource="cpu"}) by (pod) > 0.9
+            for: 5m
+            labels:
+              severity: warning
+              service: kubernetes
+            annotations:
+              summary: "High pod CPU usage"
+              description: "Pod {{ $labels.pod }} CPU usage is at {{ $value | humanizePercentage }} of limit"
+
+      - name: leetgaming-business
+        rules:
+          - alert: MatchmakingQueueBacklog
+            expr: matchmaking_queue_size > 100
+            for: 10m
+            labels:
+              severity: warning
+              service: matchmaking
+            annotations:
+              summary: "Matchmaking queue backlog"
+              description: "Matchmaking queue has {{ $value }} players waiting (threshold: 100)"
+
+          - alert: PaymentFailureRate
+            expr: sum(rate(payment_failed_total[5m])) / sum(rate(payment_attempts_total[5m])) > 0.1
+            for: 5m
+            labels:
+              severity: critical
+              service: payments
+            annotations:
+              summary: "High payment failure rate"
+              description: "Payment failure rate is {{ $value | humanizePercentage }} (threshold: 10%)"
+
+          - alert: TournamentServiceDegraded
+            expr: sum(rate(tournament_errors_total[5m])) > 10
+            for: 5m
+            labels:
+              severity: warning
+              service: tournaments
+            annotations:
+              summary: "Tournament service errors"
+              description: "Tournament service has {{ $value }} errors/s (threshold: 10/s)"

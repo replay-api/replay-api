@@ -13,41 +13,59 @@
 up: ## Start the complete development environment with seed data
 	@echo "$(CC)Starting LeetGaming PRO Development Environment$(CEND)"
 	@echo ""
-	@echo "$(CC)Step 1/6: Creating Kind cluster...$(CEND)"
+	@echo "$(CC)Step 1/7: Creating Kind cluster...$(CEND)"
 	@kind create cluster --config=kind-config.yaml --name=leetgaming-local 2>/dev/null || echo "Cluster already exists"
 	@kubectl cluster-info --context kind-leetgaming-local
 	@echo ""
-	@echo "$(CC)Step 2/6: Building and loading images...$(CEND)"
+	@echo "$(CC)Step 2/7: Building API image...$(CEND)"
 	@docker build -t replay-api:latest -f cmd/rest-api/Dockerfile.rest-api . || { echo "$(CR)Failed to build API image$(CEND)"; exit 1; }
 	@kind load docker-image replay-api:latest --name=leetgaming-local
 	@echo ""
-	@echo "$(CC)Step 3/6: Applying Kubernetes manifests...$(CEND)"
+	@echo "$(CC)Step 3/7: Building Web Frontend image...$(CEND)"
+	@if [ -d "../leetgaming-pro-web" ]; then \
+		docker build -t leetgaming-web:latest ../leetgaming-pro-web || echo "$(CR)Web frontend build skipped (optional)$(CEND)"; \
+		kind load docker-image leetgaming-web:latest --name=leetgaming-local 2>/dev/null || true; \
+	else \
+		echo "Web frontend directory not found, skipping..."; \
+	fi
+	@echo ""
+	@echo "$(CC)Step 4/7: Applying Kubernetes manifests...$(CEND)"
 	@kubectl apply -k k8s/local/
 	@echo ""
-	@echo "$(CC)Step 4/6: Waiting for pods to be ready...$(CEND)"
+	@echo "$(CC)Step 5/7: Waiting for pods to be ready...$(CEND)"
 	@kubectl wait --for=condition=ready pod -l app=mongodb -n leetgaming --timeout=300s 2>/dev/null || true
 	@kubectl wait --for=condition=ready pod -l app=replay-api -n leetgaming --timeout=300s 2>/dev/null || true
+	@kubectl wait --for=condition=ready pod -l app=web-frontend -n leetgaming --timeout=300s 2>/dev/null || true
+	@kubectl wait --for=condition=ready pod -l app=prometheus -n leetgaming --timeout=300s 2>/dev/null || true
+	@kubectl wait --for=condition=ready pod -l app=grafana -n leetgaming --timeout=300s 2>/dev/null || true
 	@echo ""
-	@echo "$(CC)Step 5/6: Seeding database...$(CEND)"
+	@echo "$(CC)Step 6/7: Seeding database...$(CEND)"
 	@sleep 10
 	@kubectl delete job database-seed -n leetgaming 2>/dev/null || true
 	@kubectl apply -f k8s/local/seed-job.yaml
 	@kubectl wait --for=condition=complete job/database-seed -n leetgaming --timeout=120s 2>/dev/null || kubectl logs -l job-name=database-seed -n leetgaming
 	@echo ""
-	@echo "$(CC)Step 6/6: Starting port forwards...$(CEND)"
+	@echo "$(CC)Step 7/7: Starting port forwards...$(CEND)"
 	@pkill -f "port-forward" 2>/dev/null || true
 	@sleep 1
 	@kubectl port-forward svc/replay-api-service 8080:8080 -n leetgaming &
+	@kubectl port-forward svc/web-frontend-service 3030:3030 -n leetgaming 2>/dev/null &
+	@kubectl port-forward svc/prometheus-service 9090:9090 -n leetgaming 2>/dev/null &
+	@kubectl port-forward svc/grafana-service 3000:3000 -n leetgaming 2>/dev/null &
 	@echo ""
 	@echo "$(CG)✅ Development environment is ready!$(CEND)"
 	@echo ""
 	@echo "$(CC)Available endpoints:$(CEND)"
-	@echo "  - API:      http://localhost:8080"
-	@echo "  - Health:   http://localhost:8080/health"
+	@echo "  - API:         http://localhost:8080"
+	@echo "  - Health:      http://localhost:8080/health"
+	@echo "  - Web:         http://localhost:3030"
+	@echo "  - Prometheus:  http://localhost:9090"
+	@echo "  - Grafana:     http://localhost:3000 (admin/admin)"
 	@echo ""
 	@echo "$(CC)Useful commands:$(CEND)"
 	@echo "  - Stop environment:    make down"
 	@echo "  - View API logs:       kubectl logs -f -l app=replay-api -n leetgaming"
+	@echo "  - View Web logs:       kubectl logs -f -l app=web-frontend -n leetgaming"
 	@echo "  - Run seeds again:     make seed"
 	@echo "  - Check status:        kubectl get pods -n leetgaming"
 
