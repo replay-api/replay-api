@@ -10,36 +10,55 @@ import (
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	common "github.com/replay-api/replay-api/pkg/domain"
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
+	matchmaking_in "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/in"
 	matchmaking_out "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/out"
 )
 
 type MatchmakingController struct {
-	container   container.Container
-	sessionRepo matchmaking_out.MatchmakingSessionRepository
-	poolRepo    matchmaking_out.MatchmakingPoolRepository
+	container               container.Container
+	joinQueueHandler        matchmaking_in.JoinMatchmakingQueueCommandHandler
+	leaveQueueHandler       matchmaking_in.LeaveMatchmakingQueueCommandHandler
+	sessionRepo             matchmaking_out.MatchmakingSessionRepository
+	poolRepo                matchmaking_out.MatchmakingPoolRepository
 }
 
 func NewMatchmakingController(container container.Container) *MatchmakingController {
 	ctrl := &MatchmakingController{container: container}
-	
-	// Resolve repositories
+
+	// Resolve command handlers (primary - use case layer)
+	if err := container.Resolve(&ctrl.joinQueueHandler); err != nil {
+		slog.Error("Failed to resolve JoinMatchmakingQueueCommandHandler", "err", err)
+	}
+	if err := container.Resolve(&ctrl.leaveQueueHandler); err != nil {
+		slog.Error("Failed to resolve LeaveMatchmakingQueueCommandHandler", "err", err)
+	}
+
+	// Resolve repositories (for read-only queries only)
 	if err := container.Resolve(&ctrl.sessionRepo); err != nil {
 		slog.Error("Failed to resolve MatchmakingSessionRepository", "err", err)
 	}
 	if err := container.Resolve(&ctrl.poolRepo); err != nil {
 		slog.Error("Failed to resolve MatchmakingPoolRepository", "err", err)
 	}
-	
+
 	return ctrl
 }
 
 // JoinQueueRequest represents a request to join matchmaking
 type JoinQueueRequest struct {
-	PlayerID           string                                      `json:"player_id"`
-	SquadID            *string                                     `json:"squad_id,omitempty"`
-	Preferences        matchmaking_entities.MatchPreferences       `json:"preferences"`
-	PlayerMMR          int                                         `json:"player_mmr"`
+	PlayerID      string  `json:"player_id"`
+	SquadID       *string `json:"squad_id,omitempty"`
+	GameID        string  `json:"game_id"`
+	GameMode      string  `json:"game_mode"`
+	Region        string  `json:"region"`
+	Tier          string  `json:"tier"`
+	PlayerMMR     int     `json:"player_mmr"`
+	PlayerRole    *string `json:"player_role,omitempty"`
+	TeamFormat    string  `json:"team_format"`
+	MaxPing       int     `json:"max_ping"`
+	PriorityBoost bool    `json:"priority_boost"`
 }
 
 // JoinQueueResponse represents the response when joining queue
@@ -83,28 +102,99 @@ func (ctrl *MatchmakingController) JoinQueueHandler(apiContext context.Context) 
 			return
 		}
 
-		// Create matchmaking session
-		session := &matchmaking_entities.MatchmakingSession{
-			ID:            uuid.New(),
+		// Build command for use case
+		cmd := matchmaking_in.JoinMatchmakingQueueCommand{
 			PlayerID:      playerID,
-			Preferences:   req.Preferences,
+			GameID:        req.GameID,
+			GameMode:      req.GameMode,
+			Region:        req.Region,
+			Tier:          matchmaking_entities.MatchmakingTier(req.Tier),
+			PlayerMMR:     req.PlayerMMR,
+			PlayerRole:    req.PlayerRole,
+			TeamFormat:    matchmaking_in.TeamFormat(req.TeamFormat),
+			MaxPing:       req.MaxPing,
+			PriorityBoost: req.PriorityBoost,
+		}
+
+		// Handle optional squad ID
+		if req.SquadID != nil {
+			squadID, err := uuid.Parse(*req.SquadID)
+			if err == nil {
+				cmd.SquadID = &squadID
+			}
+		}
+
+		// Set defaults if not provided
+		if cmd.GameID == "" {
+			cmd.GameID = "cs2"
+		}
+		if cmd.GameMode == "" {
+			cmd.GameMode = "competitive"
+		}
+		if cmd.Region == "" {
+			cmd.Region = "na-east"
+		}
+		if cmd.TeamFormat == "" {
+			cmd.TeamFormat = matchmaking_in.TeamFormat5v5
+		}
+		if cmd.Tier == "" {
+			cmd.Tier = matchmaking_entities.TierFree
+		}
+
+		// Execute via use case handler
+		if ctrl.joinQueueHandler != nil {
+			// Get resource owner from context for proper authentication
+			ctx := r.Context()
+			resourceOwner := common.GetResourceOwner(ctx)
+			if resourceOwner.UserID != uuid.Nil {
+				cmd.PlayerID = resourceOwner.UserID
+			}
+
+			session, err := ctrl.joinQueueHandler.Exec(ctx, cmd)
+			if err != nil {
+				slog.ErrorContext(ctx, "Failed to join matchmaking queue", "err", err, "player_id", cmd.PlayerID)
+				if err.Error() == "Unauthorized" {
+					http.Error(w, "unauthorized", http.StatusUnauthorized)
+					return
+				}
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+
+			response := JoinQueueResponse{
+				SessionID:     session.ID.String(),
+				Status:        string(session.Status),
+				EstimatedWait: session.EstimatedWait,
+				QueuePosition: ctrl.calculateQueuePositionForSession(ctx, session),
+				QueuedAt:      session.QueuedAt,
+			}
+
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(response)
+			return
+		}
+
+		// Fallback: direct repository access (deprecated - for backwards compatibility)
+		slog.Warn("JoinQueueHandler using deprecated direct repository access")
+		session := &matchmaking_entities.MatchmakingSession{
+			ID:       uuid.New(),
+			PlayerID: playerID,
+			Preferences: matchmaking_entities.MatchPreferences{
+				GameID:   cmd.GameID,
+				GameMode: cmd.GameMode,
+				Region:   cmd.Region,
+				Tier:     cmd.Tier,
+				MaxPing:  cmd.MaxPing,
+			},
 			Status:        matchmaking_entities.StatusQueued,
 			PlayerMMR:     req.PlayerMMR,
 			QueuedAt:      time.Now(),
-			EstimatedWait: ctrl.calculateEstimatedWait(req.Preferences),
+			EstimatedWait: 60,
 			ExpiresAt:     time.Now().Add(30 * time.Minute),
 			CreatedAt:     time.Now(),
 			UpdatedAt:     time.Now(),
 		}
 
-		if req.SquadID != nil {
-			squadID, err := uuid.Parse(*req.SquadID)
-			if err == nil {
-				session.SquadID = &squadID
-			}
-		}
-
-		// Persist session to database
 		if ctrl.sessionRepo != nil {
 			if err := ctrl.sessionRepo.Save(r.Context(), session); err != nil {
 				slog.Error("Failed to save matchmaking session", "err", err, "session_id", session.ID)
@@ -113,14 +203,11 @@ func (ctrl *MatchmakingController) JoinQueueHandler(apiContext context.Context) 
 			}
 		}
 
-		// Calculate queue position from database
-		queuePosition := ctrl.calculateQueuePositionFromDB(r.Context(), req.Preferences)
-
 		response := JoinQueueResponse{
 			SessionID:     session.ID.String(),
 			Status:        string(session.Status),
 			EstimatedWait: session.EstimatedWait,
-			QueuePosition: queuePosition,
+			QueuePosition: 1,
 			QueuedAt:      session.QueuedAt,
 		}
 
@@ -173,9 +260,41 @@ func (ctrl *MatchmakingController) LeaveQueueHandler(apiContext context.Context)
 			return
 		}
 
-		// Update session status to cancelled
+		ctx := r.Context()
+
+		// Execute via use case handler
+		if ctrl.leaveQueueHandler != nil {
+			// Get player ID from resource owner
+			resourceOwner := common.GetResourceOwner(ctx)
+			playerID := resourceOwner.UserID
+
+			cmd := matchmaking_in.LeaveMatchmakingQueueCommand{
+				SessionID: sessionUUID,
+				PlayerID:  playerID,
+			}
+
+			if err := ctrl.leaveQueueHandler.Exec(ctx, cmd); err != nil {
+				slog.ErrorContext(ctx, "Failed to leave matchmaking queue", "err", err, "session_id", sessionID)
+				if err.Error() == "Unauthorized" {
+					http.Error(w, "unauthorized", http.StatusUnauthorized)
+					return
+				}
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"message":    "left queue successfully",
+				"session_id": sessionID,
+			})
+			return
+		}
+
+		// Fallback: direct repository access (deprecated - for backwards compatibility)
+		slog.Warn("LeaveQueueHandler using deprecated direct repository access")
 		if ctrl.sessionRepo != nil {
-			if err := ctrl.sessionRepo.UpdateStatus(r.Context(), sessionUUID, matchmaking_entities.StatusCancelled); err != nil {
+			if err := ctrl.sessionRepo.UpdateStatus(ctx, sessionUUID, matchmaking_entities.StatusCancelled); err != nil {
 				slog.Error("Failed to cancel session", "err", err, "session_id", sessionID)
 				http.Error(w, "failed to cancel session", http.StatusInternalServerError)
 				return
@@ -323,6 +442,14 @@ func (ctrl *MatchmakingController) getTierPriority(tier matchmaking_entities.Mat
 	default:
 		return 1
 	}
+}
+
+// calculateQueuePositionForSession calculates queue position for a specific session
+func (ctrl *MatchmakingController) calculateQueuePositionForSession(ctx context.Context, session *matchmaking_entities.MatchmakingSession) int {
+	if session == nil {
+		return 1
+	}
+	return ctrl.calculateQueuePositionFromDB(ctx, session.Preferences)
 }
 
 func (ctrl *MatchmakingController) generatePoolStats(gameID, gameMode, region string) PoolStatsResponse {

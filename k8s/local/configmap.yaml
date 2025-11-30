@@ -20,7 +20,7 @@ data:
 
   # Authentication (must match frontend)
   STEAM_VHASH_SOURCE: "82DA0F0D0135FEA0F5DDF6F96528B48A"
-  STEAM_SECRET: "placeholder_steam_secret"
+  STEAM_SECRET: "C1D8DF38BA5DFF53E1E20E5F744120FE"
   GOOGLE_CLIENT_ID: "372418068163-p1qrol4rppgstv6r51dq1hgblomfcfm5.apps.googleusercontent.com"
 
   # Prize Pool Configuration

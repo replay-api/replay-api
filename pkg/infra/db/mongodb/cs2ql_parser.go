@@ -76,7 +76,7 @@ func ConvertCS2MatchQLToMongo(query string) (*MongoDBQuery, error) {
 //     where round.number = 15
 //     and event(Kill)
 //     and state.bombPlanted = true
-//     and killer.name = 's1mple'
+//     and killer.name = 'vortex'
 //     `
 
 // 	mongoQuery, err := ConvertCS2MatchQLToMongo(cs2MatchQLQuery)
@@ -94,7 +94,7 @@ func ConvertCS2MatchQLToMongo(query string) (*MongoDBQuery, error) {
 // 		"round.number": "15",
 // 		"eventType": "Kill",
 // 		"state.bombPlanted": true,
-// 		"killer.name": "s1mple",
+// 		"killer.name": "vortex",
 // 	},
 // 	Project: bson.M{},
 // 	}
