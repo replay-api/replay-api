@@ -52,8 +52,6 @@ up: ## Start the complete development environment with seed data
 	@kubectl port-forward svc/web-frontend-service 3030:3030 -n leetgaming 2>/dev/null &
 	@kubectl port-forward svc/prometheus-service 9090:9090 -n leetgaming 2>/dev/null &
 	@kubectl port-forward svc/grafana-service 3000:3000 -n leetgaming 2>/dev/null &
-	@kubectl port-forward svc/kafka-ui-service 8082:8082 -n leetgaming 2>/dev/null &
-	@kubectl port-forward svc/k8s-dashboard-service 8081:8081 -n leetgaming 2>/dev/null &
 	@echo ""
 	@echo "$(CC)Step 8/8: Verifying services are accessible...$(CEND)"
 	@sleep 3
@@ -68,8 +66,6 @@ up: ## Start the complete development environment with seed data
 	@echo "  - Web:           http://localhost:3030"
 	@echo "  - Prometheus:    http://localhost:9090"
 	@echo "  - Grafana:       http://localhost:3000 (admin/admin)"
-	@echo "  - Kafka UI:      http://localhost:8082"
-	@echo "  - K8s Dashboard: http://localhost:8081"
 	@echo ""
 	@echo "$(CC)Useful commands:$(CEND)"
 	@echo "  - Stop environment:    make down"
