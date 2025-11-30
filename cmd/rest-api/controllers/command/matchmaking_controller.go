@@ -363,27 +363,6 @@ func (ctrl *MatchmakingController) GetSessionStatusHandler(apiContext context.Co
 
 // Helper functions
 
-func (ctrl *MatchmakingController) calculateEstimatedWait(prefs matchmaking_entities.MatchPreferences) int {
-	baseWait := 60 // 1 minute base
-
-	// Premium tiers get faster queues
-	switch prefs.Tier {
-	case matchmaking_entities.TierElite:
-		baseWait = 30
-	case matchmaking_entities.TierPro:
-		baseWait = 40
-	case matchmaking_entities.TierPremium:
-		baseWait = 50
-	}
-
-	// Priority boost cuts wait time
-	if prefs.PriorityBoost {
-		baseWait = baseWait / 2
-	}
-
-	return baseWait
-}
-
 func (ctrl *MatchmakingController) calculateQueuePosition(prefs matchmaking_entities.MatchPreferences) int {
 	// Legacy method - prefer calculateQueuePositionFromDB
 	switch prefs.Tier {
