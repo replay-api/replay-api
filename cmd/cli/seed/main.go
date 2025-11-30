@@ -536,7 +536,7 @@ func main() {
 		slog.Error("Failed to connect to MongoDB", "error", err)
 		os.Exit(1)
 	}
-	defer client.Disconnect(ctx)
+	defer func() { _ = client.Disconnect(ctx) }()
 
 	// Ping to verify connection
 	if err := client.Ping(ctx, nil); err != nil {
