@@ -144,6 +144,18 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	// Game Events API
 	r.HandleFunc(GameEvents, eventController.DefaultSearchHandler).Methods("GET")
 
+	// Match Analytics API (heatmaps, trajectories, positioning)
+	matchAnalyticsController := query_controllers.NewMatchAnalyticsController(container)
+	r.HandleFunc("/games/{game_id}/matches/{match_id}/trajectory", matchAnalyticsController.GetMatchTrajectoryHandler).Methods("GET")
+	r.HandleFunc("/games/{game_id}/matches/{match_id}/rounds/{round_number}/trajectory", matchAnalyticsController.GetRoundTrajectoryHandler).Methods("GET")
+	r.HandleFunc("/games/{game_id}/matches/{match_id}/heatmap", matchAnalyticsController.GetMatchHeatmapHandler).Methods("GET")
+	r.HandleFunc("/games/{game_id}/matches/{match_id}/rounds/{round_number}/heatmap", matchAnalyticsController.GetRoundHeatmapHandler).Methods("GET")
+	r.HandleFunc("/games/{game_id}/matches/{match_id}/positioning-stats", matchAnalyticsController.GetPositioningStatsHandler).Methods("GET")
+
+	// Match History API
+	r.HandleFunc("/matches/player/{player_id}", matchController.GetPlayerMatchHistoryHandler).Methods("GET")
+	r.HandleFunc("/matches/squad/{squad_id}", matchController.GetSquadMatchHistoryHandler).Methods("GET")
+
 	// Share Token API
 	shareTokenController := cmd_controllers.NewShareTokenController(container)
 	r.HandleFunc("/share-tokens", shareTokenController.CreateShareToken(ctx)).Methods("POST")

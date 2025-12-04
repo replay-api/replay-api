@@ -4,21 +4,25 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"github.com/golobby/container/v3"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	controllers "github.com/replay-api/replay-api/cmd/rest-api/controllers"
 	common "github.com/replay-api/replay-api/pkg/domain"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 	replay_in "github.com/replay-api/replay-api/pkg/domain/replay/ports/in"
+	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
 )
 
 type MatchQueryController struct {
 	controllers.DefaultSearchController[replay_entity.Match]
-	matchReader replay_in.MatchReader
-	eventReader replay_in.EventReader
-	teamReader  replay_in.TeamReader
-	roundReader replay_in.RoundReader
+	matchReader  replay_in.MatchReader
+	eventReader  replay_in.EventReader
+	teamReader   replay_in.TeamReader
+	roundReader  replay_in.RoundReader
+	squadReader  squad_in.SquadReader
 }
 
 func NewMatchQueryController(c container.Container) *MatchQueryController {
@@ -26,6 +30,7 @@ func NewMatchQueryController(c container.Container) *MatchQueryController {
 	var eventReader replay_in.EventReader
 	var teamReader replay_in.TeamReader
 	var roundReader replay_in.RoundReader
+	var squadReader squad_in.SquadReader
 
 	if err := c.Resolve(&matchReader); err != nil {
 		panic(err)
@@ -39,6 +44,9 @@ func NewMatchQueryController(c container.Container) *MatchQueryController {
 	if err := c.Resolve(&roundReader); err != nil {
 		slog.Warn("RoundReader not available", "error", err)
 	}
+	if err := c.Resolve(&squadReader); err != nil {
+		slog.Warn("SquadReader not available", "error", err)
+	}
 
 	baseController := controllers.NewDefaultSearchController(matchReader)
 
@@ -48,6 +56,7 @@ func NewMatchQueryController(c container.Container) *MatchQueryController {
 		eventReader:             eventReader,
 		teamReader:              teamReader,
 		roundReader:             roundReader,
+		squadReader:             squadReader,
 	}
 }
 
@@ -119,4 +128,258 @@ func (c *MatchQueryController) GetMatchDetailHandler(w http.ResponseWriter, r *h
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(matchDetail)
+}
+
+// GetPlayerMatchHistoryHandler handles GET /matches/player/{player_id}
+// Returns paginated match history for a specific player
+func (c *MatchQueryController) GetPlayerMatchHistoryHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	playerIDStr := vars["player_id"]
+
+	if playerIDStr == "" {
+		slog.Error("GetPlayerMatchHistoryHandler: missing player_id")
+		http.Error(w, "player_id is required", http.StatusBadRequest)
+		return
+	}
+
+	playerID, err := uuid.Parse(playerIDStr)
+	if err != nil {
+		slog.Error("GetPlayerMatchHistoryHandler: invalid player_id", "player_id", playerIDStr, "error", err)
+		http.Error(w, "invalid player_id format", http.StatusBadRequest)
+		return
+	}
+
+	// Parse pagination parameters
+	limit := 20
+	offset := 0
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 && parsedLimit <= 100 {
+			limit = parsedLimit
+		}
+	}
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		if parsedOffset, err := strconv.Atoi(offsetStr); err == nil && parsedOffset >= 0 {
+			offset = parsedOffset
+		}
+	}
+
+	slog.Info("Fetching player match history", "player_id", playerID, "limit", limit, "offset", offset)
+
+	// Search for matches containing this player in the scoreboard
+	searchParams := []common.SearchAggregation{
+		{
+			Params: []common.SearchParameter{
+				{
+					ValueParams: []common.SearchableValue{
+						{
+							Field:    "scoreboard.team_scoreboards.players._id",
+							Values:   []interface{}{playerID.String()},
+							Operator: common.EqualsOperator,
+						},
+					},
+				},
+			},
+			AggregationClause: common.AndAggregationClause,
+		},
+	}
+
+	resultOptions := common.SearchResultOptions{
+		Limit: uint(limit),
+		Skip:  uint(offset),
+	}
+
+	compiledSearch, err := c.matchReader.Compile(r.Context(), searchParams, resultOptions)
+	if err != nil {
+		slog.Error("GetPlayerMatchHistoryHandler: error compiling search", "error", err)
+		http.Error(w, "invalid search parameters", http.StatusBadRequest)
+		return
+	}
+
+	results, err := c.matchReader.Search(r.Context(), *compiledSearch)
+	if err != nil {
+		slog.Error("GetPlayerMatchHistoryHandler: error searching matches", "error", err)
+		http.Error(w, "error fetching match history", http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]any{
+		"data":        results,
+		"player_id":   playerID,
+		"total":       len(results),
+		"limit":       limit,
+		"offset":      offset,
+		"next_offset": nil,
+	}
+
+	if len(results) == limit {
+		response["next_offset"] = offset + limit
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(response)
+}
+
+// GetSquadMatchHistoryHandler handles GET /matches/squad/{squad_id}
+// Returns paginated match history for all members of a squad
+func (c *MatchQueryController) GetSquadMatchHistoryHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	squadIDStr := vars["squad_id"]
+
+	if squadIDStr == "" {
+		slog.Error("GetSquadMatchHistoryHandler: missing squad_id")
+		http.Error(w, "squad_id is required", http.StatusBadRequest)
+		return
+	}
+
+	squadID, err := uuid.Parse(squadIDStr)
+	if err != nil {
+		slog.Error("GetSquadMatchHistoryHandler: invalid squad_id", "squad_id", squadIDStr, "error", err)
+		http.Error(w, "invalid squad_id format", http.StatusBadRequest)
+		return
+	}
+
+	// Parse pagination parameters
+	limit := 20
+	offset := 0
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 && parsedLimit <= 100 {
+			limit = parsedLimit
+		}
+	}
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		if parsedOffset, err := strconv.Atoi(offsetStr); err == nil && parsedOffset >= 0 {
+			offset = parsedOffset
+		}
+	}
+
+	slog.Info("Fetching squad match history", "squad_id", squadID, "limit", limit, "offset", offset)
+
+	// First, get the squad to extract member player IDs
+	if c.squadReader == nil {
+		slog.Error("GetSquadMatchHistoryHandler: squadReader not available")
+		http.Error(w, "squad service unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	squadSearchParams := []common.SearchAggregation{
+		{
+			Params: []common.SearchParameter{
+				{
+					ValueParams: []common.SearchableValue{
+						{
+							Field:    "ID",
+							Values:   []interface{}{squadID.String()},
+							Operator: common.EqualsOperator,
+						},
+					},
+				},
+			},
+			AggregationClause: common.AndAggregationClause,
+		},
+	}
+
+	squadResultOptions := common.SearchResultOptions{
+		Limit: 1,
+		Skip:  0,
+	}
+
+	compiledSquadSearch, err := c.squadReader.Compile(r.Context(), squadSearchParams, squadResultOptions)
+	if err != nil {
+		slog.Error("GetSquadMatchHistoryHandler: error compiling squad search", "error", err)
+		http.Error(w, "invalid squad search parameters", http.StatusBadRequest)
+		return
+	}
+
+	squads, err := c.squadReader.Search(r.Context(), *compiledSquadSearch)
+	if err != nil {
+		slog.Error("GetSquadMatchHistoryHandler: error searching squad", "error", err)
+		http.Error(w, "error fetching squad", http.StatusInternalServerError)
+		return
+	}
+
+	if len(squads) == 0 {
+		slog.Warn("GetSquadMatchHistoryHandler: squad not found", "squad_id", squadID)
+		http.Error(w, "squad not found", http.StatusNotFound)
+		return
+	}
+
+	squad := squads[0]
+
+	// Extract player profile IDs from squad membership
+	var playerIDs []interface{}
+	for _, member := range squad.Membership {
+		playerIDs = append(playerIDs, member.PlayerProfileID.String())
+	}
+
+	if len(playerIDs) == 0 {
+		response := map[string]any{
+			"data":        []replay_entity.Match{},
+			"squad_id":    squadID,
+			"squad_name":  squad.Name,
+			"total":       0,
+			"limit":       limit,
+			"offset":      offset,
+			"next_offset": nil,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	// Search for matches containing any of the squad members
+	searchParams := []common.SearchAggregation{
+		{
+			Params: []common.SearchParameter{
+				{
+					ValueParams: []common.SearchableValue{
+						{
+							Field:    "scoreboard.team_scoreboards.players._id",
+							Values:   playerIDs,
+							Operator: common.InOperator,
+						},
+					},
+				},
+			},
+			AggregationClause: common.AndAggregationClause,
+		},
+	}
+
+	resultOptions := common.SearchResultOptions{
+		Limit: uint(limit),
+		Skip:  uint(offset),
+	}
+
+	compiledSearch, err := c.matchReader.Compile(r.Context(), searchParams, resultOptions)
+	if err != nil {
+		slog.Error("GetSquadMatchHistoryHandler: error compiling match search", "error", err)
+		http.Error(w, "invalid search parameters", http.StatusBadRequest)
+		return
+	}
+
+	results, err := c.matchReader.Search(r.Context(), *compiledSearch)
+	if err != nil {
+		slog.Error("GetSquadMatchHistoryHandler: error searching matches", "error", err)
+		http.Error(w, "error fetching match history", http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]any{
+		"data":        results,
+		"squad_id":    squadID,
+		"squad_name":  squad.Name,
+		"total":       len(results),
+		"limit":       limit,
+		"offset":      offset,
+		"next_offset": nil,
+	}
+
+	if len(results) == limit {
+		response["next_offset"] = offset + limit
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(response)
 }
