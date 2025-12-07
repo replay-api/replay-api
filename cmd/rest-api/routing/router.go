@@ -80,6 +80,10 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 
 	r := mux.NewRouter()
 
+	// CORS middleware is applied as a wrapper (not r.Use()) to handle OPTIONS
+	// preflight requests even when route path matches but method doesn't
+	corsMiddleware := middlewares.NewCORSMiddleware()
+
 	r.Use(middlewares.ErrorMiddleware)
 	r.Use(mux.CORSMethodMiddleware(r))
 	r.Use(resourceContextMiddleware.Handler)
@@ -103,6 +107,7 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 
 	// health
 	r.HandleFunc(Health, healthController.HealthCheck(ctx)).Methods("GET")
+	r.HandleFunc("/ready", healthController.ReadinessCheck(ctx)).Methods("GET")
 
 	// Prometheus metrics
 	r.Handle("/metrics", metrics.Handler()).Methods("GET")
@@ -140,6 +145,9 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	r.HandleFunc("/games/{game_id}/replays/{id}", fileController.DeleteReplayFile(ctx)).Methods("DELETE")
 	r.HandleFunc("/games/{game_id}/replays/{id}/download", fileController.DownloadReplayFile(ctx)).Methods("GET")
 	r.HandleFunc("/games/{game_id}/replays/{id}/status", fileController.GetReplayProcessingStatus(ctx)).Methods("GET")
+	r.HandleFunc("/games/{game_id}/replays/{id}/events", fileController.GetReplayEvents(ctx)).Methods("GET")
+	r.HandleFunc("/games/{game_id}/replays/{id}/scoreboard", fileController.GetReplayScoreboard(ctx)).Methods("GET")
+	r.HandleFunc("/games/{game_id}/replays/{id}/timeline", fileController.GetReplayTimeline(ctx)).Methods("GET")
 
 	// Game Events API
 	r.HandleFunc(GameEvents, eventController.DefaultSearchHandler).Methods("GET")
@@ -257,5 +265,7 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	// Stripe Webhook (no auth required)
 	r.HandleFunc("/webhooks/stripe", paymentController.StripeWebhookHandler(ctx)).Methods("POST")
 
-	return r
+	// Wrap the router with CORS handler to handle preflight OPTIONS requests
+	// This is necessary because mux middleware doesn't run for 405 responses
+	return corsMiddleware.Handler(r)
 }

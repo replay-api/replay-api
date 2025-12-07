@@ -13,15 +13,18 @@
 up: ## Start the complete development environment with seed data
 	@echo "$(CC)Starting LeetGaming PRO Development Environment$(CEND)"
 	@echo ""
-	@echo "$(CC)Step 1/7: Creating Kind cluster...$(CEND)"
+	@echo "$(CC)Step 1/10: Creating Kind cluster...$(CEND)"
 	@kind create cluster --config=kind-config.yaml --name=leetgaming-local 2>/dev/null || echo "Cluster already exists"
 	@kubectl cluster-info --context kind-leetgaming-local
 	@echo ""
-	@echo "$(CC)Step 2/7: Building API image...$(CEND)"
+	@echo "$(CC)Step 2/10: Installing Strimzi Kafka Operator...$(CEND)"
+	@kubectl apply -f 'https://strimzi.io/install/latest?namespace=leetgaming' -n leetgaming 2>/dev/null || echo "Strimzi may already be installed"
+	@echo ""
+	@echo "$(CC)Step 3/10: Building API image...$(CEND)"
 	@docker build -t replay-api:latest -f cmd/rest-api/Dockerfile.rest-api . || { echo "$(CR)Failed to build API image$(CEND)"; exit 1; }
 	@kind load docker-image replay-api:latest --name=leetgaming-local
 	@echo ""
-	@echo "$(CC)Step 3/7: Building Web Frontend image...$(CEND)"
+	@echo "$(CC)Step 4/10: Building Web Frontend image...$(CEND)"
 	@if [ -d "../leetgaming-pro-web" ]; then \
 		docker build -t leetgaming-web:latest ../leetgaming-pro-web || echo "$(CR)Web frontend build skipped (optional)$(CEND)"; \
 		kind load docker-image leetgaming-web:latest --name=leetgaming-local 2>/dev/null || true; \
@@ -29,56 +32,82 @@ up: ## Start the complete development environment with seed data
 		echo "Web frontend directory not found, skipping..."; \
 	fi
 	@echo ""
-	@echo "$(CC)Step 4/7: Applying Kubernetes manifests...$(CEND)"
+	@echo "$(CC)Step 5/10: Applying Kubernetes manifests...$(CEND)"
 	@kubectl apply -k k8s/local/
 	@echo ""
-	@echo "$(CC)Step 5/7: Waiting for pods to be ready...$(CEND)"
+	@echo "$(CC)Step 6/10: Waiting for Strimzi operator...$(CEND)"
+	@kubectl wait --for=condition=ready pod -l strimzi.io/kind=cluster-operator -n leetgaming --timeout=120s 2>/dev/null || echo "$(CR)Strimzi operator not ready, continuing...$(CEND)"
+	@echo ""
+	@echo "$(CC)Step 7/10: Waiting for Kafka cluster (this may take 60-90 seconds)...$(CEND)"
+	@kubectl wait kafka/leetgaming-kafka --for=condition=Ready -n leetgaming --timeout=300s 2>/dev/null || echo "$(CR)Kafka not ready - continuing anyway$(CEND)"
+	@echo ""
+	@echo "$(CC)Step 8/10: Waiting for other pods to be ready...$(CEND)"
 	@kubectl wait --for=condition=ready pod -l app=mongodb -n leetgaming --timeout=300s 2>/dev/null || true
 	@kubectl wait --for=condition=ready pod -l app=replay-api -n leetgaming --timeout=300s 2>/dev/null || true
 	@kubectl wait --for=condition=ready pod -l app=web-frontend -n leetgaming --timeout=300s 2>/dev/null || true
 	@kubectl wait --for=condition=ready pod -l app=prometheus -n leetgaming --timeout=300s 2>/dev/null || true
 	@kubectl wait --for=condition=ready pod -l app=grafana -n leetgaming --timeout=300s 2>/dev/null || true
+	@kubectl wait --for=condition=ready pod -l app=pyroscope -n leetgaming --timeout=300s 2>/dev/null || true
 	@echo ""
-	@echo "$(CC)Step 6/7: Seeding database...$(CEND)"
+	@echo "$(CC)Step 9/10: Seeding database...$(CEND)"
 	@sleep 10
 	@kubectl delete job database-seed -n leetgaming 2>/dev/null || true
 	@kubectl apply -f k8s/local/seed-job.yaml
 	@kubectl wait --for=condition=complete job/database-seed -n leetgaming --timeout=120s 2>/dev/null || kubectl logs -l job-name=database-seed -n leetgaming
 	@echo ""
-	@echo "$(CC)Step 7/8: Starting port forwards...$(CEND)"
-	@pkill -f "port-forward" 2>/dev/null || true
-	@sleep 1
-	@kubectl port-forward svc/replay-api-service 8080:8080 -n leetgaming &
-	@kubectl port-forward svc/web-frontend-service 3030:3030 -n leetgaming 2>/dev/null &
-	@kubectl port-forward svc/prometheus-service 9090:9090 -n leetgaming 2>/dev/null &
-	@kubectl port-forward svc/grafana-service 3000:3000 -n leetgaming 2>/dev/null &
+	@echo "$(CC)Step 10/10: Starting port forwards...$(CEND)"
+	@./scripts/port-forward.sh start
 	@echo ""
-	@echo "$(CC)Step 8/8: Verifying services are accessible...$(CEND)"
-	@sleep 3
-	@echo -n "  API: "; curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/health 2>/dev/null || echo "waiting..."
-	@echo -n "  Web: "; curl -s -o /dev/null -w "%{http_code}" http://localhost:3030 2>/dev/null || echo "waiting..."
-	@echo ""
-	@echo "$(CG)✅ Development environment is ready!$(CEND)"
+	@echo "$(CG)Development environment is ready!$(CEND)"
 	@echo ""
 	@echo "$(CC)Available endpoints:$(CEND)"
 	@echo "  - API:           http://localhost:8080"
 	@echo "  - Health:        http://localhost:8080/health"
 	@echo "  - Web:           http://localhost:3030"
 	@echo "  - Prometheus:    http://localhost:9090"
-	@echo "  - Grafana:       http://localhost:3000 (admin/admin)"
+	@echo "  - Grafana:       http://localhost:3031 (admin/leetgaming)"
+	@echo "  - Pyroscope:     http://localhost:3041 (Continuous Profiling)"
+	@echo "  - Kafka:         localhost:9092"
+	@echo ""
+	@echo "$(CC)Kafka Topics:$(CEND)"
+	@echo "  - matchmaking.queue.events"
+	@echo "  - matchmaking.lobby.events"
+	@echo "  - matchmaking.matches.created"
+	@echo "  - websocket.broadcasts"
 	@echo ""
 	@echo "$(CC)Useful commands:$(CEND)"
 	@echo "  - Stop environment:    make down"
 	@echo "  - View API logs:       kubectl logs -f -l app=replay-api -n leetgaming"
-	@echo "  - View Web logs:       kubectl logs -f -l app=web-frontend -n leetgaming"
+	@echo "  - View Kafka logs:     kubectl logs -f -l strimzi.io/name=leetgaming-kafka-kafka -n leetgaming"
+	@echo "  - Kafka status:        make kafka-status"
 	@echo "  - Run seeds again:     make seed"
 	@echo "  - Check status:        kubectl get pods -n leetgaming"
 
 down: ## Stop and clean up the development environment
 	@echo "$(CR)Stopping LeetGaming PRO Development Environment$(CEND)"
-	@pkill -f "port-forward" 2>/dev/null || true
+	@./scripts/port-forward.sh stop 2>/dev/null || true
 	@kind delete cluster --name=leetgaming-local 2>/dev/null || true
-	@echo "$(CG)✅ Environment stopped$(CEND)"
+	@echo "$(CG)Environment stopped$(CEND)"
+
+port-forward: ## Start port forwards (use after 'make up' if services become inaccessible)
+	@./scripts/port-forward.sh start
+
+port-forward-stop: ## Stop all port forwards
+	@./scripts/port-forward.sh stop
+
+port-forward-status: ## Check port forward and service status
+	@./scripts/port-forward.sh status
+
+kafka-status: ## Check Kafka cluster status
+	@echo "$(CC)Kafka Cluster Status$(CEND)"
+	@echo ""
+	@kubectl get kafka -n leetgaming 2>/dev/null || echo "Kafka cluster not found"
+	@echo ""
+	@echo "$(CC)Kafka Topics:$(CEND)"
+	@kubectl get kafkatopics -n leetgaming 2>/dev/null || echo "No topics found"
+	@echo ""
+	@echo "$(CC)Kafka Pods:$(CEND)"
+	@kubectl get pods -l strimzi.io/cluster=leetgaming-kafka -n leetgaming 2>/dev/null || echo "No Kafka pods found"
 
 status: ## Check status of the development environment
 	@echo "$(CC)LeetGaming PRO Development Environment Status$(CEND)"

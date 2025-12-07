@@ -1,0 +1,139 @@
+# Kafka Topics for LeetGaming Matchmaking System
+# Pre-create all topics used by the application
+
+---
+# Queue Events - Player join/leave matchmaking queue
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: matchmaking.queue.events
+  namespace: leetgaming
+  labels:
+    strimzi.io/cluster: leetgaming-kafka
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "86400000"  # 24 hours
+    segment.bytes: "104857600"  # 100MB
+    cleanup.policy: "delete"
+
+---
+# Lobby Events - Lobby lifecycle (created, updated, cancelled)
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: matchmaking.lobby.events
+  namespace: leetgaming
+  labels:
+    strimzi.io/cluster: leetgaming-kafka
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "86400000"
+    segment.bytes: "104857600"
+    cleanup.policy: "delete"
+
+---
+# Prize Pool Events - Prize pool updates and distributions
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: matchmaking.prizepool.events
+  namespace: leetgaming
+  labels:
+    strimzi.io/cluster: leetgaming-kafka
+spec:
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: "604800000"  # 7 days for financial events
+    segment.bytes: "52428800"  # 50MB
+    cleanup.policy: "delete"
+
+---
+# Match Created Events - New match creation notifications
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: matchmaking.matches.created
+  namespace: leetgaming
+  labels:
+    strimzi.io/cluster: leetgaming-kafka
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "86400000"
+    segment.bytes: "104857600"
+    cleanup.policy: "delete"
+
+---
+# Match Results Events - Match completion and results
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: matchmaking.matches.results
+  namespace: leetgaming
+  labels:
+    strimzi.io/cluster: leetgaming-kafka
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "604800000"  # 7 days for results
+    segment.bytes: "104857600"
+    cleanup.policy: "delete"
+
+---
+# Player Status - Compacted topic for current player state
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: matchmaking.player-status
+  namespace: leetgaming
+  labels:
+    strimzi.io/cluster: leetgaming-kafka
+spec:
+  partitions: 1
+  replicas: 1
+  config:
+    cleanup.policy: "compact"
+    min.cleanable.dirty.ratio: "0.1"
+    segment.ms: "3600000"  # 1 hour
+    delete.retention.ms: "86400000"
+
+---
+# WebSocket Broadcasts - Events to push to connected clients
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: websocket.broadcasts
+  namespace: leetgaming
+  labels:
+    strimzi.io/cluster: leetgaming-kafka
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: "3600000"  # 1 hour (short-lived)
+    segment.bytes: "52428800"
+    cleanup.policy: "delete"
+
+---
+# Dead Letter Queue - Failed message processing
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: matchmaking.dlq
+  namespace: leetgaming
+  labels:
+    strimzi.io/cluster: leetgaming-kafka
+spec:
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: "604800000"  # 7 days for debugging
+    segment.bytes: "104857600"
+    cleanup.policy: "delete"

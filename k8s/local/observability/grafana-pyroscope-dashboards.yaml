@@ -1,0 +1,210 @@
+# Pyroscope Continuous Profiling Dashboards for LeetGaming Platform
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-pyroscope-dashboards
+  namespace: leetgaming
+  labels:
+    grafana_dashboard: "1"
+data:
+  # Continuous Profiling Dashboard - CPU, Memory, Goroutines
+  continuous-profiling.json: |
+    {
+      "annotations": {"list": []},
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [
+        {"asDropdown": false, "icon": "external link", "includeVars": false, "keepTime": true, "tags": [], "targetBlank": true, "title": "Home", "tooltip": "", "type": "link", "url": "/d/leetgaming-home"},
+        {"asDropdown": false, "icon": "external link", "includeVars": false, "keepTime": true, "tags": [], "targetBlank": true, "title": "Pyroscope UI", "tooltip": "", "type": "link", "url": "http://localhost:3041"}
+      ],
+      "liveNow": false,
+      "panels": [
+        {
+          "gridPos": {"h": 2, "w": 24, "x": 0, "y": 0},
+          "id": 100,
+          "options": {"code": {"language": "plaintext", "showLineNumbers": false, "showMiniMap": false}, "content": "# Continuous Profiling - LeetGaming Platform\n\nReal-time CPU, Memory, and Goroutine profiling for the replay-api service. Click 'Pyroscope UI' link for interactive flame graphs.", "mode": "markdown"},
+          "pluginVersion": "10.2.0",
+          "title": "",
+          "transparent": true,
+          "type": "text"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 50}, {"color": "red", "value": 80}]}, "unit": "percent"}, "overrides": []},
+          "gridPos": {"h": 4, "w": 6, "x": 0, "y": 2},
+          "id": 1,
+          "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+          "targets": [{"expr": "100 * (1 - avg(rate(process_cpu_seconds_total{job=\"replay-api\"}[5m])))", "legendFormat": "CPU Usage", "refId": "A"}],
+          "title": "CPU Usage",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 268435456}, {"color": "red", "value": 536870912}]}, "unit": "bytes"}, "overrides": []},
+          "gridPos": {"h": 4, "w": 6, "x": 6, "y": 2},
+          "id": 2,
+          "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+          "targets": [{"expr": "go_memstats_alloc_bytes{job=\"replay-api\"}", "legendFormat": "Heap Alloc", "refId": "A"}],
+          "title": "Heap Allocated",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 500}, {"color": "red", "value": 1000}]}, "unit": "short"}, "overrides": []},
+          "gridPos": {"h": 4, "w": 6, "x": 12, "y": 2},
+          "id": 3,
+          "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+          "targets": [{"expr": "go_goroutines{job=\"replay-api\"}", "legendFormat": "Goroutines", "refId": "A"}],
+          "title": "Active Goroutines",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "short"}, "overrides": []},
+          "gridPos": {"h": 4, "w": 6, "x": 18, "y": 2},
+          "id": 4,
+          "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+          "targets": [{"expr": "go_gc_duration_seconds_count{job=\"replay-api\"}", "legendFormat": "GC Cycles", "refId": "A"}],
+          "title": "GC Cycles (Total)",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 20, "gradientMode": "opacity", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "bytes"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6},
+          "id": 5,
+          "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+          "targets": [
+            {"expr": "go_memstats_heap_alloc_bytes{job=\"replay-api\"}", "legendFormat": "Heap Alloc", "refId": "A"},
+            {"expr": "go_memstats_heap_inuse_bytes{job=\"replay-api\"}", "legendFormat": "Heap In Use", "refId": "B"},
+            {"expr": "go_memstats_heap_sys_bytes{job=\"replay-api\"}", "legendFormat": "Heap Sys", "refId": "C"},
+            {"expr": "go_memstats_stack_inuse_bytes{job=\"replay-api\"}", "legendFormat": "Stack In Use", "refId": "D"}
+          ],
+          "title": "Memory Usage Over Time",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 20, "gradientMode": "opacity", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "short"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 6},
+          "id": 6,
+          "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+          "targets": [
+            {"expr": "go_goroutines{job=\"replay-api\"}", "legendFormat": "Goroutines", "refId": "A"},
+            {"expr": "go_threads{job=\"replay-api\"}", "legendFormat": "OS Threads", "refId": "B"}
+          ],
+          "title": "Goroutines & Threads",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 20, "gradientMode": "opacity", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "s"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 14},
+          "id": 7,
+          "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+          "targets": [
+            {"expr": "rate(go_gc_duration_seconds_sum{job=\"replay-api\"}[5m]) / rate(go_gc_duration_seconds_count{job=\"replay-api\"}[5m])", "legendFormat": "Avg GC Duration", "refId": "A"},
+            {"expr": "go_gc_duration_seconds{job=\"replay-api\", quantile=\"0.5\"}", "legendFormat": "GC p50", "refId": "B"},
+            {"expr": "go_gc_duration_seconds{job=\"replay-api\", quantile=\"0.99\"}", "legendFormat": "GC p99", "refId": "C"}
+          ],
+          "title": "Garbage Collection Duration",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 20, "gradientMode": "opacity", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "short"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 14},
+          "id": 8,
+          "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+          "targets": [
+            {"expr": "rate(go_gc_duration_seconds_count{job=\"replay-api\"}[5m])", "legendFormat": "GC Rate (/s)", "refId": "A"},
+            {"expr": "go_memstats_gc_cpu_fraction{job=\"replay-api\"} * 100", "legendFormat": "GC CPU %", "refId": "B"}
+          ],
+          "title": "GC Rate & CPU Impact",
+          "type": "timeseries"
+        },
+        {
+          "gridPos": {"h": 2, "w": 24, "x": 0, "y": 22},
+          "id": 200,
+          "options": {"code": {"language": "plaintext", "showLineNumbers": false, "showMiniMap": false}, "content": "## Memory Allocations & Objects", "mode": "markdown"},
+          "pluginVersion": "10.2.0",
+          "title": "",
+          "transparent": true,
+          "type": "text"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 20, "gradientMode": "opacity", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "short"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+          "id": 9,
+          "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+          "targets": [
+            {"expr": "rate(go_memstats_mallocs_total{job=\"replay-api\"}[5m])", "legendFormat": "Mallocs/s", "refId": "A"},
+            {"expr": "rate(go_memstats_frees_total{job=\"replay-api\"}[5m])", "legendFormat": "Frees/s", "refId": "B"}
+          ],
+          "title": "Memory Allocations Rate",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 20, "gradientMode": "opacity", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "short"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24},
+          "id": 10,
+          "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+          "targets": [
+            {"expr": "go_memstats_heap_objects{job=\"replay-api\"}", "legendFormat": "Heap Objects", "refId": "A"},
+            {"expr": "go_memstats_next_gc_bytes{job=\"replay-api\"}", "legendFormat": "Next GC Target", "refId": "B"}
+          ],
+          "title": "Heap Objects & GC Target",
+          "type": "timeseries"
+        },
+        {
+          "gridPos": {"h": 2, "w": 24, "x": 0, "y": 32},
+          "id": 300,
+          "options": {"code": {"language": "plaintext", "showLineNumbers": false, "showMiniMap": false}, "content": "## Process & System Resources", "mode": "markdown"},
+          "pluginVersion": "10.2.0",
+          "title": "",
+          "transparent": true,
+          "type": "text"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 20, "gradientMode": "opacity", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "short"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 34},
+          "id": 11,
+          "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+          "targets": [
+            {"expr": "rate(process_cpu_seconds_total{job=\"replay-api\"}[5m])", "legendFormat": "CPU Seconds/s", "refId": "A"}
+          ],
+          "title": "Process CPU Usage",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 20, "gradientMode": "opacity", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "short"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 34},
+          "id": 12,
+          "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+          "targets": [
+            {"expr": "process_open_fds{job=\"replay-api\"}", "legendFormat": "Open FDs", "refId": "A"},
+            {"expr": "process_max_fds{job=\"replay-api\"}", "legendFormat": "Max FDs", "refId": "B"}
+          ],
+          "title": "File Descriptors",
+          "type": "timeseries"
+        }
+      ],
+      "refresh": "10s",
+      "schemaVersion": 38,
+      "style": "dark",
+      "tags": ["leetgaming", "profiling", "pyroscope", "performance"],
+      "templating": {"list": []},
+      "time": {"from": "now-1h", "to": "now"},
+      "timepicker": {},
+      "timezone": "",
+      "title": "Continuous Profiling",
+      "uid": "continuous-profiling",
+      "version": 1,
+      "weekStart": ""
+    }

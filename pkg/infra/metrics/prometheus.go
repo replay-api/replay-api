@@ -123,6 +123,259 @@ var (
 		},
 		[]string{"cache"},
 	)
+
+	// ============================================
+	// Esports Platform Metrics
+	// ============================================
+
+	// Matchmaking Metrics
+	EsportsMatchmakingQueueJoins = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "esports_matchmaking_queue_joins_total",
+			Help: "Total number of players joining matchmaking queue",
+		},
+		[]string{"game", "mode", "region", "tier"},
+	)
+
+	EsportsMatchmakingQueueLeaves = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "esports_matchmaking_queue_leaves_total",
+			Help: "Total number of players leaving queue",
+		},
+		[]string{"game", "mode", "region", "reason"},
+	)
+
+	EsportsMatchmakingWaitTime = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "esports_matchmaking_wait_seconds",
+			Help:    "Time players spend waiting in matchmaking queue",
+			Buckets: []float64{5, 15, 30, 60, 90, 120, 180, 300, 600},
+		},
+		[]string{"game", "mode", "region", "tier"},
+	)
+
+	EsportsMatchmakingSkillSpread = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "esports_matchmaking_skill_spread",
+			Help:    "MMR spread in matched lobbies (max - min)",
+			Buckets: []float64{50, 100, 200, 300, 500, 750, 1000},
+		},
+		[]string{"game", "mode", "region"},
+	)
+
+	EsportsMatchmakingMatchesCreated = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "esports_matchmaking_matches_created_total",
+			Help: "Total matches successfully created from matchmaking",
+		},
+		[]string{"game", "mode", "region"},
+	)
+
+	// Lobby Metrics
+	EsportsLobbyCreated = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "esports_lobby_created_total",
+			Help: "Total lobbies created",
+		},
+		[]string{"game", "lobby_type", "region"},
+	)
+
+	EsportsLobbyStatus = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "esports_lobby_status_current",
+			Help: "Current lobbies by status",
+		},
+		[]string{"game", "status"},
+	)
+
+	EsportsLobbyFillRate = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "esports_lobby_fill_percentage",
+			Help:    "Percentage of lobby slots filled at match start",
+			Buckets: []float64{0.2, 0.4, 0.6, 0.8, 0.9, 1.0},
+		},
+		[]string{"game", "region"},
+	)
+
+	EsportsLobbyReadyCheckTimeout = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "esports_lobby_ready_check_timeout_total",
+			Help: "Number of lobbies cancelled due to ready check timeout",
+		},
+		[]string{"game", "region"},
+	)
+
+	EsportsLobbyLifecycle = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "esports_lobby_lifecycle_seconds",
+			Help:    "Time from lobby creation to match start or cancellation",
+			Buckets: []float64{30, 60, 120, 180, 300, 600, 900},
+		},
+		[]string{"game", "outcome"},
+	)
+
+	// Tournament Metrics
+	EsportsTournamentCreated = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "esports_tournament_created_total",
+			Help: "Total tournaments created",
+		},
+		[]string{"game", "format", "region"},
+	)
+
+	EsportsTournamentStatus = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "esports_tournament_status_current",
+			Help: "Current tournaments by status",
+		},
+		[]string{"game", "status"},
+	)
+
+	EsportsTournamentRegistrations = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "esports_tournament_registrations_total",
+			Help: "Total tournament registrations",
+		},
+		[]string{"game", "format", "region"},
+	)
+
+	EsportsTournamentFillRate = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "esports_tournament_fill_percentage",
+			Help:    "Percentage of tournament capacity filled at start",
+			Buckets: []float64{0.25, 0.5, 0.75, 0.9, 1.0},
+		},
+		[]string{"game", "format"},
+	)
+
+	EsportsTournamentPrizePool = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "esports_tournament_prize_pool_cents",
+			Help: "Total prize pool value in cents",
+		},
+		[]string{"game", "currency"},
+	)
+
+	EsportsTournamentMatchDuration = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "esports_tournament_match_duration_seconds",
+			Help:    "Duration of tournament matches",
+			Buckets: []float64{300, 600, 900, 1200, 1800, 2700, 3600},
+		},
+		[]string{"game", "format", "round"},
+	)
+
+	// Kafka Metrics
+	EsportsKafkaMessagesProduced = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "esports_kafka_messages_produced_total",
+			Help: "Total Kafka messages produced",
+		},
+		[]string{"topic"},
+	)
+
+	EsportsKafkaMessagesConsumed = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "esports_kafka_messages_consumed_total",
+			Help: "Total Kafka messages consumed",
+		},
+		[]string{"topic", "consumer_group"},
+	)
+
+	EsportsKafkaConsumerLag = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "esports_kafka_consumer_lag",
+			Help: "Kafka consumer lag (messages behind)",
+		},
+		[]string{"topic", "partition", "consumer_group"},
+	)
+
+	EsportsKafkaProcessingDuration = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "esports_kafka_processing_duration_seconds",
+			Help:    "Time to process Kafka messages",
+			Buckets: []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1},
+		},
+		[]string{"topic", "consumer_group"},
+	)
+
+	EsportsKafkaDLQ = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "esports_kafka_dlq_messages_total",
+			Help: "Messages sent to dead letter queue",
+		},
+		[]string{"original_topic", "error_type"},
+	)
+
+	// WebSocket Metrics
+	EsportsWebSocketConnections = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "esports_websocket_connections_total",
+			Help: "Current WebSocket connections",
+		},
+	)
+
+	EsportsWebSocketMessagesSent = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "esports_websocket_messages_sent_total",
+			Help: "Total WebSocket messages sent",
+		},
+		[]string{"message_type"},
+	)
+
+	EsportsWebSocketLatency = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "esports_websocket_message_latency_ms",
+			Help:    "WebSocket message delivery latency",
+			Buckets: []float64{1, 5, 10, 25, 50, 100, 250, 500},
+		},
+		[]string{"message_type"},
+	)
+
+	// Player Engagement Metrics
+	EsportsActivePlayers = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "esports_active_players_current",
+			Help: "Currently active players by activity type",
+		},
+		[]string{"game", "activity"},
+	)
+
+	EsportsPlayerSessionDuration = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "esports_player_session_duration_seconds",
+			Help:    "Player session duration",
+			Buckets: []float64{300, 600, 1800, 3600, 7200, 14400},
+		},
+		[]string{"game"},
+	)
+
+	// Replay Metrics
+	EsportsReplayUploads = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "esports_replay_uploads_total",
+			Help: "Total replay files uploaded",
+		},
+		[]string{"game", "source"},
+	)
+
+	EsportsReplayProcessingDuration = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "esports_replay_processing_seconds",
+			Help:    "Time to process and analyze replay files",
+			Buckets: []float64{1, 5, 10, 30, 60, 120, 300},
+		},
+		[]string{"game"},
+	)
+
+	EsportsReplayFileSize = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "esports_replay_file_size_bytes",
+			Help:    "Size of uploaded replay files",
+			Buckets: []float64{1e6, 5e6, 10e6, 50e6, 100e6, 500e6},
+		},
+		[]string{"game"},
+	)
 )
 
 type responseWriter struct {
