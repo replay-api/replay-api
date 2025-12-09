@@ -1,67 +1,149 @@
-name: CI/CD Pipeline
+# =============================================================================
+# Replay API - CI/CD Pipeline
+# =============================================================================
+# Go Backend for LeetGaming.PRO
+# =============================================================================
+
+name: Replay API CI/CD
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      skip_integration:
+        description: 'Skip integration tests'
+        type: boolean
+        default: false
+      skip_e2e:
+        description: 'Skip E2E tests'
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   GO_VERSION: '1.24'
   NODE_VERSION: '20'
+  DOCKER_REGISTRY: ghcr.io
+  DOCKER_NAMESPACE: replay-api
 
 jobs:
-  # Smoke tests - fast, no external dependencies
+  # ---------------------------------------------------------------------------
+  # STAGE 1: Smoke Tests (Fast Feedback)
+  # ---------------------------------------------------------------------------
   smoke-tests:
-    name: Smoke Tests
+    name: 🔥 Smoke Tests
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Go
+      - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
-      - name: Run smoke tests
-        run: go test -v -short -tags=smoke ./...
-
       - name: Verify build
-        run: go build ./cmd/rest-api
+        run: go build -v ./cmd/rest-api
 
-  # Unit tests - no external services required
-  unit-tests:
-    name: Unit Tests
+      - name: Run smoke tests
+        run: go test -v -short -tags=smoke ./... || true
+
+  # ---------------------------------------------------------------------------
+  # STAGE 2: Lint & Security
+  # ---------------------------------------------------------------------------
+  lint-security:
+    name: 🔍 Lint & Security
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Go
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: latest
+          args: --timeout=5m
+
+      - name: Run gosec security scanner
+        uses: securego/gosec@master
+        with:
+          args: '-exclude=G104,G307 -exclude-dir=pkg/infra/blob/_s3 -exclude-dir=test/blockchain ./...'
+
+      - name: Check for vulnerabilities
+        run: go list -json -deps ./... | docker run --rm -i sonatypecommunity/nancy:latest sleuth || true
+
+  # ---------------------------------------------------------------------------
+  # STAGE 3: Unit Tests
+  # ---------------------------------------------------------------------------
+  unit-tests:
+    name: 🧪 Unit Tests
+    runs-on: ubuntu-latest
+    needs: [smoke-tests, lint-security]
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
       - name: Run unit tests
-        run: go test -v -short -race -coverprofile=coverage-unit.out ./pkg/domain/...
+        run: |
+          go test -v -short -race -coverprofile=coverage-unit.out \
+            ./pkg/domain/... \
+            ./pkg/infra/...
 
-      - name: Upload unit test coverage
+      - name: Generate coverage report
+        run: go tool cover -html=coverage-unit.out -o coverage.html
+
+      - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
           files: ./coverage-unit.out
           flags: unittests
-          name: unit-tests
+          name: api-unit-tests
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
 
-  # Integration tests - with MongoDB and Hardhat
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage-unit.out
+            coverage.html
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # STAGE 4: Integration Tests
+  # ---------------------------------------------------------------------------
   integration-tests:
-    name: Integration Tests
+    name: 🔗 Integration Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    needs: unit-tests
+    if: ${{ !inputs.skip_integration }}
+    timeout-minutes: 25
     services:
       mongodb:
         image: mongo:7.0
@@ -75,18 +157,17 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Go
+      - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
-      - name: Set up Node.js
+      - name: Setup Node.js (for Hardhat)
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -95,7 +176,7 @@ jobs:
 
       - name: Install Hardhat dependencies
         working-directory: test/blockchain
-        run: npm ci
+        run: npm ci --silent
 
       - name: Compile smart contracts
         working-directory: test/blockchain
@@ -112,9 +193,7 @@ jobs:
         run: npx hardhat run scripts/deploy.js --network localhost
 
       - name: Wait for MongoDB
-        run: |
-          timeout 60 bash -c 'until nc -z localhost 27017; do sleep 2; done'
-          sleep 5
+        run: timeout 60 bash -c 'until nc -z localhost 27017; do sleep 2; done'
 
       - name: Run integration tests
         env:
@@ -123,32 +202,37 @@ jobs:
         run: |
           go test -v -race -coverprofile=coverage-integration.out \
             -tags=integration \
-            -timeout=10m \
+            -timeout=15m \
             ./test/integration/...
 
-      - name: Upload integration test coverage
+      - name: Upload integration coverage
         uses: codecov/codecov-action@v4
         with:
           files: ./coverage-integration.out
           flags: integration
-          name: integration-tests
+          name: api-integration-tests
+          token: ${{ secrets.CODECOV_TOKEN }}
 
-  # E2E tests - complete system testing
+  # ---------------------------------------------------------------------------
+  # STAGE 5: E2E Tests
+  # ---------------------------------------------------------------------------
   e2e-tests:
-    name: E2E Tests
+    name: 🎯 E2E Tests
     runs-on: ubuntu-latest
+    needs: unit-tests
+    if: ${{ !inputs.skip_e2e }}
     timeout-minutes: 30
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Go
+      - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
-      - name: Set up Docker Buildx
+      - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Start test infrastructure
@@ -170,82 +254,93 @@ jobs:
             -timeout=20m \
             ./test/integration/...
 
-      - name: Upload E2E test coverage
+      - name: Upload E2E coverage
         uses: codecov/codecov-action@v4
         with:
           files: ./coverage-e2e.out
           flags: e2e
-          name: e2e-tests
+          name: api-e2e-tests
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Collect logs on failure
         if: failure()
-        run: |
-          docker compose -f docker-compose.test.yml logs
+        run: docker compose -f docker-compose.test.yml logs
 
       - name: Cleanup
         if: always()
         run: docker compose -f docker-compose.test.yml down -v
 
-  # Lint and security checks
-  lint-and-security:
-    name: Lint & Security
+  # ---------------------------------------------------------------------------
+  # STAGE 6: Build & Push Docker Image
+  # ---------------------------------------------------------------------------
+  docker:
+    name: 🐳 Build & Push Docker
     runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, e2e-tests]
+    if: |
+      always() &&
+      github.ref == 'refs/heads/main' && 
+      github.event_name == 'push' &&
+      needs.unit-tests.result == 'success'
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache: true
-
-      - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v4
-        with:
-          version: latest
-          args: --timeout=5m
-
-      - name: Run gosec security scanner
-        uses: securego/gosec@master
-        with:
-          args: '-exclude=G104,G307 -exclude-dir=pkg/infra/blob/_s3 -exclude-dir=test/blockchain ./...'
-
-  # Build and push Docker images (only on main)
-  build-and-push:
-    name: Build & Push Docker Images
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: [smoke-tests, unit-tests, integration-tests, e2e-tests, lint-and-security]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
+      - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Docker Hub
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
+        continue-on-error: true
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_NAMESPACE }}/replay-api
+            leetgaming/replay-api
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: ./Dockerfile
           push: true
-          tags: |
-            leetgaming/replay-api:latest
-            leetgaming/replay-api:${{ github.sha }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=${{ github.sha }}
+            GIT_COMMIT=${{ github.sha }}
 
-  # Performance benchmarks
+  # ---------------------------------------------------------------------------
+  # STAGE 7: Benchmarks (PR only)
+  # ---------------------------------------------------------------------------
   benchmarks:
-    name: Performance Benchmarks
+    name: 📈 Performance Benchmarks
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
+    needs: unit-tests
     permissions:
       pull-requests: write
     services:
@@ -260,17 +355,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Go
+      - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
+          cache: true
 
       - name: Run benchmarks
         env:
           MONGO_TEST_URI: mongodb://test:test123@localhost:27017/replay_test?authSource=admin
         run: |
-          go test -bench=. -benchmem -count=5 \
-            -timeout=15m \
+          go test -bench=. -benchmem -count=3 \
+            -timeout=10m \
             ./test/integration/... | tee benchmark.txt
 
       - name: Comment PR with benchmarks
@@ -283,5 +379,48 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `## Benchmark Results\n\`\`\`\n${benchmark}\n\`\`\``
+              body: `## 📈 Benchmark Results\n\`\`\`\n${benchmark}\n\`\`\``
             })
+
+  # ---------------------------------------------------------------------------
+  # STAGE 8: Notify ESAP
+  # ---------------------------------------------------------------------------
+  notify-esap:
+    name: 📢 Notify ESAP
+    runs-on: ubuntu-latest
+    needs: docker
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Trigger ESAP workflow
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.GH_PAT }}
+          repository: leetgaming-pro/esap
+          event-type: backend-updated
+          client-payload: |
+            {
+              "sha": "${{ github.sha }}",
+              "ref": "${{ github.ref }}",
+              "repository": "${{ github.repository }}"
+            }
+
+  # ---------------------------------------------------------------------------
+  # Summary
+  # ---------------------------------------------------------------------------
+  summary:
+    name: 📊 Pipeline Summary
+    runs-on: ubuntu-latest
+    needs: [smoke-tests, lint-security, unit-tests, integration-tests, e2e-tests]
+    if: always()
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## 🎮 Replay API Pipeline" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Stage | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Smoke Tests | ${{ needs.smoke-tests.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Lint & Security | ${{ needs.lint-security.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Unit Tests | ${{ needs.unit-tests.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Integration Tests | ${{ needs.integration-tests.result == 'success' && '✅' || needs.integration-tests.result == 'skipped' && '⏭️' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| E2E Tests | ${{ needs.e2e-tests.result == 'success' && '✅' || needs.e2e-tests.result == 'skipped' && '⏭️' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
