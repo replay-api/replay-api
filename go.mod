@@ -1,6 +1,6 @@
 module github.com/replay-api/replay-api
 
-go 1.24.0
+go 1.23
 
 require (
 	github.com/golang/geo v0.0.0-20230421003525-6adc56603217
