@@ -113,7 +113,7 @@ func (hc *HealthController) DetailedHealthCheck(apiContext context.Context) http
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(statusCode)
-		json.NewEncoder(w).Encode(result)
+		_ = json.NewEncoder(w).Encode(result)
 	}
 }
 
@@ -163,6 +163,6 @@ func (hc *HealthController) ComponentHealth(apiContext context.Context) http.Han
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(component)
+		_ = json.NewEncoder(w).Encode(component)
 	}
 }

@@ -239,7 +239,7 @@ func (s *LedgerService) Deposit(ctx context.Context, req DepositRequest) (*walle
 
 	// Audit trail
 	if s.auditTrail != nil {
-		s.auditTrail.RecordFinancialEvent(ctx, billing_in.RecordFinancialEventRequest{
+		if err := s.auditTrail.RecordFinancialEvent(ctx, billing_in.RecordFinancialEventRequest{
 			EventType:     billing_entities.AuditEventDeposit,
 			UserID:        req.UserID,
 			TargetType:    "wallet",
@@ -251,7 +251,9 @@ func (s *LedgerService) Deposit(ctx context.Context, req DepositRequest) (*walle
 			TransactionID: journal.ID,
 			ExternalRef:   req.ExternalRef,
 			Description:   journal.Description,
-		})
+		}); err != nil {
+			slog.WarnContext(ctx, "Failed to record audit trail", "error", err)
+		}
 	}
 
 	slog.InfoContext(ctx, "Deposit processed",
