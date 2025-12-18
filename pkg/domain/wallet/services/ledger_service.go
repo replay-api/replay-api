@@ -222,7 +222,9 @@ func (s *LedgerService) Deposit(ctx context.Context, req DepositRequest) (*walle
 	}
 
 	// Mark journal as posted
-	journal.MarkApproved(req.UserID)
+	if err := journal.MarkApproved(req.UserID); err != nil {
+		return nil, fmt.Errorf("failed to approve journal: %w", err)
+	}
 	journal.MarkPosted()
 
 	if err := s.repo.CreateJournal(ctx, journal); err != nil {
@@ -231,7 +233,7 @@ func (s *LedgerService) Deposit(ctx context.Context, req DepositRequest) (*walle
 
 	// Audit trail
 	if s.auditTrail != nil {
-		s.auditTrail.RecordFinancialEvent(ctx, billing_in.RecordFinancialEventRequest{
+		if err := s.auditTrail.RecordFinancialEvent(ctx, billing_in.RecordFinancialEventRequest{
 			EventType:     billing_entities.AuditEventDeposit,
 			UserID:        req.UserID,
 			TargetType:    "wallet",
@@ -243,7 +245,9 @@ func (s *LedgerService) Deposit(ctx context.Context, req DepositRequest) (*walle
 			TransactionID: journal.ID,
 			ExternalRef:   req.ExternalRef,
 			Description:   journal.Description,
-		})
+		}); err != nil {
+			slog.WarnContext(ctx, "Failed to record audit trail for deposit", "error", err)
+		}
 	}
 
 	slog.InfoContext(ctx, "Deposit processed",
@@ -298,12 +302,18 @@ func (s *LedgerService) Withdraw(ctx context.Context, req WithdrawRequest) (*wal
 		resourceOwner,
 	)
 
-	journal.AddDebit(userAccount.ID, userAccount.Code, amount, "Withdrawal from user wallet")
-	journal.AddCredit(cashAccount.ID, cashAccount.Code, netAmount, "Cash disbursement")
+	if err := journal.AddDebit(userAccount.ID, userAccount.Code, amount, "Withdrawal from user wallet"); err != nil {
+		return nil, fmt.Errorf("failed to add debit entry: %w", err)
+	}
+	if err := journal.AddCredit(cashAccount.ID, cashAccount.Code, netAmount, "Cash disbursement"); err != nil {
+		return nil, fmt.Errorf("failed to add credit entry: %w", err)
+	}
 
 	if fee.Cmp(big.NewFloat(0)) > 0 {
 		feeAccount := s.systemAccounts["4001"]
-		journal.AddCredit(feeAccount.ID, feeAccount.Code, fee, "Withdrawal fee")
+		if err := journal.AddCredit(feeAccount.ID, feeAccount.Code, fee, "Withdrawal fee"); err != nil {
+			return nil, fmt.Errorf("failed to add fee credit entry: %w", err)
+		}
 	}
 
 	journal.Metadata["recipient_address"] = req.RecipientAddress
@@ -341,7 +351,9 @@ func (s *LedgerService) Withdraw(ctx context.Context, req WithdrawRequest) (*wal
 		return nil, fmt.Errorf("failed to update wallet: %w", err)
 	}
 
-	journal.MarkApproved(req.UserID)
+	if err := journal.MarkApproved(req.UserID); err != nil {
+		return nil, fmt.Errorf("failed to approve journal: %w", err)
+	}
 	journal.MarkPosted()
 
 	if err := s.repo.CreateJournal(ctx, journal); err != nil {
@@ -440,7 +452,9 @@ func (s *LedgerService) HoldFunds(ctx context.Context, userID uuid.UUID, amount 
 		return err
 	}
 
-	journal.MarkApproved(userID)
+	if err := journal.MarkApproved(userID); err != nil {
+		return fmt.Errorf("failed to approve journal: %w", err)
+	}
 	journal.MarkPosted()
 	
 	return s.repo.CreateJournal(ctx, journal)
@@ -505,7 +519,9 @@ func (s *LedgerService) ReleaseFunds(ctx context.Context, userID uuid.UUID, amou
 		return err
 	}
 
-	journal.MarkApproved(userID)
+	if err := journal.MarkApproved(userID); err != nil {
+		return fmt.Errorf("failed to approve journal: %w", err)
+	}
 	journal.MarkPosted()
 	
 	return s.repo.CreateJournal(ctx, journal)
