@@ -122,10 +122,10 @@ func (hc *HealthController) LivenessCheck(apiContext context.Context) http.Handl
 	return func(w http.ResponseWriter, r *http.Request) {
 		if hc.healthService.Liveness(r.Context()) {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("OK"))
+			_, _ = w.Write([]byte("OK"))
 		} else {
 			w.WriteHeader(http.StatusServiceUnavailable)
-			w.Write([]byte("NOT OK"))
+			_, _ = w.Write([]byte("NOT OK"))
 		}
 	}
 }
