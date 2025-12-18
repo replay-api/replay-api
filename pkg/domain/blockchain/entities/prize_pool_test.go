@@ -93,7 +93,7 @@ func TestOnChainPrizePool_AddParticipant(t *testing.T) {
 	addr, _ := wallet_vo.NewEVMAddress("0x1111111111111111111111111111111111111111")
 	contribution := wallet_vo.NewAmountFromCents(1000)
 
-	err := pool.AddParticipant(addr, contribution)
+	err := _ = pool.AddParticipant(addr, contribution)
 
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -115,8 +115,8 @@ func TestOnChainPrizePool_AddParticipant_Duplicate(t *testing.T) {
 	addr, _ := wallet_vo.NewEVMAddress("0x1111111111111111111111111111111111111111")
 	contribution := wallet_vo.NewAmountFromCents(1000)
 
-	_ = pool.AddParticipant(addr, contribution)
-	err := pool.AddParticipant(addr, contribution)
+	_ = _ = pool.AddParticipant(addr, contribution)
+	err := _ = pool.AddParticipant(addr, contribution)
 
 	if err == nil {
 		t.Error("Expected error for duplicate participant")
@@ -131,7 +131,7 @@ func TestOnChainPrizePool_AddParticipant_WrongStatus(t *testing.T) {
 	addr, _ := wallet_vo.NewEVMAddress("0x1111111111111111111111111111111111111111")
 	contribution := wallet_vo.NewAmountFromCents(1000)
 
-	err := pool.AddParticipant(addr, contribution)
+	err := _ = pool.AddParticipant(addr, contribution)
 
 	if err == nil {
 		t.Error("Expected error for wrong status")
@@ -143,7 +143,7 @@ func TestOnChainPrizePool_Lock(t *testing.T) {
 	pool := createPoolWithParticipants(2)
 	lockTxHash, _ := blockchain_vo.NewTxHash("0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890")
 
-	err := pool.Lock(lockTxHash)
+	err := _ = pool.Lock(lockTxHash)
 
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -164,7 +164,7 @@ func TestOnChainPrizePool_Lock_NotEnoughParticipants(t *testing.T) {
 	pool := createPoolWithParticipants(1)
 	lockTxHash, _ := blockchain_vo.NewTxHash("0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890")
 
-	err := pool.Lock(lockTxHash)
+	err := _ = pool.Lock(lockTxHash)
 
 	if err == nil {
 		t.Error("Expected error for not enough participants")
@@ -175,7 +175,7 @@ func TestOnChainPrizePool_Lock_NotEnoughParticipants(t *testing.T) {
 func TestOnChainPrizePool_StartEscrow(t *testing.T) {
 	pool := createPoolWithParticipants(2)
 	lockTxHash, _ := blockchain_vo.NewTxHash("0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890")
-	_ = pool.Lock(lockTxHash)
+	_ = _ = pool.Lock(lockTxHash)
 
 	err := pool.StartEscrow(24 * time.Hour)
 
@@ -382,7 +382,7 @@ func createPoolWithParticipants(count int) *OnChainPrizePool {
 	for i := 0; i < count; i++ {
 		addrHex := "0x" + string(rune('1'+i)) + "111111111111111111111111111111111111111"
 		addr, _ := wallet_vo.NewEVMAddress(addrHex[:42])
-		pool.AddParticipant(addr, wallet_vo.NewAmountFromCents(1000))
+		_ = pool.AddParticipant(addr, wallet_vo.NewAmountFromCents(1000))
 	}
 
 	return pool
@@ -391,7 +391,7 @@ func createPoolWithParticipants(count int) *OnChainPrizePool {
 func createPoolInEscrow() *OnChainPrizePool {
 	pool := createPoolWithParticipants(2)
 	lockTxHash, _ := blockchain_vo.NewTxHash("0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890")
-	pool.Lock(lockTxHash)
+	_ = pool.Lock(lockTxHash)
 	_ = pool.StartEscrow(24 * time.Hour)
 	return pool
 }

@@ -316,7 +316,7 @@ func TestSmartWallet_Activate(t *testing.T) {
 	wallet := createTestWallet()
 	setupWalletForActivation(wallet)
 
-	err := wallet.Activate()
+	err := _ = wallet.Activate()
 
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -335,7 +335,7 @@ func TestSmartWallet_Activate_NoKey(t *testing.T) {
 	// Add address but no MPC key
 	wallet.AddChainAddress(custody_vo.ChainSolanaMainnet, "test-address")
 
-	err := wallet.Activate()
+	err := _ = wallet.Activate()
 
 	if err == nil {
 		t.Error("Expected error for activation without MPC key")
@@ -347,7 +347,7 @@ func TestSmartWallet_Activate_NoAddress(t *testing.T) {
 	wallet := createTestWallet()
 	wallet.MasterKeyID = "test-key"
 
-	err := wallet.Activate()
+	err := _ = wallet.Activate()
 
 	if err == nil {
 		t.Error("Expected error for activation without address")
@@ -358,7 +358,7 @@ func TestSmartWallet_Activate_NoAddress(t *testing.T) {
 func TestSmartWallet_Suspend(t *testing.T) {
 	wallet := createTestWallet()
 	setupWalletForActivation(wallet)
-	wallet.Activate()
+	_ = wallet.Activate()
 
 	wallet.Suspend("Suspicious activity")
 
@@ -427,7 +427,7 @@ func TestSmartWallet_GetAddress_NotFound(t *testing.T) {
 func TestSmartWallet_CanSpend(t *testing.T) {
 	wallet := createTestWallet()
 	setupWalletForActivation(wallet)
-	wallet.Activate()
+	_ = wallet.Activate()
 
 	tests := []struct {
 		name      string
@@ -490,7 +490,7 @@ func TestSmartWallet_InitiateRecovery(t *testing.T) {
 
 	initiatorID := uuid.New()
 	newOwnerKey := []byte("new-owner-public-key-bytes")
-	err := wallet.InitiateRecovery(initiatorID, newOwnerKey)
+	err := _ = wallet.InitiateRecovery(initiatorID, newOwnerKey)
 
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -514,7 +514,7 @@ func TestSmartWallet_InitiateRecovery_NotEnabled(t *testing.T) {
 	wallet := createTestWallet()
 	wallet.RecoveryConfig.IsEnabled = false
 
-	err := wallet.InitiateRecovery(uuid.New(), []byte("new-key"))
+	err := _ = wallet.InitiateRecovery(uuid.New(), []byte("new-key"))
 
 	if err == nil {
 		t.Error("Expected error for recovery not enabled")
@@ -524,9 +524,9 @@ func TestSmartWallet_InitiateRecovery_NotEnabled(t *testing.T) {
 // TestSmartWallet_InitiateRecovery_AlreadyInProgress verifies duplicate recovery rejection
 func TestSmartWallet_InitiateRecovery_AlreadyInProgress(t *testing.T) {
 	wallet := createWalletWithRecovery()
-	wallet.InitiateRecovery(uuid.New(), []byte("key1"))
+	_ = wallet.InitiateRecovery(uuid.New(), []byte("key1"))
 
-	err := wallet.InitiateRecovery(uuid.New(), []byte("key2"))
+	err := _ = wallet.InitiateRecovery(uuid.New(), []byte("key2"))
 
 	if err == nil {
 		t.Error("Expected error for recovery already in progress")
@@ -536,7 +536,7 @@ func TestSmartWallet_InitiateRecovery_AlreadyInProgress(t *testing.T) {
 // TestSmartWallet_ApproveRecovery verifies guardian approval
 func TestSmartWallet_ApproveRecovery(t *testing.T) {
 	wallet := createWalletWithRecovery()
-	wallet.InitiateRecovery(uuid.New(), []byte("new-key"))
+	_ = wallet.InitiateRecovery(uuid.New(), []byte("new-key"))
 	guardianID := uuid.New()
 
 	err := wallet.ApproveRecovery(guardianID)
@@ -553,7 +553,7 @@ func TestSmartWallet_ApproveRecovery(t *testing.T) {
 // TestSmartWallet_ApproveRecovery_ThresholdMet verifies approval status change
 func TestSmartWallet_ApproveRecovery_ThresholdMet(t *testing.T) {
 	wallet := createWalletWithRecovery()
-	_ = wallet.InitiateRecovery(uuid.New(), []byte("new-key"))
+	_ = _ = wallet.InitiateRecovery(uuid.New(), []byte("new-key"))
 
 	// Approve by another guardian (threshold is 2, initiator already counts as 1)
 	_ = wallet.ApproveRecovery(uuid.New())
@@ -567,7 +567,7 @@ func TestSmartWallet_ApproveRecovery_ThresholdMet(t *testing.T) {
 func TestSmartWallet_ApproveRecovery_DuplicateApproval(t *testing.T) {
 	wallet := createWalletWithRecovery()
 	initiatorID := uuid.New()
-	wallet.InitiateRecovery(initiatorID, []byte("new-key"))
+	_ = wallet.InitiateRecovery(initiatorID, []byte("new-key"))
 
 	// Try to approve with the same ID that initiated
 	err := wallet.ApproveRecovery(initiatorID)
@@ -603,7 +603,7 @@ func setupWalletForActivation(wallet *SmartWallet) {
 func createWalletWithRecovery() *SmartWallet {
 	wallet := createTestWallet()
 	setupWalletForActivation(wallet)
-	_ = wallet.Activate()
+	_ = _ = wallet.Activate()
 
 	wallet.RecoveryConfig = &WalletRecoveryConfig{
 		IsEnabled:         true,

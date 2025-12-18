@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -208,10 +209,12 @@ func (s *RecoveryServiceImpl) RemoveGuardian(
 		return fmt.Errorf("failed to remove guardian: %w", err)
 	}
 
-	// Remove from on-chain (best effort)
+	// Remove from on-chain (best effort, log errors but don't fail)
 	for chainID, deployed := range wallet.AAConfig.IsDeployed {
 		if deployed {
-			s.removeGuardianOnChain(ctx, wallet, guardianID, chainID)
+			if err := s.removeGuardianOnChain(ctx, wallet, guardianID, chainID); err != nil {
+				slog.WarnContext(ctx, "Failed to remove guardian on-chain (best effort)", "chainID", chainID, "error", err)
+			}
 		}
 	}
 
@@ -520,10 +523,12 @@ func (s *RecoveryServiceImpl) CancelRecovery(
 		return fmt.Errorf("no recovery pending")
 	}
 
-	// Cancel on-chain
+	// Cancel on-chain (best effort, log errors but don't fail)
 	for chainID, deployed := range wallet.AAConfig.IsDeployed {
 		if deployed {
-			s.cancelRecoveryOnChain(ctx, wallet, chainID)
+			if err := s.cancelRecoveryOnChain(ctx, wallet, chainID); err != nil {
+				slog.WarnContext(ctx, "Failed to cancel recovery on-chain (best effort)", "chainID", chainID, "error", err)
+			}
 		}
 	}
 
