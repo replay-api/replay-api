@@ -1,334 +1,339 @@
-// Package auth_services implements authentication business logic
 package auth_services
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha1"
+	"encoding/base32"
+	"encoding/binary"
 	"fmt"
 	"log/slog"
+	"strings"
+	"time"
 
 	"github.com/google/uuid"
+	common "github.com/replay-api/replay-api/pkg/domain"
 	auth_entities "github.com/replay-api/replay-api/pkg/domain/auth/entities"
 	auth_in "github.com/replay-api/replay-api/pkg/domain/auth/ports/in"
-	_ "github.com/replay-api/replay-api/pkg/domain/auth/ports/out"
+	auth_out "github.com/replay-api/replay-api/pkg/domain/auth/ports/out"
+	email_out "github.com/replay-api/replay-api/pkg/domain/email/ports/out"
 )
 
-// MFAService implements MFA business logic
+const (
+	totpIssuer     = "LeetGaming.PRO"
+	backupCodeCount = 10
+)
+
 type MFAService struct {
-	verificationService auth_in.EmailVerificationCommand
-	mfaSettingsRepo     MFASettingsRepository
-	mfaSessionRepo      MFASessionRepository
+	mfaRepo        auth_out.MFARepository
+	passwordHasher email_out.PasswordHasher
 }
 
-// MFASettingsRepository defines persistence for MFA settings
-type MFASettingsRepository interface {
-	Save(ctx context.Context, settings *auth_entities.MFASettings) error
-	FindByUserID(ctx context.Context, userID uuid.UUID) (*auth_entities.MFASettings, error)
-	Update(ctx context.Context, settings *auth_entities.MFASettings) error
-}
-
-// MFASessionRepository defines persistence for MFA sessions
-type MFASessionRepository interface {
-	Save(ctx context.Context, session *auth_entities.MFASession) error
-	FindByID(ctx context.Context, id uuid.UUID) (*auth_entities.MFASession, error)
-	FindPendingByUserID(ctx context.Context, userID uuid.UUID) (*auth_entities.MFASession, error)
-	Update(ctx context.Context, session *auth_entities.MFASession) error
-	InvalidatePreviousSessions(ctx context.Context, userID uuid.UUID) error
-}
-
-// MFACommand defines the MFA command interface
-type MFACommand interface {
-	// EnableMFA enables MFA for a user
-	EnableMFA(ctx context.Context, userID uuid.UUID, method auth_entities.MFAMethod) (*auth_entities.MFASettings, error)
-
-	// DisableMFA disables MFA for a user (requires verification)
-	DisableMFA(ctx context.Context, userID uuid.UUID) error
-
-	// GetMFASettings gets MFA settings for a user
-	GetMFASettings(ctx context.Context, userID uuid.UUID) (*auth_entities.MFASettings, error)
-
-	// InitiateMFA starts an MFA challenge
-	InitiateMFA(ctx context.Context, userID uuid.UUID, action string, actionData map[string]any, ipAddress, userAgent string) (*auth_entities.MFASession, error)
-
-	// VerifyMFA verifies an MFA code
-	VerifyMFA(ctx context.Context, sessionID uuid.UUID, code string, ipAddress, userAgent string) (*MFAVerificationResult, error)
-
-	// GetMFASession gets an MFA session
-	GetMFASession(ctx context.Context, sessionID uuid.UUID) (*auth_entities.MFASession, error)
-
-	// GenerateRecoveryCodes generates new recovery codes
-	GenerateRecoveryCodes(ctx context.Context, userID uuid.UUID) ([]string, error)
-
-	// UseRecoveryCode uses a recovery code to bypass MFA
-	UseRecoveryCode(ctx context.Context, sessionID uuid.UUID, code string) (*MFAVerificationResult, error)
-}
-
-// MFAVerificationResult represents the result of MFA verification
-type MFAVerificationResult struct {
-	Success           bool                       `json:"success"`
-	Message           string                     `json:"message"`
-	Session           *auth_entities.MFASession  `json:"session,omitempty"`
-	RemainingAttempts int                        `json:"remaining_attempts,omitempty"`
-}
-
-// NewMFAService creates a new MFA service
 func NewMFAService(
-	verificationService auth_in.EmailVerificationCommand,
-	mfaSettingsRepo MFASettingsRepository,
-	mfaSessionRepo MFASessionRepository,
-) MFACommand {
+	mfaRepo auth_out.MFARepository,
+	passwordHasher email_out.PasswordHasher,
+) auth_in.MFACommand {
 	return &MFAService{
-		verificationService: verificationService,
-		mfaSettingsRepo:     mfaSettingsRepo,
-		mfaSessionRepo:      mfaSessionRepo,
+		mfaRepo:        mfaRepo,
+		passwordHasher: passwordHasher,
 	}
 }
 
-// EnableMFA enables MFA for a user
-func (s *MFAService) EnableMFA(ctx context.Context, userID uuid.UUID, method auth_entities.MFAMethod) (*auth_entities.MFASettings, error) {
-	// Get or create MFA settings
-	settings, err := s.mfaSettingsRepo.FindByUserID(ctx, userID)
-	if err != nil {
-		// Create new settings
-		settings = auth_entities.NewMFASettings(userID)
+// SetupTOTP initiates TOTP setup for a user
+func (s *MFAService) SetupTOTP(ctx context.Context, userID uuid.UUID, email string) (*auth_entities.MFASetupResponse, error) {
+	slog.InfoContext(ctx, "Setting up TOTP MFA", "user_id", userID)
+	
+	// Check if MFA already exists
+	existing, err := s.mfaRepo.GetByUserID(ctx, userID)
+	if err == nil && existing != nil && existing.Status == auth_entities.MFAStatusActive {
+		return nil, fmt.Errorf("MFA is already enabled for this user")
 	}
-
-	// Enable the specified method
-	settings.EnableMFA(method)
-
-	// Save settings
-	if settings.ID == uuid.Nil {
-		if err := s.mfaSettingsRepo.Save(ctx, settings); err != nil {
-			return nil, fmt.Errorf("failed to save MFA settings: %w", err)
+	
+	// Generate TOTP secret
+	secret, err := auth_entities.GenerateTOTPSecret()
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to generate TOTP secret", "error", err)
+		return nil, fmt.Errorf("failed to generate secret: %w", err)
+	}
+	
+	// Generate backup codes
+	backupCodes, err := auth_entities.GenerateBackupCodes(backupCodeCount)
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to generate backup codes", "error", err)
+		return nil, fmt.Errorf("failed to generate backup codes: %w", err)
+	}
+	
+	// Hash backup codes for storage
+	var hashedCodes []auth_entities.BackupCode
+	for _, code := range backupCodes {
+		hashedCode, err := s.passwordHasher.HashPassword(ctx, strings.ReplaceAll(code, "-", ""))
+		if err != nil {
+			slog.ErrorContext(ctx, "Failed to hash backup code", "error", err)
+			return nil, fmt.Errorf("failed to hash backup code: %w", err)
 		}
+		hashedCodes = append(hashedCodes, auth_entities.BackupCode{
+			Code:      hashedCode,
+			CreatedAt: time.Now(),
+		})
+	}
+	
+	// Create or update MFA record
+	rxn := common.GetResourceOwner(ctx)
+	mfa := auth_entities.NewUserMFA(userID, auth_entities.MFAMethodTOTP, rxn)
+	mfa.SetupTOTP(secret, totpIssuer, email)
+	mfa.BackupCodes = hashedCodes
+	mfa.BackupCodesLeft = len(hashedCodes)
+	
+	// If existing pending MFA, update it; otherwise create new
+	if existing != nil {
+		mfa.ID = existing.ID
+		_, err = s.mfaRepo.Update(ctx, mfa)
 	} else {
-		if err := s.mfaSettingsRepo.Update(ctx, settings); err != nil {
-			return nil, fmt.Errorf("failed to update MFA settings: %w", err)
-		}
+		_, err = s.mfaRepo.Create(ctx, mfa)
 	}
-
-	slog.InfoContext(ctx, "MFA enabled",
-		"user_id", userID,
-		"method", method)
-
-	return settings, nil
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to save MFA configuration", "error", err)
+		return nil, fmt.Errorf("failed to save MFA configuration: %w", err)
+	}
+	
+	// Generate otpauth URI (frontend will generate QR code)
+	uri := fmt.Sprintf("otpauth://totp/%s:%s?secret=%s&issuer=%s&algorithm=SHA1&digits=6&period=30",
+		totpIssuer, email, secret, totpIssuer)
+	
+	slog.InfoContext(ctx, "TOTP MFA setup initiated", "user_id", userID)
+	
+	return &auth_entities.MFASetupResponse{
+		Method:      auth_entities.MFAMethodTOTP,
+		Secret:      secret,
+		URI:         uri,
+		BackupCodes: backupCodes,
+	}, nil
 }
 
-// DisableMFA disables MFA for a user
-func (s *MFAService) DisableMFA(ctx context.Context, userID uuid.UUID) error {
-	settings, err := s.mfaSettingsRepo.FindByUserID(ctx, userID)
+// VerifyAndActivate verifies the TOTP code and activates MFA
+func (s *MFAService) VerifyAndActivate(ctx context.Context, userID uuid.UUID, code string) error {
+	slog.InfoContext(ctx, "Verifying and activating TOTP MFA", "user_id", userID)
+	
+	mfa, err := s.mfaRepo.GetByUserID(ctx, userID)
 	if err != nil {
-		return fmt.Errorf("MFA not configured for user")
+		return fmt.Errorf("MFA not found")
 	}
-
-	settings.DisableMFA()
-
-	if err := s.mfaSettingsRepo.Update(ctx, settings); err != nil {
-		return fmt.Errorf("failed to disable MFA: %w", err)
+	
+	if mfa.Status == auth_entities.MFAStatusActive {
+		return fmt.Errorf("MFA is already active")
 	}
-
-	slog.InfoContext(ctx, "MFA disabled", "user_id", userID)
-
+	
+	if mfa.TOTPConfig == nil {
+		return fmt.Errorf("TOTP not configured")
+	}
+	
+	// Verify the code
+	if !s.verifyTOTPCode(mfa.TOTPConfig.Secret, code) {
+		slog.WarnContext(ctx, "Invalid TOTP code during activation", "user_id", userID)
+		return fmt.Errorf("invalid TOTP code")
+	}
+	
+	// Activate MFA
+	mfa.Activate()
+	_, err = s.mfaRepo.Update(ctx, mfa)
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to activate MFA", "error", err)
+		return fmt.Errorf("failed to activate MFA: %w", err)
+	}
+	
+	slog.InfoContext(ctx, "TOTP MFA activated successfully", "user_id", userID)
 	return nil
 }
 
-// GetMFASettings gets MFA settings for a user
-func (s *MFAService) GetMFASettings(ctx context.Context, userID uuid.UUID) (*auth_entities.MFASettings, error) {
-	settings, err := s.mfaSettingsRepo.FindByUserID(ctx, userID)
+// Verify verifies a TOTP code during login
+func (s *MFAService) Verify(ctx context.Context, userID uuid.UUID, code string) error {
+	mfa, err := s.mfaRepo.GetByUserID(ctx, userID)
 	if err != nil {
-		// Return default disabled settings
-		return auth_entities.NewMFASettings(userID), nil
+		return fmt.Errorf("MFA not found")
 	}
-	return settings, nil
+	
+	if mfa.Status != auth_entities.MFAStatusActive {
+		return fmt.Errorf("MFA is not active")
+	}
+	
+	if mfa.TOTPConfig == nil {
+		return fmt.Errorf("TOTP not configured")
+	}
+	
+	if !s.verifyTOTPCode(mfa.TOTPConfig.Secret, code) {
+		slog.WarnContext(ctx, "Invalid TOTP code during verification", "user_id", userID)
+		return fmt.Errorf("invalid TOTP code")
+	}
+	
+	// Record usage
+	mfa.RecordUsage()
+	_, _ = s.mfaRepo.Update(ctx, mfa)
+	
+	slog.InfoContext(ctx, "TOTP verification successful", "user_id", userID)
+	return nil
 }
 
-// InitiateMFA starts an MFA challenge
-func (s *MFAService) InitiateMFA(ctx context.Context, userID uuid.UUID, action string, actionData map[string]any, ipAddress, userAgent string) (*auth_entities.MFASession, error) {
-	// Get MFA settings
-	settings, err := s.mfaSettingsRepo.FindByUserID(ctx, userID)
-	if err != nil || !settings.Enabled {
-		return nil, fmt.Errorf("MFA not enabled for user")
-	}
-
-	// Invalidate previous pending sessions
-	_ = s.mfaSessionRepo.InvalidatePreviousSessions(ctx, userID)
-
-	// Send verification code via email
-	verification, err := s.verificationService.SendVerificationEmail(ctx, auth_in.SendVerificationEmailCommand{
-		UserID:    userID,
-		Email:     settings.BackupEmail, // Use backup email or primary
-		Type:      auth_entities.VerificationTypeMFA,
-		IPAddress: ipAddress,
-		UserAgent: userAgent,
-	})
+// VerifyBackupCode verifies a backup code during login
+func (s *MFAService) VerifyBackupCode(ctx context.Context, userID uuid.UUID, code string) error {
+	mfa, err := s.mfaRepo.GetByUserID(ctx, userID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send MFA code: %w", err)
+		return fmt.Errorf("MFA not found")
 	}
-
-	// Create MFA session
-	session := auth_entities.NewMFASession(userID, verification.ID, settings.PrimaryMethod, MFACodeTTLMinutes)
-	session.SetRequestInfo(ipAddress, userAgent)
-	session.SetPendingAction(action, actionData)
-
-	if err := s.mfaSessionRepo.Save(ctx, session); err != nil {
-		return nil, fmt.Errorf("failed to save MFA session: %w", err)
+	
+	if mfa.Status != auth_entities.MFAStatusActive {
+		return fmt.Errorf("MFA is not active")
 	}
-
-	slog.InfoContext(ctx, "MFA challenge initiated",
-		"user_id", userID,
-		"session_id", session.ID,
-		"action", action)
-
-	return session, nil
-}
-
-// VerifyMFA verifies an MFA code
-func (s *MFAService) VerifyMFA(ctx context.Context, sessionID uuid.UUID, code string, ipAddress, userAgent string) (*MFAVerificationResult, error) {
-	// Get session
-	session, err := s.mfaSessionRepo.FindByID(ctx, sessionID)
-	if err != nil {
-		return &MFAVerificationResult{
-			Success: false,
-			Message: "Invalid MFA session",
-		}, nil
-	}
-
-	// Check session status
-	if !session.IsPending() {
-		if session.IsExpired() {
-			return &MFAVerificationResult{
-				Success: false,
-				Message: "MFA session has expired",
-			}, nil
+	
+	// Normalize code
+	normalizedCode := strings.ReplaceAll(strings.ToUpper(code), "-", "")
+	
+	// Check each unused backup code
+	for i, bc := range mfa.BackupCodes {
+		if bc.UsedAt != nil {
+			continue // Skip used codes
 		}
-		if session.IsVerified() {
-			return &MFAVerificationResult{
-				Success: true,
-				Message: "MFA already verified",
-				Session: session,
-			}, nil
+		
+		err := s.passwordHasher.ComparePassword(ctx, bc.Code, normalizedCode)
+		if err == nil {
+			// Code matches - mark as used
+			now := time.Now()
+			mfa.BackupCodes[i].UsedAt = &now
+			mfa.BackupCodesLeft--
+			mfa.RecordUsage()
+			
+			_, err = s.mfaRepo.Update(ctx, mfa)
+			if err != nil {
+				slog.ErrorContext(ctx, "Failed to update backup code status", "error", err)
+			}
+			
+			slog.InfoContext(ctx, "Backup code verification successful", "user_id", userID, "codes_remaining", mfa.BackupCodesLeft)
+			return nil
 		}
-		return &MFAVerificationResult{
-			Success: false,
-			Message: "MFA session is no longer valid",
-		}, nil
 	}
+	
+	slog.WarnContext(ctx, "Invalid backup code", "user_id", userID)
+	return fmt.Errorf("invalid backup code")
+}
 
-	// Verify the code through email verification service
-	result, err := s.verificationService.VerifyEmail(ctx, auth_in.VerifyEmailCommand{
-		Code:      code,
-		IPAddress: ipAddress,
-		UserAgent: userAgent,
-	})
+// Disable disables MFA for a user
+func (s *MFAService) Disable(ctx context.Context, userID uuid.UUID) error {
+	mfa, err := s.mfaRepo.GetByUserID(ctx, userID)
 	if err != nil {
-		session.IncrementAttempts()
-		_ = s.mfaSessionRepo.Update(ctx, session)
-
-		return &MFAVerificationResult{
-			Success:           false,
-			Message:           "Verification failed",
-			RemainingAttempts: session.RemainingAttempts(),
-		}, nil
+		return fmt.Errorf("MFA not found")
 	}
+	
+	mfa.Disable()
+	_, err = s.mfaRepo.Update(ctx, mfa)
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to disable MFA", "error", err)
+		return fmt.Errorf("failed to disable MFA: %w", err)
+	}
+	
+	slog.InfoContext(ctx, "MFA disabled successfully", "user_id", userID)
+	return nil
+}
 
-	if result.Verified {
-		session.MarkVerified()
-		if err := s.mfaSessionRepo.Update(ctx, session); err != nil {
-			slog.ErrorContext(ctx, "failed to update MFA session", "error", err)
+// GetStatus gets the current MFA status for a user
+func (s *MFAService) GetStatus(ctx context.Context, userID uuid.UUID) (*auth_entities.UserMFA, error) {
+	mfa, err := s.mfaRepo.GetByUserID(ctx, userID)
+	if err != nil {
+		// Return nil status for users without MFA
+		return nil, nil
+	}
+	
+	return mfa, nil
+}
+
+// RegenerateBackupCodes regenerates backup codes
+func (s *MFAService) RegenerateBackupCodes(ctx context.Context, userID uuid.UUID, code string) ([]string, error) {
+	mfa, err := s.mfaRepo.GetByUserID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("MFA not found")
+	}
+	
+	if mfa.Status != auth_entities.MFAStatusActive {
+		return nil, fmt.Errorf("MFA is not active")
+	}
+	
+	// Verify current TOTP code before regenerating
+	if !s.verifyTOTPCode(mfa.TOTPConfig.Secret, code) {
+		return nil, fmt.Errorf("invalid TOTP code")
+	}
+	
+	// Generate new backup codes
+	newCodes, err := auth_entities.GenerateBackupCodes(backupCodeCount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate backup codes: %w", err)
+	}
+	
+	// Hash and store new codes
+	var hashedCodes []auth_entities.BackupCode
+	for _, newCode := range newCodes {
+		hashedCode, err := s.passwordHasher.HashPassword(ctx, strings.ReplaceAll(newCode, "-", ""))
+		if err != nil {
+			return nil, fmt.Errorf("failed to hash backup code: %w", err)
 		}
-
-		slog.InfoContext(ctx, "MFA verified successfully",
-			"user_id", session.UserID,
-			"session_id", session.ID)
-
-		return &MFAVerificationResult{
-			Success: true,
-			Message: "MFA verification successful",
-			Session: session,
-		}, nil
+		hashedCodes = append(hashedCodes, auth_entities.BackupCode{
+			Code:      hashedCode,
+			CreatedAt: time.Now(),
+		})
 	}
-
-	session.IncrementAttempts()
-	_ = s.mfaSessionRepo.Update(ctx, session)
-
-	return &MFAVerificationResult{
-		Success:           false,
-		Message:           result.Message,
-		RemainingAttempts: session.RemainingAttempts(),
-	}, nil
+	
+	mfa.BackupCodes = hashedCodes
+	mfa.BackupCodesLeft = len(hashedCodes)
+	mfa.UpdatedAt = time.Now()
+	
+	_, err = s.mfaRepo.Update(ctx, mfa)
+	if err != nil {
+		return nil, fmt.Errorf("failed to save backup codes: %w", err)
+	}
+	
+	slog.InfoContext(ctx, "Backup codes regenerated", "user_id", userID)
+	return newCodes, nil
 }
 
-// GetMFASession gets an MFA session
-func (s *MFAService) GetMFASession(ctx context.Context, sessionID uuid.UUID) (*auth_entities.MFASession, error) {
-	return s.mfaSessionRepo.FindByID(ctx, sessionID)
+// verifyTOTPCode verifies a TOTP code
+func (s *MFAService) verifyTOTPCode(secret, code string) bool {
+	// Allow for time drift (1 step before and after current)
+	currentTime := time.Now().Unix()
+	timeSteps := []int64{-1, 0, 1}
+	
+	for _, step := range timeSteps {
+		expectedCode := generateTOTP(secret, currentTime/30+step)
+		if code == expectedCode {
+			return true
+		}
+	}
+	
+	return false
 }
 
-// GenerateRecoveryCodes generates new recovery codes
-func (s *MFAService) GenerateRecoveryCodes(ctx context.Context, userID uuid.UUID) ([]string, error) {
-	settings, err := s.mfaSettingsRepo.FindByUserID(ctx, userID)
+// generateTOTP generates a TOTP code for a given time step
+func generateTOTP(secret string, counter int64) string {
+	// Decode base32 secret
+	key, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(strings.ToUpper(secret))
 	if err != nil {
-		return nil, fmt.Errorf("MFA not configured for user")
+		return ""
 	}
-
-	codes, err := settings.GenerateRecoveryCodes()
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate recovery codes: %w", err)
-	}
-
-	if err := s.mfaSettingsRepo.Update(ctx, settings); err != nil {
-		return nil, fmt.Errorf("failed to save recovery codes: %w", err)
-	}
-
-	slog.InfoContext(ctx, "Recovery codes generated", "user_id", userID)
-
-	return codes, nil
+	
+	// Convert counter to bytes (big-endian)
+	msg := make([]byte, 8)
+	binary.BigEndian.PutUint64(msg, uint64(counter))
+	
+	// HMAC-SHA1
+	h := hmac.New(sha1.New, key)
+	h.Write(msg)
+	hash := h.Sum(nil)
+	
+	// Dynamic truncation
+	offset := hash[len(hash)-1] & 0x0f
+	code := int64(hash[offset]&0x7f)<<24 |
+		int64(hash[offset+1]&0xff)<<16 |
+		int64(hash[offset+2]&0xff)<<8 |
+		int64(hash[offset+3]&0xff)
+	
+	// Get 6 digits
+	code = code % 1000000
+	
+	return fmt.Sprintf("%06d", code)
 }
-
-// UseRecoveryCode uses a recovery code to bypass MFA
-func (s *MFAService) UseRecoveryCode(ctx context.Context, sessionID uuid.UUID, code string) (*MFAVerificationResult, error) {
-	session, err := s.mfaSessionRepo.FindByID(ctx, sessionID)
-	if err != nil {
-		return &MFAVerificationResult{
-			Success: false,
-			Message: "Invalid MFA session",
-		}, nil
-	}
-
-	if !session.IsPending() {
-		return &MFAVerificationResult{
-			Success: false,
-			Message: "MFA session is no longer valid",
-		}, nil
-	}
-
-	settings, err := s.mfaSettingsRepo.FindByUserID(ctx, session.UserID)
-	if err != nil {
-		return &MFAVerificationResult{
-			Success: false,
-			Message: "MFA settings not found",
-		}, nil
-	}
-
-	if settings.UseRecoveryCode(code) {
-		session.MarkVerified()
-		_ = s.mfaSessionRepo.Update(ctx, session)
-		_ = s.mfaSettingsRepo.Update(ctx, settings)
-
-		slog.WarnContext(ctx, "Recovery code used",
-			"user_id", session.UserID,
-			"remaining_codes", len(settings.RecoveryCodes))
-
-		return &MFAVerificationResult{
-			Success: true,
-			Message: "MFA bypassed with recovery code",
-			Session: session,
-		}, nil
-	}
-
-	return &MFAVerificationResult{
-		Success: false,
-		Message: "Invalid recovery code",
-	}, nil
-}
-
-// Ensure MFAService implements MFACommand
-var _ MFACommand = (*MFAService)(nil)

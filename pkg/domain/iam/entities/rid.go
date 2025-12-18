@@ -27,6 +27,7 @@ type RIDToken struct {
 	IntendedAudience common.IntendedAudienceKey `json:"-" bson:"intended_audience"`
 	GrantType        string                     `json:"-" bson:"grant_type"`
 	ExpiresAt        time.Time                  `json:"-" bson:"expires_at"`
+	RevokedAt        *time.Time                 `json:"-" bson:"revoked_at,omitempty"`
 	CreatedAt        time.Time                  `json:"-" bson:"created_at"`
 	UpdatedAt        time.Time                  `json:"-" bson:"updated_at"`
 }
@@ -37,4 +38,12 @@ func (t RIDToken) GetID() uuid.UUID {
 
 func (t RIDToken) IsExpired() bool {
 	return t.ExpiresAt.Before(time.Now())
+}
+
+func (t RIDToken) IsRevoked() bool {
+	return t.RevokedAt != nil
+}
+
+func (t RIDToken) IsValid() bool {
+	return !t.IsExpired() && !t.IsRevoked()
 }

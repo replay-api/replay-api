@@ -5,9 +5,10 @@ import (
 	"log/slog"
 	"time"
 
+	common "github.com/replay-api/replay-api/pkg/domain"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	squad "github.com/replay-api/replay-api/pkg/domain/squad"
 	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
 	squad_out "github.com/replay-api/replay-api/pkg/domain/squad/ports/out"
@@ -55,9 +56,15 @@ func (uc *AddSquadMemberUseCase) Exec(ctx context.Context, cmd squad_in.AddSquad
 		return nil, common.NewErrNotFound(common.ResourceTypeSquad, "ID", cmd.SquadID.String())
 	}
 
-	squad := squads[0]
+	squadEntity := squads[0]
 
-	// 3. Validate player exists
+	// 3. Authorization check - only owner or admin can add members
+	if err := squad.MustBeSquadOwnerOrAdmin(ctx, &squadEntity); err != nil {
+		slog.WarnContext(ctx, "Unauthorized squad member add attempt", "squad_id", cmd.SquadID, "user_id", common.GetResourceOwner(ctx).UserID, "error", err)
+		return nil, err
+	}
+
+	// 4. Validate player exists
 	players, err := uc.PlayerProfileReader.Search(ctx, common.NewSearchByID(ctx, cmd.PlayerID, common.ClientApplicationAudienceIDKey))
 	if err != nil {
 		return nil, err
@@ -67,14 +74,14 @@ func (uc *AddSquadMemberUseCase) Exec(ctx context.Context, cmd squad_in.AddSquad
 		return nil, common.NewErrNotFound(common.ResourceTypePlayerProfile, "ID", cmd.PlayerID.String())
 	}
 
-	// 4. Check if member already exists
-	for _, m := range squad.Membership {
+	// 5. Check if member already exists
+	for _, m := range squadEntity.Membership {
 		if m.PlayerProfileID == cmd.PlayerID {
 			return nil, common.NewErrAlreadyExists(common.ResourceTypeSquad, "MemberID", cmd.PlayerID.String())
 		}
 	}
 
-	// 5. Billing validation
+	// 6. Billing validation
 	billingCmd := billing_in.BillableOperationCommand{
 		OperationID: billing_entities.OperationTypeAddSquadMember,
 		UserID:      common.GetResourceOwner(ctx).UserID,
@@ -86,7 +93,7 @@ func (uc *AddSquadMemberUseCase) Exec(ctx context.Context, cmd squad_in.AddSquad
 		return nil, err
 	}
 
-	// 6. Add member to squad
+	// 7. Add member to squad
 	now := time.Now()
 	memberType := cmd.Type
 	if memberType == "" {
@@ -105,29 +112,29 @@ func (uc *AddSquadMemberUseCase) Exec(ctx context.Context, cmd squad_in.AddSquad
 			now: memberType,
 		},
 	}
-	squad.Membership = append(squad.Membership, newMembership)
+	squadEntity.Membership = append(squadEntity.Membership, newMembership)
 
-	// 7. Update squad
-	updatedSquad, err := uc.SquadWriter.Update(ctx, &squad)
+	// 8. Update squad
+	updatedSquad, err := uc.SquadWriter.Update(ctx, &squadEntity)
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to add squad member", "error", err, "squad_id", cmd.SquadID, "player_id", cmd.PlayerID)
 		return nil, err
 	}
 
-	// 8. Execute billing
+	// 9. Execute billing
 	_, _, billingErr := uc.billableOperationHandler.Exec(ctx, billingCmd)
 	if billingErr != nil {
 		slog.WarnContext(ctx, "Failed to execute billing for add squad member", "error", billingErr, "squad_id", cmd.SquadID)
 	}
 
-	// 9. Record history
+	// 10. Record history
 	history := squad_entities.NewSquadHistory(cmd.SquadID, common.GetResourceOwner(ctx).UserID, squad_entities.SquadMemberAdded, common.GetResourceOwner(ctx))
 	_, err = uc.SquadHistoryWriter.Create(ctx, history)
 	if err != nil {
 		slog.WarnContext(ctx, "Failed to create squad history for add member", "error", err, "squad_id", cmd.SquadID)
 	}
 
-	// 10. Log success
+	// 11. Log success
 	slog.InfoContext(ctx, "squad member added", "squad_id", cmd.SquadID, "player_id", cmd.PlayerID, "user_id", common.GetResourceOwner(ctx).UserID)
 
 	return updatedSquad, nil

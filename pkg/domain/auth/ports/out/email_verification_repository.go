@@ -46,3 +46,30 @@ type EmailSender interface {
 	// SendPasswordResetEmail sends a password reset email
 	SendPasswordResetEmail(ctx context.Context, email, token string, expiresAt string) error
 }
+
+// PasswordResetRepository defines persistence operations for password resets
+type PasswordResetRepository interface {
+	// Save creates a new password reset record
+	Save(ctx context.Context, reset *auth_entities.PasswordReset) error
+
+	// FindByID retrieves a reset request by its ID
+	FindByID(ctx context.Context, id uuid.UUID) (*auth_entities.PasswordReset, error)
+
+	// FindByToken retrieves a reset request by its token
+	FindByToken(ctx context.Context, token string) (*auth_entities.PasswordReset, error)
+
+	// FindByUserID retrieves the latest reset request for a user
+	FindByUserID(ctx context.Context, userID uuid.UUID) (*auth_entities.PasswordReset, error)
+
+	// FindPendingByEmail retrieves pending reset requests for an email
+	FindPendingByEmail(ctx context.Context, email string) (*auth_entities.PasswordReset, error)
+
+	// Update updates an existing reset request
+	Update(ctx context.Context, reset *auth_entities.PasswordReset) error
+
+	// InvalidatePreviousResets invalidates all previous resets for a user
+	InvalidatePreviousResets(ctx context.Context, userID uuid.UUID, email string) error
+
+	// CountRecentAttempts counts reset attempts in the last N minutes
+	CountRecentAttempts(ctx context.Context, email string, minutes int) (int, error)
+}

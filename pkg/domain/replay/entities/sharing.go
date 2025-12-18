@@ -84,3 +84,8 @@ func (s *ShareToken) Validate() error {
 	}
 	return nil
 }
+
+// IsValid checks if the share token is active and not expired
+func (s *ShareToken) IsValid() bool {
+	return s.Status == ShareTokenStatusActive && time.Now().Before(s.ExpiresAt)
+}

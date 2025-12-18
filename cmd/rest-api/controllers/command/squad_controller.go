@@ -544,3 +544,340 @@ func (ctrl *SquadController) DeleteSquadHandler(apiContext context.Context) http
 		w.WriteHeader(http.StatusNoContent)
 	}
 }
+
+// GetSquadStatsHandler handles GET /squads/{id}/stats
+func (ctrl *SquadController) GetSquadStatsHandler(apiContext context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		squadID := vars["id"]
+
+		if squadID == "" {
+			http.Error(w, "squad_id is required", http.StatusBadRequest)
+			return
+		}
+
+		squadUUID, err := uuid.Parse(squadID)
+		if err != nil {
+			http.Error(w, "invalid squad_id format", http.StatusBadRequest)
+			return
+		}
+
+		gameID := r.URL.Query().Get("game_id")
+		if gameID == "" {
+			gameID = "cs2" // Default game
+		}
+
+		// Get squad reader
+		var squadReader squad_in.SquadReader
+		if err := ctrl.container.Resolve(&squadReader); err != nil {
+			slog.ErrorContext(r.Context(), "Failed to resolve SquadReader", "error", err)
+			http.Error(w, "service unavailable", http.StatusServiceUnavailable)
+			return
+		}
+
+		// Get squad to verify existence
+		searchParams := []common.SearchAggregation{
+			{
+				Params: []common.SearchParameter{
+					{
+						ValueParams: []common.SearchableValue{
+							{Field: "ID", Values: []interface{}{squadUUID.String()}, Operator: common.EqualsOperator},
+						},
+					},
+				},
+			},
+		}
+		resultOpts := common.SearchResultOptions{Limit: 1}
+
+		compiledSearch, err := squadReader.Compile(r.Context(), searchParams, resultOpts)
+		if err != nil {
+			http.Error(w, "invalid search", http.StatusBadRequest)
+			return
+		}
+
+		squads, err := squadReader.Search(r.Context(), *compiledSearch)
+		if err != nil {
+			slog.ErrorContext(r.Context(), "Failed to fetch squad", "error", err)
+			http.Error(w, "error fetching squad", http.StatusInternalServerError)
+			return
+		}
+
+		if len(squads) == 0 {
+			http.Error(w, "squad not found", http.StatusNotFound)
+			return
+		}
+
+		squad := squads[0]
+
+		// Build statistics from squad membership
+		stats := map[string]interface{}{
+			"squad_id":       squadUUID,
+			"squad_name":     squad.Name,
+			"game_id":        string(squad.GameID),
+			"member_count":   len(squad.Membership),
+			"total_matches":  0,
+			"wins":           0,
+			"losses":         0,
+			"win_rate":       0.0,
+			"current_streak": 0,
+			"members":        []map[string]interface{}{},
+			"last_updated":   time.Now(),
+		}
+
+		// Add member details
+		members := []map[string]interface{}{}
+		for _, member := range squad.Membership {
+			members = append(members, map[string]interface{}{
+				"player_id": member.PlayerProfileID,
+				"type":      member.Type,
+				"roles":     member.Roles,
+			})
+		}
+		stats["members"] = members
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(stats)
+	}
+}
+
+// InvitePlayerHandler handles POST /squads/{id}/invitations
+func (ctrl *SquadController) InvitePlayerHandler(apiContext context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		squadID := vars["id"]
+
+		if squadID == "" {
+			http.Error(w, `{"error":"squad_id is required"}`, http.StatusBadRequest)
+			return
+		}
+
+		squadUUID, err := uuid.Parse(squadID)
+		if err != nil {
+			http.Error(w, `{"error":"invalid squad_id format"}`, http.StatusBadRequest)
+			return
+		}
+
+		var invitationCmd squad_in.InvitePlayerCommand
+		if err := json.NewDecoder(r.Body).Decode(&invitationCmd); err != nil {
+			http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+			return
+		}
+		invitationCmd.SquadID = squadUUID
+
+		var invitationUseCase squad_in.SquadInvitationCommand
+		if err := ctrl.container.Resolve(&invitationUseCase); err != nil {
+			http.Error(w, `{"error":"service unavailable"}`, http.StatusServiceUnavailable)
+			return
+		}
+
+		invitation, err := invitationUseCase.InvitePlayer(r.Context(), invitationCmd)
+		if err != nil {
+			slog.ErrorContext(r.Context(), "Failed to invite player", "error", err)
+			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(invitation)
+	}
+}
+
+// RequestJoinHandler handles POST /squads/{id}/join-requests
+func (ctrl *SquadController) RequestJoinHandler(apiContext context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		squadID := vars["id"]
+
+		if squadID == "" {
+			http.Error(w, `{"error":"squad_id is required"}`, http.StatusBadRequest)
+			return
+		}
+
+		squadUUID, err := uuid.Parse(squadID)
+		if err != nil {
+			http.Error(w, `{"error":"invalid squad_id format"}`, http.StatusBadRequest)
+			return
+		}
+
+		var joinCmd squad_in.RequestJoinCommand
+		if err := json.NewDecoder(r.Body).Decode(&joinCmd); err != nil {
+			// Allow empty body
+			joinCmd = squad_in.RequestJoinCommand{}
+		}
+		joinCmd.SquadID = squadUUID
+
+		var invitationUseCase squad_in.SquadInvitationCommand
+		if err := ctrl.container.Resolve(&invitationUseCase); err != nil {
+			http.Error(w, `{"error":"service unavailable"}`, http.StatusServiceUnavailable)
+			return
+		}
+
+		invitation, err := invitationUseCase.RequestJoin(r.Context(), joinCmd)
+		if err != nil {
+			slog.ErrorContext(r.Context(), "Failed to create join request", "error", err)
+			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(invitation)
+	}
+}
+
+// RespondToInvitationHandler handles POST /invitations/{invitation_id}/respond
+func (ctrl *SquadController) RespondToInvitationHandler(apiContext context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		invitationID := vars["invitation_id"]
+
+		if invitationID == "" {
+			http.Error(w, `{"error":"invitation_id is required"}`, http.StatusBadRequest)
+			return
+		}
+
+		invitationUUID, err := uuid.Parse(invitationID)
+		if err != nil {
+			http.Error(w, `{"error":"invalid invitation_id format"}`, http.StatusBadRequest)
+			return
+		}
+
+		var respondCmd squad_in.RespondToInvitationCommand
+		if err := json.NewDecoder(r.Body).Decode(&respondCmd); err != nil {
+			http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+			return
+		}
+		respondCmd.InvitationID = invitationUUID
+
+		var invitationUseCase squad_in.SquadInvitationCommand
+		if err := ctrl.container.Resolve(&invitationUseCase); err != nil {
+			http.Error(w, `{"error":"service unavailable"}`, http.StatusServiceUnavailable)
+			return
+		}
+
+		invitation, err := invitationUseCase.RespondToInvitation(r.Context(), respondCmd)
+		if err != nil {
+			slog.ErrorContext(r.Context(), "Failed to respond to invitation", "error", err)
+			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(invitation)
+	}
+}
+
+// CancelInvitationHandler handles DELETE /invitations/{invitation_id}
+func (ctrl *SquadController) CancelInvitationHandler(apiContext context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		invitationID := vars["invitation_id"]
+
+		if invitationID == "" {
+			http.Error(w, `{"error":"invitation_id is required"}`, http.StatusBadRequest)
+			return
+		}
+
+		invitationUUID, err := uuid.Parse(invitationID)
+		if err != nil {
+			http.Error(w, `{"error":"invalid invitation_id format"}`, http.StatusBadRequest)
+			return
+		}
+
+		var invitationUseCase squad_in.SquadInvitationCommand
+		if err := ctrl.container.Resolve(&invitationUseCase); err != nil {
+			http.Error(w, `{"error":"service unavailable"}`, http.StatusServiceUnavailable)
+			return
+		}
+
+		err = invitationUseCase.CancelInvitation(r.Context(), invitationUUID)
+		if err != nil {
+			slog.ErrorContext(r.Context(), "Failed to cancel invitation", "error", err)
+			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
+			return
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+// GetSquadInvitationsHandler handles GET /squads/{id}/invitations
+func (ctrl *SquadController) GetSquadInvitationsHandler(apiContext context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		squadID := vars["id"]
+
+		if squadID == "" {
+			http.Error(w, `{"error":"squad_id is required"}`, http.StatusBadRequest)
+			return
+		}
+
+		squadUUID, err := uuid.Parse(squadID)
+		if err != nil {
+			http.Error(w, `{"error":"invalid squad_id format"}`, http.StatusBadRequest)
+			return
+		}
+
+		var invitationUseCase squad_in.SquadInvitationCommand
+		if err := ctrl.container.Resolve(&invitationUseCase); err != nil {
+			http.Error(w, `{"error":"service unavailable"}`, http.StatusServiceUnavailable)
+			return
+		}
+
+		invitations, err := invitationUseCase.GetSquadInvitations(r.Context(), squadUUID)
+		if err != nil {
+			slog.ErrorContext(r.Context(), "Failed to get squad invitations", "error", err)
+			http.Error(w, `{"error":"failed to get invitations"}`, http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"invitations": invitations,
+			"count":       len(invitations),
+		})
+	}
+}
+
+// GetPlayerInvitationsHandler handles GET /players/{id}/invitations
+func (ctrl *SquadController) GetPlayerInvitationsHandler(apiContext context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		playerID := vars["id"]
+
+		if playerID == "" {
+			http.Error(w, `{"error":"player_id is required"}`, http.StatusBadRequest)
+			return
+		}
+
+		playerUUID, err := uuid.Parse(playerID)
+		if err != nil {
+			http.Error(w, `{"error":"invalid player_id format"}`, http.StatusBadRequest)
+			return
+		}
+
+		var invitationUseCase squad_in.SquadInvitationCommand
+		if err := ctrl.container.Resolve(&invitationUseCase); err != nil {
+			http.Error(w, `{"error":"service unavailable"}`, http.StatusServiceUnavailable)
+			return
+		}
+
+		invitations, err := invitationUseCase.GetPendingInvitations(r.Context(), playerUUID)
+		if err != nil {
+			slog.ErrorContext(r.Context(), "Failed to get player invitations", "error", err)
+			http.Error(w, `{"error":"failed to get invitations"}`, http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"invitations": invitations,
+			"count":       len(invitations),
+		})
+	}
+}

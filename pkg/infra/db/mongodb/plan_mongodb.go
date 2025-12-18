@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -114,4 +115,61 @@ func (repo *PlanRepository) GetDefaultFreePlan(ctx context.Context) (*billing_en
 	slog.Info("Successfully retrieved default free plan.", "plan", plan)
 
 	return &plan, nil
+}
+
+// GetByID retrieves a plan by its ID
+func (repo *PlanRepository) GetByID(ctx context.Context, id uuid.UUID) (*billing_entities.Plan, error) {
+	var plan billing_entities.Plan
+	err := repo.collection.FindOne(ctx, bson.M{
+		"baseentity._id": id,
+	}).Decode(&plan)
+
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		slog.ErrorContext(ctx, "Failed to retrieve plan by ID", "id", id, "err", err)
+		return nil, err
+	}
+
+	return &plan, nil
+}
+
+// GetAvailablePlans retrieves all available plans
+func (repo *PlanRepository) GetAvailablePlans(ctx context.Context) ([]*billing_entities.Plan, error) {
+	opts := options.Find().SetSort(bson.D{
+		{Key: "display_priority_score", Value: -1},
+		{Key: "kind", Value: 1},
+	})
+
+	cursor, err := repo.collection.Find(ctx, bson.M{
+		"is_active":    true,
+		"is_legacy":    false,
+		"is_available": true,
+		"effective_date": bson.M{
+			"$lte": time.Now(),
+		},
+		"$or": []bson.M{
+			{"expiration_date": bson.M{"$gte": time.Now()}},
+			{"expiration_date": bson.M{"$eq": nil}},
+		},
+	}, opts)
+
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to retrieve available plans", "err", err)
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var plans []*billing_entities.Plan
+	for cursor.Next(ctx) {
+		var plan billing_entities.Plan
+		if err := cursor.Decode(&plan); err != nil {
+			slog.ErrorContext(ctx, "Failed to decode plan", "err", err)
+			continue
+		}
+		plans = append(plans, &plan)
+	}
+
+	return plans, nil
 }

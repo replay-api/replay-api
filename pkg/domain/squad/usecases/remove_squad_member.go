@@ -4,9 +4,10 @@ import (
 	"context"
 	"log/slog"
 
+	common "github.com/replay-api/replay-api/pkg/domain"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	squad "github.com/replay-api/replay-api/pkg/domain/squad"
 	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
 	squad_out "github.com/replay-api/replay-api/pkg/domain/squad/ports/out"
@@ -50,12 +51,12 @@ func (uc *RemoveSquadMemberUseCase) Exec(ctx context.Context, cmd squad_in.Remov
 		return nil, common.NewErrNotFound(common.ResourceTypeSquad, "ID", cmd.SquadID.String())
 	}
 
-	squad := squads[0]
+	squadEntity := squads[0]
 
 	// 3. Check if member exists
 	memberFound := false
 	memberIndex := -1
-	for i, m := range squad.Membership {
+	for i, m := range squadEntity.Membership {
 		if m.PlayerProfileID == cmd.PlayerID {
 			memberFound = true
 			memberIndex = i
@@ -66,7 +67,13 @@ func (uc *RemoveSquadMemberUseCase) Exec(ctx context.Context, cmd squad_in.Remov
 		return nil, common.NewErrNotFound(common.ResourceTypeSquad, "MemberID", cmd.PlayerID.String())
 	}
 
-	// 4. Billing validation
+	// 4. Authorization check - owner/admin can remove anyone, members can remove themselves
+	if err := squad.CanRemoveSquadMember(ctx, &squadEntity, cmd.PlayerID); err != nil {
+		slog.WarnContext(ctx, "Unauthorized squad member removal attempt", "squad_id", cmd.SquadID, "target_player", cmd.PlayerID, "user_id", common.GetResourceOwner(ctx).UserID, "error", err)
+		return nil, err
+	}
+
+	// 5. Billing validation
 	billingCmd := billing_in.BillableOperationCommand{
 		OperationID: billing_entities.OperationTypeRemoveSquadMember,
 		UserID:      common.GetResourceOwner(ctx).UserID,
@@ -78,30 +85,30 @@ func (uc *RemoveSquadMemberUseCase) Exec(ctx context.Context, cmd squad_in.Remov
 		return nil, err
 	}
 
-	// 5. Remove member from squad (slice removal)
-	squad.Membership = append(squad.Membership[:memberIndex], squad.Membership[memberIndex+1:]...)
+	// 6. Remove member from squad (slice removal)
+	squadEntity.Membership = append(squadEntity.Membership[:memberIndex], squadEntity.Membership[memberIndex+1:]...)
 
-	// 6. Update squad
-	updatedSquad, err := uc.SquadWriter.Update(ctx, &squad)
+	// 7. Update squad
+	updatedSquad, err := uc.SquadWriter.Update(ctx, &squadEntity)
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to remove squad member", "error", err, "squad_id", cmd.SquadID, "player_id", cmd.PlayerID)
 		return nil, err
 	}
 
-	// 7. Execute billing
+	// 8. Execute billing
 	_, _, billingErr := uc.billableOperationHandler.Exec(ctx, billingCmd)
 	if billingErr != nil {
 		slog.WarnContext(ctx, "Failed to execute billing for remove squad member", "error", billingErr, "squad_id", cmd.SquadID)
 	}
 
-	// 8. Record history
+	// 9. Record history
 	history := squad_entities.NewSquadHistory(cmd.SquadID, common.GetResourceOwner(ctx).UserID, squad_entities.SquadMemberRemoved, common.GetResourceOwner(ctx))
 	_, err = uc.SquadHistoryWriter.Create(ctx, history)
 	if err != nil {
 		slog.WarnContext(ctx, "Failed to create squad history for remove member", "error", err, "squad_id", cmd.SquadID)
 	}
 
-	// 9. Log success
+	// 10. Log success
 	slog.InfoContext(ctx, "squad member removed", "squad_id", cmd.SquadID, "player_id", cmd.PlayerID, "user_id", common.GetResourceOwner(ctx).UserID)
 
 	return updatedSquad, nil

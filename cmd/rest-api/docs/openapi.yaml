@@ -1,0 +1,1189 @@
+openapi: 3.1.0
+info:
+  title: LeetGaming Pro API
+  description: |
+    # 🎮 LeetGaming Pro - Competitive Gaming Platform API
+
+    Welcome to the LeetGaming Pro API documentation. This API powers a professional-grade
+    competitive gaming platform with features including:
+
+    - **Authentication & Security**: OAuth2, MFA/TOTP, JWT tokens
+    - **Matchmaking**: Glicko-2 rating system, skill-based matching
+    - **Tournaments**: Bracket generation, prize pools, blockchain verification
+    - **Replays**: Upload, analysis, sharing with demo parsing
+    - **Squads**: Team management, invitations, statistics
+    - **Billing**: Subscriptions, withdrawals, audit trails
+
+    ## 🔐 Authentication
+
+    Most endpoints require authentication via Bearer token:
+    ```
+    Authorization: Bearer <your-jwt-token>
+    ```
+
+    ## 📊 Rate Limits
+
+    | Tier | Requests/min | Burst |
+    |------|--------------|-------|
+    | Free | 60 | 10 |
+    | Pro | 300 | 50 |
+    | Enterprise | 1000 | 200 |
+
+    ## 🌐 Base URLs
+
+    | Environment | URL |
+    |-------------|-----|
+    | Production | https://api.leetgaming.gg |
+    | Staging | https://api.staging.leetgaming.gg |
+    | Development | http://localhost:8080 |
+
+  version: 2.0.0
+  contact:
+    name: LeetGaming Pro Support
+    url: https://leetgaming.gg/support
+    email: api@leetgaming.gg
+  license:
+    name: Proprietary
+    url: https://leetgaming.gg/terms
+
+servers:
+  - url: https://api.leetgaming.gg
+    description: Production
+  - url: https://api.staging.leetgaming.gg
+    description: Staging
+  - url: http://localhost:8080
+    description: Local Development
+
+tags:
+  - name: Authentication
+    description: User authentication, MFA, and session management
+  - name: Players
+    description: Player profiles and ratings
+  - name: Matches
+    description: Match management and results
+  - name: Matchmaking
+    description: Queue management and skill-based matching
+  - name: Tournaments
+    description: Tournament creation and management
+  - name: Prize Pools
+    description: Prize pool management and distribution
+  - name: Squads
+    description: Team management and invitations
+  - name: Replays
+    description: Replay upload, download, and analysis
+  - name: Billing
+    description: Subscriptions, payments, and withdrawals
+  - name: Leaderboard
+    description: Rankings and statistics
+
+paths:
+  # Authentication
+  /auth/signup:
+    post:
+      tags: [Authentication]
+      summary: Register a new user
+      operationId: signUp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignUpRequest'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /auth/signin:
+    post:
+      tags: [Authentication]
+      summary: Sign in with credentials
+      operationId: signIn
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignInRequest'
+      responses:
+        '200':
+          description: Successfully authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Refresh access token
+      operationId: refreshToken
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+
+  /auth/mfa/setup:
+    post:
+      tags: [Authentication]
+      summary: Set up MFA/TOTP
+      operationId: setupMFA
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: MFA setup initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MFASetupResponse'
+
+  /auth/mfa/verify:
+    post:
+      tags: [Authentication]
+      summary: Verify MFA code
+      operationId: verifyMFA
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+                  pattern: '^\d{6}$'
+      responses:
+        '200':
+          description: MFA verified
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # Players
+  /players/{player_id}:
+    get:
+      tags: [Players]
+      summary: Get player profile
+      operationId: getPlayerProfile
+      parameters:
+        - $ref: '#/components/parameters/PlayerId'
+      responses:
+        '200':
+          description: Player profile retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerProfile'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Players]
+      summary: Update player profile
+      operationId: updatePlayerProfile
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PlayerId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePlayerRequest'
+      responses:
+        '200':
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerProfile'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /players/{player_id}/rating:
+    get:
+      tags: [Players]
+      summary: Get player rating (Glicko-2)
+      operationId: getPlayerRating
+      parameters:
+        - $ref: '#/components/parameters/PlayerId'
+      responses:
+        '200':
+          description: Player rating retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerRating'
+
+  # Matchmaking
+  /matchmaking/queue:
+    post:
+      tags: [Matchmaking]
+      summary: Join matchmaking queue
+      operationId: joinQueue
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JoinQueueRequest'
+      responses:
+        '200':
+          description: Joined queue
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueueStatus'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+    delete:
+      tags: [Matchmaking]
+      summary: Leave matchmaking queue
+      operationId: leaveQueue
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Left queue
+
+  /matchmaking/pool/{pool_id}/stats:
+    get:
+      tags: [Matchmaking]
+      summary: Get pool statistics and estimated wait time
+      operationId: getPoolStats
+      parameters:
+        - name: pool_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Pool statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolStats'
+
+  # Leaderboard
+  /leaderboard:
+    get:
+      tags: [Leaderboard]
+      summary: Get global leaderboard
+      operationId: getLeaderboard
+      parameters:
+        - name: game_id
+          in: query
+          schema:
+            type: string
+        - name: region
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+            maximum: 500
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Leaderboard data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaderboardResponse'
+
+  # Tournaments
+  /tournaments:
+    get:
+      tags: [Tournaments]
+      summary: List tournaments
+      operationId: listTournaments
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [upcoming, active, completed]
+        - name: game_id
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Tournament list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Tournament'
+
+    post:
+      tags: [Tournaments]
+      summary: Create a tournament
+      operationId: createTournament
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTournamentRequest'
+      responses:
+        '201':
+          description: Tournament created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tournament'
+
+  /tournaments/{tournament_id}/prize-pool:
+    get:
+      tags: [Prize Pools]
+      summary: Get tournament prize pool status
+      operationId: getPrizePool
+      parameters:
+        - $ref: '#/components/parameters/TournamentId'
+      responses:
+        '200':
+          description: Prize pool status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrizePoolStatus'
+
+  /tournaments/{tournament_id}/prize-pool/distribute:
+    post:
+      tags: [Prize Pools]
+      summary: Distribute prizes to winners
+      operationId: distributePrizes
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TournamentId'
+      responses:
+        '200':
+          description: Distribution initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DistributionResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /tournaments/{tournament_id}/prize-pool/verify/{payout_id}:
+    get:
+      tags: [Prize Pools]
+      summary: Get blockchain verification proof for payout
+      operationId: verifyPayout
+      parameters:
+        - $ref: '#/components/parameters/TournamentId'
+        - name: payout_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Payout verification proof
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PayoutProof'
+
+  # Squads
+  /squads:
+    post:
+      tags: [Squads]
+      summary: Create a squad
+      operationId: createSquad
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSquadRequest'
+      responses:
+        '201':
+          description: Squad created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Squad'
+
+  /squads/{squad_id}/invitations:
+    post:
+      tags: [Squads]
+      summary: Send squad invitation
+      operationId: sendSquadInvitation
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SquadId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SquadInvitationRequest'
+      responses:
+        '201':
+          description: Invitation sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SquadInvitation'
+
+  /squads/{squad_id}/statistics:
+    get:
+      tags: [Squads]
+      summary: Get squad statistics
+      operationId: getSquadStatistics
+      parameters:
+        - $ref: '#/components/parameters/SquadId'
+      responses:
+        '200':
+          description: Squad statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SquadStatistics'
+
+  # Replays
+  /games/{game_id}/replays:
+    post:
+      tags: [Replays]
+      summary: Upload a replay file
+      operationId: uploadReplay
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/GameId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                visibility:
+                  type: string
+                  enum: [public, private, unlisted]
+                  default: private
+      responses:
+        '201':
+          description: Replay uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReplayFile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /games/{game_id}/replays/{replay_id}/download:
+    get:
+      tags: [Replays]
+      summary: Download replay file
+      operationId: downloadReplay
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/GameId'
+        - $ref: '#/components/parameters/ReplayId'
+        - name: share_token
+          in: query
+          description: Share token for accessing private replays
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Replay file
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Billing
+  /withdrawals:
+    post:
+      tags: [Billing]
+      summary: Request a withdrawal
+      operationId: createWithdrawal
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WithdrawalRequest'
+      responses:
+        '201':
+          description: Withdrawal created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Withdrawal'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /withdrawals/{id}:
+    get:
+      tags: [Billing]
+      summary: Get withdrawal details
+      operationId: getWithdrawal
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Withdrawal details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Withdrawal'
+
+  /subscriptions/upgrade:
+    post:
+      tags: [Billing]
+      summary: Upgrade subscription
+      operationId: upgradeSubscription
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubscriptionUpgradeRequest'
+      responses:
+        '200':
+          description: Subscription upgraded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    PlayerId:
+      name: player_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    TournamentId:
+      name: tournament_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    SquadId:
+      name: squad_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    GameId:
+      name: game_id
+      in: path
+      required: true
+      schema:
+        type: string
+    ReplayId:
+      name: replay_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      required: [message, code]
+      properties:
+        message:
+          type: string
+        code:
+          type: string
+        details:
+          type: object
+
+    SignUpRequest:
+      type: object
+      required: [email, password, username]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 12
+        username:
+          type: string
+          minLength: 3
+          maxLength: 32
+
+    SignInRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+        mfa_code:
+          type: string
+          pattern: '^\d{6}$'
+
+    AuthResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        expires_in:
+          type: integer
+        user:
+          $ref: '#/components/schemas/User'
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        username:
+          type: string
+        mfa_enabled:
+          type: boolean
+
+    MFASetupResponse:
+      type: object
+      properties:
+        secret:
+          type: string
+        qr_code_url:
+          type: string
+          format: uri
+        recovery_codes:
+          type: array
+          items:
+            type: string
+
+    PlayerProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        display_name:
+          type: string
+        avatar_url:
+          type: string
+          format: uri
+        bio:
+          type: string
+        country:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    PlayerRating:
+      type: object
+      properties:
+        player_id:
+          type: string
+          format: uuid
+        rating:
+          type: number
+          format: double
+        rating_deviation:
+          type: number
+          format: double
+        volatility:
+          type: number
+          format: double
+        rank:
+          type: string
+          enum: [Unranked, Silver, Gold, Platinum, Diamond, Master, Grandmaster, Global Elite]
+        games_played:
+          type: integer
+        wins:
+          type: integer
+        losses:
+          type: integer
+
+    UpdatePlayerRequest:
+      type: object
+      properties:
+        display_name:
+          type: string
+        bio:
+          type: string
+        country:
+          type: string
+        base64_avatar:
+          type: string
+        avatar_extension:
+          type: string
+
+    JoinQueueRequest:
+      type: object
+      required: [game_id, queue_type]
+      properties:
+        game_id:
+          type: string
+        queue_type:
+          type: string
+          enum: [ranked, casual, competitive]
+        squad_id:
+          type: string
+          format: uuid
+
+    QueueStatus:
+      type: object
+      properties:
+        queue_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [queued, matching, matched]
+        position:
+          type: integer
+        estimated_wait_seconds:
+          type: integer
+
+    PoolStats:
+      type: object
+      properties:
+        pool_id:
+          type: string
+          format: uuid
+        active_sessions:
+          type: integer
+        average_wait_time_seconds:
+          type: number
+        estimated_match_time_seconds:
+          type: number
+
+    LeaderboardResponse:
+      type: object
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/LeaderboardEntry'
+        total_count:
+          type: integer
+
+    LeaderboardEntry:
+      type: object
+      properties:
+        rank:
+          type: integer
+        player_id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        rating:
+          type: number
+        tier:
+          type: string
+        games_played:
+          type: integer
+        win_rate:
+          type: number
+
+    Tournament:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        game_id:
+          type: string
+        status:
+          type: string
+          enum: [draft, registration, active, completed, cancelled]
+        format:
+          type: string
+          enum: [single_elimination, double_elimination, round_robin, swiss]
+        max_participants:
+          type: integer
+        prize_pool_amount:
+          type: string
+        prize_pool_currency:
+          type: string
+        starts_at:
+          type: string
+          format: date-time
+
+    CreateTournamentRequest:
+      type: object
+      required: [name, game_id, format, max_participants]
+      properties:
+        name:
+          type: string
+        game_id:
+          type: string
+        format:
+          type: string
+          enum: [single_elimination, double_elimination, round_robin, swiss]
+        max_participants:
+          type: integer
+          minimum: 4
+          maximum: 1024
+        entry_fee:
+          type: number
+        starts_at:
+          type: string
+          format: date-time
+
+    PrizePoolStatus:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tournament_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, funded, distributing, completed, disputed]
+        total_amount:
+          type: string
+        currency:
+          type: string
+        platform_fee:
+          type: string
+        distributable_amount:
+          type: string
+        blockchain_verified:
+          type: boolean
+        merkle_root:
+          type: string
+
+    DistributionResult:
+      type: object
+      properties:
+        pool_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        completed_payouts:
+          type: integer
+        failed_payouts:
+          type: integer
+
+    PayoutProof:
+      type: object
+      properties:
+        payout_id:
+          type: string
+          format: uuid
+        amount:
+          type: string
+        currency:
+          type: string
+        payout_hash:
+          type: string
+        merkle_root:
+          type: string
+        merkle_proof:
+          type: array
+          items:
+            type: string
+        transaction_hash:
+          type: string
+        verified_on_chain:
+          type: boolean
+
+    Squad:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        tag:
+          type: string
+        logo_url:
+          type: string
+          format: uri
+        member_count:
+          type: integer
+
+    CreateSquadRequest:
+      type: object
+      required: [name, tag]
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 64
+        tag:
+          type: string
+          minLength: 2
+          maxLength: 6
+
+    SquadInvitationRequest:
+      type: object
+      required: [player_id]
+      properties:
+        player_id:
+          type: string
+          format: uuid
+        role:
+          type: string
+          default: member
+
+    SquadInvitation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        squad_id:
+          type: string
+          format: uuid
+        player_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, accepted, declined, canceled, expired]
+        expires_at:
+          type: string
+          format: date-time
+
+    SquadStatistics:
+      type: object
+      properties:
+        squad_id:
+          type: string
+          format: uuid
+        total_matches:
+          type: integer
+        wins:
+          type: integer
+        losses:
+          type: integer
+        win_rate:
+          type: number
+        average_rating:
+          type: number
+
+    ReplayFile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        game_id:
+          type: string
+        map_name:
+          type: string
+        visibility:
+          type: string
+          enum: [public, private, unlisted]
+        duration_seconds:
+          type: integer
+        file_size:
+          type: integer
+        uploaded_at:
+          type: string
+          format: date-time
+
+    WithdrawalRequest:
+      type: object
+      required: [amount, currency, method, recipient_address]
+      properties:
+        amount:
+          type: number
+          minimum: 10
+        currency:
+          type: string
+        method:
+          type: string
+          enum: [crypto, bank_transfer, paypal]
+        recipient_address:
+          type: string
+
+    Withdrawal:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        amount:
+          type: number
+        currency:
+          type: string
+        method:
+          type: string
+        status:
+          type: string
+          enum: [pending, approved, processing, completed, failed, canceled]
+        fee:
+          type: number
+        net_amount:
+          type: number
+        requested_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+
+    SubscriptionUpgradeRequest:
+      type: object
+      required: [plan_id]
+      properties:
+        plan_id:
+          type: string
+          format: uuid
+
+    Subscription:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        plan_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [active, canceled, expired, pending]
+        billing_period:
+          type: string
+          enum: [monthly, yearly]
+        start_at:
+          type: string
+          format: date-time
+        end_at:
+          type: string
+          format: date-time
+
+security:
+  - bearerAuth: []
+
