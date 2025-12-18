@@ -61,7 +61,7 @@ func (hc *HealthController) HealthCheck(apiContext context.Context) http.Handler
 			Uptime:    time.Since(startTime).Round(time.Second).String(),
 		}
 
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}
 }
 
@@ -95,7 +95,7 @@ func (hc *HealthController) ReadinessCheck(apiContext context.Context) http.Hand
 			Checks:    checks,
 		}
 
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}
 }
 

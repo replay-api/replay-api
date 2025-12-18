@@ -38,7 +38,7 @@ type WalletOrchestrator struct {
 	// Configuration
 	config *OrchestratorConfig
 
-	mu sync.RWMutex
+	mu sync.RWMutex //nolint:unused // Reserved for thread-safe operations
 }
 
 // OrchestratorConfig contains orchestrator configuration
