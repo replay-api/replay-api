@@ -457,7 +457,7 @@ func (o *WalletOrchestrator) deployEVMWallet(
 		wallet.BaseEntity.ID,
 		wallet.PublicKey,
 		o.config.EntryPoints[chainID],
-		big.NewInt(int64(wallet.Limits.DailyLimit)),
+		big.NewInt(int64(wallet.Limits.DailyLimit)), // #nosec G115 - daily limit is bounded and validated
 		recoveryDelay,
 	)
 
