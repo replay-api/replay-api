@@ -184,6 +184,8 @@ func g(phi float64) float64 {
 }
 
 // E(μ, μj, φj) - expected score function
+//
+//nolint:unused // Reserved for Glicko-2 algorithm implementation
 func expectedScore(mu, muJ, phiJ float64) float64 {
 	return 1.0 / (1.0 + math.Exp(-g(phiJ)*(mu-muJ)))
 }

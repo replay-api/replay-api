@@ -250,12 +250,14 @@ const (
 )
 
 // LedgerService manages double-entry accounting
+//
+//nolint:unused // Fields are reserved for future in-memory caching implementation
 type LedgerService struct {
-	mu           sync.Mutex
-	accounts     map[uuid.UUID]*LedgerAccount
-	journals     map[uuid.UUID]*JournalEntry
-	lastHash     string
-	
+	mu           sync.Mutex                    //nolint:unused // Reserved for thread-safe operations
+	accounts     map[uuid.UUID]*LedgerAccount  //nolint:unused // Reserved for in-memory account cache
+	journals     map[uuid.UUID]*JournalEntry   //nolint:unused // Reserved for in-memory journal cache
+	lastHash     string                        //nolint:unused // Reserved for hash chain verification
+
 	// System accounts (pre-defined)
 	SystemCashAccount    uuid.UUID
 	SystemRevenueAccount uuid.UUID
