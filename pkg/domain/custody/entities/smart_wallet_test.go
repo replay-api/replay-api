@@ -316,7 +316,7 @@ func TestSmartWallet_Activate(t *testing.T) {
 	wallet := createTestWallet()
 	setupWalletForActivation(wallet)
 
-	err := _ = wallet.Activate()
+	err := wallet.Activate()
 
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -335,7 +335,7 @@ func TestSmartWallet_Activate_NoKey(t *testing.T) {
 	// Add address but no MPC key
 	wallet.AddChainAddress(custody_vo.ChainSolanaMainnet, "test-address")
 
-	err := _ = wallet.Activate()
+	err := wallet.Activate()
 
 	if err == nil {
 		t.Error("Expected error for activation without MPC key")
@@ -347,7 +347,7 @@ func TestSmartWallet_Activate_NoAddress(t *testing.T) {
 	wallet := createTestWallet()
 	wallet.MasterKeyID = "test-key"
 
-	err := _ = wallet.Activate()
+	err := wallet.Activate()
 
 	if err == nil {
 		t.Error("Expected error for activation without address")
@@ -490,7 +490,7 @@ func TestSmartWallet_InitiateRecovery(t *testing.T) {
 
 	initiatorID := uuid.New()
 	newOwnerKey := []byte("new-owner-public-key-bytes")
-	err := _ = wallet.InitiateRecovery(initiatorID, newOwnerKey)
+	err := wallet.InitiateRecovery(initiatorID, newOwnerKey)
 
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -514,7 +514,7 @@ func TestSmartWallet_InitiateRecovery_NotEnabled(t *testing.T) {
 	wallet := createTestWallet()
 	wallet.RecoveryConfig.IsEnabled = false
 
-	err := _ = wallet.InitiateRecovery(uuid.New(), []byte("new-key"))
+	err := wallet.InitiateRecovery(uuid.New(), []byte("new-key"))
 
 	if err == nil {
 		t.Error("Expected error for recovery not enabled")
@@ -526,7 +526,7 @@ func TestSmartWallet_InitiateRecovery_AlreadyInProgress(t *testing.T) {
 	wallet := createWalletWithRecovery()
 	_ = wallet.InitiateRecovery(uuid.New(), []byte("key1"))
 
-	err := _ = wallet.InitiateRecovery(uuid.New(), []byte("key2"))
+	err := wallet.InitiateRecovery(uuid.New(), []byte("key2"))
 
 	if err == nil {
 		t.Error("Expected error for recovery already in progress")
@@ -553,7 +553,7 @@ func TestSmartWallet_ApproveRecovery(t *testing.T) {
 // TestSmartWallet_ApproveRecovery_ThresholdMet verifies approval status change
 func TestSmartWallet_ApproveRecovery_ThresholdMet(t *testing.T) {
 	wallet := createWalletWithRecovery()
-	_ = _ = wallet.InitiateRecovery(uuid.New(), []byte("new-key"))
+	_ = wallet.InitiateRecovery(uuid.New(), []byte("new-key"))
 
 	// Approve by another guardian (threshold is 2, initiator already counts as 1)
 	_ = wallet.ApproveRecovery(uuid.New())
@@ -603,7 +603,7 @@ func setupWalletForActivation(wallet *SmartWallet) {
 func createWalletWithRecovery() *SmartWallet {
 	wallet := createTestWallet()
 	setupWalletForActivation(wallet)
-	_ = _ = wallet.Activate()
+	_ = wallet.Activate()
 
 	wallet.RecoveryConfig = &WalletRecoveryConfig{
 		IsEnabled:         true,
