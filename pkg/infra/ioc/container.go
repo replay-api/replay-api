@@ -28,6 +28,9 @@ import (
 
 	// ports
 	common "github.com/replay-api/replay-api/pkg/domain"
+	auth_in "github.com/replay-api/replay-api/pkg/domain/auth/ports/in"
+	auth_out "github.com/replay-api/replay-api/pkg/domain/auth/ports/out"
+	auth_services "github.com/replay-api/replay-api/pkg/domain/auth/services"
 	email_entities "github.com/replay-api/replay-api/pkg/domain/email/entities"
 	email_in "github.com/replay-api/replay-api/pkg/domain/email/ports/in"
 	email_out "github.com/replay-api/replay-api/pkg/domain/email/ports/out"
@@ -41,6 +44,7 @@ import (
 	squad_out "github.com/replay-api/replay-api/pkg/domain/squad/ports/out"
 	squad_services "github.com/replay-api/replay-api/pkg/domain/squad/services"
 	squad_usecases "github.com/replay-api/replay-api/pkg/domain/squad/usecases"
+	email_adapter "github.com/replay-api/replay-api/pkg/infra/adapters/email"
 
 	replay_in "github.com/replay-api/replay-api/pkg/domain/replay/ports/in"
 	replay_out "github.com/replay-api/replay-api/pkg/domain/replay/ports/out"
@@ -72,6 +76,7 @@ import (
 
 	media_out "github.com/replay-api/replay-api/pkg/domain/media/ports/out"
 	media_adapter "github.com/replay-api/replay-api/pkg/infra/adapters/media"
+	adapters "github.com/replay-api/replay-api/pkg/infra/adapters"
 
 	websocket "github.com/replay-api/replay-api/pkg/infra/websocket"
 
@@ -641,6 +646,54 @@ func (b *ContainerBuilder) WithInboundPorts() *ContainerBuilder {
 		panic(err)
 	}
 
+	// RefreshRIDTokenCommand - Token refresh for session extension
+	err = c.Singleton(func() (iam_in.RefreshRIDTokenCommand, error) {
+		var rIDWriter iam_out.RIDTokenWriter
+		err := c.Resolve(&rIDWriter)
+		if err != nil {
+			slog.Error("Failed to resolve RIDWriter for RefreshRIDTokenCommand.", "err", err)
+			return nil, err
+		}
+
+		var rIDReader iam_out.RIDTokenReader
+		err = c.Resolve(&rIDReader)
+		if err != nil {
+			slog.Error("Failed to resolve RIDReader for RefreshRIDTokenCommand.", "err", err)
+			return nil, err
+		}
+
+		return iam_use_cases.NewRefreshRIDTokenUseCase(rIDWriter, rIDReader), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load iam_in.RefreshRIDTokenCommand.")
+		panic(err)
+	}
+
+	// RevokeRIDTokenCommand - Token revocation for logout
+	err = c.Singleton(func() (iam_in.RevokeRIDTokenCommand, error) {
+		var rIDWriter iam_out.RIDTokenWriter
+		err := c.Resolve(&rIDWriter)
+		if err != nil {
+			slog.Error("Failed to resolve RIDWriter for RevokeRIDTokenCommand.", "err", err)
+			return nil, err
+		}
+
+		var rIDReader iam_out.RIDTokenReader
+		err = c.Resolve(&rIDReader)
+		if err != nil {
+			slog.Error("Failed to resolve RIDReader for RevokeRIDTokenCommand.", "err", err)
+			return nil, err
+		}
+
+		return iam_use_cases.NewRevokeRIDTokenUseCase(rIDWriter, rIDReader), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load iam_in.RevokeRIDTokenCommand.")
+		panic(err)
+	}
+
 	err = c.Singleton(func() (iam_in.ProfileReader, error) {
 		var profileReader iam_out.ProfileReader
 		err := c.Resolve(&profileReader)
@@ -938,6 +991,23 @@ func (b *ContainerBuilder) WithSquadAPI() *ContainerBuilder {
 
 	if err != nil {
 		slog.Error("Failed to load PlayerProfileReader.")
+		panic(err)
+	}
+
+	// squad_in.PlayerStatisticsReader - aggregates player stats from match history
+	err = c.Singleton(func() (squad_in.PlayerStatisticsReader, error) {
+		var matchReader replay_out.MatchMetadataReader
+		err := c.Resolve(&matchReader)
+		if err != nil {
+			slog.Error("Failed to resolve MatchMetadataReader for PlayerStatisticsService.", "err", err)
+			return nil, err
+		}
+
+		return squad_services.NewPlayerStatisticsService(matchReader), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load PlayerStatisticsReader.")
 		panic(err)
 	}
 
@@ -1667,6 +1737,21 @@ func InjectMongoDB(c container.Container) error {
 		panic(err)
 	}
 
+	err = c.Singleton(func() (replay_in.ReplayContentReader, error) {
+		var contentReader replay_out.ReplayFileContentReader
+		err := c.Resolve(&contentReader)
+		if err != nil {
+			slog.Error("Failed to resolve ReplayFileContentReader for replay_in.ReplayContentReader.", "err", err)
+			return nil, err
+		}
+		return contentReader, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load replay_in.ReplayContentReader.")
+		panic(err)
+	}
+
 	err = c.Singleton(func() replay_out.ReplayParser {
 		return cs_app.NewCS2ReplayAdapter()
 	})
@@ -1909,11 +1994,195 @@ func InjectMongoDB(c container.Container) error {
 	}
 
 	err = c.Singleton(func() (email_out.PasswordHasher, error) {
-		return encryption.NewBcryptPasswordHasherAdapter(10), nil
+		// Use Argon2id for password hashing (OWASP recommended)
+		// Argon2id is memory-hard and resistant to GPU/ASIC attacks
+		return encryption.NewArgon2idPasswordHasherAdapter(), nil
 	})
 
 	if err != nil {
 		slog.Error("Failed to load PasswordHasher.", "err", err)
+		panic(err)
+	}
+
+	// Email Verification Repository
+	err = c.Singleton(func() (auth_out.EmailVerificationRepository, error) {
+		var client *mongo.Client
+		err := c.Resolve(&client)
+		if err != nil {
+			slog.Error("Failed to resolve mongo.Client for EmailVerificationRepository.", "err", err)
+			return nil, err
+		}
+
+		var config common.Config
+		err = c.Resolve(&config)
+		if err != nil {
+			slog.Error("Failed to resolve config for EmailVerificationRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewEmailVerificationMongoDBRepository(client, config.MongoDB.DBName), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load EmailVerificationRepository.", "err", err)
+		panic(err)
+	}
+
+	// Email Sender (use noop for development, SMTP for production)
+	err = c.Singleton(func() (auth_out.EmailSender, error) {
+		// TODO: Load SMTP config from environment for production
+		// For now, use noop email sender that logs emails
+		return email_adapter.NewNoopEmailSender(true), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load EmailSender.", "err", err)
+		panic(err)
+	}
+
+	// Email Verification Service
+	err = c.Singleton(func() (auth_in.EmailVerificationCommand, error) {
+		var verificationRepo auth_out.EmailVerificationRepository
+		err := c.Resolve(&verificationRepo)
+		if err != nil {
+			slog.Error("Failed to resolve EmailVerificationRepository for EmailVerificationService.", "err", err)
+			return nil, err
+		}
+
+		var emailSender auth_out.EmailSender
+		err = c.Resolve(&emailSender)
+		if err != nil {
+			slog.Error("Failed to resolve EmailSender for EmailVerificationService.", "err", err)
+			return nil, err
+		}
+
+		return auth_services.NewEmailVerificationService(verificationRepo, emailSender), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load EmailVerificationService.", "err", err)
+		panic(err)
+	}
+
+	// Password Reset Repository
+	err = c.Singleton(func() (auth_out.PasswordResetRepository, error) {
+		var client *mongo.Client
+		err := c.Resolve(&client)
+		if err != nil {
+			slog.Error("Failed to resolve mongo.Client for PasswordResetRepository.", "err", err)
+			return nil, err
+		}
+
+		var config common.Config
+		err = c.Resolve(&config)
+		if err != nil {
+			slog.Error("Failed to resolve config for PasswordResetRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewPasswordResetMongoDBRepository(client, config.MongoDB.DBName), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load PasswordResetRepository.", "err", err)
+		panic(err)
+	}
+
+	// Password Reset Service
+	err = c.Singleton(func() (auth_in.PasswordResetCommand, error) {
+		var resetRepo auth_out.PasswordResetRepository
+		err := c.Resolve(&resetRepo)
+		if err != nil {
+			slog.Error("Failed to resolve PasswordResetRepository for PasswordResetService.", "err", err)
+			return nil, err
+		}
+
+		var emailUserReader email_out.EmailUserReader
+		err = c.Resolve(&emailUserReader)
+		if err != nil {
+			slog.Error("Failed to resolve EmailUserReader for PasswordResetService.", "err", err)
+			return nil, err
+		}
+
+		var emailUserWriter email_out.EmailUserWriter
+		err = c.Resolve(&emailUserWriter)
+		if err != nil {
+			slog.Error("Failed to resolve EmailUserWriter for PasswordResetService.", "err", err)
+			return nil, err
+		}
+
+		var passwordHasher email_out.PasswordHasher
+		err = c.Resolve(&passwordHasher)
+		if err != nil {
+			slog.Error("Failed to resolve PasswordHasher for PasswordResetService.", "err", err)
+			return nil, err
+		}
+
+		var emailSender auth_out.EmailSender
+		err = c.Resolve(&emailSender)
+		if err != nil {
+			slog.Error("Failed to resolve EmailSender for PasswordResetService.", "err", err)
+			return nil, err
+		}
+
+		return auth_services.NewPasswordResetService(
+			resetRepo,
+			emailUserReader,
+			emailUserWriter,
+			passwordHasher,
+			emailSender,
+		), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load PasswordResetService.", "err", err)
+		panic(err)
+	}
+
+	// MFA Repository
+	err = c.Singleton(func() (auth_out.MFARepository, error) {
+		var client *mongo.Client
+		err := c.Resolve(&client)
+		if err != nil {
+			slog.Error("Failed to resolve mongo.Client for MFARepository.", "err", err)
+			return nil, err
+		}
+
+		var config common.Config
+		err = c.Resolve(&config)
+		if err != nil {
+			slog.Error("Failed to resolve config for MFARepository.", "err", err)
+			return nil, err
+		}
+
+		database := client.Database(config.MongoDB.DBName)
+		return db.NewMFAMongoDBRepository(database), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load MFARepository.", "err", err)
+		panic(err)
+	}
+
+	// MFA Service
+	err = c.Singleton(func() (auth_in.MFACommand, error) {
+		var mfaRepo auth_out.MFARepository
+		err := c.Resolve(&mfaRepo)
+		if err != nil {
+			slog.Error("Failed to resolve MFARepository for MFAService.", "err", err)
+			return nil, err
+		}
+
+		var passwordHasher email_out.PasswordHasher
+		err = c.Resolve(&passwordHasher)
+		if err != nil {
+			slog.Error("Failed to resolve PasswordHasher for MFAService.", "err", err)
+			return nil, err
+		}
+
+		return auth_services.NewMFAService(mfaRepo, passwordHasher), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load MFAService.", "err", err)
 		panic(err)
 	}
 
@@ -2378,19 +2647,22 @@ func InjectMongoDB(c container.Container) error {
 	// Ledger Service
 	err = c.Singleton(func() (*wallet_services.LedgerService, error) {
 		var ledgerRepo wallet_out.LedgerRepository
-		var idempotencyRepo wallet_out.IdempotencyRepository
+		var auditTrailCmd billing_in.AuditTrailCommand
 
 		if err := c.Resolve(&ledgerRepo); err != nil {
 			slog.Error("Failed to resolve wallet_out.LedgerRepository for LedgerService.", "err", err)
 			return nil, err
 		}
 
-		if err := c.Resolve(&idempotencyRepo); err != nil {
-			slog.Error("Failed to resolve wallet_out.IdempotencyRepository for LedgerService.", "err", err)
-			return nil, err
-		}
+		// AuditTrailCommand is optional - continue without it if not available
+		_ = c.Resolve(&auditTrailCmd) // Ignore error, auditTrailCmd will be nil if not available
 
-		return wallet_services.NewLedgerService(ledgerRepo, idempotencyRepo), nil
+		// LedgerService requires wallet_services.LedgerRepository interface
+		// which is different from wallet_out.LedgerRepository
+		// For now, return nil until a proper adapter is implemented
+		// TODO: Implement wallet_services.LedgerRepository adapter
+		slog.Warn("LedgerService not fully configured - requires wallet_services.LedgerRepository adapter")
+		return nil, nil
 	})
 
 	if err != nil {
@@ -2705,6 +2977,77 @@ func InjectMongoDB(c container.Container) error {
 		panic(err)
 	}
 
+	// Withdrawal Repository
+	err = c.Singleton(func() (billing_out.WithdrawalRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve mongo.Client for WithdrawalRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for WithdrawalRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewWithdrawalMongoDBRepository(client, config.MongoDB.DBName), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load billing_out.WithdrawalRepository.", "err", err)
+		panic(err)
+	}
+
+	// Wallet Noop Adapter (for development)
+	err = c.Singleton(func() billing_out.WalletReader {
+		return adapters.NewNoopWalletAdapter()
+	})
+
+	if err != nil {
+		slog.Error("Failed to load billing_out.WalletReader.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() billing_out.WalletDebiter {
+		return adapters.NewNoopWalletAdapter()
+	})
+
+	if err != nil {
+		slog.Error("Failed to load billing_out.WalletDebiter.", "err", err)
+		panic(err)
+	}
+
+	// Withdrawal Command Handler
+	err = c.Singleton(func() (billing_in.WithdrawalCommand, error) {
+		var withdrawalRepo billing_out.WithdrawalRepository
+		var walletReader billing_out.WalletReader
+		var walletDebiter billing_out.WalletDebiter
+
+		if err := c.Resolve(&withdrawalRepo); err != nil {
+			slog.Error("Failed to resolve WithdrawalRepository for WithdrawalCommand.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&walletReader); err != nil {
+			slog.Error("Failed to resolve WalletReader for WithdrawalCommand.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&walletDebiter); err != nil {
+			slog.Error("Failed to resolve WalletDebiter for WithdrawalCommand.", "err", err)
+			return nil, err
+		}
+
+		return billing_usecases.NewWithdrawalUseCase(withdrawalRepo, walletReader, walletDebiter), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load billing_in.WithdrawalCommand.", "err", err)
+		panic(err)
+	}
+
 	// Matchmaking Session Repository
 	err = c.Singleton(func() (matchmaking_out.MatchmakingSessionRepository, error) {
 		var client *mongo.Client
@@ -2748,6 +3091,46 @@ func InjectMongoDB(c container.Container) error {
 
 	if err != nil {
 		slog.Error("Failed to load matchmaking_out.MatchmakingPoolRepository.", "err", err)
+		panic(err)
+	}
+
+	// Player Rating Repository (Glicko-2)
+	err = c.Singleton(func() (matchmaking_out.PlayerRatingRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve mongo.Client for PlayerRatingRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for PlayerRatingRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewPlayerRatingMongoDBRepository(client.Database(config.MongoDB.DBName)), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load matchmaking_out.PlayerRatingRepository.", "err", err)
+		panic(err)
+	}
+
+	// Rating Service (Glicko-2 algorithm)
+	err = c.Singleton(func() (matchmaking_in.RatingService, error) {
+		var ratingRepo matchmaking_out.PlayerRatingRepository
+
+		if err := c.Resolve(&ratingRepo); err != nil {
+			slog.Error("Failed to resolve PlayerRatingRepository for RatingService.", "err", err)
+			return nil, err
+		}
+
+		return matchmaking_services.NewGlicko2RatingService(ratingRepo), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load matchmaking_in.RatingService.", "err", err)
 		panic(err)
 	}
 
@@ -2810,10 +3193,94 @@ func InjectMongoDB(c container.Container) error {
 		panic(err)
 	}
 
+	// GenerateBracketsUseCase
+	err = c.Singleton(func() (*tournament_usecases.GenerateBracketsUseCase, error) {
+		var billableOperationHandler billing_in.BillableOperationCommandHandler
+		var tournamentRepo tournament_out.TournamentRepository
+
+		if err := c.Resolve(&billableOperationHandler); err != nil {
+			slog.Error("Failed to resolve BillableOperationCommandHandler for GenerateBracketsUseCase.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&tournamentRepo); err != nil {
+			slog.Error("Failed to resolve TournamentRepository for GenerateBracketsUseCase.", "err", err)
+			return nil, err
+		}
+
+		return tournament_usecases.NewGenerateBracketsUseCase(billableOperationHandler, tournamentRepo), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load GenerateBracketsUseCase.", "err", err)
+		panic(err)
+	}
+
+	// Register PlayerProfileRepository for TournamentService dependency
+	err = c.Singleton(func() (*db.PlayerProfileRepository, error) {
+		var client *mongo.Client
+		err := c.Resolve(&client)
+		if err != nil {
+			slog.Error("Failed to resolve mongo.Client for PlayerProfileRepository in InjectMongoDB.", "err", err)
+			return &db.PlayerProfileRepository{}, err
+		}
+
+		var config common.Config
+		err = c.Resolve(&config)
+		if err != nil {
+			slog.Error("Failed to resolve config for PlayerProfileRepository in InjectMongoDB.", "err", err)
+			return &db.PlayerProfileRepository{}, err
+		}
+
+		repo := db.NewPlayerProfileRepository(client, config.MongoDB.DBName, squad_entities.PlayerProfile{}, "player_profiles")
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load PlayerProfileRepository in InjectMongoDB.", "err", err)
+		panic(err)
+	}
+
+	// Register squad_out.PlayerProfileReader for TournamentService dependency
+	err = c.Singleton(func() (squad_out.PlayerProfileReader, error) {
+		var repo *db.PlayerProfileRepository
+		err = c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve PlayerProfileRepository for squad_out.PlayerProfileReader in InjectMongoDB.", "err", err)
+			return nil, err
+		}
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load squad_out.PlayerProfileReader in InjectMongoDB.", "err", err)
+		panic(err)
+	}
+
+	// Register squad_in.PlayerProfileReader for TournamentService dependency
+	err = c.Singleton(func() (squad_in.PlayerProfileReader, error) {
+		var playerProfileReader squad_out.PlayerProfileReader
+		err := c.Resolve(&playerProfileReader)
+		if err != nil {
+			slog.Error("Failed to resolve squad_out.PlayerProfileReader for squad_in.PlayerProfileReader in InjectMongoDB.", "err", err)
+			return nil, err
+		}
+
+		return squad_services.NewPlayerProfileQueryService(playerProfileReader), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load squad_in.PlayerProfileReader in InjectMongoDB.", "err", err)
+		panic(err)
+	}
+
 	// Tournament Command Service
 	err = c.Singleton(func() (tournament_in.TournamentCommand, error) {
 		var tournamentRepo tournament_out.TournamentRepository
 		var walletCmd wallet_in.WalletCommand
+		var playerProfileReader squad_in.PlayerProfileReader
+		var bracketsUseCase *tournament_usecases.GenerateBracketsUseCase
 
 		if err := c.Resolve(&tournamentRepo); err != nil {
 			slog.Error("Failed to resolve tournament_out.TournamentRepository for TournamentService.", "err", err)
@@ -2825,7 +3292,17 @@ func InjectMongoDB(c container.Container) error {
 			return nil, err
 		}
 
-		return tournament_services.NewTournamentService(tournamentRepo, walletCmd), nil
+		if err := c.Resolve(&playerProfileReader); err != nil {
+			slog.Error("Failed to resolve PlayerProfileReader for TournamentService.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&bracketsUseCase); err != nil {
+			slog.Error("Failed to resolve GenerateBracketsUseCase for TournamentService.", "err", err)
+			return nil, err
+		}
+
+		return tournament_services.NewTournamentService(tournamentRepo, walletCmd, playerProfileReader, bracketsUseCase), nil
 	})
 
 	if err != nil {
@@ -2920,6 +3397,7 @@ func InjectMongoDB(c container.Container) error {
 	err = c.Singleton(func() (*tournament_usecases.RegisterForTournamentUseCase, error) {
 		var billableOperationHandler billing_in.BillableOperationCommandHandler
 		var tournamentRepo tournament_out.TournamentRepository
+		var playerProfileReader squad_in.PlayerProfileReader
 
 		if err := c.Resolve(&billableOperationHandler); err != nil {
 			slog.Error("Failed to resolve BillableOperationCommandHandler for RegisterForTournamentUseCase.", "err", err)
@@ -2929,8 +3407,12 @@ func InjectMongoDB(c container.Container) error {
 			slog.Error("Failed to resolve TournamentRepository for RegisterForTournamentUseCase.", "err", err)
 			return nil, err
 		}
+		if err := c.Resolve(&playerProfileReader); err != nil {
+			slog.Error("Failed to resolve PlayerProfileReader for RegisterForTournamentUseCase.", "err", err)
+			return nil, err
+		}
 
-		return tournament_usecases.NewRegisterForTournamentUseCase(billableOperationHandler, tournamentRepo), nil
+		return tournament_usecases.NewRegisterForTournamentUseCase(billableOperationHandler, tournamentRepo, playerProfileReader), nil
 	})
 	if err != nil {
 		slog.Error("Failed to load RegisterForTournamentUseCase.", "err", err)

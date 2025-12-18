@@ -325,6 +325,191 @@ func (c *TournamentCommandController) StartTournamentHandler(apiContext context.
 	}
 }
 
+// GenerateBracketsHandler handles POST /tournaments/:id/brackets
+// Generates tournament brackets based on format (single/double elimination, round-robin, swiss)
+func (c *TournamentCommandController) GenerateBracketsHandler(apiContext context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		tournamentIDStr := vars["id"]
+
+		tournamentID, err := uuid.Parse(tournamentIDStr)
+		if err != nil {
+			http.Error(w, "invalid tournament id", http.StatusBadRequest)
+			return
+		}
+
+		if err := c.tournamentCommand.GenerateBrackets(r.Context(), tournamentID); err != nil {
+			slog.ErrorContext(r.Context(), "failed to generate brackets", "error", err)
+			http.Error(w, "failed to generate brackets: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "brackets_generated"})
+	}
+}
+
+// ScheduleMatchesHandler handles POST /tournaments/:id/schedule
+// Automatically schedules all tournament matches
+func (c *TournamentCommandController) ScheduleMatchesHandler(apiContext context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		tournamentIDStr := vars["id"]
+
+		tournamentID, err := uuid.Parse(tournamentIDStr)
+		if err != nil {
+			http.Error(w, "invalid tournament id", http.StatusBadRequest)
+			return
+		}
+
+		var req struct {
+			StartTime         *string `json:"start_time,omitempty"`
+			MatchDurationMins int     `json:"match_duration_mins,omitempty"`
+			BreakBetweenMins  int     `json:"break_between_mins,omitempty"`
+			ConcurrentMatches int     `json:"concurrent_matches,omitempty"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err.Error() != "EOF" {
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		cmd := tournament_in.ScheduleMatchesCommand{
+			TournamentID:      tournamentID,
+			MatchDurationMins: req.MatchDurationMins,
+			BreakBetweenMins:  req.BreakBetweenMins,
+			ConcurrentMatches: req.ConcurrentMatches,
+		}
+
+		if req.StartTime != nil {
+			t, err := parseRFC3339(*req.StartTime)
+			if err != nil {
+				http.Error(w, "invalid start_time format", http.StatusBadRequest)
+				return
+			}
+			cmd.StartTime = &t
+		}
+
+		if err := c.tournamentCommand.ScheduleMatches(r.Context(), cmd); err != nil {
+			slog.ErrorContext(r.Context(), "failed to schedule matches", "error", err)
+			http.Error(w, "failed to schedule matches: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "matches_scheduled"})
+	}
+}
+
+// RescheduleMatchHandler handles PUT /tournaments/:id/matches/:match_id/schedule
+// Reschedules a specific match
+func (c *TournamentCommandController) RescheduleMatchHandler(apiContext context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		tournamentIDStr := vars["id"]
+		matchIDStr := vars["match_id"]
+
+		tournamentID, err := uuid.Parse(tournamentIDStr)
+		if err != nil {
+			http.Error(w, "invalid tournament id", http.StatusBadRequest)
+			return
+		}
+
+		matchID, err := uuid.Parse(matchIDStr)
+		if err != nil {
+			http.Error(w, "invalid match id", http.StatusBadRequest)
+			return
+		}
+
+		var req struct {
+			NewTime string `json:"new_time"`
+			Reason  string `json:"reason,omitempty"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		newTime, err := parseRFC3339(req.NewTime)
+		if err != nil {
+			http.Error(w, "invalid new_time format", http.StatusBadRequest)
+			return
+		}
+
+		cmd := tournament_in.RescheduleMatchCommand{
+			TournamentID: tournamentID,
+			MatchID:      matchID,
+			NewTime:      newTime,
+			Reason:       req.Reason,
+		}
+
+		if err := c.tournamentCommand.RescheduleMatch(r.Context(), cmd); err != nil {
+			slog.ErrorContext(r.Context(), "failed to reschedule match", "error", err)
+			http.Error(w, "failed to reschedule match: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "match_rescheduled"})
+	}
+}
+
+// ReportMatchResultHandler handles POST /tournaments/:id/matches/:match_id/result
+// Reports the result of a completed match
+func (c *TournamentCommandController) ReportMatchResultHandler(apiContext context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		tournamentIDStr := vars["id"]
+		matchIDStr := vars["match_id"]
+
+		tournamentID, err := uuid.Parse(tournamentIDStr)
+		if err != nil {
+			http.Error(w, "invalid tournament id", http.StatusBadRequest)
+			return
+		}
+
+		matchID, err := uuid.Parse(matchIDStr)
+		if err != nil {
+			http.Error(w, "invalid match id", http.StatusBadRequest)
+			return
+		}
+
+		var req struct {
+			WinnerID string `json:"winner_id"`
+			Score    string `json:"score"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		winnerID, err := uuid.Parse(req.WinnerID)
+		if err != nil {
+			http.Error(w, "invalid winner_id", http.StatusBadRequest)
+			return
+		}
+
+		cmd := tournament_in.ReportMatchResultCommand{
+			TournamentID: tournamentID,
+			MatchID:      matchID,
+			WinnerID:     winnerID,
+			Score:        req.Score,
+			ReportedBy:   common.GetResourceOwner(r.Context()).UserID,
+		}
+
+		if err := c.tournamentCommand.ReportMatchResult(r.Context(), cmd); err != nil {
+			slog.ErrorContext(r.Context(), "failed to report match result", "error", err)
+			http.Error(w, "failed to report match result: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "result_reported"})
+	}
+}
+
 // Helper function to parse RFC3339 timestamps
 func parseRFC3339(s string) (time.Time, error) {
 	return time.Parse(time.RFC3339, s)

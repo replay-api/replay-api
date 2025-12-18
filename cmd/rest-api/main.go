@@ -5,6 +5,8 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	//	"golang.org/x/oauth2/jwt"
@@ -16,7 +18,8 @@ import (
 )
 
 func main() {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
@@ -24,7 +27,7 @@ func main() {
 
 	builder := ioc.NewContainerBuilder()
 
-	c := builder.WithEnvFile().With(ioc.InjectMongoDB).WithInboundPorts().WithSquadAPI().Build()
+	c := builder.WithEnvFile().WithSquadAPI().WithInboundPorts().With(ioc.InjectMongoDB).Build()
 
 	defer builder.Close(c)
 
@@ -63,8 +66,35 @@ func main() {
 		IdleTimeout:  120 * time.Second,
 	}
 
-	if err := server.ListenAndServe(); err != nil {
+	// Graceful shutdown handler for Kubernetes SIGTERM
+	shutdownChan := make(chan os.Signal, 1)
+	signal.Notify(shutdownChan, syscall.SIGTERM, syscall.SIGINT)
+
+	go func() {
+		sig := <-shutdownChan
+		slog.InfoContext(ctx, "Received shutdown signal", "signal", sig.String())
+
+		// Give Kubernetes time to update endpoints
+		slog.InfoContext(ctx, "Waiting for Kubernetes endpoint update...")
+		time.Sleep(5 * time.Second)
+
+		// Graceful shutdown with timeout
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer shutdownCancel()
+
+		slog.InfoContext(ctx, "Shutting down server gracefully...")
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			slog.ErrorContext(ctx, "Server shutdown error", "error", err)
+		}
+
+		// Cancel main context to stop background jobs
+		cancel()
+		slog.InfoContext(ctx, "Server shutdown complete")
+	}()
+
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		slog.ErrorContext(ctx, "Server error", "err", err)
+		os.Exit(1)
 	}
 
 }

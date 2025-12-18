@@ -3,12 +3,14 @@ package iam_out
 import (
 	"context"
 
+	"github.com/google/uuid"
 	common "github.com/replay-api/replay-api/pkg/domain"
 	iam_entity "github.com/replay-api/replay-api/pkg/domain/iam/entities"
 )
 
 type RIDTokenReader interface {
 	Search(ctx context.Context, s common.Search) ([]iam_entity.RIDToken, error)
+	FindByID(ctx context.Context, tokenID uuid.UUID) (*iam_entity.RIDToken, error)
 }
 
 type ProfileReader interface {

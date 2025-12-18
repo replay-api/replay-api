@@ -138,3 +138,36 @@ func (r *SubscriptionRepository) GetCurrentSubscription(ctx context.Context, rxn
 
 	return &subscriptions[0], nil
 }
+
+// Update updates an existing subscription
+func (r *SubscriptionRepository) Update(ctx context.Context, subscription *billing_entities.Subscription) (*billing_entities.Subscription, error) {
+	subscription.UpdatedAt = time.Now()
+
+	updated, err := r.MongoDBRepository.Update(ctx, subscription)
+	if err != nil {
+		slog.ErrorContext(ctx, "error updating subscription", "id", subscription.ID, "err", err)
+		return nil, err
+	}
+
+	return updated, nil
+}
+
+// Cancel cancels a subscription
+func (r *SubscriptionRepository) Cancel(ctx context.Context, subscription *billing_entities.Subscription) (*billing_entities.Subscription, error) {
+	now := time.Now()
+	subscription.Status = billing_entities.SubscriptionStatusCanceled
+	subscription.UpdatedAt = now
+	subscription.History = append(subscription.History, billing_entities.SubscriptionHistory{
+		Date:   now,
+		Status: billing_entities.SubscriptionStatusCanceled,
+		Reason: "User requested cancellation",
+	})
+
+	updated, err := r.MongoDBRepository.Update(ctx, subscription)
+	if err != nil {
+		slog.ErrorContext(ctx, "error cancelling subscription", "id", subscription.ID, "err", err)
+		return nil, err
+	}
+
+	return updated, nil
+}

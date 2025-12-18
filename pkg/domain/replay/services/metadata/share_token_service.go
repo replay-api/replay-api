@@ -13,6 +13,7 @@ import (
 
 type ShareTokenQueryService struct {
 	common.BaseQueryService[replay_entity.ShareToken]
+	tokenReader replay_out.ShareTokenReader
 }
 
 func NewShareTokenQueryService(shareTokenReader replay_out.ShareTokenReader) replay_in.ShareTokenReader {
@@ -41,13 +42,20 @@ func NewShareTokenQueryService(shareTokenReader replay_out.ShareTokenReader) rep
 		"UpdatedAt":     true,
 	}
 
-	return &common.BaseQueryService[replay_entity.ShareToken]{
-		Reader:          shareTokenReader.(common.Searchable[replay_entity.ShareToken]),
-		QueryableFields: queryableFields,
-		ReadableFields:  readableFields,
-		MaxPageSize:     100,
-		Audience:        common.UserAudienceIDKey,
+	return &ShareTokenQueryService{
+		BaseQueryService: common.BaseQueryService[replay_entity.ShareToken]{
+			Reader:          shareTokenReader.(common.Searchable[replay_entity.ShareToken]),
+			QueryableFields: queryableFields,
+			ReadableFields:  readableFields,
+			MaxPageSize:     100,
+			Audience:        common.UserAudienceIDKey,
+		},
+		tokenReader: shareTokenReader,
 	}
+}
+
+func (s *ShareTokenQueryService) FindByToken(ctx context.Context, tokenID uuid.UUID) (*replay_entity.ShareToken, error) {
+	return s.tokenReader.FindByToken(ctx, tokenID)
 }
 
 type ShareTokenCommandService struct {

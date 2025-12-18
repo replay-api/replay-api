@@ -424,15 +424,272 @@ BenchmarkDeposit-8    500 ops    2847 ns/op    1456 B/op    23 allocs/op
 - **Checksums**: SHA-256 for ledger entry verification
 - **Reconciliation**: Automated daily verification
 
+## Banking-Grade Custody Infrastructure
+
+### Overview
+
+The platform implements professional-grade custodial wallet infrastructure with:
+- **MPC (Multi-Party Computation)** for secure key management
+- **Account Abstraction (ERC-4337)** for smart contract wallets
+- **Solana Program** for native Solana smart wallets
+- **Social Recovery** for trustless wallet recovery
+- **Fee Sponsorship** via Paymaster for gasless transactions
+
+### Multi-Chain Architecture
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                    Wallet Orchestrator                          │
+│    (Coordinates MPC signing, multi-chain deployment)            │
+└──────────────────────┬─────────────────────────────────────────┘
+                       │
+       ┌───────────────┼───────────────┐
+       │               │               │
+┌──────▼───────┐ ┌─────▼─────┐ ┌───────▼──────┐
+│ MPC Provider │ │    HSM    │ │   Secure     │
+│  (TSS/FROST) │ │ Provider  │ │   Enclave    │
+│              │ │           │ │ (AWS Nitro)  │
+└──────┬───────┘ └─────┬─────┘ └───────┬──────┘
+       │               │               │
+       └───────────────┼───────────────┘
+                       │
+       ┌───────────────┴───────────────┐
+       │          Key Shares           │
+       └───────────────────────────────┘
+                       │
+    ┌──────────────────┼──────────────────┐
+    │                  │                  │
+┌───▼────┐       ┌─────▼─────┐      ┌─────▼─────┐
+│ Solana │       │  Polygon  │      │   Base    │
+│ (Ed25519│       │ (secp256k1)│      │(secp256k1)│
+│ FROST)  │       │  ERC-4337 │      │  ERC-4337 │
+└─────────┘       └───────────┘      └───────────┘
+```
+
+### MPC Key Management
+
+**Supported Schemes:**
+| Scheme | Curve | Use Case |
+|--------|-------|----------|
+| CMP | secp256k1 | EVM chains (fast ECDSA) |
+| GG20 | secp256k1 | EVM chains (standard ECDSA) |
+| FROST | Ed25519 | Solana (Schnorr-based) |
+| Lindell17 | secp256k1 | 2-party ECDSA |
+
+**Threshold Configurations:**
+- Personal Wallets: 2-of-3 (user device + platform + backup)
+- Business Wallets: 3-of-5 (multi-approver)
+- Treasury: 4-of-7 (governance + cold storage)
+
+**Key Storage Locations:**
+- HSM (AWS CloudHSM, Azure HSM, Thales Luna)
+- Secure Enclaves (AWS Nitro, Azure SGX)
+- Cloud KMS (wrapped keys)
+- User Devices (for recovery)
+- Cold Storage (air-gapped)
+
+### Smart Wallet Contracts
+
+#### Solana Smart Wallet (Rust/Anchor)
+Location: `programs/solana-wallet/src/lib.rs`
+
+```rust
+// PDA-derived deterministic addresses
+pub fn initialize_wallet(
+    ctx: Context<InitializeWallet>,
+    wallet_id: [u8; 32],
+    guardian_threshold: u8,
+    daily_limit: u64,
+    recovery_delay: i64,
+) -> Result<()>
+
+// SPL token transfers with spending limits
+pub fn transfer_spl(ctx: Context<TransferSPL>, amount: u64) -> Result<()>
+
+// Social recovery flow
+pub fn initiate_recovery(ctx: Context<InitiateRecovery>, new_authority: Pubkey) -> Result<()>
+pub fn approve_recovery(ctx: Context<ApproveRecovery>) -> Result<()>
+pub fn execute_recovery(ctx: Context<ExecuteRecovery>) -> Result<()>
+```
+
+#### ERC-4337 Smart Wallet (Solidity)
+Location: `test/blockchain/contracts/aa/LeetSmartWallet.sol`
+
+Features:
+- ERC-4337 compliant (validateUserOp)
+- Social recovery with time-locked execution
+- Session keys for delegated signing
+- Daily spending limits
+- ERC-1271 signature validation
+- UUPS upgradeable
+
+```solidity
+// ERC-4337 validation
+function validateUserOp(
+    PackedUserOperation calldata userOp,
+    bytes32 userOpHash,
+    uint256 missingAccountFunds
+) external onlyEntryPoint returns (uint256 validationData)
+
+// Batch execution
+function executeBatch(
+    address[] calldata targets,
+    uint256[] calldata values,
+    bytes[] calldata datas
+) external onlyOwnerOrEntryPoint notFrozen
+```
+
+#### Paymaster (Gas Sponsorship)
+Location: `test/blockchain/contracts/paymaster/LeetPaymaster.sol`
+
+Payment Modes:
+1. **Sponsored**: Platform-sponsored (whitelisted wallets)
+2. **GasCredits**: Pre-purchased gas credits
+3. **TokenPayment**: Pay in USDC/USDT
+4. **VerifiedFree**: Free for verified users (platform-signed)
+
+### Social Recovery System
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                    Recovery Flow                              │
+└──────────────────────────────────────────────────────────────┘
+
+Guardian                    Smart Wallet                Platform
+   │                             │                          │
+   │  1. initiateRecovery()      │                          │
+   ├────────────────────────────►│                          │
+   │                             │  Freeze wallet           │
+   │                             │  Start delay timer       │
+   │                             │                          │
+   │  2. Other guardians         │                          │
+   │     approveRecovery()       │                          │
+   ├────────────────────────────►│                          │
+   │                             │                          │
+   │  [Wait for delay period]    │                          │
+   │                             │                          │
+   │  3. executeRecovery()       │                          │
+   ├────────────────────────────►│                          │
+   │                             │  Change owner            │
+   │                             │  Revoke session keys     │
+   │                             │  Unfreeze wallet         │
+```
+
+Guardian Types:
+- **Wallet**: Another blockchain address
+- **Email**: Verified email (hash-derived address)
+- **Phone**: Verified phone (hash-derived address)
+- **Hardware**: YubiKey or similar
+- **Institution**: Trusted third party
+
+### Custody Service Architecture
+
+**Value Objects** (`pkg/domain/custody/value-objects/`):
+- `chain.go`: CAIP-standard chain IDs, Solana-first multichain support
+- `mpc.go`: MPC schemes, key curves, threshold configs, HSM/enclave configs
+
+**Entities** (`pkg/domain/custody/entities/`):
+- `smart_wallet.go`: SmartWallet with MPC keys, AA config, recovery, limits
+
+**Ports** (`pkg/domain/custody/ports/`):
+- `out/mpc_provider.go`: MPC key generation and signing interface
+- `out/hsm_provider.go`: HSM and Secure Enclave operations
+- `out/chain_client.go`: Multi-chain blockchain client interface
+- `out/wallet_repository.go`: Wallet persistence interface
+- `in/wallet_service.go`: Wallet operations interface
+- `in/signing_service.go`: MPC signing interface
+- `in/recovery_service.go`: Social recovery interface
+
+**Services** (`pkg/domain/custody/services/`):
+- `wallet_orchestrator.go`: Multi-chain wallet coordination
+- `recovery_service.go`: Social recovery implementation
+
+### Chain Support Matrix
+
+| Chain | Primary | MPC Scheme | Wallet Type | Features |
+|-------|---------|------------|-------------|----------|
+| Solana | ✅ | FROST-Ed25519 | PDA Program | SPL tokens, Priority fees |
+| Polygon | ✅ | CMP | ERC-4337 | Paymaster, Session keys |
+| Base | ✅ | CMP | ERC-4337 | Paymaster, Session keys |
+| Arbitrum | ✅ | CMP | ERC-4337 | Paymaster, Session keys |
+| Ethereum | - | CMP | ERC-4337 | High-value only |
+
+### Transaction Limits
+
+```go
+type TransactionLimits struct {
+    DailyLimit    *big.Int  // Max per day
+    WeeklyLimit   *big.Int  // Max per week
+    MonthlyLimit  *big.Int  // Max per month
+    PerTxLimit    *big.Int  // Max single transaction
+    WhitelistOnly bool      // Only whitelisted addresses
+}
+```
+
+Default Limits (Personal Wallet):
+- Daily: $10,000
+- Weekly: $50,000
+- Monthly: $100,000
+- Per Transaction: $5,000
+
+### Security Levels
+
+| Level | MPC Config | Features |
+|-------|------------|----------|
+| Basic | 2-of-3 | Single approval |
+| Standard | 2-of-3 | Time delay for large tx |
+| High | 3-of-5 | Multi-party + HSM |
+| Critical | 4-of-7 | Governance + cold storage |
+
+### API Examples
+
+**Create Wallet:**
+```go
+result, err := walletService.CreateWallet(ctx, &custody_in.CreateWalletRequest{
+    UserID:       userID,
+    TenantID:     tenantID,
+    WalletType:   custody_entities.WalletTypePersonal,
+    PrimaryChain: custody_vo.ChainSolanaMainnet,
+    Chains:       []custody_vo.ChainID{custody_vo.ChainPolygon, custody_vo.ChainBase},
+    Label:        "Main Wallet",
+})
+```
+
+**Transfer:**
+```go
+result, err := walletService.Transfer(ctx, &custody_in.TransferRequest{
+    WalletID: walletID,
+    ChainID:  custody_vo.ChainSolanaMainnet,
+    To:       recipientAddress,
+    Amount:   big.NewInt(1000000), // 1 USDC
+})
+```
+
+**Add Guardian:**
+```go
+result, err := recoveryService.AddGuardian(ctx, &custody_in.AddGuardianRequest{
+    WalletID:     walletID,
+    GuardianType: custody_entities.GuardianTypeEmail,
+    Email:        "guardian@example.com",
+    Label:        "Recovery Email",
+})
+```
+
 ## Future Enhancements
 
+- [x] Multi-chain custody (Solana, Polygon, Base, Arbitrum)
+- [x] MPC key management (GG20, CMP, FROST)
+- [x] ERC-4337 Account Abstraction
+- [x] Social recovery with guardians
+- [x] Fee sponsorship (Paymaster)
+- [x] Session keys for delegated signing
 - [ ] Multi-currency support (EUR, GBP, JPY)
-- [ ] Crypto withdrawals (ETH, MATIC direct to user wallets)
+- [ ] Crypto withdrawals (direct to user wallets)
 - [ ] NFT marketplace integration
-- [ ] Game credit bundles with expiration
-- [ ] Distributed ledger (blockchain-based secondary ledger)
 - [ ] Machine learning fraud detection
 - [ ] Real-time balance streaming via WebSocket
+- [ ] Cross-chain atomic swaps
+- [ ] Hardware wallet integration (Ledger, Trezor)
 
 ## Contact
 

@@ -1,4 +1,4 @@
-package squad_common
+package squad
 
 func Unique(values []string) []string {
 	uniqueValues := make([]string, 0)

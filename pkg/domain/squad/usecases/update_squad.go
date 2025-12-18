@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	common "github.com/replay-api/replay-api/pkg/domain"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	iam_out "github.com/replay-api/replay-api/pkg/domain/iam/ports/out"
 	media_out "github.com/replay-api/replay-api/pkg/domain/media/ports/out"
-	squad_common "github.com/replay-api/replay-api/pkg/domain/squad"
+	squad_auth "github.com/replay-api/replay-api/pkg/domain/squad"
 	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
 	squad_out "github.com/replay-api/replay-api/pkg/domain/squad/ports/out"
@@ -66,8 +66,10 @@ func (uc *UpdateSquadUseCase) Exec(ctx context.Context, squadID uuid.UUID, cmd s
 		return nil, err
 	}
 
-	if !uc.isUserAuthorized(ctx, existingSquad) {
-		return nil, fmt.Errorf("forbidden: user is not authorized to update this squad")
+	// Authorization check - only owner or admin can update squad
+	if err := squad_auth.MustBeSquadOwnerOrAdmin(ctx, existingSquad); err != nil {
+		slog.WarnContext(ctx, "Unauthorized squad update attempt", "squad_id", squadID, "user_id", common.GetResourceOwner(ctx).UserID, "error", err)
+		return nil, err
 	}
 
 	// Billing validation
@@ -185,13 +187,13 @@ func (uc *UpdateSquadUseCase) ProcessMemberships(ctx context.Context, squad *squ
 				_, _ = uc.SquadHistoryWriter.Create(ctx, squad_entities.NewSquadHistory(squad.ID, userID, action, common.GetResourceOwner(ctx)))
 			}
 			existingMembership.Type = v.Type
-			existingMembership.Roles = squad_common.Unique(v.Roles)
+			existingMembership.Roles = squad_auth.Unique(v.Roles)
 			if len(existingMembership.Status) == 0 || existingMembership.Status[latestStatusTime(existingMembership.Status)] != v.Status {
 				existingMembership.Status[time.Now()] = v.Status
 				_, _ = uc.SquadHistoryWriter.Create(ctx, squad_entities.NewSquadHistory(squad.ID, userID, squad_entities.SquadMemberAdded, common.GetResourceOwner(ctx)))
 			}
 		} else {
-			memberships[playerProfileID] = squad_value_objects.NewSquadMembership(userID, playerProfileID, v.Type, squad_common.Unique(v.Roles), v.Status, v.Type)
+			memberships[playerProfileID] = squad_value_objects.NewSquadMembership(userID, playerProfileID, v.Type, squad_auth.Unique(v.Roles), v.Status, v.Type)
 			_, _ = uc.SquadHistoryWriter.Create(ctx, squad_entities.NewSquadHistory(squad.ID, userID, squad_entities.SquadMemberAdded, common.GetResourceOwner(ctx)))
 		}
 	}
@@ -229,19 +231,6 @@ func (uc *UpdateSquadUseCase) convertMembershipMapToSlice(memberships map[uuid.U
 	return membershipSlice
 }
 
-func (uc *UpdateSquadUseCase) isUserAuthorized(ctx context.Context, squad *squad_entities.Squad) bool {
-	userID := ctx.Value(common.UserIDKey).(uuid.UUID)
-	if userID == squad.ResourceOwner.UserID {
-		return true
-	}
-	for _, v := range squad.Membership {
-		if v.UserID == userID && (v.Type == squad_value_objects.SquadMembershipTypeOwner || v.Type == squad_value_objects.SquadMembershipTypeAdmin) {
-			return true
-		}
-	}
-	fmt.Printf("User %v is not authorized to update squad %v\n", userID, squad.ID)
-	return false
-}
 
 func (uc *UpdateSquadUseCase) GetPromotedOrDemotedStatus(ctx context.Context, squad *squad_entities.Squad, membership *squad_value_objects.SquadMembership) squad_entities.SquadHistoryAction {
 	for _, v := range squad.Membership {

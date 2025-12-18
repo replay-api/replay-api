@@ -7,15 +7,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// MFAMethod represents the method of MFA
-type MFAMethod string
-
-const (
-	MFAMethodEmail MFAMethod = "email"
-	MFAMethodTOTP  MFAMethod = "totp"
-	MFAMethodSMS   MFAMethod = "sms"  // Future support
-)
-
 // MFASessionStatus represents the status of an MFA session
 type MFASessionStatus string
 

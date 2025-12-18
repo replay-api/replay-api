@@ -16,6 +16,16 @@ type VerifyRIDKeyCommand interface {
 	Exec(ctx context.Context, key uuid.UUID) (common.ResourceOwner, common.IntendedAudienceKey, error)
 }
 
+// RefreshRIDTokenCommand refreshes an existing token with a new expiration
+type RefreshRIDTokenCommand interface {
+	Exec(ctx context.Context, tokenID uuid.UUID) (*iam_entities.RIDToken, error)
+}
+
+// RevokeRIDTokenCommand revokes/blacklists a token (logout)
+type RevokeRIDTokenCommand interface {
+	Exec(ctx context.Context, tokenID uuid.UUID) error
+}
+
 type OnboardOpenIDUserCommand struct {
 	Source         iam_entities.RIDSourceKey `json:"rid_source" bson:"rid_source"`
 	Key            string                    `json:"key" bson:"key"`

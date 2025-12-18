@@ -8,6 +8,10 @@ import (
 
 type RIDTokenWriter interface {
 	Create(ctx context.Context, rid *iam_entities.RIDToken) (*iam_entities.RIDToken, error)
+	Update(ctx context.Context, rid *iam_entities.RIDToken) (*iam_entities.RIDToken, error)
+	Delete(ctx context.Context, tokenID string) error
+	// Revoke marks a token as revoked (for blacklist checking)
+	Revoke(ctx context.Context, tokenID string) error
 }
 
 type UserWriter interface {

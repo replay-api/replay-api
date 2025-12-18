@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/google/uuid"
+	common "github.com/replay-api/replay-api/pkg/domain"
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
 )
 
@@ -141,4 +142,42 @@ func (pr PlayerRole) IsValid() bool {
 	default:
 		return false
 	}
+}
+
+// RatingService handles player skill ratings using Glicko-2 algorithm
+type RatingService interface {
+	// GetPlayerRating retrieves or creates a player's rating
+	GetPlayerRating(ctx context.Context, playerID uuid.UUID, gameID common.GameIDKey) (*matchmaking_entities.PlayerRating, error)
+
+	// UpdateRatingsAfterMatch updates all player ratings after a match
+	UpdateRatingsAfterMatch(ctx context.Context, cmd UpdateRatingsCommand) error
+
+	// GetLeaderboard returns top players by rating
+	GetLeaderboard(ctx context.Context, gameID common.GameIDKey, limit int) ([]*matchmaking_entities.PlayerRating, error)
+
+	// GetRankDistribution returns the distribution of players across ranks
+	GetRankDistribution(ctx context.Context, gameID common.GameIDKey) (map[matchmaking_entities.Rank]int, error)
+}
+
+// UpdateRatingsCommand contains data for updating ratings after a match
+type UpdateRatingsCommand struct {
+	MatchID         uuid.UUID
+	GameID          common.GameIDKey
+	WinnerPlayerIDs []uuid.UUID
+	LoserPlayerIDs  []uuid.UUID
+	IsDraw          bool
+}
+
+// Validate validates the UpdateRatingsCommand
+func (c *UpdateRatingsCommand) Validate() error {
+	if c.MatchID == uuid.Nil {
+		return errors.New("match_id is required")
+	}
+	if c.GameID == "" {
+		return errors.New("game_id is required")
+	}
+	if len(c.WinnerPlayerIDs) == 0 && len(c.LoserPlayerIDs) == 0 {
+		return errors.New("at least one player is required")
+	}
+	return nil
 }

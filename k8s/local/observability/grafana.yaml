@@ -15,6 +15,12 @@ data:
         isDefault: true
         editable: false
         uid: prometheus
+      - name: Pyroscope
+        type: grafana-pyroscope-datasource
+        access: proxy
+        url: http://pyroscope-service:4040
+        editable: false
+        uid: pyroscope
 
 ---
 apiVersion: v1
@@ -52,9 +58,13 @@ data:
       "graphTooltip": 1,
       "id": null,
       "links": [
-        {"asDropdown": false, "icon": "external link", "includeVars": false, "keepTime": true, "tags": [], "targetBlank": true, "title": "Kubernetes", "tooltip": "", "type": "link", "url": "/d/k8s-cluster-overview"},
-        {"asDropdown": false, "icon": "external link", "includeVars": false, "keepTime": true, "tags": [], "targetBlank": true, "title": "API", "tooltip": "", "type": "link", "url": "/d/api-performance"},
-        {"asDropdown": false, "icon": "external link", "includeVars": false, "keepTime": true, "tags": [], "targetBlank": true, "title": "MongoDB", "tooltip": "", "type": "link", "url": "/d/mongodb-performance"}
+        {"asDropdown": false, "icon": "external link", "includeVars": false, "keepTime": true, "tags": [], "targetBlank": false, "title": "Command Center", "tooltip": "Esports Operations", "type": "link", "url": "/d/esports-command-center"},
+        {"asDropdown": false, "icon": "external link", "includeVars": false, "keepTime": true, "tags": [], "targetBlank": false, "title": "Tournaments", "tooltip": "Tournament Operations", "type": "link", "url": "/d/tournament-operations"},
+        {"asDropdown": false, "icon": "external link", "includeVars": false, "keepTime": true, "tags": [], "targetBlank": false, "title": "Matchmaking", "tooltip": "Matchmaking Analytics", "type": "link", "url": "/d/matchmaking-analytics"},
+        {"asDropdown": false, "icon": "external link", "includeVars": false, "keepTime": true, "tags": [], "targetBlank": false, "title": "Players", "tooltip": "Player Engagement", "type": "link", "url": "/d/player-engagement"},
+        {"asDropdown": false, "icon": "external link", "includeVars": false, "keepTime": true, "tags": [], "targetBlank": false, "title": "Streaming", "tooltip": "Kafka Streaming", "type": "link", "url": "/d/kafka-streaming"},
+        {"asDropdown": false, "icon": "external link", "includeVars": false, "keepTime": true, "tags": [], "targetBlank": false, "title": "WebSocket", "tooltip": "Realtime Connections", "type": "link", "url": "/d/websocket-realtime"},
+        {"asDropdown": false, "icon": "external link", "includeVars": false, "keepTime": true, "tags": [], "targetBlank": false, "title": "Profiling", "tooltip": "Continuous Profiling", "type": "link", "url": "/d/continuous-profiling"}
       ],
       "liveNow": false,
       "panels": [
@@ -208,12 +218,16 @@ spec:
       initContainers:
         - name: init-dashboards
           image: busybox:1.36
-          command: ['sh', '-c', 'cp /dashboards-source/*.json /dashboards/ 2>/dev/null || true; cp /extra-dashboards/*.json /dashboards/ 2>/dev/null || true']
+          command: ['sh', '-c', 'cp /dashboards-source/*.json /dashboards/ 2>/dev/null || true; cp /extra-dashboards/*.json /dashboards/ 2>/dev/null || true; cp /pyroscope-dashboards/*.json /dashboards/ 2>/dev/null || true; cp /replay-dashboards/*.json /dashboards/ 2>/dev/null || true']
           volumeMounts:
             - name: dashboards-source
               mountPath: /dashboards-source
             - name: extra-dashboards
               mountPath: /extra-dashboards
+            - name: pyroscope-dashboards
+              mountPath: /pyroscope-dashboards
+            - name: replay-dashboards
+              mountPath: /replay-dashboards
             - name: dashboards
               mountPath: /dashboards
       containers:
@@ -232,7 +246,7 @@ spec:
             - name: GF_AUTH_ANONYMOUS_ENABLED
               value: "true"
             - name: GF_AUTH_ANONYMOUS_ORG_ROLE
-              value: "Viewer"
+              value: "Admin"
             - name: GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH
               value: "/var/lib/grafana/dashboards/home.json"
             - name: GF_FEATURE_TOGGLES_ENABLE
@@ -278,6 +292,14 @@ spec:
         - name: extra-dashboards
           configMap:
             name: grafana-extra-dashboards
+            optional: true
+        - name: pyroscope-dashboards
+          configMap:
+            name: grafana-pyroscope-dashboards
+            optional: true
+        - name: replay-dashboards
+          configMap:
+            name: grafana-replay-dashboards
             optional: true
         - name: dashboards
           emptyDir: {}

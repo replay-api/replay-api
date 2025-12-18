@@ -97,18 +97,13 @@ func (uc *GetTransactionsUseCase) GetTransactions(ctx context.Context, query wal
 	// Convert ledger entries to DTOs
 	transactions := make([]wallet_in.TransactionDTO, 0, len(entries))
 	for _, entry := range entries {
-		var currency string
-		if entry.Currency != nil {
-			currency = string(*entry.Currency)
-		}
-
 		tx := wallet_in.TransactionDTO{
 			ID:            entry.ID,
 			TransactionID: entry.TransactionID,
 			Type:          entry.Metadata.OperationType,
 			EntryType:     string(entry.EntryType),
 			AssetType:     string(entry.AssetType),
-			Currency:      currency,
+			Currency:      entry.Currency,
 			Amount:        entry.Amount.String(),
 			BalanceAfter:  entry.BalanceAfter.String(),
 			Description:   entry.Description,

@@ -7,6 +7,7 @@ resources:
   - namespace.yaml
   - secrets.yaml
   - configmap.yaml
+  - strimzi/
   - mongodb.yaml
   - deployment.yaml
   - web-frontend.yaml

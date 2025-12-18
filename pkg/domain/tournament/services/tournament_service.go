@@ -4,28 +4,43 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/google/uuid"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
+	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
 	tournament_entities "github.com/replay-api/replay-api/pkg/domain/tournament/entities"
 	tournament_in "github.com/replay-api/replay-api/pkg/domain/tournament/ports/in"
 	tournament_out "github.com/replay-api/replay-api/pkg/domain/tournament/ports/out"
 	wallet_in "github.com/replay-api/replay-api/pkg/domain/wallet/ports/in"
 )
 
+// GenerateBracketsHandler defines the interface for bracket generation
+type GenerateBracketsHandler interface {
+	Exec(ctx context.Context, tournamentID uuid.UUID) error
+}
+
 // TournamentService implements tournament management business logic
 type TournamentService struct {
-	tournamentRepo tournament_out.TournamentRepository
-	walletCommand  wallet_in.WalletCommand
+	tournamentRepo           tournament_out.TournamentRepository
+	walletCommand            wallet_in.WalletCommand
+	playerProfileReader      squad_in.PlayerProfileReader
+	generateBracketsHandler  GenerateBracketsHandler
 }
 
 // NewTournamentService creates a new tournament service
 func NewTournamentService(
 	tournamentRepo tournament_out.TournamentRepository,
 	walletCommand wallet_in.WalletCommand,
+	playerProfileReader squad_in.PlayerProfileReader,
+	generateBracketsHandler GenerateBracketsHandler,
 ) tournament_in.TournamentCommand {
 	return &TournamentService{
-		tournamentRepo: tournamentRepo,
-		walletCommand:  walletCommand,
+		tournamentRepo:          tournamentRepo,
+		walletCommand:           walletCommand,
+		playerProfileReader:     playerProfileReader,
+		generateBracketsHandler: generateBracketsHandler,
 	}
 }
 
@@ -221,6 +236,30 @@ func (s *TournamentService) UnregisterPlayer(ctx context.Context, cmd tournament
 		"tournament_id", cmd.TournamentID,
 		"player_id", cmd.PlayerID)
 
+	// CRITICAL: Ownership validation - prevent impersonation
+	// Verify the PlayerID belongs to the authenticated user
+	playerSearch := squad_entities.NewSearchByID(ctx, cmd.PlayerID)
+	players, err := s.playerProfileReader.Search(ctx, playerSearch)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find player profile for unregister", "error", err, "player_id", cmd.PlayerID)
+		return fmt.Errorf("player not found")
+	}
+	if len(players) == 0 {
+		return common.NewErrNotFound(common.ResourceTypePlayerProfile, "ID", cmd.PlayerID.String())
+	}
+
+	// Verify ownership - player must belong to authenticated user
+	currentUserID := common.GetResourceOwner(ctx).UserID
+	if players[0].ResourceOwner.UserID != currentUserID {
+		slog.WarnContext(ctx, "Tournament unregistration impersonation attempt blocked",
+			"attempted_player_id", cmd.PlayerID,
+			"player_owner", players[0].ResourceOwner.UserID,
+			"attacker_user_id", currentUserID,
+			"tournament_id", cmd.TournamentID,
+		)
+		return common.NewErrUnauthorized()
+	}
+
 	// Fetch tournament
 	tournament, err := s.tournamentRepo.FindByID(ctx, cmd.TournamentID)
 	if err != nil {
@@ -320,13 +359,28 @@ func (s *TournamentService) StartTournament(ctx context.Context, tournamentID uu
 		return fmt.Errorf("failed to start tournament: %w", err)
 	}
 
-	// TODO: Generate bracket matches based on tournament format
-
 	if err := s.tournamentRepo.Update(ctx, tournament); err != nil {
 		return fmt.Errorf("failed to save tournament: %w", err)
 	}
 
 	slog.InfoContext(ctx, "tournament started", "tournament_id", tournamentID)
+	return nil
+}
+
+// GenerateBrackets generates tournament brackets based on format
+func (s *TournamentService) GenerateBrackets(ctx context.Context, tournamentID uuid.UUID) error {
+	slog.InfoContext(ctx, "generating brackets", "tournament_id", tournamentID)
+
+	if s.generateBracketsHandler == nil {
+		return fmt.Errorf("bracket generation handler not configured")
+	}
+
+	if err := s.generateBracketsHandler.Exec(ctx, tournamentID); err != nil {
+		slog.ErrorContext(ctx, "failed to generate brackets", "tournament_id", tournamentID, "error", err)
+		return fmt.Errorf("failed to generate brackets: %w", err)
+	}
+
+	slog.InfoContext(ctx, "brackets generated successfully", "tournament_id", tournamentID)
 	return nil
 }
 
@@ -416,6 +470,209 @@ func (s *TournamentService) CancelTournament(ctx context.Context, cmd tournament
 	}
 
 	slog.InfoContext(ctx, "tournament cancelled", "tournament_id", cmd.TournamentID)
+	return nil
+}
+
+// ScheduleMatches automatically schedules all tournament matches
+func (s *TournamentService) ScheduleMatches(ctx context.Context, cmd tournament_in.ScheduleMatchesCommand) error {
+	slog.InfoContext(ctx, "scheduling tournament matches", "tournament_id", cmd.TournamentID)
+
+	// Fetch tournament
+	tournament, err := s.tournamentRepo.FindByID(ctx, cmd.TournamentID)
+	if err != nil {
+		return fmt.Errorf("tournament not found: %w", err)
+	}
+
+	// Validate tournament state
+	if tournament.Status != tournament_entities.TournamentStatusReady && 
+	   tournament.Status != tournament_entities.TournamentStatusInProgress {
+		return fmt.Errorf("tournament must be in ready or in_progress status, current: %s", tournament.Status)
+	}
+
+	if len(tournament.Matches) == 0 {
+		return fmt.Errorf("no matches to schedule - generate brackets first")
+	}
+
+	// Determine start time
+	startTime := tournament.StartTime
+	if cmd.StartTime != nil {
+		startTime = *cmd.StartTime
+	}
+
+	// Default scheduling parameters
+	matchDuration := time.Duration(cmd.MatchDurationMins) * time.Minute
+	if matchDuration == 0 {
+		matchDuration = 45 * time.Minute // Default 45 min per match
+	}
+
+	breakDuration := time.Duration(cmd.BreakBetweenMins) * time.Minute
+	if breakDuration == 0 {
+		breakDuration = 15 * time.Minute // Default 15 min break
+	}
+
+	concurrentMatches := cmd.ConcurrentMatches
+	if concurrentMatches == 0 {
+		concurrentMatches = 1 // Default sequential
+	}
+
+	// Schedule matches by round
+	currentTime := startTime
+	matchesPerSlot := 0
+
+	for i := range tournament.Matches {
+		tournament.Matches[i].ScheduledAt = currentTime
+		matchesPerSlot++
+
+		// Move to next time slot if we've scheduled enough concurrent matches
+		if matchesPerSlot >= concurrentMatches {
+			currentTime = currentTime.Add(matchDuration + breakDuration)
+			matchesPerSlot = 0
+		}
+	}
+
+	// Save updated tournament
+	if err := s.tournamentRepo.Update(ctx, tournament); err != nil {
+		return fmt.Errorf("failed to save tournament schedule: %w", err)
+	}
+
+	slog.InfoContext(ctx, "tournament matches scheduled",
+		"tournament_id", cmd.TournamentID,
+		"matches_scheduled", len(tournament.Matches),
+		"start_time", startTime,
+	)
+
+	return nil
+}
+
+// RescheduleMatch reschedules a specific match
+func (s *TournamentService) RescheduleMatch(ctx context.Context, cmd tournament_in.RescheduleMatchCommand) error {
+	slog.InfoContext(ctx, "rescheduling match",
+		"tournament_id", cmd.TournamentID,
+		"match_id", cmd.MatchID,
+		"new_time", cmd.NewTime,
+	)
+
+	// Fetch tournament
+	tournament, err := s.tournamentRepo.FindByID(ctx, cmd.TournamentID)
+	if err != nil {
+		return fmt.Errorf("tournament not found: %w", err)
+	}
+
+	// Find and update the match
+	matchFound := false
+	for i := range tournament.Matches {
+		if tournament.Matches[i].MatchID == cmd.MatchID {
+			// Can only reschedule scheduled or in_progress matches
+			if tournament.Matches[i].Status == tournament_entities.MatchStatusCompleted {
+				return fmt.Errorf("cannot reschedule completed match")
+			}
+			if tournament.Matches[i].Status == tournament_entities.MatchStatusCancelled {
+				return fmt.Errorf("cannot reschedule cancelled match")
+			}
+
+			tournament.Matches[i].ScheduledAt = cmd.NewTime
+			matchFound = true
+			break
+		}
+	}
+
+	if !matchFound {
+		return fmt.Errorf("match not found: %s", cmd.MatchID)
+	}
+
+	// Save updated tournament
+	if err := s.tournamentRepo.Update(ctx, tournament); err != nil {
+		return fmt.Errorf("failed to save rescheduled match: %w", err)
+	}
+
+	slog.InfoContext(ctx, "match rescheduled",
+		"tournament_id", cmd.TournamentID,
+		"match_id", cmd.MatchID,
+		"new_time", cmd.NewTime,
+		"reason", cmd.Reason,
+	)
+
+	return nil
+}
+
+// ReportMatchResult reports the result of a completed match
+func (s *TournamentService) ReportMatchResult(ctx context.Context, cmd tournament_in.ReportMatchResultCommand) error {
+	slog.InfoContext(ctx, "reporting match result",
+		"tournament_id", cmd.TournamentID,
+		"match_id", cmd.MatchID,
+		"winner_id", cmd.WinnerID,
+		"score", cmd.Score,
+	)
+
+	// Fetch tournament
+	tournament, err := s.tournamentRepo.FindByID(ctx, cmd.TournamentID)
+	if err != nil {
+		return fmt.Errorf("tournament not found: %w", err)
+	}
+
+	// Validate tournament is in progress
+	if tournament.Status != tournament_entities.TournamentStatusInProgress {
+		return fmt.Errorf("tournament must be in_progress to report results, current: %s", tournament.Status)
+	}
+
+	// Find the match
+	matchFound := false
+	var matchIdx int
+	for i := range tournament.Matches {
+		if tournament.Matches[i].MatchID == cmd.MatchID {
+			matchIdx = i
+			matchFound = true
+			break
+		}
+	}
+
+	if !matchFound {
+		return fmt.Errorf("match not found: %s", cmd.MatchID)
+	}
+
+	match := &tournament.Matches[matchIdx]
+
+	// Validate match state
+	if match.Status == tournament_entities.MatchStatusCompleted {
+		return fmt.Errorf("match already completed")
+	}
+	if match.Status == tournament_entities.MatchStatusCancelled {
+		return fmt.Errorf("cannot report result for cancelled match")
+	}
+
+	// Validate winner is one of the match participants
+	if cmd.WinnerID != match.Player1ID && cmd.WinnerID != match.Player2ID {
+		return fmt.Errorf("winner must be one of the match participants")
+	}
+
+	// Update match result
+	now := time.Now()
+	match.WinnerID = &cmd.WinnerID
+	match.CompletedAt = &now
+	match.Status = tournament_entities.MatchStatusCompleted
+
+	// Check if all matches in the tournament are complete
+	allComplete := true
+	for _, m := range tournament.Matches {
+		if m.Status != tournament_entities.MatchStatusCompleted {
+			allComplete = false
+			break
+		}
+	}
+
+	// Save updated tournament
+	if err := s.tournamentRepo.Update(ctx, tournament); err != nil {
+		return fmt.Errorf("failed to save match result: %w", err)
+	}
+
+	slog.InfoContext(ctx, "match result reported",
+		"tournament_id", cmd.TournamentID,
+		"match_id", cmd.MatchID,
+		"winner_id", cmd.WinnerID,
+		"score", cmd.Score,
+		"all_matches_complete", allComplete,
+	)
+
 	return nil
 }
 

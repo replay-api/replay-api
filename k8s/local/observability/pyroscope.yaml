@@ -1,0 +1,107 @@
+# Pyroscope Server for Continuous Profiling
+# Provides CPU, memory, and goroutine profiling for the LeetGaming platform
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pyroscope-config
+  namespace: leetgaming
+data:
+  config.yaml: |
+    log-level: info
+    storage:
+      type: filesystem
+      filesystem:
+        root: /var/lib/pyroscope
+    scrape-configs:
+      - job-name: 'replay-api'
+        enabled-profiles: [cpu, mem, goroutines, mutex, block]
+        scrape-interval: 15s
+        scrape-timeout: 10s
+        scheme: http
+        static-configs:
+          - application: 'replay-api'
+            spy-name: 'gospy'
+            targets:
+              - 'replay-api-service:8080'
+            labels:
+              env: local
+              service: replay-api
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pyroscope
+  namespace: leetgaming
+  labels:
+    app: pyroscope
+    tier: observability
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pyroscope
+  template:
+    metadata:
+      labels:
+        app: pyroscope
+        tier: observability
+    spec:
+      containers:
+        - name: pyroscope
+          image: grafana/pyroscope:1.7.1
+          args:
+            - "server"
+          ports:
+            - containerPort: 4040
+              name: http
+          env:
+            - name: PYROSCOPE_LOG_LEVEL
+              value: "info"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/pyroscope
+            - name: data
+              mountPath: /var/lib/pyroscope
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: 4040
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 4040
+            initialDelaySeconds: 10
+            periodSeconds: 5
+      volumes:
+        - name: config
+          configMap:
+            name: pyroscope-config
+        - name: data
+          emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pyroscope-service
+  namespace: leetgaming
+  labels:
+    app: pyroscope
+spec:
+  type: ClusterIP
+  ports:
+    - port: 4040
+      targetPort: 4040
+      name: http
+  selector:
+    app: pyroscope

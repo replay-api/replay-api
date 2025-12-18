@@ -186,3 +186,187 @@ data:
             annotations:
               summary: "Tournament service errors"
               description: "Tournament service has {{ $value }} errors/s (threshold: 10/s)"
+
+      # ===========================================
+      # Esports Platform Alerts
+      # ===========================================
+
+      - name: leetgaming-matchmaking
+        rules:
+          - alert: MatchmakingHighWaitTime
+            expr: histogram_quantile(0.95, sum(rate(esports_matchmaking_wait_seconds_bucket[5m])) by (le)) > 180
+            for: 5m
+            labels:
+              severity: warning
+              service: matchmaking
+            annotations:
+              summary: "High matchmaking wait time"
+              description: "P95 matchmaking wait time is {{ $value | humanizeDuration }} (threshold: 3 minutes)"
+
+          - alert: MatchmakingQueueTimeout
+            expr: sum(rate(esports_matchmaking_queue_leaves_total{reason="timeout"}[10m])) / sum(rate(esports_matchmaking_queue_joins_total[10m])) > 0.15
+            for: 10m
+            labels:
+              severity: critical
+              service: matchmaking
+            annotations:
+              summary: "High matchmaking timeout rate"
+              description: "{{ $value | humanizePercentage }} of players timing out (threshold: 15%)"
+
+          - alert: MatchmakingSkillImbalance
+            expr: histogram_quantile(0.95, sum(rate(esports_matchmaking_skill_spread_bucket[10m])) by (le)) > 500
+            for: 10m
+            labels:
+              severity: warning
+              service: matchmaking
+            annotations:
+              summary: "High skill spread in matches"
+              description: "P95 MMR spread is {{ $value }} (threshold: 500)"
+
+          - alert: LobbyReadyCheckFailure
+            expr: sum(rate(esports_lobby_ready_check_timeout_total[15m])) > 5
+            for: 10m
+            labels:
+              severity: warning
+              service: matchmaking
+            annotations:
+              summary: "High lobby ready check failures"
+              description: "{{ $value }} lobbies cancelled due to ready check timeout in last 15 minutes"
+
+      - name: leetgaming-tournaments
+        rules:
+          - alert: TournamentLowFillRate
+            expr: histogram_quantile(0.50, sum(rate(esports_tournament_fill_percentage_bucket[1h])) by (le)) < 0.5
+            for: 30m
+            labels:
+              severity: warning
+              service: tournaments
+            annotations:
+              summary: "Low tournament fill rate"
+              description: "Median tournament fill rate is {{ $value | humanizePercentage }} (threshold: 50%)"
+
+          - alert: TournamentLongMatches
+            expr: histogram_quantile(0.95, sum(rate(esports_tournament_match_duration_seconds_bucket[1h])) by (le)) > 3600
+            for: 30m
+            labels:
+              severity: warning
+              service: tournaments
+            annotations:
+              summary: "Tournament matches taking too long"
+              description: "P95 match duration is {{ $value | humanizeDuration }} (threshold: 1 hour)"
+
+      - name: leetgaming-kafka
+        rules:
+          - alert: KafkaDown
+            expr: up{job="kafka"} == 0
+            for: 1m
+            labels:
+              severity: critical
+              service: kafka
+            annotations:
+              summary: "Kafka is down"
+              description: "Kafka broker has been unreachable for more than 1 minute"
+
+          - alert: KafkaHighConsumerLag
+            expr: sum(esports_kafka_consumer_lag) by (topic, consumer_group) > 1000
+            for: 5m
+            labels:
+              severity: warning
+              service: kafka
+            annotations:
+              summary: "High Kafka consumer lag"
+              description: "Consumer group {{ $labels.consumer_group }} has {{ $value }} messages lag on topic {{ $labels.topic }}"
+
+          - alert: KafkaCriticalConsumerLag
+            expr: sum(esports_kafka_consumer_lag) by (topic, consumer_group) > 10000
+            for: 2m
+            labels:
+              severity: critical
+              service: kafka
+            annotations:
+              summary: "Critical Kafka consumer lag"
+              description: "Consumer group {{ $labels.consumer_group }} has {{ $value }} messages lag on topic {{ $labels.topic }}"
+
+          - alert: KafkaSlowProcessing
+            expr: histogram_quantile(0.95, sum(rate(esports_kafka_processing_duration_seconds_bucket[5m])) by (le, topic)) > 0.5
+            for: 5m
+            labels:
+              severity: warning
+              service: kafka
+            annotations:
+              summary: "Slow Kafka message processing"
+              description: "P95 processing time for topic {{ $labels.topic }} is {{ $value | humanizeDuration }}"
+
+          - alert: KafkaDLQMessages
+            expr: sum(increase(esports_kafka_dlq_messages_total[15m])) > 10
+            for: 5m
+            labels:
+              severity: warning
+              service: kafka
+            annotations:
+              summary: "Messages being sent to DLQ"
+              description: "{{ $value }} messages sent to dead letter queue in last 15 minutes"
+
+          - alert: KafkaDLQCritical
+            expr: sum(increase(esports_kafka_dlq_messages_total[5m])) > 50
+            for: 2m
+            labels:
+              severity: critical
+              service: kafka
+            annotations:
+              summary: "Critical: Many messages going to DLQ"
+              description: "{{ $value }} messages sent to dead letter queue in last 5 minutes"
+
+      - name: leetgaming-websocket
+        rules:
+          - alert: WebSocketHighLatency
+            expr: histogram_quantile(0.95, sum(rate(esports_websocket_message_latency_ms_bucket[5m])) by (le)) > 100
+            for: 5m
+            labels:
+              severity: warning
+              service: websocket
+            annotations:
+              summary: "High WebSocket latency"
+              description: "P95 message latency is {{ $value }}ms (threshold: 100ms)"
+
+          - alert: WebSocketCriticalLatency
+            expr: histogram_quantile(0.99, sum(rate(esports_websocket_message_latency_ms_bucket[5m])) by (le)) > 500
+            for: 2m
+            labels:
+              severity: critical
+              service: websocket
+            annotations:
+              summary: "Critical WebSocket latency"
+              description: "P99 message latency is {{ $value }}ms (threshold: 500ms)"
+
+          - alert: WebSocketConnectionDrop
+            expr: delta(esports_websocket_connections_total[5m]) < -100
+            for: 2m
+            labels:
+              severity: warning
+              service: websocket
+            annotations:
+              summary: "WebSocket connections dropping"
+              description: "Lost {{ $value | humanize }} connections in last 5 minutes"
+
+      - name: leetgaming-players
+        rules:
+          - alert: LowPlayerEngagement
+            expr: sum(esports_active_players_current) < 10
+            for: 30m
+            labels:
+              severity: info
+              service: platform
+            annotations:
+              summary: "Low player activity"
+              description: "Only {{ $value }} active players (informational)"
+
+          - alert: ReplayProcessingSlow
+            expr: histogram_quantile(0.95, sum(rate(esports_replay_processing_seconds_bucket[1h])) by (le)) > 120
+            for: 15m
+            labels:
+              severity: warning
+              service: replay
+            annotations:
+              summary: "Slow replay processing"
+              description: "P95 replay processing time is {{ $value | humanizeDuration }} (threshold: 2 minutes)"

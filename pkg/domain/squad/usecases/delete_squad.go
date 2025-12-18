@@ -5,9 +5,10 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
-	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	common "github.com/replay-api/replay-api/pkg/domain"
+	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
+	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
+	squad "github.com/replay-api/replay-api/pkg/domain/squad"
 	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 	squad_out "github.com/replay-api/replay-api/pkg/domain/squad/ports/out"
 )
@@ -40,7 +41,7 @@ func (uc *DeleteSquadUseCase) Exec(ctx context.Context, squadID uuid.UUID) error
 		return common.NewErrUnauthorized()
 	}
 
-	// 2. Check if squad exists and ownership
+	// 2. Check if squad exists
 	squads, err := uc.SquadReader.Search(ctx, common.NewSearchByID(ctx, squadID, common.ClientApplicationAudienceIDKey))
 	if err != nil {
 		return err
@@ -50,13 +51,15 @@ func (uc *DeleteSquadUseCase) Exec(ctx context.Context, squadID uuid.UUID) error
 		return common.NewErrNotFound(common.ResourceTypeSquad, "ID", squadID.String())
 	}
 
-	squad := squads[0]
+	squadEntity := squads[0]
 
-	if squad.ResourceOwner.UserID != common.GetResourceOwner(ctx).UserID {
-		return common.NewErrUnauthorized()
+	// 3. Authorization check - only owner or admin can delete squad
+	if err := squad.MustBeSquadOwnerOrAdmin(ctx, &squadEntity); err != nil {
+		slog.WarnContext(ctx, "Unauthorized squad delete attempt", "squad_id", squadID, "user_id", common.GetResourceOwner(ctx).UserID, "error", err)
+		return err
 	}
 
-	// 3. Billing validation
+	// 4. Billing validation
 	billingCmd := billing_in.BillableOperationCommand{
 		OperationID: billing_entities.OperationTypeDeleteSquadProfile,
 		UserID:      common.GetResourceOwner(ctx).UserID,
@@ -68,27 +71,27 @@ func (uc *DeleteSquadUseCase) Exec(ctx context.Context, squadID uuid.UUID) error
 		return err
 	}
 
-	// 4. Delete squad
+	// 5. Delete squad
 	err = uc.SquadWriter.Delete(ctx, squadID)
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to delete squad", "error", err, "squad_id", squadID)
 		return err
 	}
 
-	// 5. Execute billing
+	// 6. Execute billing
 	_, _, billingErr := uc.billableOperationHandler.Exec(ctx, billingCmd)
 	if billingErr != nil {
 		slog.WarnContext(ctx, "Failed to execute billing for delete squad", "error", billingErr, "squad_id", squadID)
 	}
 
-	// 6. Record history
+	// 7. Record history
 	history := squad_entities.NewSquadHistory(squadID, common.GetResourceOwner(ctx).UserID, squad_entities.SquadDeleted, common.GetResourceOwner(ctx))
 	_, err = uc.SquadHistoryWriter.Create(ctx, history)
 	if err != nil {
 		slog.WarnContext(ctx, "Failed to create squad history for delete", "error", err, "squad_id", squadID)
 	}
 
-	// 7. Log success
+	// 8. Log success
 	slog.InfoContext(ctx, "squad deleted", "squad_id", squadID, "user_id", common.GetResourceOwner(ctx).UserID)
 
 	return nil

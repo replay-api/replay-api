@@ -138,6 +138,11 @@ func (v *EmailVerification) SetRequestInfo(ipAddress, userAgent string) {
 	v.UpdatedAt = time.Now().UTC()
 }
 
+// GetID returns the verification ID (implements common.Entity)
+func (v EmailVerification) GetID() uuid.UUID {
+	return v.ID
+}
+
 // generateSecureToken generates a cryptographically secure random token
 func generateSecureToken(length int) (string, error) {
 	bytes := make([]byte, length)

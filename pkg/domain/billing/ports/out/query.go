@@ -15,6 +15,8 @@ type SubscriptionReader interface {
 type PlanReader interface {
 	common.Searchable[billing_entities.Plan]
 	GetDefaultFreePlan(ctx context.Context) (*billing_entities.Plan, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*billing_entities.Plan, error)
+	GetAvailablePlans(ctx context.Context) ([]*billing_entities.Plan, error)
 }
 
 type BillableEntryReader interface {

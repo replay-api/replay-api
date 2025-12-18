@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	common "github.com/replay-api/replay-api/pkg/domain"
+	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 	tournament_entities "github.com/replay-api/replay-api/pkg/domain/tournament/entities"
 	tournament_in "github.com/replay-api/replay-api/pkg/domain/tournament/ports/in"
 	tournament_usecases "github.com/replay-api/replay-api/pkg/domain/tournament/usecases"
@@ -14,6 +15,35 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
+
+// MockPlayerProfileReader is a mock for squad_in.PlayerProfileReader
+type MockPlayerProfileReader struct {
+	mock.Mock
+}
+
+func (m *MockPlayerProfileReader) GetByID(ctx context.Context, id uuid.UUID) (*squad_entities.PlayerProfile, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*squad_entities.PlayerProfile), args.Error(1)
+}
+
+func (m *MockPlayerProfileReader) Search(ctx context.Context, search common.Search) ([]squad_entities.PlayerProfile, error) {
+	args := m.Called(ctx, search)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]squad_entities.PlayerProfile), args.Error(1)
+}
+
+func (m *MockPlayerProfileReader) Compile(ctx context.Context, searchParams []common.SearchAggregation, resultOptions common.SearchResultOptions) (*common.Search, error) {
+	args := m.Called(ctx, searchParams, resultOptions)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*common.Search), args.Error(1)
+}
 
 func createRegistrationTournament(status tournament_entities.TournamentStatus) *tournament_entities.Tournament {
 	startTime := time.Now().UTC().Add(24 * time.Hour)
@@ -45,27 +75,43 @@ func createRegistrationTournament(status tournament_entities.TournamentStatus) *
 func TestRegisterForTournament_Success(t *testing.T) {
 	mockBilling := new(MockBillableOperationHandler)
 	mockTournamentRepo := new(MockTournamentRepository)
+	mockPlayerReader := new(MockPlayerProfileReader)
 
 	usecase := tournament_usecases.NewRegisterForTournamentUseCase(
 		mockBilling,
 		mockTournamentRepo,
+		mockPlayerReader,
 	)
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
 	userID := uuid.New()
+	tenantID := uuid.New()
 	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, common.TenantIDKey, tenantID)
 
 	tournament := createRegistrationTournament(tournament_entities.TournamentStatusRegistration)
 	tournamentID := tournament.ID
 	playerID := uuid.New()
+
+	// Create player profile that belongs to the authenticated user
+	playerProfile := squad_entities.PlayerProfile{
+		BaseEntity: common.NewUnrestrictedEntity(common.ResourceOwner{
+			UserID:   userID, // Same user as authenticated - ownership check passes
+			TenantID: tenantID,
+		}),
+		Nickname: "Player123",
+	}
+	playerProfile.ID = playerID
 
 	cmd := tournament_in.RegisterPlayerCommand{
 		TournamentID: tournamentID,
 		PlayerID:     playerID,
 		DisplayName:  "Player123",
 	}
+
+	// mock player ownership verification
+	mockPlayerReader.On("Search", mock.Anything, mock.Anything).Return([]squad_entities.PlayerProfile{playerProfile}, nil)
 
 	// mock tournament retrieval
 	mockTournamentRepo.On("FindByID", mock.Anything, tournamentID).Return(tournament, nil)
@@ -84,15 +130,18 @@ func TestRegisterForTournament_Success(t *testing.T) {
 	assert.NoError(t, err)
 	mockBilling.AssertExpectations(t)
 	mockTournamentRepo.AssertExpectations(t)
+	mockPlayerReader.AssertExpectations(t)
 }
 
 func TestRegisterForTournament_Unauthenticated(t *testing.T) {
 	mockBilling := new(MockBillableOperationHandler)
 	mockTournamentRepo := new(MockTournamentRepository)
+	mockPlayerReader := new(MockPlayerProfileReader)
 
 	usecase := tournament_usecases.NewRegisterForTournamentUseCase(
 		mockBilling,
 		mockTournamentRepo,
+		mockPlayerReader,
 	)
 
 	ctx := context.Background()
@@ -108,28 +157,93 @@ func TestRegisterForTournament_Unauthenticated(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestRegisterForTournament_TournamentNotFound(t *testing.T) {
+func TestRegisterForTournament_ImpersonationBlocked(t *testing.T) {
 	mockBilling := new(MockBillableOperationHandler)
 	mockTournamentRepo := new(MockTournamentRepository)
+	mockPlayerReader := new(MockPlayerProfileReader)
 
 	usecase := tournament_usecases.NewRegisterForTournamentUseCase(
 		mockBilling,
 		mockTournamentRepo,
+		mockPlayerReader,
+	)
+
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	attackerUserID := uuid.New()                                    // The attacker
+	victimUserID := uuid.New()                                      // The victim (different user)
+	ctx = context.WithValue(ctx, common.UserIDKey, attackerUserID)  // Attacker is authenticated
+	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+
+	playerID := uuid.New()
+
+	// Create player profile that belongs to the VICTIM, not the attacker
+	playerProfile := squad_entities.PlayerProfile{
+		BaseEntity: common.NewUnrestrictedEntity(common.ResourceOwner{
+			UserID:   victimUserID, // Belongs to victim, not attacker
+			TenantID: uuid.New(),
+		}),
+		Nickname: "VictimPlayer",
+	}
+	playerProfile.ID = playerID
+
+	cmd := tournament_in.RegisterPlayerCommand{
+		TournamentID: uuid.New(),
+		PlayerID:     playerID,  // Attacker trying to register victim's player
+		DisplayName:  "HackedName",
+	}
+
+	// mock player ownership verification - returns victim's profile
+	mockPlayerReader.On("Search", mock.Anything, mock.Anything).Return([]squad_entities.PlayerProfile{playerProfile}, nil)
+
+	err := usecase.Exec(ctx, cmd)
+
+	// Should fail with unauthorized error
+	assert.Error(t, err)
+	mockPlayerReader.AssertExpectations(t)
+	// Tournament repo should NOT be called since ownership check failed
+	mockTournamentRepo.AssertNotCalled(t, "FindByID", mock.Anything, mock.Anything)
+}
+
+func TestRegisterForTournament_TournamentNotFound(t *testing.T) {
+	mockBilling := new(MockBillableOperationHandler)
+	mockTournamentRepo := new(MockTournamentRepository)
+	mockPlayerReader := new(MockPlayerProfileReader)
+
+	usecase := tournament_usecases.NewRegisterForTournamentUseCase(
+		mockBilling,
+		mockTournamentRepo,
+		mockPlayerReader,
 	)
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
 	userID := uuid.New()
+	tenantID := uuid.New()
 	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, common.TenantIDKey, tenantID)
 
 	tournamentID := uuid.New()
+	playerID := uuid.New()
+
+	// Create player profile that belongs to the authenticated user
+	playerProfile := squad_entities.PlayerProfile{
+		BaseEntity: common.NewUnrestrictedEntity(common.ResourceOwner{
+			UserID:   userID,
+			TenantID: tenantID,
+		}),
+		Nickname: "Player123",
+	}
+	playerProfile.ID = playerID
 
 	cmd := tournament_in.RegisterPlayerCommand{
 		TournamentID: tournamentID,
-		PlayerID:     uuid.New(),
+		PlayerID:     playerID,
 		DisplayName:  "Player123",
 	}
+
+	// mock player ownership verification
+	mockPlayerReader.On("Search", mock.Anything, mock.Anything).Return([]squad_entities.PlayerProfile{playerProfile}, nil)
 
 	// mock tournament not found
 	mockTournamentRepo.On("FindByID", mock.Anything, tournamentID).Return(nil, assert.AnError)
@@ -139,31 +253,49 @@ func TestRegisterForTournament_TournamentNotFound(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "tournament not found")
 	mockTournamentRepo.AssertExpectations(t)
+	mockPlayerReader.AssertExpectations(t)
 }
 
 func TestRegisterForTournament_BillingValidationFails(t *testing.T) {
 	mockBilling := new(MockBillableOperationHandler)
 	mockTournamentRepo := new(MockTournamentRepository)
+	mockPlayerReader := new(MockPlayerProfileReader)
 
 	usecase := tournament_usecases.NewRegisterForTournamentUseCase(
 		mockBilling,
 		mockTournamentRepo,
+		mockPlayerReader,
 	)
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
 	userID := uuid.New()
+	tenantID := uuid.New()
 	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, common.TenantIDKey, tenantID)
 
 	tournament := createRegistrationTournament(tournament_entities.TournamentStatusRegistration)
 	tournamentID := tournament.ID
+	playerID := uuid.New()
+
+	// Create player profile that belongs to the authenticated user
+	playerProfile := squad_entities.PlayerProfile{
+		BaseEntity: common.NewUnrestrictedEntity(common.ResourceOwner{
+			UserID:   userID,
+			TenantID: tenantID,
+		}),
+		Nickname: "Player123",
+	}
+	playerProfile.ID = playerID
 
 	cmd := tournament_in.RegisterPlayerCommand{
 		TournamentID: tournamentID,
-		PlayerID:     uuid.New(),
+		PlayerID:     playerID,
 		DisplayName:  "Player123",
 	}
+
+	// mock player ownership verification
+	mockPlayerReader.On("Search", mock.Anything, mock.Anything).Return([]squad_entities.PlayerProfile{playerProfile}, nil)
 
 	// mock tournament retrieval
 	mockTournamentRepo.On("FindByID", mock.Anything, tournamentID).Return(tournament, nil)
@@ -176,31 +308,49 @@ func TestRegisterForTournament_BillingValidationFails(t *testing.T) {
 	assert.Error(t, err)
 	mockBilling.AssertExpectations(t)
 	mockTournamentRepo.AssertExpectations(t)
+	mockPlayerReader.AssertExpectations(t)
 }
 
 func TestRegisterForTournament_UpdateFails(t *testing.T) {
 	mockBilling := new(MockBillableOperationHandler)
 	mockTournamentRepo := new(MockTournamentRepository)
+	mockPlayerReader := new(MockPlayerProfileReader)
 
 	usecase := tournament_usecases.NewRegisterForTournamentUseCase(
 		mockBilling,
 		mockTournamentRepo,
+		mockPlayerReader,
 	)
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
 	userID := uuid.New()
+	tenantID := uuid.New()
 	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, common.TenantIDKey, tenantID)
 
 	tournament := createRegistrationTournament(tournament_entities.TournamentStatusRegistration)
 	tournamentID := tournament.ID
+	playerID := uuid.New()
+
+	// Create player profile that belongs to the authenticated user
+	playerProfile := squad_entities.PlayerProfile{
+		BaseEntity: common.NewUnrestrictedEntity(common.ResourceOwner{
+			UserID:   userID,
+			TenantID: tenantID,
+		}),
+		Nickname: "Player123",
+	}
+	playerProfile.ID = playerID
 
 	cmd := tournament_in.RegisterPlayerCommand{
 		TournamentID: tournamentID,
-		PlayerID:     uuid.New(),
+		PlayerID:     playerID,
 		DisplayName:  "Player123",
 	}
+
+	// mock player ownership verification
+	mockPlayerReader.On("Search", mock.Anything, mock.Anything).Return([]squad_entities.PlayerProfile{playerProfile}, nil)
 
 	// mock tournament retrieval
 	mockTournamentRepo.On("FindByID", mock.Anything, tournamentID).Return(tournament, nil)
@@ -217,4 +367,5 @@ func TestRegisterForTournament_UpdateFails(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to register for tournament")
 	mockBilling.AssertExpectations(t)
 	mockTournamentRepo.AssertExpectations(t)
+	mockPlayerReader.AssertExpectations(t)
 }

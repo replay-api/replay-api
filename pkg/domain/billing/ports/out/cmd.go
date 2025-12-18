@@ -14,4 +14,6 @@ type BillableEntryWriter interface {
 type SubscriptionWriter interface {
 	// CreateSubscription(planID uuid.UUID, args map[string]interface{}, rxn common.ResourceOwner) (*billing_entities.Subscription, error)
 	Create(ctx context.Context, subscription *billing_entities.Subscription) (*billing_entities.Subscription, error)
+	Update(ctx context.Context, subscription *billing_entities.Subscription) (*billing_entities.Subscription, error)
+	Cancel(ctx context.Context, subscription *billing_entities.Subscription) (*billing_entities.Subscription, error)
 }

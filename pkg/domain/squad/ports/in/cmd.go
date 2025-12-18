@@ -104,9 +104,10 @@ type RemoveSquadMemberCommandHandler interface {
 }
 
 type UpdateSquadMemberRoleCommand struct {
-	SquadID  uuid.UUID `json:"squad_id"`
-	PlayerID uuid.UUID `json:"player_id"`
-	Roles    []string  `json:"roles"`
+	SquadID        uuid.UUID                               `json:"squad_id"`
+	PlayerID       uuid.UUID                               `json:"player_id"`
+	Roles          []string                                `json:"roles"`
+	MembershipType squad_value_objects.SquadMembershipType `json:"membership_type,omitempty"`
 }
 
 // Validate validates the UpdateSquadMemberRoleCommand
