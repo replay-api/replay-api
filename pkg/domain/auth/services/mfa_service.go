@@ -3,7 +3,7 @@ package auth_services
 import (
 	"context"
 	"crypto/hmac"
-	"crypto/sha1"
+	"crypto/sha1" // #nosec G505 - TOTP (RFC 6238) requires HMAC-SHA1
 	"encoding/base32"
 	"encoding/binary"
 	"fmt"

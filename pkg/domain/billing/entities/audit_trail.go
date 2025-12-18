@@ -37,8 +37,8 @@ const (
 	AuditEventMFAEnabled       AuditEventType = "MFA_ENABLED"
 	AuditEventMFADisabled      AuditEventType = "MFA_DISABLED"
 	AuditEventPasswordChanged  AuditEventType = "PASSWORD_CHANGED"
-	AuditEventAPIKeyCreated    AuditEventType = "API_KEY_CREATED"
-	AuditEventAPIKeyRevoked    AuditEventType = "API_KEY_REVOKED"
+	AuditEventAPIKeyCreated    AuditEventType = "API_KEY_CREATED"  // #nosec G101 - this is an event type, not a credential
+	AuditEventAPIKeyRevoked    AuditEventType = "API_KEY_REVOKED"  // #nosec G101 - this is an event type, not a credential
 
 	// Admin Events
 	AuditEventAdminAction      AuditEventType = "ADMIN_ACTION"
