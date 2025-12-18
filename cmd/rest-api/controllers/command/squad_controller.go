@@ -562,10 +562,8 @@ func (ctrl *SquadController) GetSquadStatsHandler(apiContext context.Context) ht
 			return
 		}
 
-		gameID := r.URL.Query().Get("game_id")
-		if gameID == "" {
-			gameID = "cs2" // Default game
-		}
+		// Note: gameID is available for future filtering
+		_ = r.URL.Query().Get("game_id")
 
 		// Get squad reader
 		var squadReader squad_in.SquadReader

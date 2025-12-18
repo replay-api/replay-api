@@ -620,7 +620,7 @@ func (o *WalletOrchestrator) Transfer(
 	txRecord.UpdatedAt = now
 
 	if err := o.txRepo.Update(ctx, txRecord); err != nil {
-		// Log error but don't fail - tx is already confirmed
+		slog.WarnContext(ctx, "Failed to update tx record after confirmation", "error", err, "tx_id", txRecord.ID)
 	}
 
 	// Update spending
