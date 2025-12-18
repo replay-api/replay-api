@@ -13,7 +13,7 @@ import (
 
 // =============================================================================
 // Test Strategy: TDD-driven, functionality-focused tests
-// 
+//
 // Coverage targets:
 // - All public methods have at least one positive and one negative test
 // - Edge cases: zero amounts, max participants, concurrent access
