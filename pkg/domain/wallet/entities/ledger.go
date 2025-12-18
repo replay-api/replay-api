@@ -122,8 +122,78 @@ type LedgerEntry struct {
 	Metadata      LedgerMetadata `json:"metadata" bson:"metadata"`
 	CreatedAt     time.Time      `json:"created_at" bson:"created_at"`
 	CreatedBy     uuid.UUID      `json:"created_by" bson:"created_by"`
-	IsReversed    bool           `json:"is_reversed" bson:"is_reversed"`
-	ReversedBy    *uuid.UUID     `json:"reversed_by,omitempty" bson:"reversed_by,omitempty"`
+	IsReversed      bool           `json:"is_reversed" bson:"is_reversed"`
+	ReversedBy      *uuid.UUID     `json:"reversed_by,omitempty" bson:"reversed_by,omitempty"`
+	IdempotencyKey  string         `json:"idempotency_key,omitempty" bson:"idempotency_key,omitempty"`
+}
+
+// NewLedgerEntry creates a new ledger entry with the given parameters
+func NewLedgerEntry(
+	transactionID uuid.UUID,
+	accountID uuid.UUID,
+	accountType AccountType,
+	entryType EntryType,
+	assetType AssetType,
+	amount *big.Float,
+	description string,
+	idempotencyKey string,
+	createdBy uuid.UUID,
+) *LedgerEntry {
+	now := time.Now().UTC()
+	return &LedgerEntry{
+		ID:             uuid.New(),
+		JournalID:      transactionID,
+		TransactionID:  transactionID,
+		AccountID:      accountID,
+		AccountCode:    string(accountType),
+		EntryType:      entryType,
+		AssetType:      assetType,
+		Amount:         amount,
+		Currency:       "USD", // Default currency
+		BalanceBefore:  big.NewFloat(0),
+		BalanceAfter:   big.NewFloat(0),
+		Description:    description,
+		Metadata:       LedgerMetadata{},
+		CreatedAt:      now,
+		CreatedBy:      createdBy,
+		IsReversed:     false,
+		IdempotencyKey: idempotencyKey,
+	}
+}
+
+// Reverse creates a reversal entry for this ledger entry
+func (l *LedgerEntry) Reverse(reason string, reversedBy uuid.UUID) *LedgerEntry {
+	// Opposite entry type
+	reverseType := EntryTypeCredit
+	if l.EntryType == EntryTypeCredit {
+		reverseType = EntryTypeDebit
+	}
+
+	reversal := &LedgerEntry{
+		ID:             uuid.New(),
+		JournalID:      uuid.New(), // New journal for reversal
+		TransactionID:  uuid.New(),
+		AccountID:      l.AccountID,
+		AccountCode:    l.AccountCode,
+		EntryType:      reverseType,
+		AssetType:      l.AssetType,
+		Amount:         l.Amount,
+		Currency:       l.Currency,
+		BalanceBefore:  l.BalanceAfter,
+		BalanceAfter:   l.BalanceBefore,
+		Description:    fmt.Sprintf("REVERSAL: %s - %s", l.Description, reason),
+		Metadata:       l.Metadata,
+		CreatedAt:      time.Now().UTC(),
+		CreatedBy:      reversedBy,
+		IsReversed:     false,
+		IdempotencyKey: fmt.Sprintf("reversal-%s", l.IdempotencyKey),
+	}
+
+	// Mark original as reversed
+	l.IsReversed = true
+	l.ReversedBy = &reversedBy
+
+	return reversal
 }
 
 // Validate ensures the ledger entry is valid

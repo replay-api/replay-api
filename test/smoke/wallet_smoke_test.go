@@ -4,6 +4,7 @@
 package smoke_test
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/google/uuid"
@@ -137,7 +138,7 @@ func TestSmoke_LedgerEntry(t *testing.T) {
 	txID := uuid.New()
 	walletID := uuid.New()
 	userID := uuid.New()
-	amount := wallet_vo.NewAmount(100.00)
+	amount := big.NewFloat(100.00)
 
 	entry := wallet_entities.NewLedgerEntry(
 		txID,
@@ -156,7 +157,9 @@ func TestSmoke_LedgerEntry(t *testing.T) {
 	assert.Equal(t, txID, entry.TransactionID)
 	assert.Equal(t, walletID, entry.AccountID)
 	assert.Equal(t, wallet_entities.EntryTypeDebit, entry.EntryType)
-	assert.Equal(t, int64(10000), entry.Amount.ToCents())
+	expectedAmount, _ := amount.Float64()
+	actualAmount, _ := entry.Amount.Float64()
+	assert.Equal(t, expectedAmount, actualAmount)
 	assert.False(t, entry.IsReversed)
 }
 
@@ -165,7 +168,7 @@ func TestSmoke_LedgerEntryReversal(t *testing.T) {
 	txID := uuid.New()
 	walletID := uuid.New()
 	userID := uuid.New()
-	amount := wallet_vo.NewAmount(50.00)
+	amount := big.NewFloat(50.00)
 
 	// Create debit entry
 	originalEntry := wallet_entities.NewLedgerEntry(
@@ -187,9 +190,11 @@ func TestSmoke_LedgerEntryReversal(t *testing.T) {
 	assert.NotEqual(t, originalEntry.TransactionID, reversalEntry.TransactionID, "Reversal should have new transaction ID")
 	assert.Equal(t, originalEntry.AccountID, reversalEntry.AccountID)
 	assert.Equal(t, wallet_entities.EntryTypeCredit, reversalEntry.EntryType, "Debit should be reversed to credit")
-	assert.Equal(t, originalEntry.Amount.ToCents(), reversalEntry.Amount.ToCents())
+	originalAmount, _ := originalEntry.Amount.Float64()
+	reversalAmount, _ := reversalEntry.Amount.Float64()
+	assert.Equal(t, originalAmount, reversalAmount)
 	assert.True(t, originalEntry.IsReversed, "Original should be marked as reversed")
-	assert.Contains(t, reversalEntry.Description, "Reversal")
+	assert.Contains(t, reversalEntry.Description, "REVERSAL")
 }
 
 // TestSmoke_IdempotentOperation tests idempotent operation tracking
@@ -302,7 +307,7 @@ func BenchmarkLedgerEntryCreation(b *testing.B) {
 	txID := uuid.New()
 	walletID := uuid.New()
 	userID := uuid.New()
-	amount := wallet_vo.NewAmount(100.00)
+	amount := big.NewFloat(100.00)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
