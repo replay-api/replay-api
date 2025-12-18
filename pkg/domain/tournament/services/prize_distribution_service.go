@@ -369,7 +369,9 @@ func (s *PrizeDistributionService) processPlatformWalletPayout(ctx context.Conte
 	payout.CompletedAt = &now
 
 	// Update pool
-	pool.MarkPayoutCompleted(payout.ID, "", 0)
+	if err := pool.MarkPayoutCompleted(payout.ID, "", 0); err != nil {
+		slog.WarnContext(ctx, "Failed to mark payout completed in pool", "error", err, "payout_id", payout.ID)
+	}
 
 	return nil
 }
@@ -420,7 +422,9 @@ func (s *PrizeDistributionService) processCryptoPayout(ctx context.Context, pool
 		payout.BlockConfirmations = confirmations
 		payout.Status = tournament_entities.PayoutStatusCompleted
 		payout.CompletedAt = &now
-		pool.MarkPayoutCompleted(payout.ID, txHash, confirmations)
+		if err := pool.MarkPayoutCompleted(payout.ID, txHash, confirmations); err != nil {
+			slog.WarnContext(ctx, "Failed to mark payout completed in pool", "error", err, "payout_id", payout.ID)
+		}
 	}
 
 	return nil

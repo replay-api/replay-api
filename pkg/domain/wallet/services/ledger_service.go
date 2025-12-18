@@ -181,8 +181,12 @@ func (s *LedgerService) Deposit(ctx context.Context, req DepositRequest) (*walle
 		resourceOwner,
 	)
 
-	journal.AddDebit(cashAccount.ID, cashAccount.Code, amount, "Cash received from deposit")
-	journal.AddCredit(userAccount.ID, userAccount.Code, amount, "Credit to user wallet")
+	if err := journal.AddDebit(cashAccount.ID, cashAccount.Code, amount, "Cash received from deposit"); err != nil {
+		return nil, fmt.Errorf("failed to add debit entry: %w", err)
+	}
+	if err := journal.AddCredit(userAccount.ID, userAccount.Code, amount, "Credit to user wallet"); err != nil {
+		return nil, fmt.Errorf("failed to add credit entry: %w", err)
+	}
 
 	if req.ExternalRef != "" {
 		journal.ExternalRef = req.ExternalRef
@@ -222,8 +226,12 @@ func (s *LedgerService) Deposit(ctx context.Context, req DepositRequest) (*walle
 	}
 
 	// Mark journal as posted
-	journal.MarkApproved(req.UserID)
-	journal.MarkPosted()
+	if err := journal.MarkApproved(req.UserID); err != nil {
+		return nil, fmt.Errorf("failed to mark journal as approved: %w", err)
+	}
+	if err := journal.MarkPosted(); err != nil {
+		return nil, fmt.Errorf("failed to mark journal as posted: %w", err)
+	}
 
 	if err := s.repo.CreateJournal(ctx, journal); err != nil {
 		return nil, fmt.Errorf("failed to create journal: %w", err)
