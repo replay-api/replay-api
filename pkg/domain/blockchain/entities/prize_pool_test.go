@@ -115,7 +115,7 @@ func TestOnChainPrizePool_AddParticipant_Duplicate(t *testing.T) {
 	addr, _ := wallet_vo.NewEVMAddress("0x1111111111111111111111111111111111111111")
 	contribution := wallet_vo.NewAmountFromCents(1000)
 
-	pool.AddParticipant(addr, contribution)
+	_ = pool.AddParticipant(addr, contribution)
 	err := pool.AddParticipant(addr, contribution)
 
 	if err == nil {
@@ -175,7 +175,7 @@ func TestOnChainPrizePool_Lock_NotEnoughParticipants(t *testing.T) {
 func TestOnChainPrizePool_StartEscrow(t *testing.T) {
 	pool := createPoolWithParticipants(2)
 	lockTxHash, _ := blockchain_vo.NewTxHash("0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890")
-	pool.Lock(lockTxHash)
+	_ = pool.Lock(lockTxHash)
 
 	err := pool.StartEscrow(24 * time.Hour)
 

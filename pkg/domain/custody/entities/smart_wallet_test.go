@@ -553,10 +553,10 @@ func TestSmartWallet_ApproveRecovery(t *testing.T) {
 // TestSmartWallet_ApproveRecovery_ThresholdMet verifies approval status change
 func TestSmartWallet_ApproveRecovery_ThresholdMet(t *testing.T) {
 	wallet := createWalletWithRecovery()
-	wallet.InitiateRecovery(uuid.New(), []byte("new-key"))
+	_ = wallet.InitiateRecovery(uuid.New(), []byte("new-key"))
 
 	// Approve by another guardian (threshold is 2, initiator already counts as 1)
-	wallet.ApproveRecovery(uuid.New())
+	_ = wallet.ApproveRecovery(uuid.New())
 
 	if wallet.PendingRecovery.Status != RecoveryStatusApproved {
 		t.Errorf("Recovery status = %s, want %s", wallet.PendingRecovery.Status, RecoveryStatusApproved)
@@ -603,7 +603,7 @@ func setupWalletForActivation(wallet *SmartWallet) {
 func createWalletWithRecovery() *SmartWallet {
 	wallet := createTestWallet()
 	setupWalletForActivation(wallet)
-	wallet.Activate()
+	_ = wallet.Activate()
 
 	wallet.RecoveryConfig = &WalletRecoveryConfig{
 		IsEnabled:         true,
