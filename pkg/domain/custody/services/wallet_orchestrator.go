@@ -38,7 +38,7 @@ type WalletOrchestrator struct {
 	// Configuration
 	config *OrchestratorConfig
 
-	mu sync.RWMutex
+	mu sync.RWMutex //nolint:unused // Reserved for future concurrent operations
 }
 
 // OrchestratorConfig contains orchestrator configuration
@@ -621,6 +621,7 @@ func (o *WalletOrchestrator) Transfer(
 
 	if err := o.txRepo.Update(ctx, txRecord); err != nil {
 		// Log error but don't fail - tx is already confirmed
+		slog.WarnContext(ctx, "Failed to update confirmed tx record", "error", err, "txID", txID)
 	}
 
 	// Update spending
