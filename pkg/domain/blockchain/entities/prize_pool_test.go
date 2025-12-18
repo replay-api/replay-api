@@ -392,6 +392,6 @@ func createPoolInEscrow() *OnChainPrizePool {
 	pool := createPoolWithParticipants(2)
 	lockTxHash, _ := blockchain_vo.NewTxHash("0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890")
 	pool.Lock(lockTxHash)
-	pool.StartEscrow(24 * time.Hour)
+	_ = pool.StartEscrow(24 * time.Hour)
 	return pool
 }

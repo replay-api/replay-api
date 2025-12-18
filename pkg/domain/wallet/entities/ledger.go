@@ -447,9 +447,13 @@ func (j *JournalEntry) CreateReversal(reason string, createdBy uuid.UUID, rxn co
 	// Swap debits and credits
 	for _, entry := range j.Entries {
 		if entry.EntryType == EntryTypeDebit {
-			reversal.AddCredit(entry.AccountID, entry.AccountCode, entry.Amount, "Reversal: "+entry.Description)
+			if err := reversal.AddCredit(entry.AccountID, entry.AccountCode, entry.Amount, "Reversal: "+entry.Description); err != nil {
+				return nil, fmt.Errorf("failed to add credit entry for reversal: %w", err)
+			}
 		} else {
-			reversal.AddDebit(entry.AccountID, entry.AccountCode, entry.Amount, "Reversal: "+entry.Description)
+			if err := reversal.AddDebit(entry.AccountID, entry.AccountCode, entry.Amount, "Reversal: "+entry.Description); err != nil {
+				return nil, fmt.Errorf("failed to add debit entry for reversal: %w", err)
+			}
 		}
 	}
 
@@ -570,14 +574,18 @@ func NewTransactionBuilder(
 // Debit adds a debit entry
 func (tb *TransactionBuilder) Debit(account *LedgerAccount, amount float64, description string) *TransactionBuilder {
 	tb.accounts[account.ID] = account
-	tb.journal.AddDebit(account.ID, account.Code, big.NewFloat(amount), description)
+	if err := tb.journal.AddDebit(account.ID, account.Code, big.NewFloat(amount), description); err != nil {
+		tb.validations = append(tb.validations, func() error { return err })
+	}
 	return tb
 }
 
 // Credit adds a credit entry
 func (tb *TransactionBuilder) Credit(account *LedgerAccount, amount float64, description string) *TransactionBuilder {
 	tb.accounts[account.ID] = account
-	tb.journal.AddCredit(account.ID, account.Code, big.NewFloat(amount), description)
+	if err := tb.journal.AddCredit(account.ID, account.Code, big.NewFloat(amount), description); err != nil {
+		tb.validations = append(tb.validations, func() error { return err })
+	}
 	return tb
 }
 
