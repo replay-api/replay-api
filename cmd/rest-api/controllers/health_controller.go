@@ -61,7 +61,7 @@ func (hc *HealthController) HealthCheck(apiContext context.Context) http.Handler
 			Uptime:    time.Since(startTime).Round(time.Second).String(),
 		}
 
-		_ = json.NewEncoder(w).Encode(response)
+		json.NewEncoder(w).Encode(response)
 	}
 }
 
@@ -95,7 +95,7 @@ func (hc *HealthController) ReadinessCheck(apiContext context.Context) http.Hand
 			Checks:    checks,
 		}
 
-		_ = json.NewEncoder(w).Encode(response)
+		json.NewEncoder(w).Encode(response)
 	}
 }
 
@@ -113,7 +113,7 @@ func (hc *HealthController) DetailedHealthCheck(apiContext context.Context) http
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(statusCode)
-		_ = json.NewEncoder(w).Encode(result)
+		json.NewEncoder(w).Encode(result)
 	}
 }
 
@@ -122,10 +122,10 @@ func (hc *HealthController) LivenessCheck(apiContext context.Context) http.Handl
 	return func(w http.ResponseWriter, r *http.Request) {
 		if hc.healthService.Liveness(r.Context()) {
 			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte("OK"))
+			w.Write([]byte("OK"))
 		} else {
 			w.WriteHeader(http.StatusServiceUnavailable)
-			_, _ = w.Write([]byte("NOT OK"))
+			w.Write([]byte("NOT OK"))
 		}
 	}
 }
@@ -163,6 +163,6 @@ func (hc *HealthController) ComponentHealth(apiContext context.Context) http.Han
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(component)
+		json.NewEncoder(w).Encode(component)
 	}
 }

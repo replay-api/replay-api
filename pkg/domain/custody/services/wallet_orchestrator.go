@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"log/slog"
 	"math/big"
 	"sync"
 	"time"
@@ -38,7 +37,7 @@ type WalletOrchestrator struct {
 	// Configuration
 	config *OrchestratorConfig
 
-	mu sync.RWMutex //nolint:unused // Reserved for thread-safe operations
+	mu sync.RWMutex
 }
 
 // OrchestratorConfig contains orchestrator configuration
@@ -588,9 +587,7 @@ func (o *WalletOrchestrator) Transfer(
 		if err != nil {
 			txRecord.Status = custody_out.TxRecordStatusFailed
 			txRecord.FailureReason = stringPtr(err.Error())
-			if updateErr := o.txRepo.Update(ctx, txRecord); updateErr != nil {
-				slog.WarnContext(ctx, "Failed to update failed tx record", "error", updateErr, "tx_id", txRecord.ID)
-			}
+			o.txRepo.Update(ctx, txRecord)
 			return nil, err
 		}
 		txHash = result.TxHash
@@ -600,9 +597,7 @@ func (o *WalletOrchestrator) Transfer(
 		if err != nil {
 			txRecord.Status = custody_out.TxRecordStatusFailed
 			txRecord.FailureReason = stringPtr(err.Error())
-			if updateErr := o.txRepo.Update(ctx, txRecord); updateErr != nil {
-				slog.WarnContext(ctx, "Failed to update failed tx record", "error", updateErr, "tx_id", txRecord.ID)
-			}
+			o.txRepo.Update(ctx, txRecord)
 			return nil, err
 		}
 		txHash = result.TxHash
@@ -620,7 +615,7 @@ func (o *WalletOrchestrator) Transfer(
 	txRecord.UpdatedAt = now
 
 	if err := o.txRepo.Update(ctx, txRecord); err != nil {
-		slog.WarnContext(ctx, "Failed to update tx record after confirmation", "error", err, "tx_id", txRecord.ID)
+		// Log error but don't fail - tx is already confirmed
 	}
 
 	// Update spending
@@ -818,9 +813,7 @@ func (o *WalletOrchestrator) updateSpending(
 	wallet.Limits.MonthlyUsed += amountUint
 	wallet.UpdatedAt = time.Now()
 
-	if err := o.walletRepo.Update(ctx, wallet); err != nil {
-		slog.WarnContext(ctx, "Failed to update wallet limits", "error", err, "wallet_id", wallet.ID)
-	}
+	o.walletRepo.Update(ctx, wallet)
 }
 
 func (o *WalletOrchestrator) executeSolanaTransfer(

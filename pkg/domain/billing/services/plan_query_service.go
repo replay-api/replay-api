@@ -55,7 +55,7 @@ func NewPlanQueryService(eventReader billing_out.PlanReader) billing_in.PlanRead
 	}
 
 	return &common.BaseQueryService[billing_entities.Plan]{
-		Reader:          eventReader,
+		Reader:          eventReader.(common.Searchable[billing_entities.Plan]),
 		QueryableFields: queryableFields,
 		ReadableFields:  readableFields,
 		MaxPageSize:     100,

@@ -72,7 +72,7 @@ func OpenAPISpecHandler() http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/x-yaml")
 		w.Header().Set("Cache-Control", "public, max-age=3600")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		_, _ = w.Write(data)
+		w.Write(data)
 	}
 }
 

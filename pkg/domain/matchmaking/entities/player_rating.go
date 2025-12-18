@@ -159,8 +159,6 @@ func (r *PlayerRating) ApplyInactivityDecay(daysSinceLastMatch int) {
 }
 
 // toGlicko2Scale converts rating to Glicko-2 scale (μ' = (μ-1500)/173.7178)
-//
-//nolint:unused // Reserved for Glicko-2 algorithm implementation
 func (r *PlayerRating) toGlicko2Scale() (mu, phi float64) {
 	mu = (r.Rating - DefaultRating) / ScaleFactor
 	phi = r.RatingDeviation / ScaleFactor
@@ -168,8 +166,6 @@ func (r *PlayerRating) toGlicko2Scale() (mu, phi float64) {
 }
 
 // fromGlicko2Scale converts Glicko-2 scale back to normal rating
-//
-//nolint:unused // Reserved for Glicko-2 algorithm implementation
 func fromGlicko2Scale(mu, phi float64) (rating, rd float64) {
 	rating = mu*ScaleFactor + DefaultRating
 	rd = phi * ScaleFactor
@@ -177,15 +173,11 @@ func fromGlicko2Scale(mu, phi float64) (rating, rd float64) {
 }
 
 // g(φ) function for Glicko-2
-//
-//nolint:unused // Called by expectedScore which is used by the rating system
 func g(phi float64) float64 {
 	return 1.0 / math.Sqrt(1.0+3.0*phi*phi/(math.Pi*math.Pi))
 }
 
 // E(μ, μj, φj) - expected score function
-//
-//nolint:unused // Reserved for Glicko-2 algorithm implementation
 func expectedScore(mu, muJ, phiJ float64) float64 {
 	return 1.0 / (1.0 + math.Exp(-g(phiJ)*(mu-muJ)))
 }
