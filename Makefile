@@ -550,10 +550,12 @@ generate: ## Run all code generators
 	@echo "$(CG)Generation complete!$(CEND)"
 
 .PHONY: mocks
-mocks: ## Generate test mocks
+mocks: ## Generate test mocks from interfaces
 	@echo "$(CC)Generating mocks...$(CEND)"
-	@mockery --all --keeptree --output=./test/mocks
-	@echo "$(CG)Mocks generated!$(CEND)"
+	@command -v mockery >/dev/null 2>&1 || go install github.com/vektra/mockery/v2@latest
+	@mockery --all --keeptree --output=./test/mocks --dir=./pkg/domain
+	@echo "$(CG)Mocks generated in ./test/mocks/$(CEND)"
+	@echo "$(YELLOW)Note: This project prefers real dependencies over mocks. See TESTING.md$(CEND)"
 
 #========================================
 # 📦 Build & Release
@@ -633,3 +635,20 @@ deps: ## Show dependency tree
 outdated: ## Check for outdated dependencies
 	@echo "$(CC)Checking for outdated dependencies...$(CEND)"
 	@go list -u -m all | grep -v '^\s*$$'
+
+#========================================
+# 🔒 Git Hooks (Pre-commit validation)
+#========================================
+
+.PHONY: install-hooks
+install-hooks: ## Install git pre-commit hooks
+	@echo "$(CC)Installing git hooks...$(CEND)"
+	@chmod +x scripts/install-git-hooks.sh
+	@./scripts/install-git-hooks.sh
+	@echo "$(CG)Git hooks installed!$(CEND)"
+	@echo "$(CC)Pre-commit checks will now run automatically$(CEND)"
+
+.PHONY: hooks-test
+hooks-test: ## Test pre-commit hook manually
+	@echo "$(CC)Testing pre-commit hook...$(CEND)"
+	@.githooks/pre-commit || echo "$(YELLOW)Hook test completed (some checks may fail)${NC}"
