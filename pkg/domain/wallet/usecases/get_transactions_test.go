@@ -3,6 +3,7 @@ package wallet_usecases_test
 import (
 	"context"
 	"errors"
+	"math/big"
 	"testing"
 	"time"
 
@@ -142,7 +143,6 @@ func TestGetTransactions_Success(t *testing.T) {
 	mockWalletRepo.On("FindByUserID", mock.Anything, userID).Return(testWallet, nil)
 
 	// Create test ledger entries
-	currency := wallet_vo.CurrencyUSD
 	entries := []*wallet_entities.LedgerEntry{
 		{
 			ID:            uuid.New(),
@@ -150,9 +150,9 @@ func TestGetTransactions_Success(t *testing.T) {
 			AccountID:     walletID,
 			EntryType:     wallet_entities.EntryTypeDebit,
 			AssetType:     wallet_entities.AssetTypeFiat,
-			Currency:      &currency,
-			Amount:        wallet_vo.NewAmount(50),
-			BalanceAfter:  wallet_vo.NewAmount(100),
+			Currency:      string(wallet_vo.CurrencyUSD),
+			Amount:        big.NewFloat(50),
+			BalanceAfter:  big.NewFloat(100),
 			Description:   "Deposit",
 			CreatedAt:     now,
 			IsReversed:    false,
@@ -166,9 +166,9 @@ func TestGetTransactions_Success(t *testing.T) {
 			AccountID:     walletID,
 			EntryType:     wallet_entities.EntryTypeCredit,
 			AssetType:     wallet_entities.AssetTypeFiat,
-			Currency:      &currency,
-			Amount:        wallet_vo.NewAmount(25),
-			BalanceAfter:  wallet_vo.NewAmount(75),
+			Currency:      string(wallet_vo.CurrencyUSD),
+			Amount:        big.NewFloat(25),
+			BalanceAfter:  big.NewFloat(75),
 			Description:   "Entry Fee",
 			CreatedAt:     now.Add(-time.Hour),
 			IsReversed:    false,
@@ -382,7 +382,6 @@ func TestGetTransactions_WithPagination(t *testing.T) {
 	mockWalletRepo.On("FindByUserID", mock.Anything, userID).Return(testWallet, nil)
 
 	// Return one entry for page 2
-	currency := wallet_vo.CurrencyUSD
 	entries := []*wallet_entities.LedgerEntry{
 		{
 			ID:            uuid.New(),
@@ -390,9 +389,9 @@ func TestGetTransactions_WithPagination(t *testing.T) {
 			AccountID:     walletID,
 			EntryType:     wallet_entities.EntryTypeDebit,
 			AssetType:     wallet_entities.AssetTypeFiat,
-			Currency:      &currency,
-			Amount:        wallet_vo.NewAmount(100),
-			BalanceAfter:  wallet_vo.NewAmount(100),
+			Currency:      string(wallet_vo.CurrencyUSD),
+			Amount:        big.NewFloat(100),
+			BalanceAfter:  big.NewFloat(100),
 			Description:   "Deposit",
 			CreatedAt:     now,
 			Metadata: wallet_entities.LedgerMetadata{
