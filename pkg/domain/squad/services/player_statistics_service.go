@@ -107,7 +107,7 @@ func (s *PlayerStatisticsService) getPlayerMatches(ctx context.Context, playerID
 	}
 
 	resultOptions := common.SearchResultOptions{
-		Limit: uint(limit),
+		Limit: uint(limit), // #nosec G115 - limit is validated to be non-negative
 		Skip:  0,
 	}
 

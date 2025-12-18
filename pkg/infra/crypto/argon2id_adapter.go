@@ -169,8 +169,8 @@ func decodeArgon2idHash(encodedHash string) (*Argon2idParams, []byte, []byte, er
 		return nil, nil, nil, fmt.Errorf("invalid hash: %w", err)
 	}
 
-	params.KeyLength = uint32(len(hash))
-	params.SaltLength = uint32(len(salt))
+	params.KeyLength = uint32(len(hash))   // #nosec G115 - hash length is bounded by algorithm
+	params.SaltLength = uint32(len(salt)) // #nosec G115 - salt length is bounded by algorithm
 
 	return params, salt, hash, nil
 }
