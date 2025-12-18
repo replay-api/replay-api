@@ -177,11 +177,15 @@ func fromGlicko2Scale(mu, phi float64) (rating, rd float64) {
 }
 
 // g(φ) function for Glicko-2
+//
+//nolint:unused // Reserved for Glicko-2 calculation implementation
 func g(phi float64) float64 {
 	return 1.0 / math.Sqrt(1.0+3.0*phi*phi/(math.Pi*math.Pi))
 }
 
 // E(μ, μj, φj) - expected score function
+//
+//nolint:unused // Reserved for Glicko-2 calculation implementation
 func expectedScore(mu, muJ, phiJ float64) float64 {
 	return 1.0 / (1.0 + math.Exp(-g(phiJ)*(mu-muJ)))
 }

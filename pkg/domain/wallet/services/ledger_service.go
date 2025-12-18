@@ -715,14 +715,16 @@ func (s *LedgerService) RecordRefund(
 	
 	// Log audit trail
 	if s.auditTrail != nil {
-		s.auditTrail.RecordFinancialEvent(ctx, billing_in.RecordFinancialEventRequest{
+		if err := s.auditTrail.RecordFinancialEvent(ctx, billing_in.RecordFinancialEventRequest{
 			EventType:     billing_entities.AuditEventRefund,
 			UserID:        resourceOwner.UserID,
 			TargetType:    "journal_entry",
 			TargetID:      reversal.ID,
 			TransactionID: originalTxID,
 			Description:   fmt.Sprintf("Refund recorded for %s: %s", originalTxID, reason),
-		})
+		}); err != nil {
+			slog.WarnContext(ctx, "Failed to record audit trail for refund", "error", err)
+		}
 	}
 	
 	return reversal.ID, nil
@@ -896,7 +898,7 @@ func (s *LedgerService) RecordPrizeWinning(
 	
 	// Log audit trail
 	if s.auditTrail != nil {
-		s.auditTrail.RecordFinancialEvent(ctx, billing_in.RecordFinancialEventRequest{
+		if err := s.auditTrail.RecordFinancialEvent(ctx, billing_in.RecordFinancialEventRequest{
 			EventType:     billing_entities.AuditEventPrizeDistribution,
 			UserID:        resourceOwner.UserID,
 			TargetType:    "journal_entry",
@@ -905,7 +907,9 @@ func (s *LedgerService) RecordPrizeWinning(
 			Currency:      string(currency),
 			TransactionID: func() uuid.UUID { if matchID != nil { return *matchID }; return uuid.Nil }(),
 			Description:   fmt.Sprintf("Prize of %.2f %s credited for match %s", amount.ToFloat64(), currency, prizeRefID),
-		})
+		}); err != nil {
+			slog.WarnContext(ctx, "Failed to record audit trail for prize distribution", "error", err)
+		}
 	}
 	
 	return journal.ID, nil
