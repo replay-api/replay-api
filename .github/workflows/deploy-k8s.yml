@@ -26,11 +26,10 @@ on:
         options:
           - production
           - staging
-
-  # Auto-deploy on main branch (to green environment)
-  push:
-    branches:
-      - main
+  # Note: Auto-deploy on push to main is disabled until AWS/Slack secrets are configured
+  # push:
+  #   branches:
+  #     - main
 
 env:
   KUBECTL_VERSION: '1.28.0'
