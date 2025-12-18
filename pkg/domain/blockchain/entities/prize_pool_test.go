@@ -1,6 +1,8 @@
 package blockchain_entities
 
 import (
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -8,6 +10,16 @@ import (
 	blockchain_vo "github.com/replay-api/replay-api/pkg/domain/blockchain/value-objects"
 	wallet_vo "github.com/replay-api/replay-api/pkg/domain/wallet/value-objects"
 )
+
+// =============================================================================
+// Test Strategy: TDD-driven, functionality-focused tests
+// 
+// Coverage targets:
+// - All public methods have at least one positive and one negative test
+// - Edge cases: zero amounts, max participants, concurrent access
+// - State machine: all valid transitions tested
+// - Thread safety: race condition tests for concurrent operations
+// =============================================================================
 
 // TestOnChainPrizePoolStatus_Constants verifies status constants
 func TestOnChainPrizePoolStatus_Constants(t *testing.T) {
@@ -106,7 +118,9 @@ func TestOnChainPrizePool_AddParticipant(t *testing.T) {
 	}
 }
 
-// TestOnChainPrizePool_AddParticipant_Duplicate verifies duplicate rejection
+// TestOnChainPrizePool_AddParticipant_Duplicate verifies duplicate rejection.
+// Business rule: Each address can only participate once per match.
+// This prevents double-spending and ensures fair prize distribution.
 func TestOnChainPrizePool_AddParticipant_Duplicate(t *testing.T) {
 	pool := createTestPrizePool()
 	txHash, _ := blockchain_vo.NewTxHash("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
@@ -115,11 +129,16 @@ func TestOnChainPrizePool_AddParticipant_Duplicate(t *testing.T) {
 	addr, _ := wallet_vo.NewEVMAddress("0x1111111111111111111111111111111111111111")
 	contribution := wallet_vo.NewAmountFromCents(1000)
 
-	_ = pool.AddParticipant(addr, contribution)
+	// First participation should succeed
 	err := pool.AddParticipant(addr, contribution)
+	if err != nil {
+		t.Fatalf("First AddParticipant should succeed: %v", err)
+	}
 
+	// Second attempt with same address should fail (duplicate detection)
+	err = pool.AddParticipant(addr, contribution)
 	if err == nil {
-		t.Error("Expected error for duplicate participant")
+		t.Error("Expected error for duplicate participant - same address cannot join twice")
 	}
 }
 
@@ -394,4 +413,205 @@ func createPoolInEscrow() *OnChainPrizePool {
 	_ = pool.Lock(lockTxHash)
 	_ = pool.StartEscrow(24 * time.Hour)
 	return pool
+}
+
+// =============================================================================
+// Table-Driven Tests: State Transitions
+// =============================================================================
+
+// TestOnChainPrizePool_StateTransitions validates the pool state machine.
+// State flow: NotCreated -> Accumulating -> Locked -> InEscrow -> Distributed
+func TestOnChainPrizePool_StateTransitions(t *testing.T) {
+	tests := []struct {
+		name          string
+		setupPool     func() *OnChainPrizePool
+		action        string
+		expectedState OnChainPrizePoolStatus
+		shouldError   bool
+	}{
+		{
+			name:          "MarkCreated transitions NotCreated to Accumulating",
+			setupPool:     createTestPrizePool,
+			action:        "MarkCreated",
+			expectedState: PoolStatusAccumulating,
+			shouldError:   false,
+		},
+		{
+			name:          "Lock transitions Accumulating to Locked (with 2+ participants)",
+			setupPool:     func() *OnChainPrizePool { return createPoolWithParticipants(2) },
+			action:        "Lock",
+			expectedState: PoolStatusLocked,
+			shouldError:   false,
+		},
+		{
+			name:          "Lock fails with only 1 participant",
+			setupPool:     func() *OnChainPrizePool { return createPoolWithParticipants(1) },
+			action:        "Lock",
+			expectedState: PoolStatusAccumulating,
+			shouldError:   true,
+		},
+		{
+			name:          "Cancel works from Accumulating",
+			setupPool:     func() *OnChainPrizePool { return createPoolWithParticipants(1) },
+			action:        "Cancel",
+			expectedState: PoolStatusCancelled,
+			shouldError:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pool := tt.setupPool()
+			var err error
+
+			switch tt.action {
+			case "MarkCreated":
+				txHash, _ := blockchain_vo.NewTxHash("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
+				pool.MarkCreated(txHash, wallet_vo.NewAmountFromCents(0))
+			case "Lock":
+				txHash, _ := blockchain_vo.NewTxHash("0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890")
+				err = pool.Lock(txHash)
+			case "Cancel":
+				err = pool.Cancel()
+			}
+
+			if tt.shouldError && err == nil {
+				t.Errorf("Expected error for %s", tt.action)
+			}
+			if !tt.shouldError && err != nil {
+				t.Errorf("Unexpected error for %s: %v", tt.action, err)
+			}
+			if pool.GetStatus() != tt.expectedState {
+				t.Errorf("Status = %s, want %s", pool.GetStatus(), tt.expectedState)
+			}
+		})
+	}
+}
+
+// =============================================================================
+// Edge Case Tests
+// =============================================================================
+
+// TestOnChainPrizePool_ZeroContribution verifies zero contribution handling.
+func TestOnChainPrizePool_ZeroContribution(t *testing.T) {
+	pool := createTestPrizePool()
+	txHash, _ := blockchain_vo.NewTxHash("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
+	pool.MarkCreated(txHash, wallet_vo.NewAmountFromCents(0))
+
+	addr, _ := wallet_vo.NewEVMAddress("0x1111111111111111111111111111111111111111")
+	zeroContribution := wallet_vo.NewAmountFromCents(0)
+
+	err := pool.AddParticipant(addr, zeroContribution)
+	if err != nil {
+		t.Errorf("Zero contribution should be allowed (for free tournaments): %v", err)
+	}
+	if pool.ParticipantCount() != 1 {
+		t.Errorf("Participant count = %d, want 1", pool.ParticipantCount())
+	}
+}
+
+// TestOnChainPrizePool_MaxParticipants verifies large participant handling.
+func TestOnChainPrizePool_MaxParticipants(t *testing.T) {
+	pool := createTestPrizePool()
+	txHash, _ := blockchain_vo.NewTxHash("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
+	pool.MarkCreated(txHash, wallet_vo.NewAmountFromCents(0))
+
+	const maxParticipants = 100 // Typical CS2 tournament size limit
+	contribution := wallet_vo.NewAmountFromCents(100)
+
+	for i := 0; i < maxParticipants; i++ {
+		addrHex := "0x" + fmt.Sprintf("%040d", i)
+		addr, _ := wallet_vo.NewEVMAddress(addrHex)
+		if err := pool.AddParticipant(addr, contribution); err != nil {
+			t.Fatalf("Failed to add participant %d: %v", i, err)
+		}
+	}
+
+	if pool.ParticipantCount() != maxParticipants {
+		t.Errorf("Participant count = %d, want %d", pool.ParticipantCount(), maxParticipants)
+	}
+
+	expectedTotal := int64(maxParticipants * 100)
+	if pool.TotalAmount.Cents() != expectedTotal {
+		t.Errorf("TotalAmount = %d, want %d", pool.TotalAmount.Cents(), expectedTotal)
+	}
+}
+
+// =============================================================================
+// Concurrency Tests: Thread Safety
+// =============================================================================
+
+// TestOnChainPrizePool_ConcurrentAddParticipants verifies thread safety.
+// This test ensures multiple goroutines can safely add participants.
+func TestOnChainPrizePool_ConcurrentAddParticipants(t *testing.T) {
+	pool := createTestPrizePool()
+	txHash, _ := blockchain_vo.NewTxHash("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
+	pool.MarkCreated(txHash, wallet_vo.NewAmountFromCents(0))
+
+	const numGoroutines = 50
+	var wg sync.WaitGroup
+	successCount := 0
+	var successMu sync.Mutex
+
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			addrHex := "0x" + fmt.Sprintf("%040d", idx)
+			addr, _ := wallet_vo.NewEVMAddress(addrHex)
+			contribution := wallet_vo.NewAmountFromCents(100)
+
+			if err := pool.AddParticipant(addr, contribution); err == nil {
+				successMu.Lock()
+				successCount++
+				successMu.Unlock()
+			}
+		}(i)
+	}
+
+	wg.Wait()
+
+	if successCount != numGoroutines {
+		t.Errorf("Success count = %d, want %d", successCount, numGoroutines)
+	}
+	if pool.ParticipantCount() != numGoroutines {
+		t.Errorf("Participant count = %d, want %d", pool.ParticipantCount(), numGoroutines)
+	}
+}
+
+// TestOnChainPrizePool_ConcurrentDuplicateAttempts verifies duplicate detection under concurrency.
+// Business rule: Only one of concurrent duplicate attempts should succeed.
+func TestOnChainPrizePool_ConcurrentDuplicateAttempts(t *testing.T) {
+	pool := createTestPrizePool()
+	txHash, _ := blockchain_vo.NewTxHash("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
+	pool.MarkCreated(txHash, wallet_vo.NewAmountFromCents(0))
+
+	addr, _ := wallet_vo.NewEVMAddress("0x1111111111111111111111111111111111111111")
+	contribution := wallet_vo.NewAmountFromCents(100)
+
+	const numAttempts = 10
+	var wg sync.WaitGroup
+	successCount := 0
+	var successMu sync.Mutex
+
+	for i := 0; i < numAttempts; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := pool.AddParticipant(addr, contribution); err == nil {
+				successMu.Lock()
+				successCount++
+				successMu.Unlock()
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	if successCount != 1 {
+		t.Errorf("Only one duplicate attempt should succeed, got %d", successCount)
+	}
+	if pool.ParticipantCount() != 1 {
+		t.Errorf("Participant count = %d, want 1", pool.ParticipantCount())
+	}
 }

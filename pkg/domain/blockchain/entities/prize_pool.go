@@ -2,6 +2,7 @@ package blockchain_entities
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,9 +23,11 @@ const (
 	PoolStatusCancelled    OnChainPrizePoolStatus = "Cancelled"
 )
 
-// OnChainPrizePool represents a prize pool on the blockchain
+// OnChainPrizePool represents a prize pool on the blockchain.
+// Thread-safe: all mutating operations are protected by internal mutex.
 type OnChainPrizePool struct {
 	common.BaseEntity
+	mu sync.RWMutex `json:"-" bson:"-"` // Protects concurrent access to mutable fields
 
 	// Identifiers
 	MatchID      uuid.UUID               `json:"match_id" bson:"match_id"`
@@ -42,9 +45,9 @@ type OnChainPrizePool struct {
 	EntryFeePerPlayer    wallet_vo.Amount `json:"entry_fee_per_player" bson:"entry_fee_per_player"`
 	PlatformFeePercent   uint16           `json:"platform_fee_percent" bson:"platform_fee_percent"` // basis points
 
-	// Participants
-	Participants []wallet_vo.EVMAddress           `json:"participants" bson:"participants"`
-	Contributions map[string]wallet_vo.Amount     `json:"contributions" bson:"contributions"` // address -> amount
+	// Participants - Contributions map is the source of truth for O(1) duplicate checking
+	Participants  []wallet_vo.EVMAddress       `json:"participants" bson:"participants"`
+	Contributions map[string]wallet_vo.Amount  `json:"contributions" bson:"contributions"` // address -> amount
 
 	// Status tracking
 	Status         OnChainPrizePoolStatus `json:"status" bson:"status"`
@@ -113,8 +116,12 @@ func NewOnChainPrizePool(
 	}
 }
 
-// MarkCreated marks the pool as created on-chain
+// MarkCreated marks the pool as created on-chain.
+// Thread-safe: uses internal mutex.
 func (p *OnChainPrizePool) MarkCreated(txHash blockchain_vo.TxHash, platformContribution wallet_vo.Amount) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	p.Status = PoolStatusAccumulating
 	p.CreateTxHash = &txHash
 	p.PlatformContribution = platformContribution
@@ -122,34 +129,43 @@ func (p *OnChainPrizePool) MarkCreated(txHash blockchain_vo.TxHash, platformCont
 	p.UpdatedAt = time.Now()
 }
 
-// AddParticipant adds a participant to the pool
+// AddParticipant adds a participant to the pool.
+// Thread-safe: uses internal mutex for concurrent access protection.
+// Uses O(1) map lookup for duplicate detection.
 func (p *OnChainPrizePool) AddParticipant(addr wallet_vo.EVMAddress, contribution wallet_vo.Amount) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	if p.Status != PoolStatusAccumulating {
 		return fmt.Errorf("pool is not accepting participants: status=%s", p.Status)
 	}
 
-	// Check if already participating
-	for _, existing := range p.Participants {
-		if existing.Equals(addr) {
-			return fmt.Errorf("address already participating: %s", addr.String())
-		}
+	// O(1) duplicate check using Contributions map as source of truth
+	addrKey := addr.String()
+	if _, exists := p.Contributions[addrKey]; exists {
+		return fmt.Errorf("address already participating: %s", addrKey)
 	}
 
 	p.Participants = append(p.Participants, addr)
-	p.Contributions[addr.String()] = contribution
+	p.Contributions[addrKey] = contribution
 	p.TotalAmount = p.TotalAmount.Add(contribution)
 	p.UpdatedAt = time.Now()
 
 	return nil
 }
 
-// Lock locks the prize pool
+// Lock locks the prize pool, preventing further participant additions.
+// Requires minimum 2 participants for a valid competition.
+// Thread-safe: uses internal mutex.
 func (p *OnChainPrizePool) Lock(txHash blockchain_vo.TxHash) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	if p.Status != PoolStatusAccumulating {
 		return fmt.Errorf("cannot lock pool: status=%s", p.Status)
 	}
 	if len(p.Participants) < 2 {
-		return fmt.Errorf("not enough participants: %d", len(p.Participants))
+		return fmt.Errorf("not enough participants: %d (minimum: 2)", len(p.Participants))
 	}
 
 	now := time.Now()
@@ -162,8 +178,13 @@ func (p *OnChainPrizePool) Lock(txHash blockchain_vo.TxHash) error {
 	return nil
 }
 
-// StartEscrow moves pool to escrow period
+// StartEscrow moves pool to escrow period.
+// The escrow period allows dispute resolution before prize distribution.
+// Thread-safe: uses internal mutex.
 func (p *OnChainPrizePool) StartEscrow(escrowDuration time.Duration) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	if p.Status != PoolStatusLocked {
 		return fmt.Errorf("cannot start escrow: status=%s", p.Status)
 	}
@@ -177,8 +198,13 @@ func (p *OnChainPrizePool) StartEscrow(escrowDuration time.Duration) error {
 	return nil
 }
 
-// Distribute marks the pool as distributed
+// Distribute marks the pool as distributed and records winners.
+// Must be called only after escrow period completes.
+// Thread-safe: uses internal mutex.
 func (p *OnChainPrizePool) Distribute(txHash blockchain_vo.TxHash, winners []PrizeWinner, platformFee wallet_vo.Amount) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	if p.Status != PoolStatusInEscrow {
 		return fmt.Errorf("cannot distribute: status=%s", p.Status)
 	}
@@ -194,10 +220,15 @@ func (p *OnChainPrizePool) Distribute(txHash blockchain_vo.TxHash, winners []Pri
 	return nil
 }
 
-// Cancel cancels the pool
+// Cancel cancels the pool and allows participant refunds.
+// Only allowed during Accumulating or Locked status.
+// Thread-safe: uses internal mutex.
 func (p *OnChainPrizePool) Cancel() error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	if p.Status != PoolStatusAccumulating && p.Status != PoolStatusLocked {
-		return fmt.Errorf("cannot cancel: status=%s", p.Status)
+		return fmt.Errorf("cannot cancel: status=%s (only Accumulating or Locked can be cancelled)", p.Status)
 	}
 
 	p.Status = PoolStatusCancelled
@@ -206,29 +237,58 @@ func (p *OnChainPrizePool) Cancel() error {
 	return nil
 }
 
-// UpdateSyncState updates the sync tracking fields
+// UpdateSyncState updates the blockchain sync tracking fields.
+// Called by the sync worker after processing blockchain events.
+// Thread-safe: uses internal mutex.
 func (p *OnChainPrizePool) UpdateSyncState(blockNumber uint64, synced bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	p.LastSyncBlock = blockNumber
 	p.LastSyncTime = time.Now()
 	p.IsSynced = synced
 	p.UpdatedAt = time.Now()
 }
 
-// GetOnChainIDHex returns the on-chain ID as hex string
+// GetOnChainIDHex returns the on-chain ID as hex string (0x-prefixed).
 func (p *OnChainPrizePool) GetOnChainIDHex() string {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 	return fmt.Sprintf("0x%x", p.OnChainID)
 }
 
-// IsEscrowComplete checks if escrow period is complete
+// IsEscrowComplete checks if escrow period is complete.
+// Returns false if pool is not in escrow status.
 func (p *OnChainPrizePool) IsEscrowComplete() bool {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
 	if p.Status != PoolStatusInEscrow || p.EscrowEndTime == nil {
 		return false
 	}
 	return time.Now().After(*p.EscrowEndTime)
 }
 
-// GetDistributableAmount returns amount available for distribution (after platform fee)
+// GetDistributableAmount returns amount available for distribution (after platform fee).
+// Platform fee is deducted as basis points (1000 = 10%).
 func (p *OnChainPrizePool) GetDistributableAmount() wallet_vo.Amount {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
 	feeAmount := wallet_vo.NewAmountFromCents(p.TotalAmount.Cents() * int64(p.PlatformFeePercent) / 10000)
 	return p.TotalAmount.Subtract(feeAmount)
+}
+
+// ParticipantCount returns the number of participants (thread-safe).
+func (p *OnChainPrizePool) ParticipantCount() int {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return len(p.Participants)
+}
+
+// GetStatus returns the current pool status (thread-safe).
+func (p *OnChainPrizePool) GetStatus() OnChainPrizePoolStatus {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.Status
 }
