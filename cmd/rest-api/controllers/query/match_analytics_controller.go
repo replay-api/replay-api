@@ -193,7 +193,7 @@ func (ctrl *MatchAnalyticsController) GetMatchTrajectoryHandler(w http.ResponseW
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 // GetRoundTrajectoryHandler returns player trajectories for a specific round
@@ -299,7 +299,7 @@ func (ctrl *MatchAnalyticsController) GetRoundTrajectoryHandler(w http.ResponseW
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 // GetMatchHeatmapHandler generates a heatmap for an entire match
@@ -403,7 +403,7 @@ func (ctrl *MatchAnalyticsController) GetMatchHeatmapHandler(w http.ResponseWrit
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 // GetRoundHeatmapHandler generates a heatmap for a specific round
@@ -514,7 +514,7 @@ func (ctrl *MatchAnalyticsController) GetRoundHeatmapHandler(w http.ResponseWrit
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 // GetPositioningStatsHandler returns zone frequencies and dwell times
@@ -595,5 +595,5 @@ func (ctrl *MatchAnalyticsController) GetPositioningStatsHandler(w http.Response
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
