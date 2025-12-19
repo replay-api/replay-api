@@ -19,6 +19,41 @@ import (
 	squad_value_objects "github.com/replay-api/replay-api/pkg/domain/squad/value-objects"
 )
 
+// CreateSquadUseCase handles the creation of competitive squads (teams) on the platform.
+//
+// This is a core use case for team-based competitive gaming, enabling players to:
+//   - Form organized teams with designated roles
+//   - Create team identity (name, logo, slug URL)
+//   - Establish team membership hierarchy (owners, managers, players)
+//
+// Flow:
+//  1. Authentication verification - user must be authenticated
+//  2. Input validation - UUID format, slug URL format, uniqueness checks
+//  3. Duplicate prevention - checks for existing squads with same slug/name
+//  4. Group account management - creates IAM group for squad resource ownership
+//  5. Billing validation - verifies subscription allows squad creation
+//  6. Membership processing - validates and creates member relationships
+//  7. Avatar handling - processes and stores squad logo if provided
+//  8. Squad persistence - creates squad entity with history record
+//
+// Security:
+//   - Requires authenticated context (common.AuthenticatedKey)
+//   - Creates isolated IAM group for squad resource ownership
+//   - Validates all member player profiles exist and are accessible
+//
+// Features:
+//   - Slug URL validation (alphanumeric, hyphens, underscores only)
+//   - Automatic duplicate detection for names and slugs
+//   - Avatar upload with media storage integration
+//   - Squad history tracking for audit trail
+//
+// Dependencies:
+//   - BillableOperationCommandHandler: Subscription limit validation
+//   - SquadWriter/Reader: Squad persistence
+//   - GroupWriter/Reader: IAM group management for squad ownership
+//   - SquadHistoryWriter: Audit trail
+//   - PlayerProfileReader: Member validation
+//   - MediaWriter: Avatar storage
 type CreateSquadUseCase struct {
 	billableOperationHandler billing_in.BillableOperationCommandHandler
 	SquadWriter              squad_out.SquadWriter

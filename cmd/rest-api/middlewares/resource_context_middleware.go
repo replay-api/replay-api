@@ -45,13 +45,28 @@ func (m *ResourceContextMiddleware) Handler(next http.Handler) http.Handler {
 			return
 		}
 
-		reso, aud, err := m.VerifyRID.Exec(ctx, uuid.MustParse(rid))
-		if err != nil {
-			slog.ErrorContext(ctx, "unable to verify rid", controllers.ResourceOwnerIDHeaderKey, rid)
-			http.Error(w, "unknown", http.StatusUnauthorized)
+		ridUUID, parseErr := uuid.Parse(rid)
+		if parseErr != nil {
+			slog.ErrorContext(ctx, "invalid resource owner id format", "rid", rid, "err", parseErr)
+			http.Error(w, "invalid resource owner id", http.StatusBadRequest)
+			return
 		}
 
-		slog.InfoContext(ctx, "resource owner verified", "reso", reso, "aud", aud)
+		reso, aud, err := m.VerifyRID.Exec(ctx, ridUUID)
+		if err != nil {
+			slog.ErrorContext(ctx, "unable to verify rid", controllers.ResourceOwnerIDHeaderKey, rid, "err", err)
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		// Verify we got a valid resource owner (not zero value)
+		if reso.UserID == uuid.Nil && reso.GroupID == uuid.Nil {
+			slog.ErrorContext(ctx, "empty resource owner returned from verification", "rid", rid)
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		slog.InfoContext(ctx, "resource owner verified", "user_id", reso.UserID, "group_id", reso.GroupID, "aud", aud)
 
 		if !reso.IsUser() {
 			slog.WarnContext(ctx, "non end user resource owner", "reso", reso)

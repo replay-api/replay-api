@@ -111,8 +111,8 @@ func (uc *UpdateSquadUseCase) Exec(ctx context.Context, squadID uuid.UUID, cmd s
 }
 
 func (uc *UpdateSquadUseCase) isAuthenticated(ctx context.Context) bool {
-	isAuthenticated := ctx.Value(common.AuthenticatedKey).(bool)
-	return isAuthenticated
+	isAuthenticated, ok := ctx.Value(common.AuthenticatedKey).(bool)
+	return ok && isAuthenticated
 }
 
 func (uc *UpdateSquadUseCase) validateCommand(cmd squad_in.CreateOrUpdatedSquadCommand) error {

@@ -150,3 +150,4 @@ func TestCORSMiddleware_Handler_MatchingOrigin(t *testing.T) {
 	assert.Equal(t, "https://api.leetgaming.gg", rr.Header().Get("Access-Control-Allow-Origin"))
 }
 
+

@@ -9,7 +9,23 @@ import (
 	wallet_out "github.com/replay-api/replay-api/pkg/domain/wallet/ports/out"
 )
 
-// GetWalletBalanceUseCase handles fetching wallet balance
+// GetWalletBalanceUseCase retrieves current wallet balances for authenticated users.
+//
+// This use case provides:
+//   - Multi-currency balance retrieval (USD, USDC, USDT)
+//   - Default wallet creation for new users (zero balances)
+//   - Account lock status and reason display
+//   - Total deposited/withdrawn/prizes tracking
+//
+// Security:
+//   - Requires authenticated context
+//   - Users can only access their own wallet balance
+//
+// Returns default zeroed wallet if wallet doesn't exist yet, ensuring
+// seamless UX for new users before their first deposit.
+//
+// Dependencies:
+//   - WalletRepository: For wallet lookup by user ID
 type GetWalletBalanceUseCase struct {
 	walletRepo wallet_out.WalletRepository
 }

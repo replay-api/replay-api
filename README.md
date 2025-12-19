@@ -1,78 +1,54 @@
-![Replay API](https://media.licdn.com/dms/image/v2/D4E3DAQFMsKxbj7Rgbw/image-scale_191_1128/image-scale_191_1128/0/1737679675333/leetgaming_pro_cover?e=1739401200&v=beta&t=y4dgt-FDwO7OqEpZgDwTvbDyZqLfJanYJOvI9scDTEc)
-
 # LeetGaming Replay API
 
-> **Production-Grade Financial Platform** for Competitive Gaming with Multi-Asset Wallet System
+Production-grade backend API for the LeetGaming.PRO esports platform.
 
 [![Build Status](https://github.com/leetgaming-pro/replay-api/workflows/CI/badge.svg)](https://github.com/leetgaming-pro/replay-api/actions)
 [![Go Version](https://img.shields.io/badge/Go-1.23+-00ADD8?style=flat&logo=go)](https://golang.org/)
-[![Kubernetes](https://img.shields.io/badge/Kubernetes-Ready-326CE5?style=flat&logo=kubernetes)](https://kubernetes.io/)
+[![Coverage](https://img.shields.io/badge/coverage-45%25-yellow)](https://codecov.io/gh/leetgaming-pro/replay-api)
 
 ---
 
-## 🎯 Overview
+## Overview
 
-The LeetGaming Replay API is a **financial-grade, production-ready microservice** that powers:
+The Replay API powers the LeetGaming platform with:
 
-- **🎮 Game Replay Analysis**: CS2, Valorant, and more
-- **💰 Multi-Asset Wallets**: Fiat (USD), Crypto (USDC, USDT), NFTs, Game Credits
-- **🏆 Tournament Management**: Real-money competitions with automated prize distribution
-- **🔒 Financial Compliance**: SOX, PCI-DSS, AML/KYC ready
-- **☸️ Zero-Downtime Deployments**: Kubernetes blue-green strategy
-
-### Key Features
-
-```
-✅ Double-Entry Accounting with Immutable Ledger
-✅ Saga Pattern for Atomic Transactions (Automatic Rollback)
-✅ Production-Grade Testing (NO MOCKS - Real MongoDB + Hardhat EVM)
-✅ Kubernetes Blue-Green Deployment (Zero Downtime)
-✅ Horizontal Auto-Scaling (3-20 pods based on load)
-✅ 99.98% Uptime SLA (15K+ TPS throughput)
-✅ Multi-Asset Support (Fiat, Crypto, NFT, Game Credits)
-```
+| Feature | Description |
+|---------|-------------|
+| **Game Replay Analysis** | CS2, Valorant demo parsing and event extraction |
+| **Skill-Based Matchmaking** | Glicko-2 rating system with queue management |
+| **Tournament Management** | Bracket generation, scheduling, prize distribution |
+| **Financial Operations** | Multi-asset wallets, payments, withdrawals |
+| **Authentication** | Steam/Google OAuth, JWT, MFA/TOTP |
 
 ---
 
-## 📊 Quick Stats
-
-| Metric | Value |
-|--------|-------|
-| **Daily Transaction Volume** | $2.5M+ |
-| **Active Wallets** | 50,000+ |
-| **API Response Time (p95)** | 45ms |
-| **Transaction Throughput** | 15,000 TPS |
-| **Uptime (Last 12 Months)** | 99.98% |
-| **Test Coverage** | 100% (NO MOCKS) |
-
----
-
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
 - Go 1.23+
-- Docker Desktop
-- kubectl (optional, for K8s)
+- Docker (for local development)
+- MongoDB 7+ (or use Docker)
 
-### Run Locally (5 Minutes)
+### Run Locally
 
 ```bash
-# Clone repository
-git clone https://github.com/leetgaming-pro/replay-api.git
-cd replay-api
-
-# Start test infrastructure (MongoDB + Hardhat)
+# Start dependencies
 docker compose -f docker-compose.test.yml up -d
 
-# Run the API
+# Run API
 go run cmd/rest-api/main.go
+
+# Verify
+curl http://localhost:8080/health
 ```
 
-**Test the API:**
+### Run with Full Platform
+
 ```bash
-curl http://localhost:8080/health
-# {"status":"ok","timestamp":"2025-11-25T14:30:00Z"}
+# From root directory
+cd ..
+make local-up
 ```
 
 ---
@@ -81,132 +57,246 @@ curl http://localhost:8080/health
 
 | Command | Description |
 |---------|-------------|
-| `go mod download` | Install dependencies |
 | `go run cmd/rest-api/main.go` | Start API server |
-| `go build -o replay-api ./cmd/rest-api` | Build binary |
 | `go test ./...` | Run all tests |
-| `go test -v ./...` | Run tests (verbose) |
 | `go test -cover ./...` | Run tests with coverage |
 | `go fmt ./...` | Format code |
-| `go vet ./...` | Vet code |
 | `golangci-lint run` | Run linter |
+| `make build` | Build binary |
 
-### Test Commands
+---
 
-```bash
-# Smoke tests (fast, no dependencies)
-go test -v -short -tags=smoke ./test/smoke/...
+## Architecture
 
-# E2E tests (with MongoDB + Hardhat)
-make -f Makefile.test test-e2e
+```
+cmd/
+├── rest-api/           # HTTP server entry point
+│   ├── controllers/    # HTTP handlers (adapters)
+│   ├── middlewares/    # Auth, logging, rate limiting
+│   └── routing/        # Route definitions
+└── event-processor/    # Kafka consumer
 
-# All tests
-make -f Makefile.test test-all
+pkg/
+├── domain/             # Business logic (core)
+│   ├── auth/           # Authentication
+│   ├── billing/        # Payments, subscriptions
+│   ├── iam/            # Identity management
+│   ├── matchmaking/    # Queue, sessions, pools
+│   ├── replay/         # Replay files, events
+│   ├── squad/          # Teams, members
+│   ├── tournament/     # Brackets, matches
+│   └── wallet/         # Balances, transactions
+└── infra/              # Infrastructure (adapters)
+    ├── db/mongodb/     # MongoDB repositories
+    ├── kafka/          # Event streaming
+    └── ioc/            # Dependency injection
+```
+
+**Pattern:** Hexagonal Architecture (Ports & Adapters)
+
+```
+HTTP Request → Controller → Use Case → Repository → MongoDB
+                   ↓            ↓           ↑
+               Adapter      Domain       Port
 ```
 
 ---
 
-## Full Platform
+## API Reference
 
-To run the entire platform (API + web + databases):
+### Endpoints
+
+| Domain | Endpoints | Auth |
+|--------|-----------|------|
+| Health | `GET /health` | No |
+| Auth | `POST /auth/*`, `POST /onboarding/*` | Partial |
+| Players | `GET/POST/PUT/DELETE /players/*` | Yes |
+| Squads | `GET/POST/PUT/DELETE /squads/*` | Yes |
+| Tournaments | `GET/POST/PUT/DELETE /tournaments/*` | Yes |
+| Matchmaking | `POST /matchmaking/*` | Yes |
+| Wallet | `GET /wallet/*`, `POST /payments/*` | Yes |
+| Replays | `GET/POST /games/{game}/replays/*` | Partial |
+
+### OpenAPI Documentation
+
+- **Swagger UI:** http://localhost:8080/swagger
+- **OpenAPI Spec:** [docs/swagger/openapi.yaml](./docs/swagger/openapi.yaml)
+
+---
+
+## Testing
 
 ```bash
-cd ..
-make local-up      # Start everything
-make local-down    # Stop everything
+# Unit tests
+go test ./...
+
+# With coverage
+go test -coverprofile=coverage.out ./...
+go tool cover -html=coverage.out
+
+# Integration tests (requires Docker)
+go test -tags=integration ./test/integration/...
+
+# Specific package
+go test -v ./pkg/domain/matchmaking/...
 ```
 
-See [root README](../README.md) for more details.
+### Coverage Targets
+
+| Package | Current | Target |
+|---------|---------|--------|
+| matchmaking/value-objects | 98.7% | ✅ |
+| wallet/usecases | 94.0% | ✅ |
+| payment/usecases | 90.0% | ✅ |
+| tournament/usecases | 88.6% | ✅ |
+| matchmaking/usecases | 72.4% | 80% |
+| auth/* | 0% | 80% |
 
 ---
 
-## 📚 Documentation
+## Configuration
 
-### For Everyone
+### Environment Variables
 
-- **[📖 Documentation Hub](./docs/README.md)** - Start here!
-- **[🏗️ Architecture Overview](./docs/architecture/OVERVIEW.md)** - System design for investors & executives
-- **[💰 Wallet System](./docs/architecture/WALLET_SYSTEM.md)** - Financial-grade wallet implementation
+```bash
+# Server
+PORT=8080
+ENV=development
 
-### For Developers
+# MongoDB
+MONGO_URI=mongodb://admin:password@localhost:27017/leetgaming?authSource=admin
 
-- **[🎓 Developer Onboarding](./docs/development/ONBOARDING.md)** - New developer guide (30-day plan)
-- **[🧪 Testing Strategy](./docs/testing/TESTING_STRATEGY.md)** - How we test (NO MOCKS)
-- **[📐 Technical Architecture](./docs/architecture/TECHNICAL_ARCHITECTURE.md)** - Deep dive into system design
+# JWT
+JWT_SECRET=your-secret-key-at-least-32-characters
+JWT_EXPIRY=24h
 
-### For DevOps/SRE
+# OAuth
+STEAM_API_KEY=your-steam-api-key
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
 
-- **[☸️ Kubernetes Deployment](./docs/deployment/KUBERNETES.md)** - Blue-green deployment guide
-- **[🚀 Deployment Overview](./docs/deployment/DEPLOYMENT.md)** - Complete deployment guide
-- **[📊 Monitoring](./docs/deployment/MONITORING.md)** - Observability setup
+# Stripe
+STRIPE_SECRET_KEY=sk_test_xxxxx
+STRIPE_WEBHOOK_SECRET=whsec_xxxxx
 
----
-
-## 🏗️ Architecture
-
-See the complete [Architecture Overview](./docs/architecture/OVERVIEW.md) for detailed diagrams and explanations.
-
-**Quick Overview:**
-- Hexagonal Architecture (Ports & Adapters)
-- Domain-Driven Design (DDD)
-- CQRS Pattern for reads/writes
-- Event-Driven Architecture
-- Microservices with API Gateway
+# Kafka
+KAFKA_BROKERS=localhost:9092
+```
 
 ---
 
-## 🔐 Security & Compliance
+## Development Guidelines
 
-### Financial-Grade Security
+### Code Standards
 
-- **Double-Entry Accounting**: Prevents money creation bugs
-- **Immutable Ledger**: SOX compliance (never deleted)
-- **Saga Pattern**: Automatic rollback on failure
-- **Idempotency**: Prevents duplicate transactions
+```go
+// Use structured logging
+slog.InfoContext(ctx, "processing request", "player_id", playerID)
 
-### Infrastructure Security
+// Wrap errors with context
+if err := repo.Save(ctx, entity); err != nil {
+    return fmt.Errorf("save player %s: %w", playerID, err)
+}
 
-- **TLS 1.3**: All traffic encrypted
-- **NetworkPolicy**: Pod-to-pod firewall
-- **RBAC**: Least privilege access
-- **Secrets Management**: Vault / AWS Secrets Manager
+// Always validate resource ownership
+resourceOwner := common.GetResourceOwner(ctx)
+if entity.OwnerID != resourceOwner.UserID {
+    return ErrForbidden
+}
+```
+
+### Controller Pattern
+
+```go
+// Controllers MUST use DI-resolved handlers
+func (c *Controller) CreateHandler(ctx context.Context) http.HandlerFunc {
+    return func(w http.ResponseWriter, r *http.Request) {
+        // 1. Parse request
+        var req CreateRequest
+        json.NewDecoder(r.Body).Decode(&req)
+        
+        // 2. Build command
+        cmd := domain.CreateCommand{...}
+        
+        // 3. Execute via use case (from DI)
+        result, err := c.commandHandler.Exec(r.Context(), cmd)
+        
+        // 4. Return response
+        json.NewEncoder(w).Encode(result)
+    }
+}
+```
+
+### Forbidden Patterns
+
+```go
+// ❌ NEVER access repository from controller
+result, err := c.repository.FindByID(ctx, id)
+
+// ❌ NEVER use any types
+var data any
+
+// ❌ NEVER skip ownership validation
+```
 
 ---
 
-## 🤝 Contributing
+## Deployment
 
-### For Team Members
+### Kubernetes
 
-1. Read [Developer Onboarding Guide](./docs/development/ONBOARDING.md)
-2. Set up local environment
-3. Pick a task from GitHub Issues
-4. Create feature branch
-5. Write tests (required!)
-6. Submit PR with 2 reviewers
+```bash
+# Apply manifests
+kubectl apply -k k8s/overlays/local
 
-### Coding Standards
+# Check status
+kubectl get pods -n leetgaming -l app=replay-api
 
-- **Formatting**: `gofmt` (automatic)
-- **Linting**: `golangci-lint` (runs in CI)
-- **Tests**: Required for all features (NO MOCKS)
-- **Commits**: [Conventional Commits](https://www.conventionalcommits.org/)
+# View logs
+kubectl logs -n leetgaming -l app=replay-api
+```
+
+### Docker
+
+```bash
+# Build image
+docker build -t replay-api:latest .
+
+# Run container
+docker run -p 8080:8080 \
+  -e MONGO_URI="mongodb://..." \
+  replay-api:latest
+```
 
 ---
 
-## 📞 Support
+## Documentation
 
-- **Documentation**: [docs/README.md](./docs/README.md)
-- **Issues**: [GitHub Issues](https://github.com/leetgaming-pro/replay-api/issues)
-- **Email**: platform@leetgaming.pro
+| Document | Location |
+|----------|----------|
+| Architecture | [docs/architecture/OVERVIEW.md](./docs/architecture/OVERVIEW.md) |
+| Wallet System | [docs/architecture/WALLET_SYSTEM.md](./docs/architecture/WALLET_SYSTEM.md) |
+| Onboarding | [docs/development/ONBOARDING.md](./docs/development/ONBOARDING.md) |
+| Deployment | [docs/deployment/KUBERNETES.md](./docs/deployment/KUBERNETES.md) |
+| AI Agent Guide | [AGENTS.md](./AGENTS.md) |
 
 ---
 
-## 📜 License
+## Contributing
+
+1. Read [AGENTS.md](./AGENTS.md) for architecture guidelines
+2. Create feature branch from `main`
+3. Write tests (required)
+4. Run `golangci-lint run`
+5. Submit pull request
+
+---
+
+## License
 
 Proprietary - © 2025 LeetGaming Pro. All rights reserved.
 
 ---
 
-**Built with ❤️ by the LeetGaming Platform Engineering Team**
-
-**Status**: ✅ Production-Ready | **Version**: 1.0.0 | **Last Updated**: November 2025
+*Maintained by the LeetGaming Platform Engineering Team*  
+*Last Updated: December 19, 2025*

@@ -12,6 +12,26 @@ import (
 	iam_out "github.com/replay-api/replay-api/pkg/domain/iam/ports/out"
 )
 
+// OnboardOpenIDUserUseCase handles user onboarding from OpenID providers (Steam, Google, Email).
+//
+// This is the central onboarding use case that orchestrates:
+//   1. Profile lookup - checks if user already exists by source key
+//   2. User creation - creates new User entity if not found
+//   3. Group creation - creates system group for user's resources
+//   4. Membership creation - establishes owner membership in group
+//   5. Profile creation - links external identity to internal user
+//   6. RID Token creation - issues authentication token
+//
+// Flow:
+//   - Existing User: Returns existing profile + new RID token
+//   - New User: Creates User → Group → Membership → Profile → RID Token
+//
+// Dependencies:
+//   - UserReader/Writer: User entity persistence
+//   - ProfileReader/Writer: Profile entity persistence (links to external identity)
+//   - GroupWriter: System group creation for resource ownership
+//   - MembershipWriter: User-to-group membership
+//   - CreateRIDToken: Token issuance for authentication
 type OnboardOpenIDUserUseCase struct {
 	UserReader       iam_out.UserReader
 	UserWriter       iam_out.UserWriter
@@ -34,6 +54,24 @@ func NewOnboardOpenIDUserUseCase(userReader iam_out.UserReader, userWriter iam_o
 	}
 }
 
+// Exec onboards a user from an OpenID provider.
+//
+// Parameters:
+//   - ctx: Context with ResourceOwner (UserID, GroupID must be pre-populated for new users)
+//   - cmd: OnboardOpenIDUserCommand containing:
+//     - Name: User's display name
+//     - Source: RIDSourceKey (Steam/Google/Email)
+//     - Key: External identifier (Steam ID, email address)
+//     - ProfileDetails: Provider-specific profile data
+//
+// Returns:
+//   - *Profile: Created or existing user profile
+//   - *RIDToken: Fresh authentication token
+//   - error: Validation or persistence errors
+//
+// Errors:
+//   - "invalid resource owner: no user id" - UserID not in context for new user
+//   - "invalid resource owner: no group id" - GroupID not in context for new user
 func (uc *OnboardOpenIDUserUseCase) Exec(ctx context.Context, cmd iam_in.OnboardOpenIDUserCommand) (*iam_entities.Profile, *iam_entities.RIDToken, error) {
 	profileSourceKeySearch := uc.newSearchByProfileSourceKey(ctx, cmd.Source, cmd.Key)
 
@@ -78,14 +116,12 @@ func (uc *OnboardOpenIDUserUseCase) Exec(ctx context.Context, cmd iam_in.Onboard
 	slog.InfoContext(ctx, fmt.Sprintf("attempt to create user: %v", user))
 
 	user, err = uc.UserWriter.Create(ctx, user)
-
-	rxn.UserID = user.ID
-
 	if err != nil {
-		slog.ErrorContext(ctx, "error creating user", "err",
-			err)
+		slog.ErrorContext(ctx, "error creating user", "err", err)
 		return nil, nil, err
 	}
+
+	rxn.UserID = user.ID
 
 	group := iam_entities.NewGroup(rxn.GroupID, iam_entities.DefaultUserGroupName, iam_entities.GroupTypeSystem, rxn)
 

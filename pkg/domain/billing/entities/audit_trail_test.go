@@ -834,3 +834,4 @@ func TestHashChain_IntegrityVerification(t *testing.T) {
 	assert.NotEqual(hash2, entry3.Hash)
 }
 
+
