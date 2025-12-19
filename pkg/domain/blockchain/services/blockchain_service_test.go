@@ -3,6 +3,7 @@ package blockchain_services
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -15,6 +16,56 @@ import (
 	blockchain_vo "github.com/replay-api/replay-api/pkg/domain/blockchain/value-objects"
 	wallet_vo "github.com/replay-api/replay-api/pkg/domain/wallet/value-objects"
 )
+
+// =============================================================================
+// Test Helpers
+// =============================================================================
+
+// testResourceOwner creates a test resource owner
+func testResourceOwner() common.ResourceOwner {
+	return common.ResourceOwner{
+		TenantID: uuid.New(),
+		ClientID: uuid.New(),
+		UserID:   uuid.New(),
+	}
+}
+
+// testContext creates a context with resource owner
+func testContext() context.Context {
+	ro := testResourceOwner()
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, common.TenantIDKey, ro.TenantID)
+	ctx = context.WithValue(ctx, common.ClientIDKey, ro.ClientID)
+	ctx = context.WithValue(ctx, common.UserIDKey, ro.UserID)
+	return ctx
+}
+
+// testEVMAddress creates the first test EVM address
+func testEVMAddress() wallet_vo.EVMAddress {
+	addr, _ := wallet_vo.NewEVMAddress("0x742d35Cc6634C0532925a3b844Bc454e4438f44e")
+	return addr
+}
+
+// testEVMAddress2 creates the second test EVM address
+func testEVMAddress2() wallet_vo.EVMAddress {
+	addr, _ := wallet_vo.NewEVMAddress("0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199")
+	return addr
+}
+
+// testTokenAddress creates a test token address
+func testTokenAddress() wallet_vo.EVMAddress {
+	addr, _ := wallet_vo.NewEVMAddress("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48")
+	return addr
+}
+
+// testTxHash creates a test transaction hash
+func testTxHash() blockchain_vo.TxHash {
+	hash, _ := blockchain_vo.NewTxHash("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
+	return hash
+}
+
+// Suppress unused import
+var _ = fmt.Sprint
 
 // Mock implementations for testing
 
@@ -96,20 +147,20 @@ func (m *mockChainClient) GetLogs(ctx context.Context, filter blockchain_out.Log
 }
 
 type mockVaultContract struct {
-	createPoolTxHash    blockchain_vo.TxHash
-	createPoolErr       error
-	depositTxHash       blockchain_vo.TxHash
-	depositErr          error
-	withdrawTxHash      blockchain_vo.TxHash
-	withdrawErr         error
-	lockPoolTxHash      blockchain_vo.TxHash
-	lockPoolErr         error
-	distributeTxHash    blockchain_vo.TxHash
-	distributeErr       error
-	cancelTxHash        blockchain_vo.TxHash
-	cancelErr           error
-	prizePoolInfo       *blockchain_entities.OnChainPrizePool
-	prizePoolInfoErr    error
+	createPoolTxHash blockchain_vo.TxHash
+	createPoolErr    error
+	depositTxHash    blockchain_vo.TxHash
+	depositErr       error
+	withdrawTxHash   blockchain_vo.TxHash
+	withdrawErr      error
+	lockPoolTxHash   blockchain_vo.TxHash
+	lockPoolErr      error
+	distributeTxHash blockchain_vo.TxHash
+	distributeErr    error
+	cancelTxHash     blockchain_vo.TxHash
+	cancelErr        error
+	prizePoolInfo    *blockchain_entities.OnChainPrizePool
+	prizePoolInfoErr error
 }
 
 func (m *mockVaultContract) CreatePrizePool(ctx context.Context, matchID uuid.UUID, tokenAddress wallet_vo.EVMAddress, entryFee *big.Int, platformFeePct uint16) (blockchain_vo.TxHash, error) {
@@ -328,9 +379,9 @@ func TestSetContractAddresses(t *testing.T) {
 	)
 
 	chainID := blockchain_vo.ChainID(1)
-	vaultAddr := wallet_vo.EVMAddress{0x01}
-	ledgerAddr := wallet_vo.EVMAddress{0x02}
-	tokenAddr := wallet_vo.EVMAddress{0x03}
+	vaultAddr := testEVMAddress()
+	ledgerAddr := testEVMAddress2()
+	tokenAddr := testTokenAddress()
 
 	svc.SetVaultAddress(chainID, vaultAddr)
 	svc.SetLedgerAddress(chainID, ledgerAddr)
@@ -348,7 +399,7 @@ func TestSetContractAddresses(t *testing.T) {
 }
 
 func TestCreatePrizePool_Success(t *testing.T) {
-	txHash := blockchain_vo.TxHash{0xab, 0xcd}
+	txHash := testTxHash()
 	vaultContract := &mockVaultContract{createPoolTxHash: txHash}
 	prizePoolRepo := &mockPrizePoolRepository{}
 	txRepo := &mockTransactionRepository{}
@@ -363,19 +414,15 @@ func TestCreatePrizePool_Success(t *testing.T) {
 	)
 
 	chainID := blockchain_vo.PrimaryChain()
-	vaultAddr := wallet_vo.EVMAddress{0x01}
+	vaultAddr := testEVMAddress()
 	svc.SetVaultAddress(chainID, vaultAddr)
 
-	ctx := common.WithResourceOwner(context.Background(), common.ResourceOwner{
-		TenantID:     uuid.New(),
-		PartnerID:    uuid.Nil,
-		ParticipantID: uuid.Nil,
-	})
+	ctx := testContext()
 
 	cmd := blockchain_in.CreatePrizePoolCommand{
 		MatchID:            uuid.New(),
 		ChainID:            chainID,
-		TokenAddress:       wallet_vo.EVMAddress{0x10},
+		TokenAddress:       testTokenAddress(),
 		Currency:           wallet_vo.CurrencyUSDC,
 		EntryFee:           wallet_vo.NewAmount(10),
 		PlatformFeePercent: 1000, // 10%
@@ -413,9 +460,7 @@ func TestCreatePrizePool_VaultNotDeployed(t *testing.T) {
 	)
 
 	// Don't set vault address
-	ctx := common.WithResourceOwner(context.Background(), common.ResourceOwner{
-		TenantID: uuid.New(),
-	})
+	ctx := testContext()
 
 	cmd := blockchain_in.CreatePrizePoolCommand{
 		MatchID:  uuid.New(),
@@ -444,11 +489,9 @@ func TestCreatePrizePool_ContractError(t *testing.T) {
 	)
 
 	chainID := blockchain_vo.PrimaryChain()
-	svc.SetVaultAddress(chainID, wallet_vo.EVMAddress{0x01})
+	svc.SetVaultAddress(chainID, testEVMAddress())
 
-	ctx := common.WithResourceOwner(context.Background(), common.ResourceOwner{
-		TenantID: uuid.New(),
-	})
+	ctx := testContext()
 
 	cmd := blockchain_in.CreatePrizePoolCommand{
 		MatchID:  uuid.New(),
@@ -465,17 +508,18 @@ func TestCreatePrizePool_ContractError(t *testing.T) {
 func TestJoinPrizePool_Success(t *testing.T) {
 	matchID := uuid.New()
 	existingPool := blockchain_entities.NewOnChainPrizePool(
-		common.ResourceOwner{TenantID: uuid.New()},
+		testResourceOwner(),
 		matchID,
 		blockchain_vo.PrimaryChain(),
-		wallet_vo.EVMAddress{0x01},
-		wallet_vo.EVMAddress{0x10},
+		testEVMAddress(),
+		testTokenAddress(),
 		wallet_vo.CurrencyUSDC,
 		wallet_vo.NewAmount(10),
 		1000,
 	)
+	existingPool.Status = blockchain_entities.PoolStatusAccumulating
 
-	txHash := blockchain_vo.TxHash{0xef}
+	txHash := testTxHash()
 	vaultContract := &mockVaultContract{depositTxHash: txHash}
 	prizePoolRepo := &mockPrizePoolRepository{foundPool: existingPool}
 	txRepo := &mockTransactionRepository{}
@@ -490,13 +534,11 @@ func TestJoinPrizePool_Success(t *testing.T) {
 		&mockSyncStateRepository{},
 	)
 
-	ctx := common.WithResourceOwner(context.Background(), common.ResourceOwner{
-		TenantID: uuid.New(),
-	})
+	ctx := testContext()
 
 	cmd := blockchain_in.JoinPrizePoolCommand{
 		MatchID:        matchID,
-		PlayerAddress:  wallet_vo.EVMAddress{0x20},
+		PlayerAddress:  testEVMAddress2(),
 		PlayerWalletID: uuid.New(),
 	}
 
@@ -527,7 +569,7 @@ func TestJoinPrizePool_PoolNotFound(t *testing.T) {
 	ctx := context.Background()
 	cmd := blockchain_in.JoinPrizePoolCommand{
 		MatchID:       uuid.New(),
-		PlayerAddress: wallet_vo.EVMAddress{0x20},
+		PlayerAddress: testEVMAddress(),
 	}
 
 	err := svc.JoinPrizePool(ctx, cmd)
@@ -539,11 +581,11 @@ func TestJoinPrizePool_PoolNotFound(t *testing.T) {
 func TestJoinPrizePool_PoolNotAccumulating(t *testing.T) {
 	matchID := uuid.New()
 	existingPool := blockchain_entities.NewOnChainPrizePool(
-		common.ResourceOwner{TenantID: uuid.New()},
+		testResourceOwner(),
 		matchID,
 		blockchain_vo.PrimaryChain(),
-		wallet_vo.EVMAddress{0x01},
-		wallet_vo.EVMAddress{0x10},
+		testEVMAddress(),
+		testTokenAddress(),
 		wallet_vo.CurrencyUSDC,
 		wallet_vo.NewAmount(10),
 		1000,
@@ -564,7 +606,7 @@ func TestJoinPrizePool_PoolNotAccumulating(t *testing.T) {
 	ctx := context.Background()
 	cmd := blockchain_in.JoinPrizePoolCommand{
 		MatchID:       matchID,
-		PlayerAddress: wallet_vo.EVMAddress{0x20},
+		PlayerAddress: testEVMAddress2(),
 	}
 
 	err := svc.JoinPrizePool(ctx, cmd)
@@ -576,20 +618,21 @@ func TestJoinPrizePool_PoolNotAccumulating(t *testing.T) {
 func TestLockPrizePool_Success(t *testing.T) {
 	matchID := uuid.New()
 	existingPool := blockchain_entities.NewOnChainPrizePool(
-		common.ResourceOwner{TenantID: uuid.New()},
+		testResourceOwner(),
 		matchID,
 		blockchain_vo.PrimaryChain(),
-		wallet_vo.EVMAddress{0x01},
-		wallet_vo.EVMAddress{0x10},
+		testEVMAddress(),
+		testTokenAddress(),
 		wallet_vo.CurrencyUSDC,
 		wallet_vo.NewAmount(10),
 		1000,
 	)
+	existingPool.Status = blockchain_entities.PoolStatusAccumulating
 	// Add participants
-	existingPool.AddParticipant(wallet_vo.EVMAddress{0x20}, wallet_vo.NewAmount(10))
-	existingPool.AddParticipant(wallet_vo.EVMAddress{0x21}, wallet_vo.NewAmount(10))
+	existingPool.AddParticipant(testEVMAddress(), wallet_vo.NewAmount(10))
+	existingPool.AddParticipant(testEVMAddress2(), wallet_vo.NewAmount(10))
 
-	txHash := blockchain_vo.TxHash{0xff}
+	txHash := testTxHash()
 	vaultContract := &mockVaultContract{lockPoolTxHash: txHash}
 	prizePoolRepo := &mockPrizePoolRepository{foundPool: existingPool}
 
@@ -615,7 +658,7 @@ func TestLockPrizePool_Success(t *testing.T) {
 }
 
 func TestDepositToVault_Success(t *testing.T) {
-	txHash := blockchain_vo.TxHash{0xaa}
+	txHash := testTxHash()
 	vaultContract := &mockVaultContract{depositTxHash: txHash}
 	txRepo := &mockTransactionRepository{}
 	ledgerContract := &mockLedgerContract{}
@@ -630,16 +673,14 @@ func TestDepositToVault_Success(t *testing.T) {
 	)
 
 	chainID := blockchain_vo.PrimaryChain()
-	svc.SetVaultAddress(chainID, wallet_vo.EVMAddress{0x01})
+	svc.SetVaultAddress(chainID, testEVMAddress())
 
-	ctx := common.WithResourceOwner(context.Background(), common.ResourceOwner{
-		TenantID: uuid.New(),
-	})
+	ctx := testContext()
 
 	cmd := blockchain_in.DepositCommand{
-		UserAddress:  wallet_vo.EVMAddress{0x20},
+		UserAddress:  testEVMAddress2(),
 		WalletID:     uuid.New(),
-		TokenAddress: wallet_vo.EVMAddress{0x10},
+		TokenAddress: testTokenAddress(),
 		Currency:     wallet_vo.CurrencyUSDC,
 		Amount:       wallet_vo.NewAmount(100),
 		ChainID:      chainID,
@@ -652,8 +693,8 @@ func TestDepositToVault_Success(t *testing.T) {
 	if tx == nil {
 		t.Fatal("expected non-nil transaction")
 	}
-	if tx.TxType != blockchain_entities.TxTypeDeposit {
-		t.Errorf("expected type Deposit, got %v", tx.TxType)
+	if tx.Type != blockchain_entities.TxTypeDeposit {
+		t.Errorf("expected type Deposit, got %v", tx.Type)
 	}
 	if txRepo.savedTx == nil {
 		t.Error("transaction was not saved")
@@ -661,7 +702,7 @@ func TestDepositToVault_Success(t *testing.T) {
 }
 
 func TestWithdrawFromVault_Success(t *testing.T) {
-	txHash := blockchain_vo.TxHash{0xbb}
+	txHash := testTxHash()
 	vaultContract := &mockVaultContract{withdrawTxHash: txHash}
 	txRepo := &mockTransactionRepository{}
 	ledgerContract := &mockLedgerContract{}
@@ -676,16 +717,14 @@ func TestWithdrawFromVault_Success(t *testing.T) {
 	)
 
 	chainID := blockchain_vo.PrimaryChain()
-	svc.SetVaultAddress(chainID, wallet_vo.EVMAddress{0x01})
+	svc.SetVaultAddress(chainID, testEVMAddress())
 
-	ctx := common.WithResourceOwner(context.Background(), common.ResourceOwner{
-		TenantID: uuid.New(),
-	})
+	ctx := testContext()
 
 	cmd := blockchain_in.WithdrawCommand{
-		UserAddress:  wallet_vo.EVMAddress{0x20},
+		UserAddress:  testEVMAddress2(),
 		WalletID:     uuid.New(),
-		TokenAddress: wallet_vo.EVMAddress{0x10},
+		TokenAddress: testTokenAddress(),
 		Currency:     wallet_vo.CurrencyUSDC,
 		Amount:       wallet_vo.NewAmount(50),
 		ChainID:      chainID,
@@ -698,8 +737,8 @@ func TestWithdrawFromVault_Success(t *testing.T) {
 	if tx == nil {
 		t.Fatal("expected non-nil transaction")
 	}
-	if tx.TxType != blockchain_entities.TxTypeWithdrawal {
-		t.Errorf("expected type Withdrawal, got %v", tx.TxType)
+	if tx.Type != blockchain_entities.TxTypeWithdrawal {
+		t.Errorf("expected type Withdrawal, got %v", tx.Type)
 	}
 }
 
@@ -717,8 +756,8 @@ func TestGetLedgerBalance_Success(t *testing.T) {
 	)
 
 	balance, err := svc.GetLedgerBalance(context.Background(),
-		wallet_vo.EVMAddress{0x20},
-		wallet_vo.EVMAddress{0x10})
+		testEVMAddress(),
+		testTokenAddress())
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -731,11 +770,11 @@ func TestGetLedgerBalance_Success(t *testing.T) {
 func TestGetPrizePool_Success(t *testing.T) {
 	matchID := uuid.New()
 	expectedPool := blockchain_entities.NewOnChainPrizePool(
-		common.ResourceOwner{TenantID: uuid.New()},
+		testResourceOwner(),
 		matchID,
 		blockchain_vo.PrimaryChain(),
-		wallet_vo.EVMAddress{0x01},
-		wallet_vo.EVMAddress{0x10},
+		testEVMAddress(),
+		testTokenAddress(),
 		wallet_vo.CurrencyUSDC,
 		wallet_vo.NewAmount(10),
 		1000,
@@ -764,11 +803,11 @@ func TestGetPrizePool_Success(t *testing.T) {
 func TestGetTransaction_Success(t *testing.T) {
 	txID := uuid.New()
 	expectedTx := blockchain_entities.NewBlockchainTransaction(
-		common.ResourceOwner{TenantID: uuid.New()},
+		testResourceOwner(),
 		blockchain_vo.PrimaryChain(),
 		blockchain_entities.TxTypeDeposit,
-		wallet_vo.EVMAddress{0x20},
-		wallet_vo.EVMAddress{0x01},
+		testEVMAddress(),
+		testEVMAddress2(),
 		wallet_vo.CurrencyUSDC,
 		wallet_vo.NewAmount(100),
 	)
@@ -798,11 +837,11 @@ func TestGetTransactionsByWallet_Success(t *testing.T) {
 	walletID := uuid.New()
 	expectedTxs := []*blockchain_entities.BlockchainTransaction{
 		blockchain_entities.NewBlockchainTransaction(
-			common.ResourceOwner{TenantID: uuid.New()},
+			testResourceOwner(),
 			blockchain_vo.PrimaryChain(),
 			blockchain_entities.TxTypeDeposit,
-			wallet_vo.EVMAddress{0x20},
-			wallet_vo.EVMAddress{0x01},
+			testEVMAddress(),
+			testEVMAddress2(),
 			wallet_vo.CurrencyUSDC,
 			wallet_vo.NewAmount(100),
 		),
@@ -834,18 +873,19 @@ func TestGetTransactionsByWallet_Success(t *testing.T) {
 func TestCancelPrizePool_Success(t *testing.T) {
 	matchID := uuid.New()
 	existingPool := blockchain_entities.NewOnChainPrizePool(
-		common.ResourceOwner{TenantID: uuid.New()},
+		testResourceOwner(),
 		matchID,
 		blockchain_vo.PrimaryChain(),
-		wallet_vo.EVMAddress{0x01},
-		wallet_vo.EVMAddress{0x10},
+		testEVMAddress(),
+		testTokenAddress(),
 		wallet_vo.CurrencyUSDC,
 		wallet_vo.NewAmount(10),
 		1000,
 	)
-	existingPool.AddParticipant(wallet_vo.EVMAddress{0x20}, wallet_vo.NewAmount(10))
+	existingPool.Status = blockchain_entities.PoolStatusAccumulating
+	existingPool.AddParticipant(testEVMAddress2(), wallet_vo.NewAmount(10))
 
-	txHash := blockchain_vo.TxHash{0xcc}
+	txHash := testTxHash()
 	vaultContract := &mockVaultContract{cancelTxHash: txHash}
 	prizePoolRepo := &mockPrizePoolRepository{foundPool: existingPool}
 	ledgerContract := &mockLedgerContract{}
