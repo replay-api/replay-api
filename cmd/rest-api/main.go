@@ -27,7 +27,7 @@ func main() {
 
 	builder := ioc.NewContainerBuilder()
 
-	c := builder.WithEnvFile().WithSquadAPI().WithInboundPorts().With(ioc.InjectMongoDB).Build()
+	c := builder.WithEnvFile().With(ioc.InjectMongoDB).WithSquadAPI().WithInboundPorts().Build()
 
 	defer builder.Close(c)
 

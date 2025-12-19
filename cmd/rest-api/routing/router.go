@@ -11,6 +11,7 @@ import (
 	cmd_controllers "github.com/replay-api/replay-api/cmd/rest-api/controllers/command"
 	query_controllers "github.com/replay-api/replay-api/cmd/rest-api/controllers/query"
 	websocket_controllers "github.com/replay-api/replay-api/cmd/rest-api/controllers/websocket"
+	"github.com/replay-api/replay-api/cmd/rest-api/docs"
 	"github.com/replay-api/replay-api/cmd/rest-api/middlewares"
 	matchmaking_in "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/in"
 	websocket "github.com/replay-api/replay-api/pkg/infra/websocket"
@@ -131,6 +132,13 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 
 	// Prometheus metrics
 	r.Handle("/metrics", healthController.MetricsHandler()).Methods("GET")
+
+	// API Documentation (Swagger UI, ReDoc, OpenAPI spec)
+	docsConfig := docs.DefaultSwaggerConfig()
+	r.HandleFunc("/api/docs", docs.DocsIndexHandler(docsConfig)).Methods("GET")
+	r.HandleFunc("/api/docs/swagger", docs.SwaggerUIHandler(docsConfig)).Methods("GET")
+	r.HandleFunc("/api/docs/redoc", docs.RedocHandler(docsConfig)).Methods("GET")
+	r.HandleFunc("/api/docs/openapi.yaml", docs.OpenAPISpecHandler()).Methods("GET")
 
 	r.HandleFunc(CI, func(w http.ResponseWriter, r *http.Request) {
 		slog.Info("CI route up.")
