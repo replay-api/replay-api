@@ -37,6 +37,20 @@ func NewSquadController(container container.Container) *SquadController {
 	}
 }
 
+// CreateSquadHandler handles POST /squads
+// @Summary Create squad
+// @Description Creates a new squad/team
+// @Tags Squads
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body squad_in.CreateOrUpdatedSquadCommand true "Create squad request"
+// @Success 201 {object} squad_entities.Squad
+// @Failure 400 {string} string "Bad Request"
+// @Failure 401 {string} string "Unauthorized"
+// @Failure 409 {object} map[string]string
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /squads [post]
 func (ctrl *SquadController) CreateSquadHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -114,6 +128,19 @@ type AddMemberRequest struct {
 }
 
 // AddMemberHandler handles POST /squads/{id}/members
+// @Summary Add squad member
+// @Description Adds a player to a squad
+// @Tags Squads
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Squad ID"
+// @Param request body AddMemberRequest true "Add member request"
+// @Success 200 {object} squad_entities.Squad
+// @Failure 400 {string} string "Bad Request"
+// @Failure 404 {string} string "Not Found"
+// @Failure 409 {string} string "Conflict"
+// @Router /squads/{id}/members [post]
 func (ctrl *SquadController) AddMemberHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
@@ -214,6 +241,16 @@ func (ctrl *SquadController) AddMemberHandler(apiContext context.Context) http.H
 }
 
 // RemoveMemberHandler handles DELETE /squads/{id}/members/{player_id}
+// @Summary Remove squad member
+// @Description Removes a player from a squad
+// @Tags Squads
+// @Security BearerAuth
+// @Param id path string true "Squad ID"
+// @Param player_id path string true "Player ID"
+// @Success 204 "No Content"
+// @Failure 400 {string} string "Bad Request"
+// @Failure 404 {string} string "Not Found"
+// @Router /squads/{id}/members/{player_id} [delete]
 func (ctrl *SquadController) RemoveMemberHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
@@ -295,6 +332,19 @@ type UpdateMemberRoleRequest struct {
 }
 
 // UpdateMemberRoleHandler handles PUT /squads/{id}/members/{player_id}/role
+// @Summary Update squad member role
+// @Description Updates the role and type of a squad member
+// @Tags Squads
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Squad ID"
+// @Param player_id path string true "Player ID"
+// @Param request body UpdateMemberRoleRequest true "Update member role request"
+// @Success 200 {object} squad_entities.Squad
+// @Failure 400 {string} string "Bad Request"
+// @Failure 404 {string} string "Not Found"
+// @Router /squads/{id}/members/{player_id}/role [put]
 func (ctrl *SquadController) UpdateMemberRoleHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
@@ -387,6 +437,15 @@ func (ctrl *SquadController) UpdateMemberRoleHandler(apiContext context.Context)
 }
 
 // GetSquadHandler handles GET /squads/{id}
+// @Summary Get squad by ID
+// @Description Returns detailed information about a specific squad
+// @Tags Squads
+// @Produce json
+// @Param id path string true "Squad ID"
+// @Success 200 {object} squad_entities.Squad
+// @Failure 400 {string} string "Bad Request"
+// @Failure 404 {string} string "Not Found"
+// @Router /squads/{id} [get]
 func (ctrl *SquadController) GetSquadHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
@@ -436,6 +495,18 @@ type UpdateSquadRequest struct {
 }
 
 // UpdateSquadHandler handles PUT /squads/{id}
+// @Summary Update squad
+// @Description Updates squad information
+// @Tags Squads
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Squad ID"
+// @Param request body UpdateSquadRequest true "Update squad request"
+// @Success 200 {object} squad_entities.Squad
+// @Failure 400 {string} string "Bad Request"
+// @Failure 404 {string} string "Not Found"
+// @Router /squads/{id} [put]
 func (ctrl *SquadController) UpdateSquadHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
@@ -510,6 +581,15 @@ func (ctrl *SquadController) UpdateSquadHandler(apiContext context.Context) http
 }
 
 // DeleteSquadHandler handles DELETE /squads/{id}
+// @Summary Delete squad
+// @Description Deletes a squad permanently
+// @Tags Squads
+// @Security BearerAuth
+// @Param id path string true "Squad ID"
+// @Success 204 "No Content"
+// @Failure 400 {string} string "Bad Request"
+// @Failure 404 {string} string "Not Found"
+// @Router /squads/{id} [delete]
 func (ctrl *SquadController) DeleteSquadHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
@@ -546,6 +626,16 @@ func (ctrl *SquadController) DeleteSquadHandler(apiContext context.Context) http
 }
 
 // GetSquadStatsHandler handles GET /squads/{id}/stats
+// @Summary Get squad statistics
+// @Description Returns statistics for a squad
+// @Tags Squads
+// @Produce json
+// @Param id path string true "Squad ID"
+// @Param game_id query string false "Game ID" default(cs2)
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {string} string "Bad Request"
+// @Failure 404 {string} string "Not Found"
+// @Router /squads/{id}/stats [get]
 func (ctrl *SquadController) GetSquadStatsHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
@@ -643,6 +733,17 @@ func (ctrl *SquadController) GetSquadStatsHandler(apiContext context.Context) ht
 }
 
 // InvitePlayerHandler handles POST /squads/{id}/invitations
+// @Summary Invite player to squad
+// @Description Sends an invitation to a player to join the squad
+// @Tags Squads
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Squad ID"
+// @Param request body squad_in.InvitePlayerCommand true "Invite player request"
+// @Success 201 {object} squad_entities.SquadInvitation
+// @Failure 400 {object} map[string]string
+// @Router /squads/{id}/invitations [post]
 func (ctrl *SquadController) InvitePlayerHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
@@ -686,6 +787,17 @@ func (ctrl *SquadController) InvitePlayerHandler(apiContext context.Context) htt
 }
 
 // RequestJoinHandler handles POST /squads/{id}/join-requests
+// @Summary Request to join squad
+// @Description Creates a join request for a player to join the squad
+// @Tags Squads
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Squad ID"
+// @Param request body squad_in.RequestJoinCommand false "Join request (optional)"
+// @Success 201 {object} squad_entities.SquadInvitation
+// @Failure 400 {object} map[string]string
+// @Router /squads/{id}/join-requests [post]
 func (ctrl *SquadController) RequestJoinHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
@@ -729,6 +841,17 @@ func (ctrl *SquadController) RequestJoinHandler(apiContext context.Context) http
 }
 
 // RespondToInvitationHandler handles POST /invitations/{invitation_id}/respond
+// @Summary Respond to squad invitation
+// @Description Accepts or declines a squad invitation
+// @Tags Squads
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param invitation_id path string true "Invitation ID"
+// @Param request body squad_in.RespondToInvitationCommand true "Response to invitation"
+// @Success 200 {object} squad_entities.SquadInvitation
+// @Failure 400 {object} map[string]string
+// @Router /invitations/{invitation_id}/respond [post]
 func (ctrl *SquadController) RespondToInvitationHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
@@ -772,6 +895,14 @@ func (ctrl *SquadController) RespondToInvitationHandler(apiContext context.Conte
 }
 
 // CancelInvitationHandler handles DELETE /invitations/{invitation_id}
+// @Summary Cancel squad invitation
+// @Description Cancels a pending squad invitation
+// @Tags Squads
+// @Security BearerAuth
+// @Param invitation_id path string true "Invitation ID"
+// @Success 204 "No Content"
+// @Failure 400 {object} map[string]string
+// @Router /invitations/{invitation_id} [delete]
 func (ctrl *SquadController) CancelInvitationHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
@@ -806,6 +937,15 @@ func (ctrl *SquadController) CancelInvitationHandler(apiContext context.Context)
 }
 
 // GetSquadInvitationsHandler handles GET /squads/{id}/invitations
+// @Summary Get squad invitations
+// @Description Returns all invitations for a squad
+// @Tags Squads
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Squad ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Router /squads/{id}/invitations [get]
 func (ctrl *SquadController) GetSquadInvitationsHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
@@ -845,6 +985,15 @@ func (ctrl *SquadController) GetSquadInvitationsHandler(apiContext context.Conte
 }
 
 // GetPlayerInvitationsHandler handles GET /players/{id}/invitations
+// @Summary Get player invitations
+// @Description Returns all squad invitations for a player
+// @Tags Squads
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Player ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Router /players/{id}/invitations [get]
 func (ctrl *SquadController) GetPlayerInvitationsHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)

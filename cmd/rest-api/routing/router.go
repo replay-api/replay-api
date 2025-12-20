@@ -367,6 +367,11 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	// Stripe Webhook (no auth required)
 	r.HandleFunc("/webhooks/stripe", paymentController.StripeWebhookHandler(ctx)).Methods("POST")
 
+	// API Documentation (Swagger/OpenAPI)
+	docsMux := http.NewServeMux()
+	docs.RegisterDocsRoutes(docsMux, "/api/docs")
+	r.PathPrefix("/api/docs").Handler(http.StripPrefix("/api/docs", docsMux))
+
 	// Wrap the router with CORS handler to handle preflight OPTIONS requests
 	// This is necessary because mux middleware doesn't run for 405 responses
 	return corsMiddleware.Handler(r)

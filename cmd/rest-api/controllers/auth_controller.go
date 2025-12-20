@@ -78,6 +78,19 @@ func setCORSHeaders(w http.ResponseWriter) {
 
 // RefreshToken handles POST /auth/refresh
 // Refreshes an existing token with a new expiration time
+// @Summary Refresh authentication token
+// @Description Refreshes an existing RID token with a new expiration time
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body RefreshTokenRequest true "Refresh token request"
+// @Success 200 {object} RefreshTokenResponse
+// @Failure 400 {object} RefreshTokenResponse
+// @Failure 401 {object} RefreshTokenResponse
+// @Failure 403 {object} RefreshTokenResponse
+// @Failure 404 {object} RefreshTokenResponse
+// @Router /auth/refresh [post]
 func (c *AuthController) RefreshToken(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		setCORSHeaders(w)
@@ -190,6 +203,17 @@ func (c *AuthController) RefreshToken(apiContext context.Context) http.HandlerFu
 
 // Logout handles POST /auth/logout
 // Revokes the current token, effectively logging the user out
+// @Summary Logout user
+// @Description Revokes the current token, effectively logging the user out
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body LogoutRequest true "Logout request"
+// @Success 200 {object} LogoutResponse
+// @Failure 400 {object} LogoutResponse
+// @Failure 403 {object} LogoutResponse
+// @Router /auth/logout [post]
 func (c *AuthController) Logout(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		setCORSHeaders(w)
@@ -277,4 +301,3 @@ func (c *AuthController) Logout(apiContext context.Context) http.HandlerFunc {
 		})
 	}
 }
-

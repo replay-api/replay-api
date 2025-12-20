@@ -58,6 +58,15 @@ func requireAuthentication(w http.ResponseWriter, r *http.Request) *common.Resou
 }
 
 // GetWalletBalanceHandler handles GET /wallet/balance
+// @Summary Get wallet balance
+// @Description Returns the authenticated user's wallet balance for all assets
+// @Tags Wallet
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} wallet_in.WalletBalanceResult
+// @Failure 401 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /wallet/balance [get]
 // SECURITY: This endpoint requires authentication and only returns the authenticated user's balance
 func (c *WalletQueryController) GetWalletBalanceHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -85,6 +94,19 @@ func (c *WalletQueryController) GetWalletBalanceHandler(w http.ResponseWriter, r
 }
 
 // GetWalletTransactionsHandler handles GET /wallet/transactions
+// @Summary Get wallet transactions
+// @Description Returns the authenticated user's wallet transactions with pagination and filtering
+// @Tags Wallet
+// @Produce json
+// @Security BearerAuth
+// @Param limit query int false "Limit results" default(50) maximum(200)
+// @Param offset query int false "Offset for pagination" default(0)
+// @Param sort_by query string false "Sort field" Enums(created_at, amount, type, status) default(created_at)
+// @Param sort_order query string false "Sort order" Enums(asc, desc) default(desc)
+// @Success 200 {object} wallet_in.TransactionsResult
+// @Failure 401 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /wallet/transactions [get]
 // SECURITY: This endpoint requires authentication and only returns the authenticated user's transactions
 func (c *WalletQueryController) GetWalletTransactionsHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()

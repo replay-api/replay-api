@@ -50,6 +50,12 @@ func NewHealthController(c container.Container) *HealthController {
 }
 
 // HealthCheck returns a simple health check for liveness probes
+// @Summary Health check endpoint
+// @Description Returns a simple health status for liveness probes
+// @Tags Health
+// @Produce json
+// @Success 200 {object} HealthResponse
+// @Router /health [get]
 func (hc *HealthController) HealthCheck(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -66,6 +72,13 @@ func (hc *HealthController) HealthCheck(apiContext context.Context) http.Handler
 }
 
 // ReadinessCheck returns a comprehensive health check including dependencies
+// @Summary Readiness check endpoint
+// @Description Returns comprehensive health status including all dependencies
+// @Tags Health
+// @Produce json
+// @Success 200 {object} HealthResponse
+// @Success 503 {object} HealthResponse
+// @Router /health/ready [get]
 func (hc *HealthController) ReadinessCheck(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		result := hc.healthService.Check(r.Context())
@@ -100,6 +113,13 @@ func (hc *HealthController) ReadinessCheck(apiContext context.Context) http.Hand
 }
 
 // DetailedHealthCheck returns full health check result with all metrics
+// @Summary Detailed health check
+// @Description Returns full health check result with all component details and metrics
+// @Tags Health
+// @Produce json
+// @Success 200 {object} observability.HealthResult
+// @Success 503 {object} observability.HealthResult
+// @Router /health/detailed [get]
 func (hc *HealthController) DetailedHealthCheck(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		result := hc.healthService.Check(r.Context())
@@ -118,6 +138,13 @@ func (hc *HealthController) DetailedHealthCheck(apiContext context.Context) http
 }
 
 // LivenessCheck returns simple liveness status for Kubernetes
+// @Summary Liveness check endpoint
+// @Description Returns simple liveness status for Kubernetes probes
+// @Tags Health
+// @Produce plain
+// @Success 200 {string} string "OK"
+// @Success 503 {string} string "NOT OK"
+// @Router /health/live [get]
 func (hc *HealthController) LivenessCheck(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if hc.healthService.Liveness(r.Context()) {
@@ -131,6 +158,12 @@ func (hc *HealthController) LivenessCheck(apiContext context.Context) http.Handl
 }
 
 // MetricsHandler returns the Prometheus metrics endpoint handler
+// @Summary Prometheus metrics
+// @Description Returns Prometheus metrics in text format
+// @Tags Health
+// @Produce plain
+// @Success 200 {string} string "Prometheus metrics"
+// @Router /metrics [get]
 func (hc *HealthController) MetricsHandler() http.Handler {
 	return promhttp.Handler()
 }
@@ -146,6 +179,15 @@ func (hc *HealthController) GetHealthService() *observability.HealthService {
 }
 
 // ComponentHealth returns health for a specific component
+// @Summary Component health check
+// @Description Returns health status for a specific component
+// @Tags Health
+// @Produce json
+// @Param component query string true "Component name"
+// @Success 200 {object} observability.ComponentHealth
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /health/component [get]
 func (hc *HealthController) ComponentHealth(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Get component name from URL path or query param

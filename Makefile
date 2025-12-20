@@ -451,10 +451,14 @@ docs: ## Open API documentation in browser
 
 .PHONY: docs-generate
 docs-generate: ## Generate OpenAPI spec from code annotations
-	@echo "$(CC)Generating OpenAPI documentation...$(CEND)"
+	@echo "$(CC)Generating OpenAPI documentation from Swagger annotations...$(CEND)"
+	@command -v swag >/dev/null 2>&1 || go install github.com/swaggo/swag/cmd/swag@latest
 	@swag init -g cmd/rest-api/main.go -o docs/swagger --parseDependency --parseInternal
-	@cp docs/swagger/openapi.yaml cmd/rest-api/docs/openapi.yaml
-	@echo "$(CG)Documentation generated!$(CEND)"
+	@powershell -Command "Copy-Item -Path 'docs/swagger/openapi.yaml' -Destination 'cmd/rest-api/docs/openapi.yaml' -Force" 2>nul || \
+	cp docs/swagger/openapi.yaml cmd/rest-api/docs/openapi.yaml 2>/dev/null || \
+	(copy /Y docs\swagger\openapi.yaml cmd\rest-api\docs\openapi.yaml 2>nul || echo "$(CR)Failed to copy file$(CEND)")
+	@echo "$(CG)Documentation generated in docs/swagger/ and copied to cmd/rest-api/docs/$(CEND)"
+	@echo "$(YELLOW)Review: docs/swagger/openapi.yaml$(CEND)"
 
 .PHONY: docs-validate
 docs-validate: ## Validate OpenAPI spec
@@ -550,10 +554,12 @@ generate: ## Run all code generators
 	@echo "$(CG)Generation complete!$(CEND)"
 
 .PHONY: mocks
-mocks: ## Generate test mocks
+mocks: ## Generate test mocks from interfaces
 	@echo "$(CC)Generating mocks...$(CEND)"
-	@mockery --all --keeptree --output=./test/mocks
-	@echo "$(CG)Mocks generated!$(CEND)"
+	@command -v mockery >/dev/null 2>&1 || go install github.com/vektra/mockery/v2@latest
+	@mockery --all --keeptree --output=./test/mocks --dir=./pkg/domain
+	@echo "$(CG)Mocks generated in ./test/mocks/$(CEND)"
+	@echo "$(YELLOW)Note: This project prefers real dependencies over mocks. See TESTING.md$(CEND)"
 
 #========================================
 # 📦 Build & Release
@@ -633,3 +639,20 @@ deps: ## Show dependency tree
 outdated: ## Check for outdated dependencies
 	@echo "$(CC)Checking for outdated dependencies...$(CEND)"
 	@go list -u -m all | grep -v '^\s*$$'
+
+#========================================
+# 🔒 Git Hooks (Pre-commit validation)
+#========================================
+
+.PHONY: install-hooks
+install-hooks: ## Install git pre-commit hooks
+	@echo "$(CC)Installing git hooks...$(CEND)"
+	@chmod +x scripts/install-git-hooks.sh
+	@./scripts/install-git-hooks.sh
+	@echo "$(CG)Git hooks installed!$(CEND)"
+	@echo "$(CC)Pre-commit checks will now run automatically$(CEND)"
+
+.PHONY: hooks-test
+hooks-test: ## Test pre-commit hook manually
+	@echo "$(CC)Testing pre-commit hook...$(CEND)"
+	@.githooks/pre-commit || echo "$(YELLOW)Hook test completed (some checks may fail)${NC}"

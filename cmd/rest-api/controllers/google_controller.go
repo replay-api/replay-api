@@ -28,6 +28,17 @@ func NewGoogleController(container *container.Container) *GoogleController {
 	return &GoogleController{OnboardGoogleUserCommand: onboardGoogleUserCommand}
 }
 
+// OnboardGoogleUser handles POST /onboarding/google
+// @Summary Register new user with Google
+// @Description Creates a new user account using Google OAuth authentication
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param request body google_entity.GoogleUser true "Google user data"
+// @Success 201 {object} google_entity.GoogleUser
+// @Failure 400 {string} string "Bad Request"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /onboarding/google [post]
 func (c *GoogleController) OnboardGoogleUser(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		corsOrigin := os.Getenv("CORS_ALLOWED_ORIGIN")

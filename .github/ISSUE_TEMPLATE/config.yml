@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Community Support
+    url: https://github.com/leetgaming-pro/replay-api/discussions
+    about: Ask for help and discuss with the community
+  - name: Documentation
+    url: https://github.com/leetgaming-pro/replay-api/tree/develop/docs
+    about: Consult the project documentation

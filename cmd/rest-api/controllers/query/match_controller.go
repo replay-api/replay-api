@@ -131,7 +131,17 @@ func (c *MatchQueryController) GetMatchDetailHandler(w http.ResponseWriter, r *h
 }
 
 // GetPlayerMatchHistoryHandler handles GET /matches/player/{player_id}
-// Returns paginated match history for a specific player
+// @Summary Get player match history
+// @Description Returns paginated match history for a specific player
+// @Tags Matches
+// @Produce json
+// @Param player_id path string true "Player ID"
+// @Param game_id query string false "Game ID filter"
+// @Param limit query int false "Limit results" default(20) maximum(100)
+// @Param offset query int false "Offset for pagination" default(0)
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {string} string "Bad Request"
+// @Router /matches/player/{player_id} [get]
 func (c *MatchQueryController) GetPlayerMatchHistoryHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	playerIDStr := vars["player_id"]
@@ -221,7 +231,17 @@ func (c *MatchQueryController) GetPlayerMatchHistoryHandler(w http.ResponseWrite
 }
 
 // GetSquadMatchHistoryHandler handles GET /matches/squad/{squad_id}
-// Returns paginated match history for all members of a squad
+// @Summary Get squad match history
+// @Description Returns paginated match history for all members of a squad
+// @Tags Matches
+// @Produce json
+// @Param squad_id path string true "Squad ID"
+// @Param game_id query string false "Game ID filter"
+// @Param limit query int false "Limit results" default(20) maximum(100)
+// @Param offset query int false "Offset for pagination" default(0)
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {string} string "Bad Request"
+// @Router /matches/squad/{squad_id} [get]
 func (c *MatchQueryController) GetSquadMatchHistoryHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	squadIDStr := vars["squad_id"]

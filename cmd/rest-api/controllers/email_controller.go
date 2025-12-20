@@ -54,6 +54,18 @@ type LoginEmailRequest struct {
 	VHash    string `json:"v_hash"`
 }
 
+// OnboardEmailUser handles POST /onboarding/email
+// @Summary Register new user with email
+// @Description Creates a new user account using email and password
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param request body OnboardEmailRequest true "Onboard email user request"
+// @Success 201 {object} email_entities.EmailUser
+// @Failure 400 {string} string "Bad Request"
+// @Failure 409 {string} string "Conflict"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /onboarding/email [post]
 func (c *EmailController) OnboardEmailUser(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		corsOrigin := os.Getenv("CORS_ALLOWED_ORIGIN")
@@ -124,6 +136,18 @@ func (c *EmailController) OnboardEmailUser(apiContext context.Context) http.Hand
 	}
 }
 
+// LoginEmailUser handles POST /auth/login
+// @Summary Login with email
+// @Description Authenticates a user with email and password
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param request body LoginEmailRequest true "Login request"
+// @Success 200 {object} email_entities.EmailUser
+// @Failure 400 {string} string "Bad Request"
+// @Failure 401 {string} string "Unauthorized"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /auth/login [post]
 func (c *EmailController) LoginEmailUser(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		corsOrigin := os.Getenv("CORS_ALLOWED_ORIGIN")

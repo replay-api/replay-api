@@ -19,6 +19,16 @@ func NewDefaultSearchController[T any](service common.Searchable[T]) *DefaultSea
 	}
 }
 
+// DefaultSearchHandler handles GET /search
+// @Summary Generic search endpoint
+// @Description Performs a search using base64-encoded search parameters in x-search header
+// @Tags Search
+// @Produce json
+// @Param x-search header string true "Base64-encoded search parameters"
+// @Success 200 {array} object
+// @Failure 400 {string} string "Bad Request"
+// @Failure 422 {string} string "Unprocessable Entity"
+// @Router /search [get]
 func (c *DefaultSearchController[T]) DefaultSearchHandler(w http.ResponseWriter, r *http.Request) {
 	base64SearchHeader := r.Header.Get("x-search")
 	if base64SearchHeader == "" {
