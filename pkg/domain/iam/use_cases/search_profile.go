@@ -9,6 +9,18 @@ import (
 	iam_out "github.com/replay-api/replay-api/pkg/domain/iam/ports/out"
 )
 
+// safeUintToInt converts uint to int with overflow protection.
+// Returns 0 if the value exceeds int max value (should not happen in practice for pagination).
+func safeUintToInt(val uint) int {
+	const maxInt = int(^uint(0) >> 1) // Maximum value for int
+	if val > uint(maxInt) {
+		// In practice, pagination values should never exceed int max
+		// Return max int as a safe fallback
+		return maxInt
+	}
+	return int(val)
+}
+
 // SearchProfileUseCase handles profile search operations.
 //
 // This use case provides:
@@ -66,12 +78,12 @@ func (uc *SearchProfileUseCase) Exec(ctx context.Context, search common.Search) 
 	if limit == 0 {
 		limit = 1
 	}
-	page := int(search.ResultOptions.Skip / limit)
+	page := safeUintToInt(search.ResultOptions.Skip / limit)
 
 	return &SearchProfileResult{
 		Profiles:   profiles,
 		TotalCount: len(profiles),
 		Page:       page,
-		PageSize:   int(search.ResultOptions.Limit),
+		PageSize:   safeUintToInt(search.ResultOptions.Limit),
 	}, nil
 }
