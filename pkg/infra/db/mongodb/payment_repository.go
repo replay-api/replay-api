@@ -1,10 +1,10 @@
-// Package db provides MongoDB repository implementations
 package db
 
 import (
 	"context"
 	"fmt"
 	"log/slog"
+	"reflect"
 	"time"
 
 	"github.com/google/uuid"
@@ -15,97 +15,140 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-const paymentCollectionName = "payments"
-
-// PaymentMongoDBRepository implements PaymentRepository for MongoDB
-type PaymentMongoDBRepository struct {
-	collection *mongo.Collection
+// MongoPaymentRepository implements PaymentRepository for MongoDB
+type MongoPaymentRepository struct {
+	*MongoDBRepository[*payment_entities.Payment]
 }
 
-// NewPaymentMongoDBRepository creates a new payment repository
-func NewPaymentMongoDBRepository(client *mongo.Client, dbName string) payment_out.PaymentRepository {
-	collection := client.Database(dbName).Collection(paymentCollectionName)
-
-	// Create indexes
-	ctx := context.Background()
-
-	// Index on provider_payment_id for webhook lookups
-	_, err := collection.Indexes().CreateOne(ctx, mongo.IndexModel{
-		Keys:    bson.D{{Key: "provider_payment_id", Value: 1}},
-		Options: options.Index().SetUnique(true).SetSparse(true),
-	})
-	if err != nil {
-		slog.Error("Failed to create provider_payment_id index", "err", err)
-	}
-
-	// Index on idempotency_key for duplicate detection
-	_, err = collection.Indexes().CreateOne(ctx, mongo.IndexModel{
-		Keys:    bson.D{{Key: "idempotency_key", Value: 1}},
-		Options: options.Index().SetUnique(true),
-	})
-	if err != nil {
-		slog.Error("Failed to create idempotency_key index", "err", err)
-	}
-
-	// Index on user_id for user payment history
-	_, err = collection.Indexes().CreateOne(ctx, mongo.IndexModel{
-		Keys: bson.D{{Key: "user_id", Value: 1}},
-	})
-	if err != nil {
-		slog.Error("Failed to create user_id index", "err", err)
-	}
-
-	// Index on wallet_id for wallet payment history
-	_, err = collection.Indexes().CreateOne(ctx, mongo.IndexModel{
-		Keys: bson.D{{Key: "wallet_id", Value: 1}},
-	})
-	if err != nil {
-		slog.Error("Failed to create wallet_id index", "err", err)
-	}
-
-	// Index on status and created_at for finding pending payments
-	_, err = collection.Indexes().CreateOne(ctx, mongo.IndexModel{
-		Keys: bson.D{
-			{Key: "status", Value: 1},
-			{Key: "created_at", Value: 1},
+// NewPaymentRepository creates a new MongoDB payment repository
+func NewPaymentRepository(mongoClient *mongo.Client, dbName string) payment_out.PaymentRepository {
+	mappingCache := make(map[string]CacheItem)
+	entityModel := reflect.TypeOf(payment_entities.Payment{})
+	repo := &MongoPaymentRepository{
+		MongoDBRepository: &MongoDBRepository[*payment_entities.Payment]{
+			mongoClient:       mongoClient,
+			dbName:            dbName,
+			mappingCache:      mappingCache,
+			entityModel:       entityModel,
+			collectionName:    "payments",
+			entityName:        "Payment",
+			BsonFieldMappings: make(map[string]string),
+			QueryableFields:   make(map[string]bool),
 		},
-	})
-	if err != nil {
-		slog.Error("Failed to create status+created_at index", "err", err)
 	}
 
-	return &PaymentMongoDBRepository{
-		collection: collection,
+	// Define BSON field mappings
+	bsonFieldMappings := map[string]string{
+		"ID":                 "_id",
+		"UserID":             "user_id",
+		"WalletID":           "wallet_id",
+		"Type":               "type",
+		"Provider":           "provider",
+		"Status":             "status",
+		"Amount":             "amount",
+		"Currency":           "currency",
+		"Fee":                "fee",
+		"ProviderFee":        "provider_fee",
+		"NetAmount":          "net_amount",
+		"ProviderPaymentID":  "provider_payment_id",
+		"ProviderCustomerID": "provider_customer_id",
+		"PaymentMethodID":    "payment_method_id",
+		"Description":        "description",
+		"Metadata":           "metadata",
+		"FailureReason":      "failure_reason",
+		"CreatedAt":          "created_at",
+		"UpdatedAt":          "updated_at",
+		"CompletedAt":        "completed_at",
+		"IdempotencyKey":     "idempotency_key",
+	}
+
+	// Define queryable fields for search operations
+	queryableFields := map[string]bool{
+		"UserID":            true,
+		"WalletID":          true,
+		"Type":              true,
+		"Provider":          true,
+		"Status":            true,
+		"Amount":            true,
+		"Currency":          true,
+		"CreatedAt":         true,
+		"UpdatedAt":         true,
+		"ProviderPaymentID": true,
+		"IdempotencyKey":    true,
+	}
+
+	repo.InitQueryableFields(queryableFields, bsonFieldMappings)
+
+	// Create indexes on startup
+	go repo.createIndexes()
+
+	return repo
+}
+
+func (r *MongoPaymentRepository) createIndexes() {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	indexes := []mongo.IndexModel{
+		{
+			Keys: bson.D{{Key: "user_id", Value: 1}},
+		},
+		{
+			Keys: bson.D{{Key: "wallet_id", Value: 1}},
+		},
+		{
+			Keys:    bson.D{{Key: "provider_payment_id", Value: 1}},
+			Options: options.Index().SetSparse(true),
+		},
+		{
+			Keys:    bson.D{{Key: "idempotency_key", Value: 1}},
+			Options: options.Index().SetUnique(true),
+		},
+		{
+			Keys: bson.D{{Key: "status", Value: 1}, {Key: "created_at", Value: -1}},
+		},
+		{
+			Keys: bson.D{{Key: "user_id", Value: 1}, {Key: "created_at", Value: -1}},
+		},
+	}
+
+	_, err := r.collection.Indexes().CreateMany(ctx, indexes)
+	if err != nil {
+		slog.Error("failed to create payment indexes", "error", err)
+	} else {
+		slog.Info("payment indexes created successfully")
 	}
 }
 
 // Save creates a new payment record
-func (r *PaymentMongoDBRepository) Save(ctx context.Context, payment *payment_entities.Payment) error {
+func (r *MongoPaymentRepository) Save(ctx context.Context, payment *payment_entities.Payment) error {
+	if payment.ID == uuid.Nil {
+		return fmt.Errorf("payment ID cannot be nil")
+	}
+
+	payment.UpdatedAt = time.Now().UTC()
+
 	_, err := r.collection.InsertOne(ctx, payment)
 	if err != nil {
-		if mongo.IsDuplicateKeyError(err) {
-			return fmt.Errorf("payment already exists with idempotency key: %s", payment.IdempotencyKey)
-		}
+		slog.ErrorContext(ctx, "failed to save payment", "payment_id", payment.ID, "error", err)
 		return fmt.Errorf("failed to save payment: %w", err)
 	}
 
-	slog.InfoContext(ctx, "Payment saved",
-		"payment_id", payment.ID,
-		"provider", payment.Provider,
-		"amount", payment.Amount)
-
+	slog.InfoContext(ctx, "payment saved successfully", "payment_id", payment.ID, "status", payment.Status)
 	return nil
 }
 
 // FindByID retrieves a payment by its ID
-func (r *PaymentMongoDBRepository) FindByID(ctx context.Context, id uuid.UUID) (*payment_entities.Payment, error) {
+func (r *MongoPaymentRepository) FindByID(ctx context.Context, id uuid.UUID) (*payment_entities.Payment, error) {
 	var payment payment_entities.Payment
 
-	err := r.collection.FindOne(ctx, bson.M{"_id": id}).Decode(&payment)
+	filter := bson.M{"_id": id}
+	err := r.collection.FindOne(ctx, filter).Decode(&payment)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, fmt.Errorf("payment not found: %s", id)
 		}
+		slog.ErrorContext(ctx, "failed to find payment by ID", "id", id, "error", err)
 		return nil, fmt.Errorf("failed to find payment: %w", err)
 	}
 
@@ -113,99 +156,44 @@ func (r *PaymentMongoDBRepository) FindByID(ctx context.Context, id uuid.UUID) (
 }
 
 // FindByProviderPaymentID retrieves a payment by the provider's payment ID
-func (r *PaymentMongoDBRepository) FindByProviderPaymentID(ctx context.Context, providerPaymentID string) (*payment_entities.Payment, error) {
+func (r *MongoPaymentRepository) FindByProviderPaymentID(ctx context.Context, providerPaymentID string) (*payment_entities.Payment, error) {
 	var payment payment_entities.Payment
 
-	err := r.collection.FindOne(ctx, bson.M{"provider_payment_id": providerPaymentID}).Decode(&payment)
+	filter := bson.M{"provider_payment_id": providerPaymentID}
+	err := r.collection.FindOne(ctx, filter).Decode(&payment)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			return nil, fmt.Errorf("payment not found for provider ID: %s", providerPaymentID)
+			return nil, fmt.Errorf("payment not found for provider payment ID: %s", providerPaymentID)
 		}
-		return nil, fmt.Errorf("failed to find payment by provider ID: %w", err)
+		slog.ErrorContext(ctx, "failed to find payment by provider payment ID", "provider_payment_id", providerPaymentID, "error", err)
+		return nil, fmt.Errorf("failed to find payment: %w", err)
 	}
 
 	return &payment, nil
 }
 
 // FindByIdempotencyKey retrieves a payment by idempotency key
-func (r *PaymentMongoDBRepository) FindByIdempotencyKey(ctx context.Context, key string) (*payment_entities.Payment, error) {
+func (r *MongoPaymentRepository) FindByIdempotencyKey(ctx context.Context, key string) (*payment_entities.Payment, error) {
 	var payment payment_entities.Payment
 
-	err := r.collection.FindOne(ctx, bson.M{"idempotency_key": key}).Decode(&payment)
+	filter := bson.M{"idempotency_key": key}
+	err := r.collection.FindOne(ctx, filter).Decode(&payment)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, fmt.Errorf("payment not found for idempotency key: %s", key)
 		}
-		return nil, fmt.Errorf("failed to find payment by idempotency key: %w", err)
+		slog.ErrorContext(ctx, "failed to find payment by idempotency key", "idempotency_key", key, "error", err)
+		return nil, fmt.Errorf("failed to find payment: %w", err)
 	}
 
 	return &payment, nil
 }
 
 // FindByUserID retrieves all payments for a user
-func (r *PaymentMongoDBRepository) FindByUserID(ctx context.Context, userID uuid.UUID, filters payment_out.PaymentFilters) ([]*payment_entities.Payment, error) {
+func (r *MongoPaymentRepository) FindByUserID(ctx context.Context, userID uuid.UUID, filters payment_out.PaymentFilters) ([]*payment_entities.Payment, error) {
 	filter := bson.M{"user_id": userID}
-	r.applyFilters(filter, filters)
 
-	return r.findMany(ctx, filter, filters)
-}
-
-// FindByWalletID retrieves all payments for a wallet
-func (r *PaymentMongoDBRepository) FindByWalletID(ctx context.Context, walletID uuid.UUID, filters payment_out.PaymentFilters) ([]*payment_entities.Payment, error) {
-	filter := bson.M{"wallet_id": walletID}
-	r.applyFilters(filter, filters)
-
-	return r.findMany(ctx, filter, filters)
-}
-
-// Update updates an existing payment record
-func (r *PaymentMongoDBRepository) Update(ctx context.Context, payment *payment_entities.Payment) error {
-	payment.UpdatedAt = time.Now().UTC()
-
-	result, err := r.collection.ReplaceOne(ctx, bson.M{"_id": payment.ID}, payment)
-	if err != nil {
-		return fmt.Errorf("failed to update payment: %w", err)
-	}
-
-	if result.MatchedCount == 0 {
-		return fmt.Errorf("payment not found: %s", payment.ID)
-	}
-
-	slog.InfoContext(ctx, "Payment updated",
-		"payment_id", payment.ID,
-		"status", payment.Status)
-
-	return nil
-}
-
-// GetPendingPayments retrieves all pending payments older than specified duration
-func (r *PaymentMongoDBRepository) GetPendingPayments(ctx context.Context, olderThanSeconds int) ([]*payment_entities.Payment, error) {
-	cutoffTime := time.Now().UTC().Add(-time.Duration(olderThanSeconds) * time.Second)
-
-	filter := bson.M{
-		"status": bson.M{"$in": []payment_entities.PaymentStatus{
-			payment_entities.PaymentStatusPending,
-			payment_entities.PaymentStatusProcessing,
-		}},
-		"created_at": bson.M{"$lt": cutoffTime},
-	}
-
-	cursor, err := r.collection.Find(ctx, filter)
-	if err != nil {
-		return nil, fmt.Errorf("failed to find pending payments: %w", err)
-	}
-	defer cursor.Close(ctx)
-
-	var payments []*payment_entities.Payment
-	if err := cursor.All(ctx, &payments); err != nil {
-		return nil, fmt.Errorf("failed to decode pending payments: %w", err)
-	}
-
-	return payments, nil
-}
-
-// applyFilters applies additional filters to the query
-func (r *PaymentMongoDBRepository) applyFilters(filter bson.M, filters payment_out.PaymentFilters) {
+	// Apply optional filters
 	if filters.Provider != nil {
 		filter["provider"] = *filters.Provider
 	}
@@ -215,35 +203,122 @@ func (r *PaymentMongoDBRepository) applyFilters(filter bson.M, filters payment_o
 	if filters.Type != nil {
 		filter["type"] = *filters.Type
 	}
-}
 
-// findMany executes a find query with filters and returns multiple payments
-func (r *PaymentMongoDBRepository) findMany(ctx context.Context, filter bson.M, filters payment_out.PaymentFilters) ([]*payment_entities.Payment, error) {
-	opts := options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}})
+	findOptions := options.Find().
+		SetSort(bson.D{{Key: "created_at", Value: -1}})
 
 	if filters.Limit > 0 {
-		opts.SetLimit(int64(filters.Limit))
-	} else {
-		opts.SetLimit(50) // Default limit
+		findOptions.SetLimit(int64(filters.Limit))
 	}
-
 	if filters.Offset > 0 {
-		opts.SetSkip(int64(filters.Offset))
+		findOptions.SetSkip(int64(filters.Offset))
 	}
 
-	cursor, err := r.collection.Find(ctx, filter, opts)
+	cursor, err := r.collection.Find(ctx, filter, findOptions)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to find payments by user ID", "user_id", userID, "error", err)
 		return nil, fmt.Errorf("failed to find payments: %w", err)
 	}
 	defer cursor.Close(ctx)
 
 	var payments []*payment_entities.Payment
 	if err := cursor.All(ctx, &payments); err != nil {
+		slog.ErrorContext(ctx, "failed to decode payments", "user_id", userID, "error", err)
 		return nil, fmt.Errorf("failed to decode payments: %w", err)
 	}
 
 	return payments, nil
 }
 
-// Ensure PaymentMongoDBRepository implements PaymentRepository
-var _ payment_out.PaymentRepository = (*PaymentMongoDBRepository)(nil)
+// FindByWalletID retrieves all payments for a wallet
+func (r *MongoPaymentRepository) FindByWalletID(ctx context.Context, walletID uuid.UUID, filters payment_out.PaymentFilters) ([]*payment_entities.Payment, error) {
+	filter := bson.M{"wallet_id": walletID}
+
+	// Apply optional filters
+	if filters.Provider != nil {
+		filter["provider"] = *filters.Provider
+	}
+	if filters.Status != nil {
+		filter["status"] = *filters.Status
+	}
+	if filters.Type != nil {
+		filter["type"] = *filters.Type
+	}
+
+	findOptions := options.Find().
+		SetSort(bson.D{{Key: "created_at", Value: -1}})
+
+	if filters.Limit > 0 {
+		findOptions.SetLimit(int64(filters.Limit))
+	}
+	if filters.Offset > 0 {
+		findOptions.SetSkip(int64(filters.Offset))
+	}
+
+	cursor, err := r.collection.Find(ctx, filter, findOptions)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find payments by wallet ID", "wallet_id", walletID, "error", err)
+		return nil, fmt.Errorf("failed to find payments: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var payments []*payment_entities.Payment
+	if err := cursor.All(ctx, &payments); err != nil {
+		slog.ErrorContext(ctx, "failed to decode payments", "wallet_id", walletID, "error", err)
+		return nil, fmt.Errorf("failed to decode payments: %w", err)
+	}
+
+	return payments, nil
+}
+
+// Update updates an existing payment record
+func (r *MongoPaymentRepository) Update(ctx context.Context, payment *payment_entities.Payment) error {
+	payment.UpdatedAt = time.Now().UTC()
+
+	filter := bson.M{"_id": payment.ID}
+	result, err := r.collection.ReplaceOne(ctx, filter, payment)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to update payment", "payment_id", payment.ID, "error", err)
+		return fmt.Errorf("failed to update payment: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("payment not found: %s", payment.ID)
+	}
+
+	slog.InfoContext(ctx, "payment updated successfully", "payment_id", payment.ID, "status", payment.Status)
+	return nil
+}
+
+// GetPendingPayments retrieves all pending payments older than specified duration
+func (r *MongoPaymentRepository) GetPendingPayments(ctx context.Context, olderThanSeconds int) ([]*payment_entities.Payment, error) {
+	cutoff := time.Now().UTC().Add(-time.Duration(olderThanSeconds) * time.Second)
+
+	filter := bson.M{
+		"status": bson.M{
+			"$in": []payment_entities.PaymentStatus{
+				payment_entities.PaymentStatusPending,
+				payment_entities.PaymentStatusProcessing,
+			},
+		},
+		"created_at": bson.M{"$lt": cutoff},
+	}
+
+	cursor, err := r.collection.Find(ctx, filter, options.Find().SetLimit(100))
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find pending payments", "older_than_seconds", olderThanSeconds, "error", err)
+		return nil, fmt.Errorf("failed to find pending payments: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var payments []*payment_entities.Payment
+	if err := cursor.All(ctx, &payments); err != nil {
+		slog.ErrorContext(ctx, "failed to decode pending payments", "error", err)
+		return nil, fmt.Errorf("failed to decode pending payments: %w", err)
+	}
+
+	return payments, nil
+}
+
+// Ensure MongoPaymentRepository implements PaymentRepository
+var _ payment_out.PaymentRepository = (*MongoPaymentRepository)(nil)

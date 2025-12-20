@@ -18,9 +18,10 @@ import (
 
 // PaymentController handles payment-related HTTP requests
 type PaymentController struct {
-	container      container.Container
-	paymentService payment_in.PaymentCommand
-	paymentRepo    payment_out.PaymentRepository
+	container       container.Container
+	paymentService  payment_in.PaymentCommand
+	paymentQuery    payment_in.PaymentQuery
+	paymentRepo     payment_out.PaymentRepository // TODO: Remove once all handlers use use cases
 }
 
 // NewPaymentController creates a new payment controller
@@ -30,6 +31,9 @@ func NewPaymentController(container container.Container) *PaymentController {
 	// Resolve dependencies
 	if err := container.Resolve(&ctrl.paymentService); err != nil {
 		slog.Error("Failed to resolve PaymentCommand", "err", err)
+	}
+	if err := container.Resolve(&ctrl.paymentQuery); err != nil {
+		slog.Error("Failed to resolve PaymentQuery", "err", err)
 	}
 	if err := container.Resolve(&ctrl.paymentRepo); err != nil {
 		slog.Error("Failed to resolve PaymentRepository", "err", err)
@@ -159,20 +163,37 @@ func (ctrl *PaymentController) GetPaymentHandler(apiContext context.Context) htt
 			return
 		}
 
-		payment, err := ctrl.paymentRepo.FindByID(r.Context(), paymentID)
-		if err != nil {
-			http.Error(w, `{"error": "payment not found"}`, http.StatusNotFound)
-			return
-		}
-
-		// Check user owns this payment
+		// Get user ID from context (set by auth middleware)
 		userID, ok := r.Context().Value(common.UserIDKey).(uuid.UUID)
-		if !ok || (userID != payment.UserID && !common.IsAdmin(r.Context())) {
-			http.Error(w, `{"error": "unauthorized"}`, http.StatusForbidden)
+		if !ok || userID == uuid.Nil {
+			http.Error(w, `{"error": "unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
 
-		response := paymentToResponse(payment)
+		// Use query handler with proper authentication context
+		ctx := r.Context()
+		ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+
+		dto, err := ctrl.paymentQuery.GetPayment(ctx, payment_in.GetPaymentQuery{
+			PaymentID: paymentID,
+			UserID:    userID,
+		})
+		if err != nil {
+			// Check if it's a not found or unauthorized error
+			if common.IsNotFoundError(err) {
+				http.Error(w, `{"error": "payment not found"}`, http.StatusNotFound)
+				return
+			}
+			if common.IsUnauthorizedError(err) {
+				http.Error(w, `{"error": "forbidden"}`, http.StatusForbidden)
+				return
+			}
+			slog.ErrorContext(r.Context(), "Failed to get payment", "err", err)
+			http.Error(w, `{"error": "failed to get payment"}`, http.StatusInternalServerError)
+			return
+		}
+
+		response := dtoToResponse(dto)
 		_ = json.NewEncoder(w).Encode(response)
 	}
 }
@@ -188,22 +209,30 @@ func (ctrl *PaymentController) GetUserPaymentsHandler(apiContext context.Context
 			return
 		}
 
+		// Use query handler with proper authentication context
+		ctx := r.Context()
+		ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+
 		// Parse query params for filters
-		filters := payment_out.PaymentFilters{
+		filters := payment_in.PaymentQueryFilters{
 			Limit:  50,
 			Offset: 0,
 		}
 
-		payments, err := ctrl.paymentRepo.FindByUserID(r.Context(), userID, filters)
+		result, err := ctrl.paymentQuery.GetUserPayments(ctx, payment_in.GetUserPaymentsQuery{
+			UserID:  userID,
+			Filters: filters,
+		})
 		if err != nil {
 			slog.ErrorContext(r.Context(), "Failed to get user payments", "err", err)
 			http.Error(w, `{"error": "failed to retrieve payments"}`, http.StatusInternalServerError)
 			return
 		}
 
-		response := make([]PaymentResponse, len(payments))
-		for i, p := range payments {
-			response[i] = paymentToResponse(p)
+		// Convert DTOs to response format
+		response := make([]PaymentResponse, len(result.Payments))
+		for i, dto := range result.Payments {
+			response[i] = dtoToResponse(&dto)
 		}
 
 		_ = json.NewEncoder(w).Encode(response)
@@ -425,6 +454,33 @@ func paymentToResponse(p *payment_entities.Payment) PaymentResponse {
 
 	if p.CompletedAt != nil {
 		completedAt := p.CompletedAt.Format("2006-01-02T15:04:05Z")
+		response.CompletedAt = &completedAt
+	}
+
+	return response
+}
+
+// dtoToResponse converts a PaymentDTO to an API response
+func dtoToResponse(dto *payment_in.PaymentDTO) PaymentResponse {
+	response := PaymentResponse{
+		ID:                dto.ID.String(),
+		UserID:            dto.UserID.String(),
+		WalletID:          dto.WalletID.String(),
+		Type:              dto.Type,
+		Provider:          dto.Provider,
+		Status:            dto.Status,
+		Amount:            dto.Amount,
+		Currency:          dto.Currency,
+		Fee:               dto.Fee,
+		NetAmount:         dto.NetAmount,
+		ProviderPaymentID: dto.ProviderPaymentID,
+		CreatedAt:         dto.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		UpdatedAt:         dto.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		FailureReason:     dto.FailureReason,
+	}
+
+	if dto.CompletedAt != nil {
+		completedAt := dto.CompletedAt.Format("2006-01-02T15:04:05Z")
 		response.CompletedAt = &completedAt
 	}
 
