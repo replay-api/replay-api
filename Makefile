@@ -86,8 +86,36 @@ up: ## Start the complete development environment with seed data
 down: ## Stop and clean up the development environment
 	@echo "$(CR)Stopping LeetGaming PRO Development Environment$(CEND)"
 	@./scripts/port-forward.sh stop 2>/dev/null || true
+	@pkill -f "kubectl port-forward" 2>/dev/null || true
+	@for port in 8080 9090 3031 3041 9092; do \
+		pids=$$(lsof -ti :$$port 2>/dev/null || true); \
+		if [ -n "$$pids" ]; then echo "$$pids" | xargs kill -9 2>/dev/null || true; fi; \
+	done
+	@docker-compose down -v --remove-orphans 2>/dev/null || true
 	@kind delete cluster --name=leetgaming-local 2>/dev/null || true
 	@echo "$(CG)Environment stopped$(CEND)"
+
+down-clean: down ## Stop environment and clean Docker images
+	@echo "$(CR)Cleaning Docker images...$(CEND)"
+	@docker rmi -f replay-api:latest 2>/dev/null || true
+	@docker rmi -f leetgaming-web:latest 2>/dev/null || true
+	@docker system prune -f --volumes 2>/dev/null || true
+	@echo "$(CG)Clean complete$(CEND)"
+
+kill-ports: ## Kill processes on API ports (8080, 9090)
+	@echo "$(CR)Killing processes on API ports...$(CEND)"
+	@for port in 8080 9090 3031 3041 9092 27017; do \
+		pids=$$(lsof -ti :$$port 2>/dev/null || true); \
+		if [ -n "$$pids" ]; then \
+			echo "  Port $$port: killing PIDs $$pids"; \
+			echo "$$pids" | xargs kill -9 2>/dev/null || true; \
+		fi; \
+	done
+	@echo "$(CG)Ports cleared$(CEND)"
+
+nuke: kill-ports down-clean ## Full cleanup: kill ports, remove images, delete cluster
+	@rm -rf bin/ 2>/dev/null || true
+	@echo "$(CG)Nuke complete$(CEND)"
 
 port-forward: ## Start port forwards (use after 'make up' if services become inaccessible)
 	@./scripts/port-forward.sh start
