@@ -74,6 +74,11 @@ import (
 	billing_services "github.com/replay-api/replay-api/pkg/domain/billing/services"
 	billing_usecases "github.com/replay-api/replay-api/pkg/domain/billing/usecases"
 
+	payment_in "github.com/replay-api/replay-api/pkg/domain/payment/ports/in"
+	payment_out "github.com/replay-api/replay-api/pkg/domain/payment/ports/out"
+	payment_services "github.com/replay-api/replay-api/pkg/domain/payment/services"
+	payment_usecases "github.com/replay-api/replay-api/pkg/domain/payment/usecases"
+
 	media_out "github.com/replay-api/replay-api/pkg/domain/media/ports/out"
 	media_adapter "github.com/replay-api/replay-api/pkg/infra/adapters/media"
 	adapters "github.com/replay-api/replay-api/pkg/infra/adapters"
@@ -3045,6 +3050,71 @@ func InjectMongoDB(c container.Container) error {
 
 	if err != nil {
 		slog.Error("Failed to load billing_in.WithdrawalCommand.", "err", err)
+		panic(err)
+	}
+
+	// Payment Repository
+	err = c.Singleton(func() (payment_out.PaymentRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve mongo.Client for PaymentRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for PaymentRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewPaymentRepository(client, config.MongoDB.DBName), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load payment_out.PaymentRepository.", "err", err)
+		panic(err)
+	}
+
+	// Payment Command Service
+	err = c.Singleton(func() (payment_in.PaymentCommand, error) {
+		var paymentRepo payment_out.PaymentRepository
+		var walletCmd wallet_in.WalletCommand
+
+		if err := c.Resolve(&paymentRepo); err != nil {
+			slog.Error("Failed to resolve PaymentRepository for PaymentService.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&walletCmd); err != nil {
+			slog.Error("Failed to resolve WalletCommand for PaymentService.", "err", err)
+			return nil, err
+		}
+
+		// Create payment service with no adapters initially
+		// Adapters can be added via configuration
+		return payment_services.NewPaymentService(paymentRepo, walletCmd), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load payment_in.PaymentCommand.", "err", err)
+		panic(err)
+	}
+
+	// Payment Query Service
+	err = c.Singleton(func() (payment_in.PaymentQuery, error) {
+		var paymentRepo payment_out.PaymentRepository
+
+		if err := c.Resolve(&paymentRepo); err != nil {
+			slog.Error("Failed to resolve PaymentRepository for PaymentQueryService.", "err", err)
+			return nil, err
+		}
+
+		return payment_usecases.NewPaymentQueryService(paymentRepo), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load payment_in.PaymentQuery.", "err", err)
 		panic(err)
 	}
 

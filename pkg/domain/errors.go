@@ -80,3 +80,33 @@ func (e *ErrBadRequest) Error() string {
 func NewErrBadRequest(message string) error {
 	return &ErrBadRequest{message: message}
 }
+
+// IsNotFoundError checks if an error is a not found error
+func IsNotFoundError(err error) bool {
+	_, ok := err.(*ErrNotFound)
+	return ok
+}
+
+// IsUnauthorizedError checks if an error is an unauthorized error
+func IsUnauthorizedError(err error) bool {
+	_, ok := err.(*ErrUnauthorized)
+	return ok
+}
+
+// IsForbiddenError checks if an error is a forbidden error
+func IsForbiddenError(err error) bool {
+	_, ok := err.(*ErrForbidden)
+	return ok
+}
+
+// IsBadRequestError checks if an error is a bad request error
+func IsBadRequestError(err error) bool {
+	_, ok := err.(*ErrBadRequest)
+	return ok
+}
+
+// IsInvalidInputError checks if an error is an invalid input error
+func IsInvalidInputError(err error) bool {
+	_, ok := err.(*ErrInvalidInput)
+	return ok
+}
