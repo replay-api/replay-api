@@ -405,7 +405,7 @@ func generateManualMock(iface InterfaceInfo, outputDir, baseDir string) error {
 	}
 
 	// Ensure output directory exists
-	if err := os.MkdirAll(mockOutputDir, 0755); err != nil {
+	if err := os.MkdirAll(mockOutputDir, 0750); err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
@@ -416,7 +416,7 @@ func generateManualMock(iface InterfaceInfo, outputDir, baseDir string) error {
 	// Generate code
 	code := generateMockCode(iface)
 
-	return os.WriteFile(mockFilePath, []byte(code), 0644)
+	return os.WriteFile(mockFilePath, []byte(code), 0600)
 }
 
 func generateMockCode(iface InterfaceInfo) string {
