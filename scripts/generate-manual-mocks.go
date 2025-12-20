@@ -400,9 +400,7 @@ func generateManualMock(iface InterfaceInfo, outputDir, baseDir string) error {
 	if strings.Contains(iface.FilePath, "pkg/infra") {
 		// Extract infra path
 		relPath := strings.Replace(iface.RelPath, "../", "", 1)
-		if strings.HasPrefix(relPath, "infra/") {
-			relPath = strings.TrimPrefix(relPath, "infra/")
-		}
+		relPath = strings.TrimPrefix(relPath, "infra/")
 		mockOutputDir = filepath.Join(outputDir, "infra", relPath)
 	}
 
@@ -516,6 +514,12 @@ func generateMockCode(iface InterfaceInfo) string {
 		} else if len(method.Returns) == 1 {
 			if method.Returns[0].Type == "error" {
 				buf.WriteString("\treturn ret.Error(0)\n")
+			} else if method.Returns[0].Type == "interface{}" {
+				buf.WriteString("\tvar r0 interface{}\n")
+				buf.WriteString("\tif ret.Get(0) != nil {\n")
+				buf.WriteString("\t\tr0 = ret.Get(0)\n")
+				buf.WriteString("\t}\n")
+				buf.WriteString("\treturn r0\n")
 			} else {
 				buf.WriteString("\tvar r0 " + method.Returns[0].Type + "\n")
 				buf.WriteString("\tif ret.Get(0) != nil {\n")
@@ -561,6 +565,10 @@ func generateMockCode(iface InterfaceInfo) string {
 			for i, ret := range method.Returns {
 				if ret.Type == "error" {
 					buf.WriteString("\tr" + fmt.Sprintf("%d", i) + " = ret.Error(" + fmt.Sprintf("%d", i) + ")\n")
+				} else if ret.Type == "interface{}" {
+					buf.WriteString("\tif ret.Get(" + fmt.Sprintf("%d", i) + ") != nil {\n")
+					buf.WriteString("\t\tr" + fmt.Sprintf("%d", i) + " = ret.Get(" + fmt.Sprintf("%d", i) + ")\n")
+					buf.WriteString("\t}\n")
 				} else {
 					buf.WriteString("\tif rf, ok := ret.Get(" + fmt.Sprintf("%d", i) + ").(func(")
 					for j, param := range method.Params {

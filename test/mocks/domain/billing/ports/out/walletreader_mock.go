@@ -50,7 +50,7 @@ func (_m *MockWalletReader) GetByID(ctx context.Context, walletID uuid.UUID) (in
 		r0 = rf(ctx, walletID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(interface{})
+			r0 = ret.Get(0)
 		}
 	}
 	r1 = ret.Error(1)

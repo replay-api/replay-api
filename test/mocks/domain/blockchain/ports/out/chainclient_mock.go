@@ -320,7 +320,7 @@ func (_m *MockChainClient) SubscribeToEvents(ctx context.Context, contractAddr w
 		r0 = rf(ctx, contractAddr, topics)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(interface{})
+			r0 = ret.Get(0)
 		}
 	}
 	r1 = ret.Error(1)
