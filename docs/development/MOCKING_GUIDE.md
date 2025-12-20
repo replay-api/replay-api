@@ -93,6 +93,8 @@ func TestUseCase(t *testing.T) {
 
 ## Generating Mocks
 
+### Option 1: Generate with mockery (automatic)
+
 Use `mockery` to generate mocks from interfaces:
 
 ```bash
@@ -100,6 +102,139 @@ make mocks
 ```
 
 This generates mocks in `test/mocks/` based on interface definitions in `pkg/domain/`.
+
+### Option 2: Create Mocks Manually (without mockery)
+
+You can create mocks manually using `testify/mock` directly. This is a valid alternative to mockery, especially when you need full control over the mock implementation.
+
+#### Basic Structure
+
+A manual mock consists of:
+1. A struct that embeds `mock.Mock`
+2. Methods that implement the desired interface
+3. Each method calls `m.Called(...)` and returns the appropriate values
+
+#### Example: Repository Mock
+
+```go
+package wallet_usecases_test
+
+import (
+    "context"
+    "github.com/google/uuid"
+    "github.com/stretchr/testify/mock"
+    wallet_entities "github.com/replay-api/replay-api/pkg/domain/wallet/entities"
+    wallet_out "github.com/replay-api/replay-api/pkg/domain/wallet/ports/out"
+)
+
+// MockWalletRepository is a mock implementation of wallet_out.WalletRepository
+type MockWalletRepository struct {
+    mock.Mock
+}
+
+// Save implements wallet_out.WalletRepository.Save
+func (m *MockWalletRepository) Save(ctx context.Context, wallet *wallet_entities.UserWallet) error {
+    args := m.Called(ctx, wallet)
+    return args.Error(0)
+}
+
+// FindByID implements wallet_out.WalletRepository.FindByID
+func (m *MockWalletRepository) FindByID(ctx context.Context, id uuid.UUID) (*wallet_entities.UserWallet, error) {
+    args := m.Called(ctx, id)
+    if args.Get(0) == nil {
+        return nil, args.Error(1)
+    }
+    return args.Get(0).(*wallet_entities.UserWallet), args.Error(1)
+}
+
+// FindByUserID implements wallet_out.WalletRepository.FindByUserID
+func (m *MockWalletRepository) FindByUserID(ctx context.Context, userID uuid.UUID) (*wallet_entities.UserWallet, error) {
+    args := m.Called(ctx, userID)
+    if args.Get(0) == nil {
+        return nil, args.Error(1)
+    }
+    return args.Get(0).(*wallet_entities.UserWallet), args.Error(1)
+}
+```
+
+#### Example: Mock with Multiple Return Values
+
+For methods that return multiple values:
+
+```go
+// MockBillableOperationHandler implements billing_in.BillableOperationCommandHandler
+type MockBillableOperationHandler struct {
+    mock.Mock
+}
+
+func (m *MockBillableOperationHandler) Exec(ctx context.Context, command billing_in.BillableOperationCommand) (*billing_entities.BillableEntry, *billing_entities.Subscription, error) {
+    args := m.Called(ctx, command)
+    
+    var entry *billing_entities.BillableEntry
+    var sub *billing_entities.Subscription
+    
+    // First return value (index 0)
+    if args.Get(0) != nil {
+        entry = args.Get(0).(*billing_entities.BillableEntry)
+    }
+    
+    // Second return value (index 1)
+    if args.Get(1) != nil {
+        sub = args.Get(1).(*billing_entities.Subscription)
+    }
+    
+    // Error (last parameter)
+    return entry, sub, args.Error(2)
+}
+```
+
+#### Using the Mock in Tests
+
+```go
+func TestUseCase(t *testing.T) {
+    // Create the mock
+    mockRepo := new(MockWalletRepository)
+    
+    // Set expectations
+    expectedWallet := &wallet_entities.UserWallet{
+        // ... wallet fields
+    }
+    mockRepo.On("FindByUserID", mock.Anything, userID).
+        Return(expectedWallet, nil)
+    
+    // Use in use case
+    useCase := NewUseCase(mockRepo)
+    result, err := useCase.Exec(ctx, query)
+    
+    // Verify results
+    assert.NoError(t, err)
+    assert.NotNil(t, result)
+    
+    // Verify all expectations were met
+    mockRepo.AssertExpectations(t)
+}
+```
+
+#### Advantages of Manual Mocks
+
+✅ **No external dependencies**: No need to install mockery  
+✅ **Full control**: You define exactly how the mock behaves  
+✅ **Simpler**: Less boilerplate code for small interfaces  
+✅ **More readable**: You see exactly what the mock does  
+
+#### When to Use Manual Mocks vs mockery
+
+- **Use manual mocks** when:
+  - The interface has few methods (1-5)
+  - You need custom behavior
+  - You don't want to install mockery
+  - You're writing mocks specific to a test
+
+- **Use mockery** when:
+  - The interface has many methods
+  - You want to keep mocks automatically synchronized
+  - You need to generate mocks for multiple interfaces
+  - The interface changes frequently
 
 ## Best Practices
 

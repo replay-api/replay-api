@@ -22,6 +22,20 @@ func NewFileController(container container.Container) *FileController {
 	return &FileController{container: container}
 }
 
+// UploadHandler handles POST /games/{game_id}/replays
+// @Summary Upload replay file
+// @Description Uploads and processes a replay file for a game
+// @Tags Replays
+// @Accept multipart/form-data
+// @Produce json
+// @Security BearerAuth
+// @Param game_id formData string true "Game ID" example(cs2)
+// @Param file formData file true "Replay file"
+// @Success 201 {object} replay_entity.Match
+// @Failure 400 {string} string "Bad Request"
+// @Failure 401 {string} string "Unauthorized"
+// @Failure 502 {string} string "Bad Gateway"
+// @Router /games/{game_id}/replays [post]
 func (ctlr *FileController) UploadHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*") // todo: PARAMETRIZAR
@@ -116,6 +130,16 @@ func (ctlr *FileController) UploadHandler(apiContext context.Context) http.Handl
 // }
 
 // GetReplayMetadata handles GET /games/{game_id}/replays/{id}
+// @Summary Get replay metadata
+// @Description Returns metadata for a specific replay
+// @Tags Replays
+// @Produce json
+// @Param game_id query string true "Game ID"
+// @Param id query string true "Replay ID"
+// @Success 200 {object} replay_entity.ReplayFile
+// @Failure 400 {string} string "Bad Request"
+// @Failure 404 {string} string "Not Found"
+// @Router /games/{game_id}/replays/{id} [get]
 func (ctlr *FileController) GetReplayMetadata(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := r.URL.Query()
@@ -236,6 +260,19 @@ func (ctlr *FileController) requireReplayOwnership(w http.ResponseWriter, r *htt
 
 // DownloadReplayFile handles GET /games/{game_id}/replays/{id}/download
 // SECURITY: For private replays, user must be owner or have share token
+// @Summary Download replay file
+// @Description Downloads the replay file. Requires ownership or valid share token for private replays.
+// @Tags Replays
+// @Produce application/octet-stream
+// @Security BearerAuth
+// @Param game_id path string true "Game ID"
+// @Param id path string true "Replay ID"
+// @Param token query string false "Share token for private replays"
+// @Success 200 {file} file "Replay file"
+// @Failure 400 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /games/{game_id}/replays/{id}/download [get]
 func (ctlr *FileController) DownloadReplayFile(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -351,6 +388,19 @@ func (ctlr *FileController) DownloadReplayFile(apiContext context.Context) http.
 
 // DeleteReplayFile handles DELETE /games/{game_id}/replays/{id}
 // SECURITY: Only the replay owner can delete their replay
+// @Summary Delete replay
+// @Description Deletes a replay. Only the owner can delete their replay.
+// @Tags Replays
+// @Security BearerAuth
+// @Param game_id path string true "Game ID"
+// @Param id path string true "Replay ID"
+// @Success 204 "No Content"
+// @Failure 400 {string} string "Bad Request"
+// @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Failure 404 {string} string "Not Found"
+// @Failure 501 {string} string "Not Implemented"
+// @Router /games/{game_id}/replays/{id} [delete]
 func (ctlr *FileController) DeleteReplayFile(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := r.URL.Query()
@@ -386,6 +436,21 @@ func (ctlr *FileController) DeleteReplayFile(apiContext context.Context) http.Ha
 
 // UpdateReplayMetadata handles PUT /games/{game_id}/replays/{id}
 // SECURITY: Only the replay owner can update their replay metadata
+// @Summary Update replay metadata
+// @Description Updates replay metadata. Only the owner can update their replay.
+// @Tags Replays
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param game_id path string true "Game ID"
+// @Param id path string true "Replay ID"
+// @Success 200 {object} replay_entity.ReplayFile
+// @Failure 400 {string} string "Bad Request"
+// @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Failure 404 {string} string "Not Found"
+// @Failure 501 {string} string "Not Implemented"
+// @Router /games/{game_id}/replays/{id} [put]
 func (ctlr *FileController) UpdateReplayMetadata(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := r.URL.Query()
@@ -421,6 +486,16 @@ func (ctlr *FileController) UpdateReplayMetadata(apiContext context.Context) htt
 }
 
 // GetReplayProcessingStatus handles GET /games/{game_id}/replays/{id}/status
+// @Summary Get replay processing status
+// @Description Returns the processing status of a replay
+// @Tags Replays
+// @Produce json
+// @Param game_id path string true "Game ID"
+// @Param id path string true "Replay ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {string} string "Bad Request"
+// @Failure 404 {string} string "Not Found"
+// @Router /games/{game_id}/replays/{id}/status [get]
 func (ctlr *FileController) GetReplayProcessingStatus(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := r.URL.Query()
@@ -475,6 +550,17 @@ func (ctlr *FileController) GetReplayProcessingStatus(apiContext context.Context
 }
 
 // GetReplayEvents handles GET /games/{game_id}/replays/{id}/events
+// @Summary Get replay events
+// @Description Returns events from a replay, optionally filtered by type
+// @Tags Replays
+// @Produce json
+// @Param game_id path string true "Game ID"
+// @Param id path string true "Replay ID"
+// @Param type query string false "Event type filter" example(kill)
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {string} string "Bad Request"
+// @Failure 404 {string} string "Not Found"
+// @Router /games/{game_id}/replays/{id}/events [get]
 func (ctlr *FileController) GetReplayEvents(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := r.URL.Query()
@@ -542,6 +628,16 @@ func (ctlr *FileController) GetReplayEvents(apiContext context.Context) http.Han
 }
 
 // GetReplayScoreboard handles GET /games/{game_id}/replays/{id}/scoreboard
+// @Summary Get replay scoreboard
+// @Description Returns the scoreboard for a replay
+// @Tags Replays
+// @Produce json
+// @Param game_id path string true "Game ID"
+// @Param id path string true "Replay ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {string} string "Bad Request"
+// @Failure 404 {string} string "Not Found"
+// @Router /games/{game_id}/replays/{id}/scoreboard [get]
 func (ctlr *FileController) GetReplayScoreboard(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := r.URL.Query()
@@ -597,6 +693,16 @@ func (ctlr *FileController) GetReplayScoreboard(apiContext context.Context) http
 }
 
 // GetReplayTimeline handles GET /games/{game_id}/replays/{id}/timeline
+// @Summary Get replay timeline
+// @Description Returns the timeline of rounds and events for a replay
+// @Tags Replays
+// @Produce json
+// @Param game_id path string true "Game ID"
+// @Param id path string true "Replay ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {string} string "Bad Request"
+// @Failure 404 {string} string "Not Found"
+// @Router /games/{game_id}/replays/{id}/timeline [get]
 func (ctlr *FileController) GetReplayTimeline(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := r.URL.Query()

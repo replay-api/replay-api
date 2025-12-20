@@ -75,8 +75,8 @@ import (
 	billing_usecases "github.com/replay-api/replay-api/pkg/domain/billing/usecases"
 
 	media_out "github.com/replay-api/replay-api/pkg/domain/media/ports/out"
-	media_adapter "github.com/replay-api/replay-api/pkg/infra/adapters/media"
 	adapters "github.com/replay-api/replay-api/pkg/infra/adapters"
+	media_adapter "github.com/replay-api/replay-api/pkg/infra/adapters/media"
 
 	websocket "github.com/replay-api/replay-api/pkg/infra/websocket"
 
@@ -134,6 +134,29 @@ func NewContainerBuilder() *ContainerBuilder {
 
 func (b *ContainerBuilder) Build() container.Container {
 	return b.Container
+}
+
+// Resolve implements Container interface
+func (b *ContainerBuilder) Resolve(target interface{}) error {
+	return b.Container.Resolve(target)
+}
+
+// Singleton implements Container interface
+func (b *ContainerBuilder) Singleton(resolver interface{}) error {
+	return b.Container.Singleton(resolver)
+}
+
+// Transient implements Container interface
+func (b *ContainerBuilder) Transient(resolver interface{}) error {
+	return b.Container.Transient(resolver)
+}
+
+// Scoped implements Container interface
+// Note: golobby/container v3 doesn't have Scoped, using Singleton as fallback
+func (b *ContainerBuilder) Scoped(resolver interface{}) error {
+	// golobby/container v3 doesn't support scoped lifetimes
+	// Using Singleton as a fallback
+	return b.Container.Singleton(resolver)
 }
 
 func (b *ContainerBuilder) WithEnvFile() *ContainerBuilder {

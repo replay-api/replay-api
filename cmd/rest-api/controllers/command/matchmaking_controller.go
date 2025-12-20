@@ -85,6 +85,17 @@ type PoolStatsResponse struct {
 }
 
 // JoinQueueHandler handles requests to join matchmaking queue
+// @Summary Join matchmaking queue
+// @Description Adds a player or squad to the matchmaking queue
+// @Tags Matchmaking
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body JoinQueueRequest true "Join queue request"
+// @Success 201 {object} JoinQueueResponse
+// @Failure 400 {string} string "Bad Request"
+// @Failure 401 {string} string "Unauthorized"
+// @Router /match-making/queue [post]
 func (ctrl *MatchmakingController) JoinQueueHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -217,6 +228,25 @@ func (ctrl *MatchmakingController) JoinQueueHandler(apiContext context.Context) 
 }
 
 // GetPoolStatsHandler returns current pool statistics
+// @Summary Get matchmaking pool statistics
+// @Description Returns current statistics for a matchmaking pool
+// @Tags Matchmaking
+// @Produce json
+// @Param game_id path string true "Game ID" example(cs2)
+// @Param game_mode query string false "Game mode" example(competitive)
+// @Param region query string false "Region" example(na-east)
+// @Success 200 {object} map[string]interface{}
+// @Router /match-making/pools/{game_id} [get]
+// GetPoolStatsHandler handles GET /match-making/pool/stats
+// @Summary Get matchmaking pool statistics
+// @Description Returns statistics for a matchmaking pool
+// @Tags Matchmaking
+// @Produce json
+// @Param game_id path string false "Game ID" default(cs2)
+// @Param game_mode query string false "Game mode" default(competitive)
+// @Param region query string false "Region" default(na-east)
+// @Success 200 {object} map[string]interface{}
+// @Router /match-making/pool/stats [get]
 func (ctrl *MatchmakingController) GetPoolStatsHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -246,6 +276,16 @@ func (ctrl *MatchmakingController) GetPoolStatsHandler(apiContext context.Contex
 }
 
 // LeaveQueueHandler handles leaving the matchmaking queue
+// @Summary Leave matchmaking queue
+// @Description Removes a player from the matchmaking queue
+// @Tags Matchmaking
+// @Produce json
+// @Security BearerAuth
+// @Param session_id path string true "Session ID"
+// @Success 200 {object} map[string]string
+// @Failure 400 {string} string "Bad Request"
+// @Failure 401 {string} string "Unauthorized"
+// @Router /match-making/queue/{session_id} [delete]
 func (ctrl *MatchmakingController) LeaveQueueHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -310,6 +350,16 @@ func (ctrl *MatchmakingController) LeaveQueueHandler(apiContext context.Context)
 }
 
 // GetSessionStatusHandler returns the current session status
+// @Summary Get matchmaking session status
+// @Description Returns the current status of a matchmaking session
+// @Tags Matchmaking
+// @Produce json
+// @Security BearerAuth
+// @Param session_id path string true "Session ID"
+// @Success 200 {object} matchmaking_entities.MatchmakingSession
+// @Failure 400 {string} string "Bad Request"
+// @Failure 404 {string} string "Not Found"
+// @Router /match-making/session/{session_id} [get]
 func (ctrl *MatchmakingController) GetSessionStatusHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

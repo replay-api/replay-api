@@ -28,6 +28,17 @@ func NewSteamController(container *container.Container) *SteamController {
 	return &SteamController{OnboardSteamUserCommand: onboardSteamUserCommand}
 }
 
+// OnboardSteamUser handles POST /onboarding/steam
+// @Summary Register new user with Steam
+// @Description Creates a new user account using Steam authentication
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param request body steam_entity.SteamUser true "Steam user data"
+// @Success 201 {object} steam_entity.SteamUser
+// @Failure 400 {string} string "Bad Request"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /onboarding/steam [post]
 func (c *SteamController) OnboardSteamUser(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		corsOrigin := os.Getenv("CORS_ALLOWED_ORIGIN")

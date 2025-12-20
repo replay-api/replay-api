@@ -17,6 +17,23 @@ import (
 	websocket "github.com/replay-api/replay-api/pkg/infra/websocket"
 )
 
+// @title LeetGaming Pro API
+// @version 2.0.0
+// @description Competitive Gaming Platform API with matchmaking, tournaments, replays, and financial features
+// @termsOfService https://leetgaming.gg/terms
+// @contact.name LeetGaming Pro Support
+// @contact.url https://leetgaming.gg/support
+// @contact.email api@leetgaming.gg
+// @license.name Proprietary
+// @license.url https://leetgaming.gg/terms
+// @host localhost:8080
+// @BasePath /
+// @schemes http https
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Bearer token authentication. Format: "Bearer {token}"
+
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

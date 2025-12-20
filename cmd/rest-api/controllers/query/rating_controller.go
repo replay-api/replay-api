@@ -33,6 +33,16 @@ func NewRatingController(c container.Container) *RatingController {
 }
 
 // GetPlayerRatingHandler handles GET /players/{id}/rating
+// @Summary Get player rating
+// @Description Returns the rating and MMR information for a player
+// @Tags Rating
+// @Produce json
+// @Param id path string true "Player ID"
+// @Param game_id query string false "Game ID" default(cs2)
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {string} string "Bad Request"
+// @Failure 503 {string} string "Service Unavailable"
+// @Router /players/{id}/rating [get]
 func (c *RatingController) GetPlayerRatingHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	playerIDStr := vars["id"]
@@ -88,6 +98,18 @@ func (c *RatingController) GetPlayerRatingHandler(w http.ResponseWriter, r *http
 }
 
 // GetLeaderboardHandler handles GET /leaderboard
+// @Summary Get leaderboard
+// @Description Returns the leaderboard for a game with optional filtering
+// @Tags Rating
+// @Produce json
+// @Param game_id query string false "Game ID" default(cs2)
+// @Param region query string false "Region filter"
+// @Param tier query string false "Tier filter"
+// @Param limit query int false "Limit results" default(100) maximum(500)
+// @Param offset query int false "Offset for pagination" default(0)
+// @Success 200 {object} map[string]interface{}
+// @Failure 503 {string} string "Service Unavailable"
+// @Router /leaderboard [get]
 func (c *RatingController) GetLeaderboardHandler(w http.ResponseWriter, r *http.Request) {
 	if c.ratingService == nil {
 		http.Error(w, "rating service not available", http.StatusServiceUnavailable)
@@ -141,6 +163,14 @@ func (c *RatingController) GetLeaderboardHandler(w http.ResponseWriter, r *http.
 }
 
 // GetRankDistributionHandler handles GET /ranks/distribution
+// @Summary Get rank distribution
+// @Description Returns the distribution of players across ranks for a game
+// @Tags Rating
+// @Produce json
+// @Param game_id query string false "Game ID" default(cs2)
+// @Success 200 {object} map[string]interface{}
+// @Failure 503 {string} string "Service Unavailable"
+// @Router /ranks/distribution [get]
 func (c *RatingController) GetRankDistributionHandler(w http.ResponseWriter, r *http.Request) {
 	if c.ratingService == nil {
 		http.Error(w, "rating service not available", http.StatusServiceUnavailable)
@@ -189,4 +219,3 @@ func (c *RatingController) GetRankDistributionHandler(w http.ResponseWriter, r *
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(response)
 }
-

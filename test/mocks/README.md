@@ -47,13 +47,42 @@ func TestUseCase(t *testing.T) {
 
 ## Generating Mocks
 
-If you need to generate mocks from interfaces, use `mockery`:
+### Option 1: Generate with mockery (automatic)
+
+If you need to generate mocks automatically from interfaces, use `mockery`:
 
 ```bash
 make mocks
 ```
 
 This will generate mocks in `test/mocks/` based on interface definitions.
+
+### Option 2: Create mocks manually (without mockery)
+
+You can also create mocks manually using `testify/mock` directly. This is useful when:
+
+- The interface has few methods (1-5)
+- You need custom behavior
+- You don't want to install mockery
+- You're writing mocks specific to a test
+
+Basic example:
+
+```go
+type MockRepository struct {
+    mock.Mock
+}
+
+func (m *MockRepository) FindByID(ctx context.Context, id uuid.UUID) (*Entity, error) {
+    args := m.Called(ctx, id)
+    if args.Get(0) == nil {
+        return nil, args.Error(1)
+    }
+    return args.Get(0).(*Entity), args.Error(1)
+}
+```
+
+For more examples and details, see [MOCKING_GUIDE.md](../../docs/development/MOCKING_GUIDE.md).
 
 ## Best Practices
 

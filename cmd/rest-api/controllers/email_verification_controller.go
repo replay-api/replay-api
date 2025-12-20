@@ -57,6 +57,18 @@ type ResendVerificationRequest struct {
 }
 
 // SendVerificationEmail handles POST /auth/verification/send
+// @Summary Send verification email
+// @Description Sends a verification email to the specified email address
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body SendVerificationRequest true "Send verification email request"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /auth/verification/send [post]
 func (ctrl *EmailVerificationController) SendVerificationEmail(ctx context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		resourceOwner := common.GetResourceOwner(r.Context())
@@ -107,6 +119,17 @@ func (ctrl *EmailVerificationController) SendVerificationEmail(ctx context.Conte
 }
 
 // VerifyEmail handles POST /auth/verify-email
+// @Summary Verify email with token or code
+// @Description Verifies email using token or code from verification email
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param request body VerifyEmailRequest true "Verify email request"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 429 {object} auth_in.VerifyEmailResult
+// @Failure 500 {object} map[string]string
+// @Router /auth/verify-email [post]
 func (ctrl *EmailVerificationController) VerifyEmail(ctx context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req VerifyEmailRequest
@@ -156,6 +179,15 @@ func (ctrl *EmailVerificationController) VerifyEmail(ctx context.Context) http.H
 
 // VerifyEmailByToken handles GET /auth/verify-email?token=xxx
 // This is for email link verification
+// @Summary Verify email by token (link)
+// @Description Verifies email using token from verification link
+// @Tags Authentication
+// @Produce json
+// @Param token query string true "Verification token"
+// @Success 200 {object} auth_in.VerifyEmailResult
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /auth/verify-email [get]
 func (ctrl *EmailVerificationController) VerifyEmailByToken(ctx context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token := r.URL.Query().Get("token")
@@ -182,6 +214,17 @@ func (ctrl *EmailVerificationController) VerifyEmailByToken(ctx context.Context)
 }
 
 // ResendVerification handles POST /auth/verification/resend
+// @Summary Resend verification email
+// @Description Resends verification email to the specified email address
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body ResendVerificationRequest true "Resend verification request"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Router /auth/verification/resend [post]
 func (ctrl *EmailVerificationController) ResendVerification(ctx context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		resourceOwner := common.GetResourceOwner(r.Context())
@@ -226,6 +269,14 @@ func (ctrl *EmailVerificationController) ResendVerification(ctx context.Context)
 }
 
 // GetVerificationStatus handles GET /auth/verification/status
+// @Summary Get verification status
+// @Description Returns the current email verification status for the authenticated user
+// @Tags Authentication
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} map[string]string
+// @Router /auth/verification/status [get]
 func (ctrl *EmailVerificationController) GetVerificationStatus(ctx context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		resourceOwner := common.GetResourceOwner(r.Context())
@@ -286,4 +337,3 @@ func getClientIP(r *http.Request) string {
 	// Fall back to RemoteAddr
 	return r.RemoteAddr
 }
-

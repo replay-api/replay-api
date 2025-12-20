@@ -451,10 +451,14 @@ docs: ## Open API documentation in browser
 
 .PHONY: docs-generate
 docs-generate: ## Generate OpenAPI spec from code annotations
-	@echo "$(CC)Generating OpenAPI documentation...$(CEND)"
+	@echo "$(CC)Generating OpenAPI documentation from Swagger annotations...$(CEND)"
+	@command -v swag >/dev/null 2>&1 || go install github.com/swaggo/swag/cmd/swag@latest
 	@swag init -g cmd/rest-api/main.go -o docs/swagger --parseDependency --parseInternal
-	@cp docs/swagger/openapi.yaml cmd/rest-api/docs/openapi.yaml
-	@echo "$(CG)Documentation generated!$(CEND)"
+	@powershell -Command "Copy-Item -Path 'docs/swagger/openapi.yaml' -Destination 'cmd/rest-api/docs/openapi.yaml' -Force" 2>nul || \
+	cp docs/swagger/openapi.yaml cmd/rest-api/docs/openapi.yaml 2>/dev/null || \
+	(copy /Y docs\swagger\openapi.yaml cmd\rest-api\docs\openapi.yaml 2>nul || echo "$(CR)Failed to copy file$(CEND)")
+	@echo "$(CG)Documentation generated in docs/swagger/ and copied to cmd/rest-api/docs/$(CEND)"
+	@echo "$(YELLOW)Review: docs/swagger/openapi.yaml$(CEND)"
 
 .PHONY: docs-validate
 docs-validate: ## Validate OpenAPI spec

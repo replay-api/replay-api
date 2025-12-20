@@ -88,18 +88,18 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SignUpRequest'
+              $ref: "#/components/schemas/SignUpRequest"
       responses:
-        '201':
+        "201":
           description: User created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuthResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '409':
-          $ref: '#/components/responses/Conflict'
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
 
   /auth/signin:
     post:
@@ -111,16 +111,16 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SignInRequest'
+              $ref: "#/components/schemas/SignInRequest"
       responses:
-        '200':
+        "200":
           description: Successfully authenticated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuthResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /auth/refresh:
     post:
@@ -140,12 +140,12 @@ paths:
                 refresh_token:
                   type: string
       responses:
-        '200':
+        "200":
           description: Token refreshed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuthResponse'
+                $ref: "#/components/schemas/AuthResponse"
 
   /auth/mfa/setup:
     post:
@@ -155,12 +155,12 @@ paths:
       security:
         - bearerAuth: []
       responses:
-        '200':
+        "200":
           description: MFA setup initiated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MFASetupResponse'
+                $ref: "#/components/schemas/MFASetupResponse"
 
   /auth/mfa/verify:
     post:
@@ -181,10 +181,10 @@ paths:
                   type: string
                   pattern: '^\d{6}$'
       responses:
-        '200':
+        "200":
           description: MFA verified
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   # Players
   /players/{player_id}:
@@ -193,16 +193,16 @@ paths:
       summary: Get player profile
       operationId: getPlayerProfile
       parameters:
-        - $ref: '#/components/parameters/PlayerId'
+        - $ref: "#/components/parameters/PlayerId"
       responses:
-        '200':
+        "200":
           description: Player profile retrieved
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PlayerProfile'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: "#/components/schemas/PlayerProfile"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
     put:
       tags: [Players]
@@ -211,22 +211,22 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/PlayerId'
+        - $ref: "#/components/parameters/PlayerId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdatePlayerRequest'
+              $ref: "#/components/schemas/UpdatePlayerRequest"
       responses:
-        '200':
+        "200":
           description: Profile updated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PlayerProfile'
-        '403':
-          $ref: '#/components/responses/Forbidden'
+                $ref: "#/components/schemas/PlayerProfile"
+        "403":
+          $ref: "#/components/responses/Forbidden"
 
   /players/{player_id}/rating:
     get:
@@ -234,14 +234,14 @@ paths:
       summary: Get player rating (Glicko-2)
       operationId: getPlayerRating
       parameters:
-        - $ref: '#/components/parameters/PlayerId'
+        - $ref: "#/components/parameters/PlayerId"
       responses:
-        '200':
+        "200":
           description: Player rating retrieved
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PlayerRating'
+                $ref: "#/components/schemas/PlayerRating"
 
   # Matchmaking
   /matchmaking/queue:
@@ -256,16 +256,16 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/JoinQueueRequest'
+              $ref: "#/components/schemas/JoinQueueRequest"
       responses:
-        '200':
+        "200":
           description: Joined queue
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/QueueStatus'
-        '400':
-          $ref: '#/components/responses/BadRequest'
+                $ref: "#/components/schemas/QueueStatus"
+        "400":
+          $ref: "#/components/responses/BadRequest"
 
     delete:
       tags: [Matchmaking]
@@ -274,7 +274,7 @@ paths:
       security:
         - bearerAuth: []
       responses:
-        '200':
+        "200":
           description: Left queue
 
   /matchmaking/pool/{pool_id}/stats:
@@ -290,12 +290,12 @@ paths:
             type: string
             format: uuid
       responses:
-        '200':
+        "200":
           description: Pool statistics
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PoolStats'
+                $ref: "#/components/schemas/PoolStats"
 
   # Leaderboard
   /leaderboard:
@@ -324,12 +324,12 @@ paths:
             type: integer
             default: 0
       responses:
-        '200':
+        "200":
           description: Leaderboard data
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LeaderboardResponse'
+                $ref: "#/components/schemas/LeaderboardResponse"
 
   # Tournaments
   /tournaments:
@@ -348,14 +348,14 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: Tournament list
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Tournament'
+                  $ref: "#/components/schemas/Tournament"
 
     post:
       tags: [Tournaments]
@@ -368,14 +368,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateTournamentRequest'
+              $ref: "#/components/schemas/CreateTournamentRequest"
       responses:
-        '201':
+        "201":
           description: Tournament created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Tournament'
+                $ref: "#/components/schemas/Tournament"
 
   /tournaments/{tournament_id}/prize-pool:
     get:
@@ -383,14 +383,14 @@ paths:
       summary: Get tournament prize pool status
       operationId: getPrizePool
       parameters:
-        - $ref: '#/components/parameters/TournamentId'
+        - $ref: "#/components/parameters/TournamentId"
       responses:
-        '200':
+        "200":
           description: Prize pool status
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PrizePoolStatus'
+                $ref: "#/components/schemas/PrizePoolStatus"
 
   /tournaments/{tournament_id}/prize-pool/distribute:
     post:
@@ -400,16 +400,16 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TournamentId'
+        - $ref: "#/components/parameters/TournamentId"
       responses:
-        '200':
+        "200":
           description: Distribution initiated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DistributionResult'
-        '403':
-          $ref: '#/components/responses/Forbidden'
+                $ref: "#/components/schemas/DistributionResult"
+        "403":
+          $ref: "#/components/responses/Forbidden"
 
   /tournaments/{tournament_id}/prize-pool/verify/{payout_id}:
     get:
@@ -417,7 +417,7 @@ paths:
       summary: Get blockchain verification proof for payout
       operationId: verifyPayout
       parameters:
-        - $ref: '#/components/parameters/TournamentId'
+        - $ref: "#/components/parameters/TournamentId"
         - name: payout_id
           in: path
           required: true
@@ -425,12 +425,12 @@ paths:
             type: string
             format: uuid
       responses:
-        '200':
+        "200":
           description: Payout verification proof
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PayoutProof'
+                $ref: "#/components/schemas/PayoutProof"
 
   # Squads
   /squads:
@@ -445,14 +445,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateSquadRequest'
+              $ref: "#/components/schemas/CreateSquadRequest"
       responses:
-        '201':
+        "201":
           description: Squad created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Squad'
+                $ref: "#/components/schemas/Squad"
 
   /squads/{squad_id}/invitations:
     post:
@@ -462,20 +462,20 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/SquadId'
+        - $ref: "#/components/parameters/SquadId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SquadInvitationRequest'
+              $ref: "#/components/schemas/SquadInvitationRequest"
       responses:
-        '201':
+        "201":
           description: Invitation sent
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SquadInvitation'
+                $ref: "#/components/schemas/SquadInvitation"
 
   /squads/{squad_id}/statistics:
     get:
@@ -483,14 +483,14 @@ paths:
       summary: Get squad statistics
       operationId: getSquadStatistics
       parameters:
-        - $ref: '#/components/parameters/SquadId'
+        - $ref: "#/components/parameters/SquadId"
       responses:
-        '200':
+        "200":
           description: Squad statistics
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SquadStatistics'
+                $ref: "#/components/schemas/SquadStatistics"
 
   # Replays
   /games/{game_id}/replays:
@@ -501,7 +501,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/GameId'
+        - $ref: "#/components/parameters/GameId"
       requestBody:
         required: true
         content:
@@ -518,14 +518,14 @@ paths:
                   enum: [public, private, unlisted]
                   default: private
       responses:
-        '201':
+        "201":
           description: Replay uploaded
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ReplayFile'
-        '400':
-          $ref: '#/components/responses/BadRequest'
+                $ref: "#/components/schemas/ReplayFile"
+        "400":
+          $ref: "#/components/responses/BadRequest"
 
   /games/{game_id}/replays/{replay_id}/download:
     get:
@@ -535,8 +535,8 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/GameId'
-        - $ref: '#/components/parameters/ReplayId'
+        - $ref: "#/components/parameters/GameId"
+        - $ref: "#/components/parameters/ReplayId"
         - name: share_token
           in: query
           description: Share token for accessing private replays
@@ -544,17 +544,17 @@ paths:
             type: string
             format: uuid
       responses:
-        '200':
+        "200":
           description: Replay file
           content:
             application/octet-stream:
               schema:
                 type: string
                 format: binary
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   # Billing
   /withdrawals:
@@ -569,16 +569,16 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/WithdrawalRequest'
+              $ref: "#/components/schemas/WithdrawalRequest"
       responses:
-        '201':
+        "201":
           description: Withdrawal created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Withdrawal'
-        '400':
-          $ref: '#/components/responses/BadRequest'
+                $ref: "#/components/schemas/Withdrawal"
+        "400":
+          $ref: "#/components/responses/BadRequest"
 
   /withdrawals/{id}:
     get:
@@ -595,13 +595,463 @@ paths:
             type: string
             format: uuid
       responses:
-        '200':
+        "200":
           description: Withdrawal details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Withdrawal'
+                $ref: "#/components/schemas/Withdrawal"
 
+  /search/{query}:
+    get:
+      tags: [General]
+      summary: Get Search by ID
+      operationId: get_search_query
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /games/{game_id}/match:
+    get:
+      tags: [Matches]
+      summary: Get Match by ID
+      operationId: get_games_game_id_match
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /games/{game_id}/match/{match_id}:
+    get:
+      tags: [Matches]
+      summary: Get Match by ID
+      operationId: get_games_game_id_match_match_id
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /games/{game_id}/events:
+    get:
+      tags: [General]
+      summary: Get Events by ID
+      operationId: get_games_game_id_events
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /games/{game_id}/matches/{match_id}/trajectory:
+    get:
+      tags: [Matches]
+      summary: Get Trajectory by ID
+      operationId: get_games_game_id_matches_match_id_trajectory
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /games/{game_id}/matches/{match_id}/rounds/{round_number}/trajectory:
+    get:
+      tags: [Matches]
+      summary: Get Trajectory by ID
+      operationId: get_games_game_id_matches_match_id_rounds_round_number_trajectory
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /games/{game_id}/matches/{match_id}/heatmap:
+    get:
+      tags: [Matches]
+      summary: Get Heatmap by ID
+      operationId: get_games_game_id_matches_match_id_heatmap
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /games/{game_id}/matches/{match_id}/rounds/{round_number}/heatmap:
+    get:
+      tags: [Matches]
+      summary: Get Heatmap by ID
+      operationId: get_games_game_id_matches_match_id_rounds_round_number_heatmap
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /games/{game_id}/matches/{match_id}/positioning-stats:
+    get:
+      tags: [Matches]
+      summary: Get Positioning-Stats by ID
+      operationId: get_games_game_id_matches_match_id_positioning_stats
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /matches/player/{player_id}:
+    get:
+      tags: [Matches]
+      summary: Get Player by ID
+      operationId: get_matches_player_player_id
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /matches/squad/{squad_id}:
+    get:
+      tags: [Matches]
+      summary: Get Squad by ID
+      operationId: get_matches_squad_squad_id
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /players:
+    get:
+      tags: [Players]
+      summary: List Players
+      operationId: get_players
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /players/{id}/stats:
+    get:
+      tags: [Players]
+      summary: Get Stats by ID
+      operationId: get_players_id_stats
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /groups:
+    get:
+      tags: [IAM]
+      summary: List Groups
+      operationId: get_groups
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /ranks/distribution:
+    get:
+      tags: [Leaderboard]
+      summary: List Distribution
+      operationId: get_ranks_distribution
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /prize-pools/{id}:
+    get:
+      tags: [Prize Pools]
+      summary: Get Prize-Pools by ID
+      operationId: get_prize_pools_id
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /prize-pools/{id}/history:
+    get:
+      tags: [Prize Pools]
+      summary: Get History by ID
+      operationId: get_prize_pools_id_history
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /matches/{match_id}/prize-pool:
+    get:
+      tags: [Matches]
+      summary: Get Prize-Pool by ID
+      operationId: get_matches_match_id_prize_pool
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /prize-pools/pending-distributions:
+    get:
+      tags: [Prize Pools]
+      summary: List Pending-Distributions
+      operationId: get_prize_pools_pending_distributions
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /tournaments/upcoming:
+    get:
+      tags: [Tournaments]
+      summary: List Upcoming
+      operationId: get_tournaments_upcoming
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /tournaments/{id}:
+    get:
+      tags: [Tournaments]
+      summary: Get Tournaments by ID
+      operationId: get_tournaments_id
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /players/{player_id}/tournaments:
+    get:
+      tags: [Players]
+      summary: Get Tournaments by ID
+      operationId: get_players_player_id_tournaments
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /organizers/{organizer_id}/tournaments:
+    get:
+      tags: [Tournaments]
+      summary: Get Tournaments by ID
+      operationId: get_organizers_organizer_id_tournaments
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /wallet/balance:
+    get:
+      tags: [Wallet]
+      summary: List Balance
+      operationId: get_wallet_balance
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /wallet/transactions:
+    get:
+      tags: [Wallet]
+      summary: List Transactions
+      operationId: get_wallet_transactions
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
   /subscriptions/upgrade:
     post:
       tags: [Billing]
@@ -614,14 +1064,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SubscriptionUpgradeRequest'
+              $ref: "#/components/schemas/SubscriptionUpgradeRequest"
       responses:
-        '200':
+        "200":
           description: Subscription upgraded
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Subscription'
+                $ref: "#/components/schemas/Subscription"
 
 components:
   securitySchemes:
@@ -672,31 +1122,31 @@ components:
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     Unauthorized:
       description: Unauthorized
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     Forbidden:
       description: Forbidden
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     NotFound:
       description: Not found
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     Conflict:
       description: Conflict
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
 
   schemas:
     Error:
@@ -748,7 +1198,7 @@ components:
         expires_in:
           type: integer
         user:
-          $ref: '#/components/schemas/User'
+          $ref: "#/components/schemas/User"
 
     User:
       type: object
@@ -814,7 +1264,17 @@ components:
           format: double
         rank:
           type: string
-          enum: [Unranked, Silver, Gold, Platinum, Diamond, Master, Grandmaster, Global Elite]
+          enum:
+            [
+              Unranked,
+              Silver,
+              Gold,
+              Platinum,
+              Diamond,
+              Master,
+              Grandmaster,
+              Global Elite,
+            ]
         games_played:
           type: integer
         wins:
@@ -882,7 +1342,7 @@ components:
         entries:
           type: array
           items:
-            $ref: '#/components/schemas/LeaderboardEntry'
+            $ref: "#/components/schemas/LeaderboardEntry"
         total_count:
           type: integer
 
@@ -1186,4 +1646,3 @@ components:
 
 security:
   - bearerAuth: []
-

@@ -30,6 +30,18 @@ func NewMFAController(c container.Container) *MFAController {
 }
 
 // SetupMFAHandler handles POST /auth/mfa/setup
+// @Summary Setup MFA/TOTP
+// @Description Initializes MFA/TOTP for the authenticated user
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body object true "Setup MFA request" example({"email":"user@example.com"})
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 503 {object} map[string]string
+// @Router /auth/mfa/setup [post]
 func (c *MFAController) SetupMFAHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		corsOrigin := os.Getenv("CORS_ALLOWED_ORIGIN")
@@ -80,6 +92,18 @@ func (c *MFAController) SetupMFAHandler(apiContext context.Context) http.Handler
 }
 
 // VerifyMFAHandler handles POST /auth/mfa/verify
+// @Summary Verify and activate MFA
+// @Description Verifies the TOTP code and activates MFA for the user
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body object true "Verify MFA request" example({"code":"123456"})
+// @Success 200 {object} map[string]bool
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 503 {object} map[string]string
+// @Router /auth/mfa/verify [post]
 func (c *MFAController) VerifyMFAHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		corsOrigin := os.Getenv("CORS_ALLOWED_ORIGIN")
@@ -130,6 +154,17 @@ func (c *MFAController) VerifyMFAHandler(apiContext context.Context) http.Handle
 }
 
 // ValidateMFAHandler handles POST /auth/mfa/validate (for login)
+// @Summary Validate MFA code during login
+// @Description Validates MFA code during login process
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param request body object true "Validate MFA request" example({"user_id":"550e8400-e29b-41d4-a716-446655440000","code":"123456","use_backup":false})
+// @Success 200 {object} map[string]bool
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 503 {object} map[string]string
+// @Router /auth/mfa/validate [post]
 func (c *MFAController) ValidateMFAHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		corsOrigin := os.Getenv("CORS_ALLOWED_ORIGIN")
@@ -180,6 +215,19 @@ func (c *MFAController) ValidateMFAHandler(apiContext context.Context) http.Hand
 }
 
 // DisableMFAHandler handles POST /auth/mfa/disable
+// @Summary Disable MFA
+// @Description Disables MFA for the authenticated user after verifying code
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body object true "Disable MFA request" example({"code":"123456"})
+// @Success 200 {object} map[string]bool
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Failure 503 {object} map[string]string
+// @Router /auth/mfa/disable [post]
 func (c *MFAController) DisableMFAHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		corsOrigin := os.Getenv("CORS_ALLOWED_ORIGIN")
@@ -237,6 +285,16 @@ func (c *MFAController) DisableMFAHandler(apiContext context.Context) http.Handl
 }
 
 // GetMFAStatusHandler handles GET /auth/mfa/status
+// @Summary Get MFA status
+// @Description Returns the MFA status for the authenticated user
+// @Tags Authentication
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Failure 503 {object} map[string]string
+// @Router /auth/mfa/status [get]
 func (c *MFAController) GetMFAStatusHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		corsOrigin := os.Getenv("CORS_ALLOWED_ORIGIN")
@@ -293,6 +351,18 @@ func (c *MFAController) GetMFAStatusHandler(apiContext context.Context) http.Han
 }
 
 // RegenerateBackupCodesHandler handles POST /auth/mfa/backup-codes/regenerate
+// @Summary Regenerate MFA backup codes
+// @Description Regenerates backup codes for MFA after verifying current code
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body object true "Regenerate backup codes request" example({"code":"123456"})
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 503 {object} map[string]string
+// @Router /auth/mfa/backup-codes/regenerate [post]
 func (c *MFAController) RegenerateBackupCodesHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		corsOrigin := os.Getenv("CORS_ALLOWED_ORIGIN")
@@ -343,4 +413,3 @@ func (c *MFAController) RegenerateBackupCodesHandler(apiContext context.Context)
 		})
 	}
 }
-

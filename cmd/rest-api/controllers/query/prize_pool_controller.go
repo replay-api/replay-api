@@ -29,7 +29,16 @@ func NewPrizePoolQueryController(c container.Container) *PrizePoolQueryControlle
 	}
 }
 
-// GetPrizePoolHandler handles GET /prize-pools/:id
+// GetPrizePoolHandler handles GET /prize-pools/{id}
+// @Summary Get prize pool by ID
+// @Description Returns detailed information about a prize pool
+// @Tags Prize Pool
+// @Produce json
+// @Param id path string true "Prize Pool ID"
+// @Success 200 {object} matchmaking_entities.PrizePool
+// @Failure 400 {string} string "Bad Request"
+// @Failure 404 {string} string "Not Found"
+// @Router /prize-pools/{id} [get]
 func (c *PrizePoolQueryController) GetPrizePoolHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	poolIDStr := vars["id"]
@@ -64,7 +73,16 @@ func (c *PrizePoolQueryController) GetPrizePoolHandler(w http.ResponseWriter, r 
 	}
 }
 
-// GetPrizePoolByMatchHandler handles GET /matches/:match_id/prize-pool
+// GetPrizePoolByMatchHandler handles GET /matches/{match_id}/prize-pool
+// @Summary Get prize pool by match ID
+// @Description Returns the prize pool associated with a specific match
+// @Tags Prize Pool
+// @Produce json
+// @Param match_id path string true "Match ID"
+// @Success 200 {object} matchmaking_entities.PrizePool
+// @Failure 400 {string} string "Bad Request"
+// @Failure 404 {string} string "Not Found"
+// @Router /matches/{match_id}/prize-pool [get]
 func (c *PrizePoolQueryController) GetPrizePoolByMatchHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	matchIDStr := vars["match_id"]
@@ -99,7 +117,16 @@ func (c *PrizePoolQueryController) GetPrizePoolByMatchHandler(w http.ResponseWri
 	}
 }
 
-// GetPrizePoolHistoryHandler handles GET /prize-pools/:id/history
+// GetPrizePoolHistoryHandler handles GET /prize-pools/{id}/history
+// @Summary Get prize pool history
+// @Description Returns the distribution history and winners for a prize pool
+// @Tags Prize Pool
+// @Produce json
+// @Param id path string true "Prize Pool ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {string} string "Bad Request"
+// @Failure 404 {string} string "Not Found"
+// @Router /prize-pools/{id}/history [get]
 func (c *PrizePoolQueryController) GetPrizePoolHistoryHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	poolIDStr := vars["id"]

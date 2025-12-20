@@ -40,6 +40,15 @@ type ConfirmPasswordResetRequest struct {
 }
 
 // RequestPasswordReset handles POST /auth/password-reset
+// @Summary Request password reset
+// @Description Requests a password reset email to be sent
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param request body RequestPasswordResetRequest true "Password reset request"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Router /auth/password-reset [post]
 func (ctrl *PasswordResetController) RequestPasswordReset(ctx context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req RequestPasswordResetRequest
@@ -85,6 +94,16 @@ func (ctrl *PasswordResetController) RequestPasswordReset(ctx context.Context) h
 }
 
 // ConfirmPasswordReset handles POST /auth/password-reset/confirm
+// @Summary Confirm password reset
+// @Description Confirms password reset with token and new password
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param request body ConfirmPasswordResetRequest true "Confirm password reset request"
+// @Success 200 {object} auth_in.PasswordResetResult
+// @Failure 400 {object} auth_in.PasswordResetResult
+// @Failure 500 {object} map[string]string
+// @Router /auth/password-reset/confirm [post]
 func (ctrl *PasswordResetController) ConfirmPasswordReset(ctx context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req ConfirmPasswordResetRequest
@@ -132,6 +151,14 @@ func (ctrl *PasswordResetController) ConfirmPasswordReset(ctx context.Context) h
 }
 
 // ValidateResetToken handles GET /auth/password-reset/validate?token=xxx
+// @Summary Validate password reset token
+// @Description Validates if a password reset token is valid and not expired
+// @Tags Authentication
+// @Produce json
+// @Param token query string true "Password reset token"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Router /auth/password-reset/validate [get]
 func (ctrl *PasswordResetController) ValidateResetToken(ctx context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token := r.URL.Query().Get("token")
@@ -156,4 +183,3 @@ func (ctrl *PasswordResetController) ValidateResetToken(ctx context.Context) htt
 		})
 	}
 }
-

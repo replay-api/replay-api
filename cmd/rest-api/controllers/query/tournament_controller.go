@@ -30,7 +30,16 @@ func NewTournamentQueryController(c container.Container) *TournamentQueryControl
 	}
 }
 
-// GetTournamentHandler handles GET /tournaments/:id
+// GetTournamentHandler handles GET /tournaments/{id}
+// @Summary Get tournament by ID
+// @Description Returns detailed information about a specific tournament
+// @Tags Tournaments
+// @Produce json
+// @Param id path string true "Tournament ID"
+// @Success 200 {object} tournament_entities.Tournament
+// @Failure 400 {string} string "Bad Request"
+// @Failure 404 {string} string "Not Found"
+// @Router /tournaments/{id} [get]
 func (c *TournamentQueryController) GetTournamentHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	tournamentIDStr := vars["id"]
@@ -57,6 +66,17 @@ func (c *TournamentQueryController) GetTournamentHandler(w http.ResponseWriter, 
 }
 
 // ListTournamentsHandler handles GET /tournaments
+// @Summary List tournaments
+// @Description Returns a list of tournaments with optional filtering
+// @Tags Tournaments
+// @Produce json
+// @Param game_id query string false "Game ID filter"
+// @Param region query string false "Region filter"
+// @Param status query string false "Status filter"
+// @Param limit query int false "Limit results" default(50)
+// @Success 200 {object} object "ListResponse"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /tournaments [get]
 func (c *TournamentQueryController) ListTournamentsHandler(w http.ResponseWriter, r *http.Request) {
 	// Parse query params
 	gameID := r.URL.Query().Get("game_id")
@@ -104,6 +124,16 @@ func (c *TournamentQueryController) ListTournamentsHandler(w http.ResponseWriter
 }
 
 // GetUpcomingTournamentsHandler handles GET /tournaments/upcoming
+// @Summary Get upcoming tournaments
+// @Description Returns a list of upcoming tournaments for a specific game
+// @Tags Tournaments
+// @Produce json
+// @Param game_id query string true "Game ID"
+// @Param limit query int false "Limit results" default(20)
+// @Success 200 {object} object "UpcomingResponse"
+// @Failure 400 {string} string "Bad Request"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /tournaments/upcoming [get]
 func (c *TournamentQueryController) GetUpcomingTournamentsHandler(w http.ResponseWriter, r *http.Request) {
 	gameID := r.URL.Query().Get("game_id")
 	if gameID == "" {
@@ -144,7 +174,16 @@ func (c *TournamentQueryController) GetUpcomingTournamentsHandler(w http.Respons
 	}
 }
 
-// GetPlayerTournamentsHandler handles GET /players/:player_id/tournaments
+// GetPlayerTournamentsHandler handles GET /players/{player_id}/tournaments
+// @Summary Get player tournaments
+// @Description Returns all tournaments a player has participated in
+// @Tags Tournaments
+// @Produce json
+// @Param player_id path string true "Player ID"
+// @Success 200 {object} object "PlayerTournamentsResponse"
+// @Failure 400 {string} string "Bad Request"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /players/{player_id}/tournaments [get]
 func (c *TournamentQueryController) GetPlayerTournamentsHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	playerIDStr := vars["player_id"]
@@ -182,7 +221,16 @@ func (c *TournamentQueryController) GetPlayerTournamentsHandler(w http.ResponseW
 	}
 }
 
-// GetOrganizerTournamentsHandler handles GET /organizers/:organizer_id/tournaments
+// GetOrganizerTournamentsHandler handles GET /organizers/{organizer_id}/tournaments
+// @Summary Get organizer tournaments
+// @Description Returns all tournaments organized by a specific organizer
+// @Tags Tournaments
+// @Produce json
+// @Param organizer_id path string true "Organizer ID"
+// @Success 200 {object} object "OrganizerTournamentsResponse"
+// @Failure 400 {string} string "Bad Request"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /organizers/{organizer_id}/tournaments [get]
 func (c *TournamentQueryController) GetOrganizerTournamentsHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	organizerIDStr := vars["organizer_id"]
