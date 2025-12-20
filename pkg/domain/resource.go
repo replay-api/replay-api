@@ -42,8 +42,8 @@ const (
 	// ResourceTypePublicAny  ResourceType = "Public(Anyone with the link)"
 	// ResourceTypePrivate   ResourceType = "Private"
 	// ResourceTypeNamespace ResourceType = "Namespaces"
-	ResourceTypeTag ResourceType = "Tags"
-	// ResourceTypeBugReport ResourceType = "BugReports"
+	ResourceTypeTag       ResourceType = "Tags"
+	ResourceTypeChallenge ResourceType = "Challenges" // Bug reports, VAR, round restart requests
 )
 
 var ResourceTypes = []ResourceType{
@@ -68,6 +68,7 @@ var ResourceTypes = []ResourceType{
 	ResourceTypeFriends,
 	ResourceTypeList,
 	ResourceTypeTag,
+	ResourceTypeChallenge,
 }
 
 var ResourceKeyMap = map[ResourceType]string{
@@ -82,6 +83,7 @@ var ResourceKeyMap = map[ResourceType]string{
 	ResourceTypeGroup:         "group_id",
 	ResourceTypeUser:          "user_id",
 	ResourceTypeProfile:       "profile_id",
+	ResourceTypeChallenge:     "challenge_id",
 }
 
 func GetResourceFieldID(resourcePart string) (string, error) {

@@ -367,6 +367,18 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	// Stripe Webhook (no auth required)
 	r.HandleFunc("/webhooks/stripe", paymentController.StripeWebhookHandler(ctx)).Methods("POST")
 
+	// Challenge API (Bug Reports, VAR, Round Restart)
+	challengeController := cmd_controllers.NewChallengeController(container)
+	r.HandleFunc("/challenges", challengeController.CreateChallengeHandler(ctx)).Methods("POST")
+	r.HandleFunc("/challenges", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/challenges/pending", challengeController.GetPendingChallengesHandler(ctx)).Methods("GET")
+	r.HandleFunc("/challenges/{id}", challengeController.GetChallengeHandler(ctx)).Methods("GET")
+	r.HandleFunc("/challenges/{id}", challengeController.CancelHandler(ctx)).Methods("DELETE")
+	r.HandleFunc("/challenges/{id}/evidence", challengeController.AddEvidenceHandler(ctx)).Methods("POST")
+	r.HandleFunc("/challenges/{id}/vote", challengeController.VoteHandler(ctx)).Methods("POST")
+	r.HandleFunc("/challenges/{id}/resolve", challengeController.ResolveHandler(ctx)).Methods("POST")
+	r.HandleFunc("/matches/{match_id}/challenges", challengeController.GetChallengesByMatchHandler(ctx)).Methods("GET")
+
 	// Wrap the router with CORS handler to handle preflight OPTIONS requests
 	// This is necessary because mux middleware doesn't run for 405 responses
 	return corsMiddleware.Handler(r)
