@@ -70,6 +70,11 @@ type Payment struct {
 	IdempotencyKey      string          `json:"idempotency_key" bson:"idempotency_key"`
 }
 
+// GetID returns the payment ID (implements common.Entity interface)
+func (p *Payment) GetID() uuid.UUID {
+	return p.ID
+}
+
 // NewPayment creates a new payment
 func NewPayment(userID, walletID uuid.UUID, paymentType PaymentType, provider PaymentProvider, amount int64, currency string) *Payment {
 	now := time.Now().UTC()
