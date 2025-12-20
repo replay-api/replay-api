@@ -23,7 +23,30 @@ func NewUploadReplayFileUseCase(metadataWriter replay_out.ReplayFileMetadataWrit
 	}
 }
 
+// Exec uploads a replay file and creates associated metadata.
+//
+// This use case handles:
+//  1. Authentication verification - user must be authenticated
+//  2. Reading replay file content from the provided reader
+//  3. Creating replay metadata entry with initial "processing" status
+//  4. Uploading file content to blob storage
+//  5. Updating metadata with storage URI and final status
+//
+// Parameters:
+//   - ctx: Context containing authentication and resource ownership
+//   - reader: io.Reader providing the replay file content
+//
+// Returns:
+//   - *ReplayFile: Created replay file metadata with storage URI
+//   - error: Returns ErrUnauthorized if not authenticated, or storage/DB errors
 func (usecase *UploadReplayFileUseCase) Exec(ctx context.Context, reader io.Reader) (*replay_entity.ReplayFile, error) {
+	// Authentication check - user must be logged in to upload replays
+	isAuthenticated := ctx.Value(common.AuthenticatedKey)
+	if isAuthenticated == nil || !isAuthenticated.(bool) {
+		slog.WarnContext(ctx, "unauthorized replay upload attempt")
+		return nil, common.NewErrUnauthorized()
+	}
+
 	file, err := io.ReadAll(reader)
 	if err != nil {
 		slog.ErrorContext(ctx, "error reading replay file", "err", err)

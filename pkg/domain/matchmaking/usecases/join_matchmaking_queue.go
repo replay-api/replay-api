@@ -15,7 +15,34 @@ import (
 	matchmaking_out "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/out"
 )
 
-// JoinMatchmakingQueueUseCase handles player joining matchmaking queue
+// JoinMatchmakingQueueUseCase handles player joining the ranked matchmaking queue.
+//
+// This is the primary entry point for competitive matchmaking in the LeetGaming platform.
+//
+// Flow:
+//  1. Authentication verification - user must be authenticated
+//  2. Input validation - team format, player role, and game mode validation
+//  3. Active session check - prevents duplicate queue entries
+//  4. Billing validation - ensures subscription/credits allow queue join
+//  5. Pool management - creates/retrieves matchmaking pool for region/mode
+//  6. Session creation - creates player's matchmaking session with preferences
+//  7. Billing execution - records the billable operation
+//
+// Features:
+//   - Priority boost support for premium subscribers
+//   - Dynamic skill range calculation based on MMR
+//   - Estimated wait time calculation based on pool health
+//   - Role-based matchmaking for 5v5 team formats
+//   - Cross-platform matching support
+//
+// Security:
+//   - Requires authenticated context (common.AuthenticatedKey)
+//   - Uses resource ownership from context for billing
+//
+// Dependencies:
+//   - BillableOperationCommandHandler: Validates/tracks usage against subscription limits
+//   - MatchmakingSessionRepository: Session persistence
+//   - MatchmakingPoolRepository: Pool management for game mode/region
 type JoinMatchmakingQueueUseCase struct {
 	billableOperationHandler billing_in.BillableOperationCommandHandler
 	sessionRepository        matchmaking_out.MatchmakingSessionRepository

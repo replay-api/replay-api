@@ -656,6 +656,7 @@ func (ctrl *SquadController) GetSquadStatsHandler(apiContext context.Context) ht
 		if gameID == "" {
 			gameID = "cs2" // Default game
 		}
+		_ = gameID // TODO: Use gameID for filtering stats by game
 
 		// Get squad reader
 		var squadReader squad_in.SquadReader

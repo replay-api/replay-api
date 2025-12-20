@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"log/slog"
 	"math/big"
 	"sync"
 	"time"
@@ -37,7 +38,7 @@ type WalletOrchestrator struct {
 	// Configuration
 	config *OrchestratorConfig
 
-	mu sync.RWMutex
+	mu sync.RWMutex //nolint:unused // Reserved for future concurrent operations
 }
 
 // OrchestratorConfig contains orchestrator configuration
@@ -456,7 +457,7 @@ func (o *WalletOrchestrator) deployEVMWallet(
 		wallet.BaseEntity.ID,
 		wallet.PublicKey,
 		o.config.EntryPoints[chainID],
-		big.NewInt(int64(wallet.Limits.DailyLimit)),
+		big.NewInt(int64(wallet.Limits.DailyLimit)), // #nosec G115 - daily limit is bounded and validated
 		recoveryDelay,
 	)
 
@@ -587,7 +588,9 @@ func (o *WalletOrchestrator) Transfer(
 		if err != nil {
 			txRecord.Status = custody_out.TxRecordStatusFailed
 			txRecord.FailureReason = stringPtr(err.Error())
-			o.txRepo.Update(ctx, txRecord)
+			if updateErr := o.txRepo.Update(ctx, txRecord); updateErr != nil {
+				slog.WarnContext(ctx, "Failed to update failed tx record", "error", updateErr)
+			}
 			return nil, err
 		}
 		txHash = result.TxHash
@@ -597,7 +600,9 @@ func (o *WalletOrchestrator) Transfer(
 		if err != nil {
 			txRecord.Status = custody_out.TxRecordStatusFailed
 			txRecord.FailureReason = stringPtr(err.Error())
-			o.txRepo.Update(ctx, txRecord)
+			if updateErr := o.txRepo.Update(ctx, txRecord); updateErr != nil {
+				slog.WarnContext(ctx, "Failed to update failed tx record", "error", updateErr)
+			}
 			return nil, err
 		}
 		txHash = result.TxHash
@@ -616,6 +621,7 @@ func (o *WalletOrchestrator) Transfer(
 
 	if err := o.txRepo.Update(ctx, txRecord); err != nil {
 		// Log error but don't fail - tx is already confirmed
+		slog.WarnContext(ctx, "Failed to update confirmed tx record", "error", err, "txID", txID)
 	}
 
 	// Update spending
@@ -813,7 +819,9 @@ func (o *WalletOrchestrator) updateSpending(
 	wallet.Limits.MonthlyUsed += amountUint
 	wallet.UpdatedAt = time.Now()
 
-	o.walletRepo.Update(ctx, wallet)
+	if err := o.walletRepo.Update(ctx, wallet); err != nil {
+		slog.WarnContext(ctx, "Failed to update wallet after pending tx", "error", err)
+	}
 }
 
 func (o *WalletOrchestrator) executeSolanaTransfer(

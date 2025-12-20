@@ -14,9 +14,9 @@ data:
   MONGO_URI: "mongodb://admin:dev-mongo-password-change-me@mongodb-service:27017/leetgaming?authSource=admin"
   MONGODB_DATABASE: "leetgaming"
 
-  # CORS Configuration
+  # CORS Configuration (supports multiple origins for E2E testing)
   CORS_ALLOWED_ORIGIN: "http://localhost:3030"
-  ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:3030,http://localhost:30300"
+  CORS_ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:3030,http://localhost:30300,http://web-frontend-service:3030"
 
   # Authentication (must match frontend)
   STEAM_VHASH_SOURCE: "82DA0F0D0135FEA0F5DDF6F96528B48A"

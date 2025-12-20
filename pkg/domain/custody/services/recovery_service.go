@@ -694,7 +694,7 @@ func (s *RecoveryServiceImpl) GetRecoveryConfig(
 		WalletID:          walletID,
 		RecoveryDelay:     wallet.RecoveryConfig.RecoveryDelay,
 		GuardianThreshold: wallet.RecoveryConfig.GuardianThreshold,
-		TotalGuardians:    uint8(len(guardians)),
+		TotalGuardians:    uint8(len(guardians)), // #nosec G115 - guardians count is small and bounded
 	}
 
 	for _, g := range guardians {

@@ -1,5 +1,8 @@
-//go:build !smoke
+//go:build integration
 
+// Package ioc_test contains integration tests for the IoC container.
+// These tests require a running MongoDB instance and should only run
+// in environments with database access (e.g., local dev or integration CI job).
 package ioc_test
 
 import (

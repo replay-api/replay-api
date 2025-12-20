@@ -13,7 +13,41 @@ import (
 	billing_out "github.com/replay-api/replay-api/pkg/domain/billing/ports/out"
 )
 
-// UpgradeSubscriptionUseCase handles subscription upgrades to higher-tier plans
+// UpgradeSubscriptionUseCase handles subscription upgrades to higher-tier plans.
+//
+// This is a critical financial use case for subscription management that enables
+// users to upgrade from their current plan (Free → Starter → Pro → Team → Business → Custom).
+//
+// Flow:
+//  1. Authentication check - validates UserID is present in context
+//  2. Current subscription retrieval - fetches user's active subscription
+//  3. Current plan retrieval - gets the plan details for comparison
+//  4. Target plan retrieval - gets the destination plan details
+//  5. Upgrade validation - ensures target is higher tier than current
+//  6. Availability check - confirms target plan is active and available
+//  7. Subscription update - modifies plan reference and records history
+//  8. Persistence - saves updated subscription
+//
+// Plan Hierarchy (lowest to highest):
+//   - Free: Basic features, limited operations
+//   - Starter: Entry-level paid tier
+//   - Pro: Individual competitive player
+//   - Team: Small team/squad management
+//   - Business: Organization/enterprise features
+//   - Custom: Tailored enterprise solutions
+//
+// Security:
+//   - Requires authenticated context with valid UserID
+//   - Validates upgrade path (no downgrades through this use case)
+//
+// Audit Trail:
+//   - Records upgrade history with timestamp and reason
+//   - Logs successful and failed upgrade attempts
+//
+// Dependencies:
+//   - SubscriptionReader: Current subscription lookup
+//   - SubscriptionWriter: Subscription updates
+//   - PlanReader: Plan details retrieval
 type UpgradeSubscriptionUseCase struct {
 	subscriptionReader billing_out.SubscriptionReader
 	subscriptionWriter billing_out.SubscriptionWriter

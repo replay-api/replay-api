@@ -194,8 +194,8 @@ func (c *MatchQueryController) GetPlayerMatchHistoryHandler(w http.ResponseWrite
 	}
 
 	resultOptions := common.SearchResultOptions{
-		Limit: uint(limit),
-		Skip:  uint(offset),
+		Limit: uint(limit),  // #nosec G115 - limit is validated to be non-negative
+		Skip:  uint(offset), // #nosec G115 - offset is validated to be non-negative
 	}
 
 	compiledSearch, err := c.matchReader.Compile(r.Context(), searchParams, resultOptions)
@@ -367,8 +367,8 @@ func (c *MatchQueryController) GetSquadMatchHistoryHandler(w http.ResponseWriter
 	}
 
 	resultOptions := common.SearchResultOptions{
-		Limit: uint(limit),
-		Skip:  uint(offset),
+		Limit: uint(limit),  // #nosec G115 - limit is validated to be non-negative
+		Skip:  uint(offset), // #nosec G115 - offset is validated to be non-negative
 	}
 
 	compiledSearch, err := c.matchReader.Compile(r.Context(), searchParams, resultOptions)

@@ -3,7 +3,7 @@ package auth_services
 import (
 	"context"
 	"crypto/hmac"
-	"crypto/sha1"
+	"crypto/sha1" // #nosec G505 - TOTP (RFC 6238) requires HMAC-SHA1
 	"encoding/base32"
 	"encoding/binary"
 	"fmt"
@@ -318,7 +318,7 @@ func generateTOTP(secret string, counter int64) string {
 	
 	// Convert counter to bytes (big-endian)
 	msg := make([]byte, 8)
-	binary.BigEndian.PutUint64(msg, uint64(counter))
+	binary.BigEndian.PutUint64(msg, uint64(counter)) // #nosec G115 - counter is time-based and always positive
 	
 	// HMAC-SHA1
 	h := hmac.New(sha1.New, key)

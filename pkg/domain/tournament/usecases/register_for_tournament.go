@@ -14,7 +14,34 @@ import (
 	tournament_out "github.com/replay-api/replay-api/pkg/domain/tournament/ports/out"
 )
 
-// RegisterForTournamentUseCase handles player registration for tournaments
+// RegisterForTournamentUseCase handles player registration for competitive tournaments.
+//
+// This is a critical financial use case that involves entry fees and prize pool management.
+//
+// Flow:
+//  1. Authentication verification - user must be authenticated
+//  2. CRITICAL Ownership validation - prevents impersonation attacks where a user
+//     attempts to register another player for a tournament (fraudulent entry fee charges)
+//  3. Tournament retrieval and validation
+//  4. Billing validation - verifies user has sufficient balance/credits for entry fee
+//  5. Player registration on tournament entity
+//  6. Tournament persistence with updated registrations
+//  7. Billing execution - charges entry fee
+//
+// Security:
+//   - Requires authenticated context (common.AuthenticatedKey)
+//   - Validates PlayerID ownership against authenticated user
+//   - Logs impersonation attempts with attacker details for security monitoring
+//
+// Financial:
+//   - Entry fee validation before registration
+//   - Billing integration for entry fee collection
+//   - Supports variable entry fees per tournament
+//
+// Dependencies:
+//   - BillableOperationCommandHandler: Entry fee validation and collection
+//   - TournamentRepository: Tournament lookup and update
+//   - PlayerProfileReader: Player ownership verification
 type RegisterForTournamentUseCase struct {
 	billableOperationHandler billing_in.BillableOperationCommandHandler
 	tournamentRepository     tournament_out.TournamentRepository

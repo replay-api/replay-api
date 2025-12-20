@@ -302,7 +302,7 @@ type ReconciliationResult struct {
 // BlockchainWalletEventHandler handles blockchain events that affect wallets
 type BlockchainWalletEventHandler struct {
 	walletService     wallet_in.WalletCommand
-	resourceOwner     common.ResourceOwner
+	resourceOwner     common.ResourceOwner //nolint:unused // Reserved for event context
 }
 
 // NewBlockchainWalletEventHandler creates a new event handler

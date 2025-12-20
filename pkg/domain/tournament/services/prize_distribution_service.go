@@ -9,8 +9,8 @@ import (
 
 	"github.com/google/uuid"
 	common "github.com/replay-api/replay-api/pkg/domain"
-	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
+	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	tournament_entities "github.com/replay-api/replay-api/pkg/domain/tournament/entities"
 )
 
@@ -369,7 +369,9 @@ func (s *PrizeDistributionService) processPlatformWalletPayout(ctx context.Conte
 	payout.CompletedAt = &now
 
 	// Update pool
-	pool.MarkPayoutCompleted(payout.ID, "", 0)
+	if err := pool.MarkPayoutCompleted(payout.ID, "", 0); err != nil {
+		slog.WarnContext(ctx, "Failed to mark payout completed in pool", "error", err)
+	}
 
 	return nil
 }
@@ -420,7 +422,9 @@ func (s *PrizeDistributionService) processCryptoPayout(ctx context.Context, pool
 		payout.BlockConfirmations = confirmations
 		payout.Status = tournament_entities.PayoutStatusCompleted
 		payout.CompletedAt = &now
-		pool.MarkPayoutCompleted(payout.ID, txHash, confirmations)
+		if err := pool.MarkPayoutCompleted(payout.ID, txHash, confirmations); err != nil {
+			slog.WarnContext(ctx, "Failed to mark payout completed in pool", "error", err)
+		}
 	}
 
 	return nil

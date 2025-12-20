@@ -1,0 +1,54 @@
+# golangci-lint configuration
+run:
+  timeout: 5m
+  tests: true
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+  disable:
+    - depguard
+
+linters-settings:
+  errcheck:
+    # List of functions to exclude from checking
+    exclude-functions:
+      # HTTP response writing often ignores errors in handlers
+      - (net/http.ResponseWriter).Write
+      - (*net/http.ResponseWriter).Write
+      - io.WriteString
+      - fmt.Fprintf
+      - fmt.Fprintln
+      # JSON encoding in handlers
+      - (*encoding/json.Encoder).Encode
+      # Log functions
+      - log.Printf
+      - log.Println
+      - log/slog.Info
+      - log/slog.Debug
+      - log/slog.Warn
+      - log/slog.Error
+
+issues:
+  # Maximum issues count per one linter (0 = unlimited)
+  max-issues-per-linter: 0
+  # Maximum count of issues with the same text (0 = unlimited)
+  max-same-issues: 0
+  
+  # Exclude certain patterns
+  exclude-rules:
+    # Ignore errcheck in test files for cleaner test code
+    - path: _test\.go
+      linters:
+        - errcheck
+    # Ignore unused in test files
+    - path: _test\.go
+      linters:
+        - unused
+
