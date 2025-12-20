@@ -79,6 +79,11 @@ import (
 	payment_services "github.com/replay-api/replay-api/pkg/domain/payment/services"
 	payment_usecases "github.com/replay-api/replay-api/pkg/domain/payment/usecases"
 
+	challenge_in "github.com/replay-api/replay-api/pkg/domain/challenge/ports/in"
+	challenge_out "github.com/replay-api/replay-api/pkg/domain/challenge/ports/out"
+	challenge_services "github.com/replay-api/replay-api/pkg/domain/challenge/services"
+	challenge_usecases "github.com/replay-api/replay-api/pkg/domain/challenge/usecases"
+
 	media_out "github.com/replay-api/replay-api/pkg/domain/media/ports/out"
 	media_adapter "github.com/replay-api/replay-api/pkg/infra/adapters/media"
 	adapters "github.com/replay-api/replay-api/pkg/infra/adapters"
@@ -3510,6 +3515,126 @@ func InjectMongoDB(c container.Container) error {
 	}
 
 	// -----
+	// Challenge Domain Registration
+	// -----
+
+	// Challenge Repository
+	err = c.Singleton(func() (challenge_out.ChallengeRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve mongo.Client for ChallengeRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for ChallengeRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewChallengeRepository(client, config.MongoDB.DBName), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load challenge_out.ChallengeRepository.", "err", err)
+		panic(err)
+	}
+
+	// Challenge Query Service
+	err = c.Singleton(func() (challenge_in.ChallengeQueryService, error) {
+		var challengeRepo challenge_out.ChallengeRepository
+
+		if err := c.Resolve(&challengeRepo); err != nil {
+			slog.Error("Failed to resolve ChallengeRepository for ChallengeQueryService.", "err", err)
+			return nil, err
+		}
+
+		return challenge_services.NewChallengeQueryService(challengeRepo), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load challenge_in.ChallengeQueryService.", "err", err)
+		panic(err)
+	}
+
+	// Create Challenge Command Handler
+	err = c.Singleton(func() (challenge_in.CreateChallengeCommandHandler, error) {
+		var challengeRepo challenge_out.ChallengeRepository
+
+		if err := c.Resolve(&challengeRepo); err != nil {
+			slog.Error("Failed to resolve ChallengeRepository for CreateChallengeUseCase.", "err", err)
+			return nil, err
+		}
+
+		return challenge_usecases.NewCreateChallengeUseCase(challengeRepo), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load CreateChallengeCommandHandler.", "err", err)
+		panic(err)
+	}
+
+	// Add Evidence Command Handler
+	err = c.Singleton(func() (challenge_in.AddEvidenceCommandHandler, error) {
+		var challengeRepo challenge_out.ChallengeRepository
+
+		if err := c.Resolve(&challengeRepo); err != nil {
+			slog.Error("Failed to resolve ChallengeRepository for AddEvidenceUseCase.", "err", err)
+			return nil, err
+		}
+
+		return challenge_usecases.NewAddEvidenceUseCase(challengeRepo), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load AddEvidenceCommandHandler.", "err", err)
+		panic(err)
+	}
+
+	// Vote On Challenge Command Handler
+	err = c.Singleton(func() (challenge_in.VoteOnChallengeCommandHandler, error) {
+		var challengeRepo challenge_out.ChallengeRepository
+
+		if err := c.Resolve(&challengeRepo); err != nil {
+			slog.Error("Failed to resolve ChallengeRepository for VoteOnChallengeUseCase.", "err", err)
+			return nil, err
+		}
+
+		return challenge_usecases.NewVoteOnChallengeUseCase(challengeRepo), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load VoteOnChallengeCommandHandler.", "err", err)
+		panic(err)
+	}
+
+	// Resolve Challenge Command Handler
+	err = c.Singleton(func() (challenge_in.ResolveChallengeCommandHandler, error) {
+		var challengeRepo challenge_out.ChallengeRepository
+
+		if err := c.Resolve(&challengeRepo); err != nil {
+			slog.Error("Failed to resolve ChallengeRepository for ResolveChallengeUseCase.", "err", err)
+			return nil, err
+		}
+
+		return challenge_usecases.NewResolveChallengeUseCase(challengeRepo), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load ResolveChallengeCommandHandler.", "err", err)
+		panic(err)
+	}
+
+	// Cancel Challenge Command Handler
+	err = c.Singleton(func() (challenge_in.CancelChallengeCommandHandler, error) {
+		var challengeRepo challenge_out.ChallengeRepository
+
+		if err := c.Resolve(&challengeRepo); err != nil {
+			slog.Error("Failed to resolve ChallengeRepository for CancelChallengeUseCase.", "err", err)
+			return nil, err
+		}
+
+		return challenge_usecases.NewCancelChallengeUseCase(challengeRepo), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load CancelChallengeCommandHandler.", "err", err)
+		panic(err)
+	}
 
 	return nil
 }
