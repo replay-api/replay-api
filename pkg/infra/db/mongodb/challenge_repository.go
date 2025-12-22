@@ -68,10 +68,10 @@ func (r *ChallengeRepository) GetByMatchID(ctx context.Context, matchID uuid.UUI
 
 	opts := options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}})
 
-	if search != nil && search.ResultOptions.PageSize > 0 {
-		opts.SetLimit(int64(search.ResultOptions.PageSize))
-		if search.ResultOptions.PageNumber > 1 {
-			opts.SetSkip(int64((search.ResultOptions.PageNumber - 1) * search.ResultOptions.PageSize))
+	if search != nil && search.ResultOptions.Limit > 0 {
+		opts.SetLimit(int64(search.ResultOptions.Limit))
+		if search.ResultOptions.Skip > 0 {
+			opts.SetSkip(int64(search.ResultOptions.Skip))
 		}
 	}
 
@@ -97,10 +97,10 @@ func (r *ChallengeRepository) GetByChallengerID(ctx context.Context, challengerI
 
 	opts := options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}})
 
-	if search != nil && search.ResultOptions.PageSize > 0 {
-		opts.SetLimit(int64(search.ResultOptions.PageSize))
-		if search.ResultOptions.PageNumber > 1 {
-			opts.SetSkip(int64((search.ResultOptions.PageNumber - 1) * search.ResultOptions.PageSize))
+	if search != nil && search.ResultOptions.Limit > 0 {
+		opts.SetLimit(int64(search.ResultOptions.Limit))
+		if search.ResultOptions.Skip > 0 {
+			opts.SetSkip(int64(search.ResultOptions.Skip))
 		}
 	}
 
@@ -175,10 +175,10 @@ func (r *ChallengeRepository) Search(ctx context.Context, criteria challenge_out
 		{Key: "created_at", Value: -1},
 	})
 
-	if criteria.Search != nil && criteria.Search.ResultOptions.PageSize > 0 {
-		opts.SetLimit(int64(criteria.Search.ResultOptions.PageSize))
-		if criteria.Search.ResultOptions.PageNumber > 1 {
-			opts.SetSkip(int64((criteria.Search.ResultOptions.PageNumber - 1) * criteria.Search.ResultOptions.PageSize))
+	if criteria.Search != nil && criteria.Search.ResultOptions.Limit > 0 {
+		opts.SetLimit(int64(criteria.Search.ResultOptions.Limit))
+		if criteria.Search.ResultOptions.Skip > 0 {
+			opts.SetSkip(int64(criteria.Search.ResultOptions.Skip))
 		}
 	}
 

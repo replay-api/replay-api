@@ -95,11 +95,12 @@ down: ## Stop and clean up the development environment
 	@kind delete cluster --name=leetgaming-local 2>/dev/null || true
 	@echo "$(CG)Environment stopped$(CEND)"
 
-down-clean: down ## Stop environment and clean Docker images
+down-clean: down ## Stop environment and clean Docker images (safe for Docker Desktop)
 	@echo "$(CR)Cleaning Docker images...$(CEND)"
 	@docker rmi -f replay-api:latest 2>/dev/null || true
 	@docker rmi -f leetgaming-web:latest 2>/dev/null || true
-	@docker system prune -f --volumes 2>/dev/null || true
+	@docker image prune -f 2>/dev/null || true
+	@docker builder prune -f --keep-storage=2GB 2>/dev/null || true
 	@echo "$(CG)Clean complete$(CEND)"
 
 kill-ports: ## Kill processes on API ports (8080, 9090)
