@@ -379,6 +379,21 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	r.HandleFunc("/challenges/{id}/resolve", challengeController.ResolveHandler(ctx)).Methods("POST")
 	r.HandleFunc("/matches/{match_id}/challenges", challengeController.GetChallengesByMatchHandler(ctx)).Methods("GET")
 
+	// Achievements API
+	achievementController := query_controllers.NewAchievementQueryController(container)
+	r.HandleFunc("/achievements", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/achievements", achievementController.GetAllAchievementsHandler(ctx)).Methods("GET")
+	r.HandleFunc("/achievements/{id}", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/achievements/{id}", achievementController.GetAchievementByIDHandler(ctx)).Methods("GET")
+	r.HandleFunc("/achievements/player/{player_id}", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/achievements/player/{player_id}", achievementController.GetPlayerAchievementsHandler(ctx)).Methods("GET")
+	r.HandleFunc("/achievements/player/{player_id}/summary", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/achievements/player/{player_id}/summary", achievementController.GetPlayerAchievementSummaryHandler(ctx)).Methods("GET")
+	r.HandleFunc("/achievements/player/{player_id}/recent", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/achievements/player/{player_id}/recent", achievementController.GetRecentUnlocksHandler(ctx)).Methods("GET")
+	r.HandleFunc("/me/achievements", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/me/achievements", achievementController.GetMyAchievementsHandler(ctx)).Methods("GET")
+
 	// Wrap the router with CORS handler to handle preflight OPTIONS requests
 	// This is necessary because mux middleware doesn't run for 405 responses
 	return corsMiddleware.Handler(r)

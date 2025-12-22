@@ -68,6 +68,10 @@ import (
 	wallet_services "github.com/replay-api/replay-api/pkg/domain/wallet/services"
 	wallet_usecases "github.com/replay-api/replay-api/pkg/domain/wallet/usecases"
 
+	achievement_in "github.com/replay-api/replay-api/pkg/domain/achievement/ports/in"
+	achievement_out "github.com/replay-api/replay-api/pkg/domain/achievement/ports/out"
+	achievement_usecases "github.com/replay-api/replay-api/pkg/domain/achievement/usecases"
+
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	billing_out "github.com/replay-api/replay-api/pkg/domain/billing/ports/out"
@@ -3055,6 +3059,46 @@ func InjectMongoDB(c container.Container) error {
 
 	if err != nil {
 		slog.Error("Failed to load billing_in.WithdrawalCommand.", "err", err)
+		panic(err)
+	}
+
+	// Achievement Repository
+	err = c.Singleton(func() (achievement_out.AchievementRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve mongo.Client for AchievementRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for AchievementRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewAchievementMongoDBRepository(client, config.MongoDB.DBName), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load achievement_out.AchievementRepository.", "err", err)
+		panic(err)
+	}
+
+	// Achievement Query Service
+	err = c.Singleton(func() (achievement_in.AchievementQuery, error) {
+		var achievementRepo achievement_out.AchievementRepository
+
+		if err := c.Resolve(&achievementRepo); err != nil {
+			slog.Error("Failed to resolve AchievementRepository for AchievementQuery.", "err", err)
+			return nil, err
+		}
+
+		return achievement_usecases.NewAchievementQueryService(achievementRepo), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load achievement_in.AchievementQuery.", "err", err)
 		panic(err)
 	}
 
