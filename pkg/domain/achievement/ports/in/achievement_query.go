@@ -28,3 +28,5 @@ type AchievementQuery interface {
 	GetRecentUnlocks(ctx context.Context, playerID uuid.UUID, limit int) ([]achievement_entities.PlayerAchievement, error)
 }
 
+
+
