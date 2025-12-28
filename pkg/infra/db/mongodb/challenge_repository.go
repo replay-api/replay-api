@@ -175,10 +175,10 @@ func (r *ChallengeRepository) Search(ctx context.Context, criteria challenge_out
 		{Key: "created_at", Value: -1},
 	})
 
-	if criteria.Search != nil && criteria.Search.ResultOptions.PageSize > 0 {
-		opts.SetLimit(int64(criteria.Search.ResultOptions.PageSize))
-		if criteria.Search.ResultOptions.PageNumber > 1 {
-			opts.SetSkip(int64((criteria.Search.ResultOptions.PageNumber - 1) * criteria.Search.ResultOptions.PageSize))
+	if criteria.Search != nil && criteria.Search.ResultOptions.Limit > 0 {
+		opts.SetLimit(int64(criteria.Search.ResultOptions.Limit))
+		if criteria.Search.ResultOptions.Skip > 0 {
+			opts.SetSkip(int64(criteria.Search.ResultOptions.Skip))
 		}
 	}
 
