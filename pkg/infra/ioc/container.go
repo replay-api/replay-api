@@ -3160,7 +3160,7 @@ func InjectMongoDB(c container.Container) error {
 		// 	return nil, err
 		// }
 
-		return tournament_usecases.NewRegisterForTournamentUseCase(billableOperationHandler, tournamentRepo), nil
+		return tournament_usecases.NewRegisterForTournamentUseCase(billableOperationHandler, tournamentRepo, nil), nil
 	})
 	if err != nil {
 		slog.Error("Failed to load RegisterForTournamentUseCase.", "err", err)
