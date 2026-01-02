@@ -51,7 +51,7 @@ type RegisterForTournamentUseCase struct {
 func NewRegisterForTournamentUseCase(
 	billableOperationHandler billing_in.BillableOperationCommandHandler,
 	tournamentRepository tournament_out.TournamentRepository,
-	playerProfileReader squad_in.PlayerProfileReader, // TODO: Re-enable once PlayerProfileRepository is properly registered
+	// playerProfileReader squad_in.PlayerProfileReader, // TODO: Re-enable once PlayerProfileRepository is properly registered
 ) *RegisterForTournamentUseCase {
 	return &RegisterForTournamentUseCase{
 		billableOperationHandler: billableOperationHandler,
