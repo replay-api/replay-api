@@ -8,7 +8,6 @@ import (
 	common "github.com/replay-api/replay-api/pkg/domain"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
-	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
 	tournament_in "github.com/replay-api/replay-api/pkg/domain/tournament/ports/in"
 	tournament_out "github.com/replay-api/replay-api/pkg/domain/tournament/ports/out"
 )
@@ -44,7 +43,7 @@ import (
 type RegisterForTournamentUseCase struct {
 	billableOperationHandler billing_in.BillableOperationCommandHandler
 	tournamentRepository     tournament_out.TournamentRepository
-	playerProfileReader      squad_in.PlayerProfileReader // TODO: Re-enable once PlayerProfileRepository is properly registered
+	// playerProfileReader      squad_in.PlayerProfileReader // TODO: Re-enable once PlayerProfileRepository is properly registered
 }
 
 // NewRegisterForTournamentUseCase creates a new register for tournament usecase
