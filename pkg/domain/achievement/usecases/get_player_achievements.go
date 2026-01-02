@@ -134,6 +134,7 @@ func (s *AchievementQueryService) GetRecentUnlocks(ctx context.Context, playerID
 	resourceOwner := common.GetResourceOwner(ctx)
 	if resourceOwner.UserID != playerID && !common.IsAdmin(ctx) {
 		// Still allow public achievement viewing but may filter sensitive data in future
+		// Intentionally empty - no filtering implemented yet
 	}
 
 	return s.repo.GetRecentUnlocks(ctx, playerID, limit)

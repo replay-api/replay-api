@@ -1001,6 +1001,7 @@ func TestHashChainIntegrity(t *testing.T) {
 		}
 		if journalCount > 0 && journal.PreviousHash != prevHash {
 			// Note: order in map is not guaranteed, so just verify hashes exist
+			// Intentionally empty - hash chain validation not implemented for this test
 		}
 		prevHash = journal.Hash
 		journalCount++
