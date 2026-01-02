@@ -102,6 +102,21 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 
 	r := mux.NewRouter()
 
+	// Global OPTIONS handler - must be registered BEFORE other routes
+	// This handles CORS preflight for all routes
+	r.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		origin := req.Header.Get("Origin")
+		if origin == "" {
+			origin = "http://localhost:3030"
+		}
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Resource-Owner-ID, X-Intended-Audience, X-Request-ID, X-Search, x-search")
+		w.Header().Set("Access-Control-Expose-Headers", "X-Resource-Owner-ID, X-Intended-Audience")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.WriteHeader(http.StatusOK)
+	}).Methods("OPTIONS")
+
 	r.Use(middlewares.ErrorMiddleware)
 	r.Use(mux.CORSMethodMiddleware(r))
 	r.Use(resourceContextMiddleware.Handler)
