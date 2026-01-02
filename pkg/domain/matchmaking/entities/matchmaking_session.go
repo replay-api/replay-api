@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	common "github.com/replay-api/replay-api/pkg/domain"
 )
 
 // MatchmakingTier represents subscription tier for matchmaking
@@ -49,20 +50,18 @@ type SkillRange struct {
 
 // MatchmakingSession represents a player's matchmaking session
 type MatchmakingSession struct {
-	ID              uuid.UUID         `json:"id" bson:"_id"`
-	PlayerID        uuid.UUID         `json:"player_id" bson:"player_id"`
-	SquadID         *uuid.UUID        `json:"squad_id,omitempty" bson:"squad_id,omitempty"`
-	Preferences     MatchPreferences  `json:"preferences" bson:"preferences"`
-	Status          SessionStatus     `json:"status" bson:"status"`
-	PlayerMMR       int               `json:"player_mmr" bson:"player_mmr"`
-	QueuedAt        time.Time         `json:"queued_at" bson:"queued_at"`
-	MatchedAt       *time.Time        `json:"matched_at,omitempty" bson:"matched_at,omitempty"`
-	MatchID         *uuid.UUID        `json:"match_id,omitempty" bson:"match_id,omitempty"`
-	EstimatedWait   int               `json:"estimated_wait_seconds" bson:"estimated_wait_seconds"`
-	ExpiresAt       time.Time         `json:"expires_at" bson:"expires_at"`
-	Metadata        map[string]any    `json:"metadata,omitempty" bson:"metadata,omitempty"`
-	CreatedAt       time.Time         `json:"created_at" bson:"created_at"`
-	UpdatedAt       time.Time         `json:"updated_at" bson:"updated_at"`
+	common.BaseEntity `bson:",inline"`
+	PlayerID          uuid.UUID         `json:"player_id" bson:"player_id"`
+	SquadID           *uuid.UUID        `json:"squad_id,omitempty" bson:"squad_id,omitempty"`
+	Preferences       MatchPreferences  `json:"preferences" bson:"preferences"`
+	Status            SessionStatus     `json:"status" bson:"status"`
+	PlayerMMR         int               `json:"player_mmr" bson:"player_mmr"`
+	QueuedAt          time.Time         `json:"queued_at" bson:"queued_at"`
+	MatchedAt         *time.Time        `json:"matched_at,omitempty" bson:"matched_at,omitempty"`
+	MatchID           *uuid.UUID        `json:"match_id,omitempty" bson:"match_id,omitempty"`
+	EstimatedWait     int               `json:"estimated_wait_seconds" bson:"estimated_wait_seconds"`
+	ExpiresAt         time.Time         `json:"expires_at" bson:"expires_at"`
+	Metadata          map[string]any    `json:"metadata,omitempty" bson:"metadata,omitempty"`
 }
 
 func (m *MatchmakingSession) GetID() uuid.UUID {

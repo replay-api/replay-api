@@ -1,6 +1,8 @@
 package query_controllers
 
 import (
+	"log/slog"
+
 	"github.com/golobby/container/v3"
 	controllers "github.com/replay-api/replay-api/cmd/rest-api/controllers"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
@@ -17,7 +19,7 @@ func NewEventQueryController(c container.Container) *EventQueryController {
 	err := c.Resolve(&queryService)
 
 	if err != nil {
-		panic(err)
+		slog.Warn("EventReader not available - event queries will be disabled", "error", err)
 	}
 
 	baseController := controllers.NewDefaultSearchController(queryService)

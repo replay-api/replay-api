@@ -21,11 +21,12 @@ func NewGoogleController(container *container.Container) *GoogleController {
 	err := container.Resolve(&onboardGoogleUserCommand)
 
 	if err != nil {
-		slog.Error("Cannot resolve google_in.OnboardGoogleUserCommand for new GoogleController", "err", err)
-		panic(err)
+		slog.Warn("Cannot resolve google_in.OnboardGoogleUserCommand for new GoogleController - Google auth will be disabled", "err", err)
 	}
 
-	return &GoogleController{OnboardGoogleUserCommand: onboardGoogleUserCommand}
+	return &GoogleController{
+		OnboardGoogleUserCommand: onboardGoogleUserCommand,
+	}
 }
 
 func (c *GoogleController) OnboardGoogleUser(apiContext context.Context) http.HandlerFunc {
@@ -39,6 +40,13 @@ func (c *GoogleController) OnboardGoogleUser(apiContext context.Context) http.Ha
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		w.Header().Set("Access-Control-Expose-Headers", "X-Resource-Owner-ID, X-Intended-Audience")
 
+		// Check if OnboardGoogleUserCommand is available
+		if c.OnboardGoogleUserCommand == nil {
+			slog.WarnContext(r.Context(), "Google user onboarding not available - OnboardGoogleUserCommand not registered")
+			http.Error(w, "Service Temporarily Unavailable", http.StatusServiceUnavailable)
+			return
+		}
+
 		if r.Body == nil {
 			slog.ErrorContext(r.Context(), "no request body", "request.Body", r.Body)
 			http.Error(w, "Bad Request", http.StatusBadRequest)
@@ -48,8 +56,6 @@ func (c *GoogleController) OnboardGoogleUser(apiContext context.Context) http.Ha
 		decoder := json.NewDecoder(r.Body)
 		var googleUserParams google_entity.GoogleUser
 		err := decoder.Decode(&googleUserParams)
-
-		// slog.InfoContext(r.Context(), "GoogleUser Received =>", "google_entity.GoogleUser", googleUserParams)
 
 		if err != nil {
 			slog.ErrorContext(r.Context(), "error decoding google user from request", "err", err, "request.body", r.Body)

@@ -63,24 +63,24 @@ type MatchmakingPoolRepository interface {
 	GetAllActive(ctx context.Context) ([]*matchmaking_entities.MatchmakingPool, error)
 }
 
-// PlayerRatingRepository handles persistence of player skill ratings
+// PlayerRatingRepository handles persistence of player ratings
 type PlayerRatingRepository interface {
-	// Save creates a new player rating
+	// Save creates or updates a player rating
 	Save(ctx context.Context, rating *matchmaking_entities.PlayerRating) error
 
 	// Update updates an existing player rating
 	Update(ctx context.Context, rating *matchmaking_entities.PlayerRating) error
 
-	// FindByPlayerAndGame retrieves a player's rating for a specific game
+	// FindByPlayerAndGame finds a rating by player ID and game ID
 	FindByPlayerAndGame(ctx context.Context, playerID uuid.UUID, gameID common.GameIDKey) (*matchmaking_entities.PlayerRating, error)
 
 	// GetByID retrieves a rating by ID
 	GetByID(ctx context.Context, id uuid.UUID) (*matchmaking_entities.PlayerRating, error)
 
-	// GetTopPlayers retrieves top players by rating for leaderboard
+	// GetTopPlayers retrieves top players by rating for a game
 	GetTopPlayers(ctx context.Context, gameID common.GameIDKey, limit int) ([]*matchmaking_entities.PlayerRating, error)
 
-	// GetRankDistribution returns the count of players in each rank
+	// GetRankDistribution returns the distribution of ranks for a game
 	GetRankDistribution(ctx context.Context, gameID common.GameIDKey) (map[matchmaking_entities.Rank]int, error)
 
 	// Delete removes a player rating

@@ -176,9 +176,10 @@ func (ctrl *MatchmakingController) JoinQueueHandler(apiContext context.Context) 
 
 		// Fallback: direct repository access (deprecated - for backwards compatibility)
 		slog.Warn("JoinQueueHandler using deprecated direct repository access")
+		resourceOwner := common.GetResourceOwner(r.Context())
 		session := &matchmaking_entities.MatchmakingSession{
-			ID:       uuid.New(),
-			PlayerID: playerID,
+			BaseEntity: common.NewEntity(resourceOwner),
+			PlayerID:   playerID,
 			Preferences: matchmaking_entities.MatchPreferences{
 				GameID:   cmd.GameID,
 				GameMode: cmd.GameMode,
@@ -191,8 +192,6 @@ func (ctrl *MatchmakingController) JoinQueueHandler(apiContext context.Context) 
 			QueuedAt:      time.Now(),
 			EstimatedWait: 60,
 			ExpiresAt:     time.Now().Add(30 * time.Minute),
-			CreatedAt:     time.Now(),
-			UpdatedAt:     time.Now(),
 		}
 
 		if ctrl.sessionRepo != nil {

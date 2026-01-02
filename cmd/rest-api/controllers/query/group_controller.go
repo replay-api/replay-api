@@ -18,8 +18,7 @@ func NewGroupController(c *container.Container) *GroupController {
 	err := c.Resolve(&membershipReader)
 
 	if err != nil {
-		slog.Error("Cannot resolve iam_entities.MembershipReader for NewGroupController", "err", err)
-		panic(err)
+		slog.Warn("MembershipReader not available - group queries will be disabled", "error", err)
 	}
 
 	return &GroupController{

@@ -206,15 +206,6 @@ test-kafka-produce:
 test-kafka-consume:
 	@go run cmd/async-api/main.go
 
-test-rabbit-consume:
-	@go run cmd/async-api/main.go
-
-test-rabbit-produce:
-	@go run pkg/infra/events/pub_rabbit.go
-
-test-rabbit-consume:
-	@go run cmd/async-api/main.go
-
 CG = \033[0;32m
 CR = \033[0;31m
 CEND = \033[0m

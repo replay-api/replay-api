@@ -26,10 +26,10 @@ func NewShareTokenController(c container.Container) *ShareTokenController {
 	var tokenReader replay_out.ShareTokenReader
 
 	if err := c.Resolve(&commandService); err != nil {
-		panic(err)
+		slog.Warn("ShareTokenCommand not available", "error", err)
 	}
 	if err := c.Resolve(&tokenReader); err != nil {
-		panic(err)
+		slog.Warn("ShareTokenReader not available", "error", err)
 	}
 
 	return &ShareTokenController{

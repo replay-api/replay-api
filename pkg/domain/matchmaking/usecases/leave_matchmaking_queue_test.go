@@ -20,6 +20,7 @@ func TestLeaveMatchmakingQueue_Success(t *testing.T) {
 	usecase := matchmaking_usecases.NewLeaveMatchmakingQueueUseCase(
 		mockBilling,
 		mockSessionRepo,
+		nil, // eventPublisher - not needed for this test
 	)
 
 	ctx := context.Background()
@@ -37,9 +38,9 @@ func TestLeaveMatchmakingQueue_Success(t *testing.T) {
 
 	// mock session retrieval
 	session := &matchmaking_entities.MatchmakingSession{
-		ID:       sessionID,
-		PlayerID: playerID,
-		Status:   matchmaking_entities.StatusQueued,
+		BaseEntity: common.BaseEntity{ID: sessionID},
+		PlayerID:   playerID,
+		Status:     matchmaking_entities.StatusQueued,
 	}
 	mockSessionRepo.On("GetByID", mock.Anything, sessionID).Return(session, nil)
 
@@ -66,6 +67,7 @@ func TestLeaveMatchmakingQueue_Unauthenticated(t *testing.T) {
 	usecase := matchmaking_usecases.NewLeaveMatchmakingQueueUseCase(
 		mockBilling,
 		mockSessionRepo,
+		nil, // eventPublisher - not needed for this test
 	)
 
 	ctx := context.Background()
@@ -87,6 +89,7 @@ func TestLeaveMatchmakingQueue_SessionNotFound(t *testing.T) {
 	usecase := matchmaking_usecases.NewLeaveMatchmakingQueueUseCase(
 		mockBilling,
 		mockSessionRepo,
+		nil, // eventPublisher - not needed for this test
 	)
 
 	ctx := context.Background()
@@ -118,6 +121,7 @@ func TestLeaveMatchmakingQueue_PlayerDoesNotOwnSession(t *testing.T) {
 	usecase := matchmaking_usecases.NewLeaveMatchmakingQueueUseCase(
 		mockBilling,
 		mockSessionRepo,
+		nil, // eventPublisher - not needed for this test
 	)
 
 	ctx := context.Background()
@@ -137,9 +141,9 @@ func TestLeaveMatchmakingQueue_PlayerDoesNotOwnSession(t *testing.T) {
 
 	// mock session owned by different player
 	session := &matchmaking_entities.MatchmakingSession{
-		ID:       sessionID,
-		PlayerID: ownerID, // different player
-		Status:   matchmaking_entities.StatusQueued,
+		BaseEntity: common.BaseEntity{ID: sessionID},
+		PlayerID:   ownerID, // different player
+		Status:     matchmaking_entities.StatusQueued,
 	}
 	mockSessionRepo.On("GetByID", mock.Anything, sessionID).Return(session, nil)
 
@@ -157,6 +161,7 @@ func TestLeaveMatchmakingQueue_CannotLeaveFromStatus(t *testing.T) {
 	usecase := matchmaking_usecases.NewLeaveMatchmakingQueueUseCase(
 		mockBilling,
 		mockSessionRepo,
+		nil, // eventPublisher - not needed for this test
 	)
 
 	ctx := context.Background()
@@ -175,9 +180,9 @@ func TestLeaveMatchmakingQueue_CannotLeaveFromStatus(t *testing.T) {
 
 	// mock session already matched (can't leave)
 	session := &matchmaking_entities.MatchmakingSession{
-		ID:       sessionID,
-		PlayerID: playerID,
-		Status:   matchmaking_entities.StatusMatched,
+		BaseEntity: common.BaseEntity{ID: sessionID},
+		PlayerID:   playerID,
+		Status:     matchmaking_entities.StatusMatched,
 	}
 	mockSessionRepo.On("GetByID", mock.Anything, sessionID).Return(session, nil)
 
@@ -195,6 +200,7 @@ func TestLeaveMatchmakingQueue_BillingValidationFails(t *testing.T) {
 	usecase := matchmaking_usecases.NewLeaveMatchmakingQueueUseCase(
 		mockBilling,
 		mockSessionRepo,
+		nil, // eventPublisher - not needed for this test
 	)
 
 	ctx := context.Background()
@@ -213,9 +219,9 @@ func TestLeaveMatchmakingQueue_BillingValidationFails(t *testing.T) {
 
 	// mock session retrieval
 	session := &matchmaking_entities.MatchmakingSession{
-		ID:       sessionID,
-		PlayerID: playerID,
-		Status:   matchmaking_entities.StatusQueued,
+		BaseEntity: common.BaseEntity{ID: sessionID},
+		PlayerID:   playerID,
+		Status:     matchmaking_entities.StatusQueued,
 	}
 	mockSessionRepo.On("GetByID", mock.Anything, sessionID).Return(session, nil)
 

@@ -13,6 +13,7 @@ import (
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
 	matchmaking_in "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/in"
 	matchmaking_out "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/out"
+	kafka "github.com/replay-api/replay-api/pkg/infra/kafka"
 )
 
 // JoinMatchmakingQueueUseCase handles player joining the ranked matchmaking queue.
@@ -24,9 +25,8 @@ import (
 //  2. Input validation - team format, player role, and game mode validation
 //  3. Active session check - prevents duplicate queue entries
 //  4. Billing validation - ensures subscription/credits allow queue join
-//  5. Pool management - creates/retrieves matchmaking pool for region/mode
-//  6. Session creation - creates player's matchmaking session with preferences
-//  7. Billing execution - records the billable operation
+//  5. Session creation - creates player's matchmaking session with preferences
+//  6. Billing execution - records the billable operation
 //
 // Features:
 //   - Priority boost support for premium subscribers
@@ -42,23 +42,23 @@ import (
 // Dependencies:
 //   - BillableOperationCommandHandler: Validates/tracks usage against subscription limits
 //   - MatchmakingSessionRepository: Session persistence
-//   - MatchmakingPoolRepository: Pool management for game mode/region
+//   - EventPublisher: Publishes matchmaking events to Kafka
 type JoinMatchmakingQueueUseCase struct {
 	billableOperationHandler billing_in.BillableOperationCommandHandler
 	sessionRepository        matchmaking_out.MatchmakingSessionRepository
-	poolRepository           matchmaking_out.MatchmakingPoolRepository
+	eventPublisher           *kafka.EventPublisher
 }
 
 // NewJoinMatchmakingQueueUseCase creates a new join queue usecase
 func NewJoinMatchmakingQueueUseCase(
 	billableOperationHandler billing_in.BillableOperationCommandHandler,
 	sessionRepository matchmaking_out.MatchmakingSessionRepository,
-	poolRepository matchmaking_out.MatchmakingPoolRepository,
+	eventPublisher *kafka.EventPublisher,
 ) matchmaking_in.JoinMatchmakingQueueCommandHandler {
 	return &JoinMatchmakingQueueUseCase{
 		billableOperationHandler: billableOperationHandler,
 		sessionRepository:        sessionRepository,
-		poolRepository:           poolRepository,
+		eventPublisher:           eventPublisher,
 	}
 }
 
@@ -124,49 +124,22 @@ func (uc *JoinMatchmakingQueueUseCase) Exec(ctx context.Context, cmd matchmaking
 		return nil, err
 	}
 
-	// get or create pool
-	pool, err := uc.poolRepository.GetByGameModeRegion(ctx, cmd.GameID, cmd.GameMode, cmd.Region)
-	if err != nil {
-		// create new pool if doesn't exist
-		pool = &matchmaking_entities.MatchmakingPool{
-			ID:             uuid.New(),
-			GameID:         cmd.GameID,
-			GameMode:       cmd.GameMode,
-			Region:         cmd.Region,
-			ActiveSessions: []uuid.UUID{},
-			PoolStats: matchmaking_entities.PoolStatistics{
-				TotalPlayers:    0,
-				AverageWaitTime: 0,
-				PlayersByTier:   make(map[matchmaking_entities.MatchmakingTier]int),
-				PlayersBySkill:  make(map[string]int),
-			},
-			CreatedAt: time.Now().UTC(),
-			UpdatedAt: time.Now().UTC(),
-		}
-		err = uc.poolRepository.Save(ctx, pool)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to create pool", "error", err)
-			return nil, fmt.Errorf("failed to create matchmaking pool")
-		}
-	}
-
 	// create matchmaking session
 	sessionID := uuid.New()
 	now := time.Now().UTC()
 	expiresAt := now.Add(10 * time.Minute) // 10 minute queue timeout
 
-	// calculate estimated wait based on pool health
-	estimatedWait := uc.calculateEstimatedWait(pool, cmd.TeamFormat)
+	resourceOwner := common.GetResourceOwner(ctx)
 
 	session := &matchmaking_entities.MatchmakingSession{
-		ID:       sessionID,
-		PlayerID: cmd.PlayerID,
-		SquadID:  cmd.SquadID,
+		BaseEntity: common.NewEntity(resourceOwner),
+		PlayerID:   cmd.PlayerID,
+		SquadID:    cmd.SquadID,
 		Preferences: matchmaking_entities.MatchPreferences{
 			GameID:             cmd.GameID,
 			GameMode:           cmd.GameMode,
 			Region:             cmd.Region,
-			SkillRange:         uc.calculateSkillRange(cmd.PlayerMMR),
+			SkillRange:         matchmaking_entities.SkillRange{MinMMR: 0, MaxMMR: 5000}, // Broad range, actual matching done by match-making-api
 			MaxPing:            cmd.MaxPing,
 			AllowCrossPlatform: true,
 			Tier:               cmd.Tier,
@@ -175,14 +148,12 @@ func (uc *JoinMatchmakingQueueUseCase) Exec(ctx context.Context, cmd matchmaking
 		Status:        matchmaking_entities.StatusQueued,
 		PlayerMMR:     cmd.PlayerMMR,
 		QueuedAt:      now,
-		EstimatedWait: estimatedWait,
+		EstimatedWait: 180, // Default 3 minutes, actual estimation done by match-making-api
 		ExpiresAt:     expiresAt,
 		Metadata: map[string]any{
 			"team_format": cmd.TeamFormat,
 			"player_role": cmd.PlayerRole,
 		},
-		CreatedAt: now,
-		UpdatedAt: now,
 	}
 
 	// save session
@@ -190,6 +161,30 @@ func (uc *JoinMatchmakingQueueUseCase) Exec(ctx context.Context, cmd matchmaking
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to save matchmaking session", "error", err)
 		return nil, fmt.Errorf("failed to save matchmaking session")
+	}
+
+	// publish queue joined event
+	if uc.eventPublisher != nil {
+		queueEvent := &kafka.QueueEvent{
+			PlayerID:  cmd.PlayerID,
+			GameType:  cmd.GameID,
+			Region:    cmd.Region,
+			MMR:       cmd.PlayerMMR,
+			EventType: kafka.EventTypeQueueJoined,
+			Metadata: map[string]string{
+				"session_id":   session.ID.String(),
+				"game_mode":   cmd.GameMode,
+				"team_format": string(cmd.TeamFormat),
+				"squad_id":    cmd.SquadID.String(),
+			},
+		}
+		if cmd.PlayerRole != nil {
+			queueEvent.Metadata["player_role"] = *cmd.PlayerRole
+		}
+
+		if err := uc.eventPublisher.PublishQueueEvent(ctx, queueEvent); err != nil {
+			slog.WarnContext(ctx, "failed to publish queue joined event", "error", err, "player_id", cmd.PlayerID)
+		}
 	}
 
 	// billing execution AFTER successful operation
@@ -205,41 +200,8 @@ func (uc *JoinMatchmakingQueueUseCase) Exec(ctx context.Context, cmd matchmaking
 		"game_mode", cmd.GameMode,
 		"team_format", cmd.TeamFormat,
 		"mmr", cmd.PlayerMMR,
-		"estimated_wait", estimatedWait,
+		"estimated_wait", 180,
 	)
 
 	return session, nil
-}
-
-// calculateSkillRange determines acceptable MMR range based on player rating
-func (uc *JoinMatchmakingQueueUseCase) calculateSkillRange(playerMMR int) matchmaking_entities.SkillRange {
-	// tighter range for high MMR, wider for low MMR
-	rangeFactor := 200
-	if playerMMR > 2000 {
-		rangeFactor = 150
-	} else if playerMMR < 1000 {
-		rangeFactor = 300
-	}
-
-	return matchmaking_entities.SkillRange{
-		MinMMR: playerMMR - rangeFactor,
-		MaxMMR: playerMMR + rangeFactor,
-	}
-}
-
-// calculateEstimatedWait estimates queue time based on pool stats
-func (uc *JoinMatchmakingQueueUseCase) calculateEstimatedWait(pool *matchmaking_entities.MatchmakingPool, format matchmaking_in.TeamFormat) int {
-	if pool.PoolStats.AverageWaitTime > 0 {
-		return pool.PoolStats.AverageWaitTime
-	}
-
-	// base estimate on pool size and format
-	playersNeeded := format.GetTotalPlayers()
-	if pool.PoolStats.TotalPlayers >= playersNeeded {
-		return 30 // 30 seconds if enough players
-	} else if pool.PoolStats.TotalPlayers >= playersNeeded/2 {
-		return 90 // 90 seconds if halfway there
-	}
-
-	return 180 // 3 minutes default
 }

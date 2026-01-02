@@ -1,6 +1,8 @@
 package query_controllers
 
 import (
+	"log/slog"
+
 	"github.com/golobby/container/v3"
 
 	controllers "github.com/replay-api/replay-api/cmd/rest-api/controllers"
@@ -17,7 +19,7 @@ func NewReplayMetadataQueryController(container container.Container) *ReplayMeta
 
 	err := container.Resolve(&replayFileReader)
 	if err != nil {
-		panic(err)
+		slog.Warn("ReplayFileReader not available - replay metadata queries will be disabled", "error", err)
 	}
 
 	baseController := controllers.NewDefaultSearchController(replayFileReader)

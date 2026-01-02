@@ -5,27 +5,32 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/google/uuid"
 	common "github.com/replay-api/replay-api/pkg/domain"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	matchmaking_in "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/in"
 	matchmaking_out "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/out"
+	kafka "github.com/replay-api/replay-api/pkg/infra/kafka"
 )
 
 // JoinLobbyUseCase handles player joining a lobby
 type JoinLobbyUseCase struct {
 	billableOperationHandler billing_in.BillableOperationCommandHandler
 	lobbyRepository          matchmaking_out.LobbyRepository
+	eventPublisher           *kafka.EventPublisher
 }
 
 // NewJoinLobbyUseCase creates a new join lobby usecase
 func NewJoinLobbyUseCase(
 	billableOperationHandler billing_in.BillableOperationCommandHandler,
 	lobbyRepository matchmaking_out.LobbyRepository,
+	eventPublisher *kafka.EventPublisher,
 ) *JoinLobbyUseCase {
 	return &JoinLobbyUseCase{
 		billableOperationHandler: billableOperationHandler,
 		lobbyRepository:          lobbyRepository,
+		eventPublisher:           eventPublisher,
 	}
 }
 
@@ -72,6 +77,39 @@ func (uc *JoinLobbyUseCase) Exec(ctx context.Context, cmd matchmaking_in.JoinLob
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update lobby", "error", err, "lobby_id", cmd.LobbyID)
 		return fmt.Errorf("failed to join lobby")
+	}
+
+	// publish player joined lobby event
+	if uc.eventPublisher != nil {
+		// Calculate average MMR
+		totalMMR := 0
+		playerCount := 0
+		for _, slot := range lobby.PlayerSlots {
+			if slot.PlayerID != nil && slot.MMR != nil {
+				totalMMR += *slot.MMR
+				playerCount++
+			}
+		}
+		avgMMR := 0
+		if playerCount > 0 {
+			avgMMR = totalMMR / playerCount
+		}
+
+		lobbyEvent := &kafka.LobbyEvent{
+			LobbyID:   cmd.LobbyID,
+			EventType: kafka.EventTypePlayerJoined,
+			PlayerIDs: []uuid.UUID{cmd.PlayerID},
+			GameType:  lobby.GameID,
+			Region:    lobby.Region,
+			AvgMMR:    avgMMR,
+			Metadata: map[string]string{
+				"player_mmr": fmt.Sprintf("%d", cmd.MMR),
+			},
+		}
+
+		if err := uc.eventPublisher.PublishLobbyEvent(ctx, lobbyEvent); err != nil {
+			slog.WarnContext(ctx, "failed to publish player joined lobby event", "error", err, "lobby_id", cmd.LobbyID, "player_id", cmd.PlayerID)
+		}
 	}
 
 	// billing execution AFTER successful operation

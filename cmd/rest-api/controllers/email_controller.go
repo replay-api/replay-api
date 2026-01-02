@@ -23,16 +23,14 @@ func NewEmailController(container *container.Container) *EmailController {
 	err := container.Resolve(&onboardEmailUserCommand)
 
 	if err != nil {
-		slog.Error("Cannot resolve email_in.OnboardEmailUserCommand for new EmailController", "err", err)
-		panic(err)
+		slog.Warn("Cannot resolve email_in.OnboardEmailUserCommand for new EmailController - Email registration will be disabled", "err", err)
 	}
 
 	var loginEmailUserCommand email_in.LoginEmailUserCommand
 	err = container.Resolve(&loginEmailUserCommand)
 
 	if err != nil {
-		slog.Error("Cannot resolve email_in.LoginEmailUserCommand for new EmailController", "err", err)
-		panic(err)
+		slog.Warn("Cannot resolve email_in.LoginEmailUserCommand for new EmailController - Email login will be disabled", "err", err)
 	}
 
 	return &EmailController{
@@ -65,6 +63,13 @@ func (c *EmailController) OnboardEmailUser(apiContext context.Context) http.Hand
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		w.Header().Set("Access-Control-Expose-Headers", "X-Resource-Owner-ID, X-Intended-Audience")
 
+		// Check if OnboardEmailUserCommand is available
+		if c.OnboardEmailUserCommand == nil {
+			slog.WarnContext(r.Context(), "Email user onboarding not available - OnboardEmailUserCommand not registered")
+			http.Error(w, "Service Temporarily Unavailable", http.StatusServiceUnavailable)
+			return
+		}
+
 		if r.Body == nil {
 			slog.ErrorContext(r.Context(), "no request body", "request.Body", r.Body)
 			http.Error(w, "Bad Request", http.StatusBadRequest)
@@ -81,9 +86,16 @@ func (c *EmailController) OnboardEmailUser(apiContext context.Context) http.Hand
 			return
 		}
 
-		// Create EmailUser entity from request
+		// Validate required fields
+		if req.Email == "" || req.Password == "" {
+			slog.ErrorContext(r.Context(), "missing required fields for email registration")
+			http.Error(w, "Email and password are required", http.StatusBadRequest)
+			return
+		}
+
+		// Create email user entity
 		emailUser := &email_entities.EmailUser{
-			Email:       req.Email,
+			Email:       strings.ToLower(strings.TrimSpace(req.Email)),
 			VHash:       req.VHash,
 			DisplayName: req.DisplayName,
 		}
@@ -100,18 +112,12 @@ func (c *EmailController) OnboardEmailUser(apiContext context.Context) http.Hand
 
 		if err != nil {
 			slog.ErrorContext(r.Context(), "error onboarding email user", "err", err, "email", req.Email)
-			// Check for specific errors
-			errMsg := err.Error()
-			if strings.Contains(errMsg, "already exists") {
-				http.Error(w, "Conflict: "+errMsg, http.StatusConflict)
-				return
-			}
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
 
 		if ridToken == nil {
-			slog.ErrorContext(r.Context(), "error onboarding email user", "err", "controller: ridToken is nil", "email", req.Email)
+			slog.ErrorContext(r.Context(), "error onboarding email user - ridToken is nil", "email", req.Email)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
@@ -135,6 +141,13 @@ func (c *EmailController) LoginEmailUser(apiContext context.Context) http.Handle
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		w.Header().Set("Access-Control-Expose-Headers", "X-Resource-Owner-ID, X-Intended-Audience")
 
+		// Check if LoginEmailUserCommand is available
+		if c.LoginEmailUserCommand == nil {
+			slog.WarnContext(r.Context(), "Email user login not available - LoginEmailUserCommand not registered")
+			http.Error(w, "Service Temporarily Unavailable", http.StatusServiceUnavailable)
+			return
+		}
+
 		if r.Body == nil {
 			slog.ErrorContext(r.Context(), "no request body", "request.Body", r.Body)
 			http.Error(w, "Bad Request", http.StatusBadRequest)
@@ -151,29 +164,25 @@ func (c *EmailController) LoginEmailUser(apiContext context.Context) http.Handle
 			return
 		}
 
-		err = c.LoginEmailUserCommand.Validate(r.Context(), req.Email, req.Password, req.VHash)
-
-		if err != nil {
-			slog.ErrorContext(r.Context(), "error validating login request", "err", err, "email", req.Email)
-			http.Error(w, "Bad Request: "+err.Error(), http.StatusBadRequest)
+		// Validate required fields
+		if req.Email == "" || req.Password == "" {
+			slog.ErrorContext(r.Context(), "missing required fields for email login")
+			http.Error(w, "Email and password are required", http.StatusBadRequest)
 			return
 		}
 
-		emailUser, ridToken, err := c.LoginEmailUserCommand.Exec(r.Context(), req.Email, req.Password, req.VHash)
+		email := strings.ToLower(strings.TrimSpace(req.Email))
+
+		emailUser, ridToken, err := c.LoginEmailUserCommand.Exec(r.Context(), email, req.Password, req.VHash)
 
 		if err != nil {
-			slog.ErrorContext(r.Context(), "error logging in email user", "err", err, "email", req.Email)
-			errMsg := err.Error()
-			if strings.Contains(errMsg, "not found") || strings.Contains(errMsg, "invalid password") {
-				http.Error(w, "Unauthorized: invalid credentials", http.StatusUnauthorized)
-				return
-			}
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			slog.ErrorContext(r.Context(), "error logging in email user", "err", err, "email", email)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 
 		if ridToken == nil {
-			slog.ErrorContext(r.Context(), "error logging in email user", "err", "controller: ridToken is nil", "email", req.Email)
+			slog.ErrorContext(r.Context(), "error logging in email user - ridToken is nil", "email", email)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}

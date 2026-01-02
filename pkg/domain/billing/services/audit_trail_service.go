@@ -558,3 +558,39 @@ func (s *AuditTrailService) exportToCSV(entries []billing_entities.AuditTrailEnt
 var _ billing_in.AuditTrailCommand = (*AuditTrailService)(nil)
 var _ billing_in.AuditTrailQuery = (*AuditTrailService)(nil)
 
+// NoOpAuditTrailService provides a no-op implementation for basic functionality
+type NoOpAuditTrailService struct{}
+
+// NewNoOpAuditTrailService creates a new no-op audit trail service
+func NewNoOpAuditTrailService() *NoOpAuditTrailService {
+	return &NoOpAuditTrailService{}
+}
+
+// RecordFinancialEvent is a no-op implementation
+func (s *NoOpAuditTrailService) RecordFinancialEvent(ctx context.Context, req billing_in.RecordFinancialEventRequest) error {
+	return nil
+}
+
+// RecordSecurityEvent is a no-op implementation
+func (s *NoOpAuditTrailService) RecordSecurityEvent(ctx context.Context, req billing_in.RecordSecurityEventRequest) error {
+	return nil
+}
+
+// RecordAdminAction is a no-op implementation
+func (s *NoOpAuditTrailService) RecordAdminAction(ctx context.Context, req billing_in.RecordAdminActionRequest) error {
+	return nil
+}
+
+// VerifyChainIntegrity is a no-op implementation
+func (s *NoOpAuditTrailService) VerifyChainIntegrity(ctx context.Context, targetType string, targetID uuid.UUID, from, to time.Time) (*billing_in.ChainIntegrityResult, error) {
+	return &billing_in.ChainIntegrityResult{
+		Valid:          true,
+		EntriesChecked: 0,
+		VerifiedAt:     time.Now(),
+		Message:        "No-op audit trail - integrity check skipped",
+	}, nil
+}
+
+// Ensure interface compliance for no-op service
+var _ billing_in.AuditTrailCommand = (*NoOpAuditTrailService)(nil)
+

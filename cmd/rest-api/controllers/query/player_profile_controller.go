@@ -25,7 +25,7 @@ func NewPlayerProfileQueryController(c container.Container) *PlayerProfileQueryC
 	err := c.Resolve(&queryService)
 
 	if err != nil {
-		panic(err)
+		slog.Warn("PlayerProfileReader not available - player profile queries will be disabled", "error", err)
 	}
 
 	var statsReader squad_in.PlayerStatisticsReader

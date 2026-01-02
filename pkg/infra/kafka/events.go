@@ -62,6 +62,11 @@ type QueueEvent struct {
 
 // PublishQueueEvent publishes a queue event
 func (p *EventPublisher) PublishQueueEvent(ctx context.Context, event *QueueEvent) error {
+	// In development mode, client may be nil - skip publishing
+	if p.client == nil {
+		return nil
+	}
+
 	event.EventID = uuid.New()
 	if event.QueueTime == 0 {
 		event.QueueTime = time.Now().UnixMilli()

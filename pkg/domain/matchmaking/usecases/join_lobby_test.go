@@ -22,6 +22,7 @@ func TestJoinLobby_Success(t *testing.T) {
 	usecase := matchmaking_usecases.NewJoinLobbyUseCase(
 		mockBilling,
 		mockLobbyRepo,
+		nil, // eventPublisher - not needed for this test
 	)
 
 	ctx := context.Background()
@@ -86,6 +87,7 @@ func TestJoinLobby_Unauthenticated(t *testing.T) {
 	usecase := matchmaking_usecases.NewJoinLobbyUseCase(
 		mockBilling,
 		mockLobbyRepo,
+		nil, // eventPublisher - not needed for this test
 	)
 
 	ctx := context.Background()
@@ -108,6 +110,7 @@ func TestJoinLobby_LobbyNotFound(t *testing.T) {
 	usecase := matchmaking_usecases.NewJoinLobbyUseCase(
 		mockBilling,
 		mockLobbyRepo,
+		nil, // eventPublisher - not needed for this test
 	)
 
 	ctx := context.Background()
@@ -140,6 +143,7 @@ func TestJoinLobby_BillingValidationFails(t *testing.T) {
 	usecase := matchmaking_usecases.NewJoinLobbyUseCase(
 		mockBilling,
 		mockLobbyRepo,
+		nil, // eventPublisher - not needed for this test
 	)
 
 	ctx := context.Background()
