@@ -999,10 +999,8 @@ func TestHashChainIntegrity(t *testing.T) {
 		if journal.Hash == "" {
 			t.Error("journal should have a hash")
 		}
-		if journalCount > 0 && journal.PreviousHash != prevHash {
-			// Note: order in map is not guaranteed, so just verify hashes exist
-			// Intentionally empty - hash chain validation not implemented for this test
-		}
+		// Note: hash chain validation skipped due to map iteration order not being guaranteed
+		// PreviousHash validation would require deterministic ordering
 		prevHash = journal.Hash
 		journalCount++
 	}

@@ -131,11 +131,10 @@ func (s *AchievementQueryService) GetAchievementsByCategory(ctx context.Context,
 // GetRecentUnlocks retrieves recent achievement unlocks for a player
 func (s *AchievementQueryService) GetRecentUnlocks(ctx context.Context, playerID uuid.UUID, limit int) ([]achievement_entities.PlayerAchievement, error) {
 	// Check if caller can view these achievements (own or admin)
+	// TODO: Implement permission checking for private achievements
+	// Currently allows public viewing - may filter sensitive data in future
 	resourceOwner := common.GetResourceOwner(ctx)
-	if resourceOwner.UserID != playerID && !common.IsAdmin(ctx) {
-		// Still allow public achievement viewing but may filter sensitive data in future
-		// Intentionally empty - no filtering implemented yet
-	}
+	_ = resourceOwner // Avoid unused variable warning
 
 	return s.repo.GetRecentUnlocks(ctx, playerID, limit)
 }
