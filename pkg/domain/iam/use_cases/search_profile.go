@@ -66,12 +66,19 @@ func (uc *SearchProfileUseCase) Exec(ctx context.Context, search common.Search) 
 	if limit == 0 {
 		limit = 1
 	}
-	page := int(search.ResultOptions.Skip / limit)
+	skip := search.ResultOptions.Skip
+	if skip > 9223372036854775807 { // int max (assuming 64-bit)
+		skip = 9223372036854775807
+	}
+	if limit > 9223372036854775807 { // int max (assuming 64-bit)
+		limit = 9223372036854775807
+	}
+	page := int(skip / limit)
 
 	return &SearchProfileResult{
 		Profiles:   profiles,
 		TotalCount: len(profiles),
 		Page:       page,
-		PageSize:   int(search.ResultOptions.Limit),
+		PageSize:   int(limit),
 	}, nil
 }
