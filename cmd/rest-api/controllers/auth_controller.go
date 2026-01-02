@@ -11,6 +11,7 @@ import (
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
 	common "github.com/replay-api/replay-api/pkg/domain"
+	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
 	iam_in "github.com/replay-api/replay-api/pkg/domain/iam/ports/in"
 )
 
@@ -18,6 +19,7 @@ import (
 type AuthController struct {
 	RefreshRIDTokenCommand iam_in.RefreshRIDTokenCommand
 	RevokeRIDTokenCommand  iam_in.RevokeRIDTokenCommand
+	CreateRIDTokenCommand  iam_in.CreateRIDTokenCommand
 }
 
 // NewAuthController creates a new AuthController with resolved dependencies
@@ -25,20 +27,25 @@ func NewAuthController(container *container.Container) *AuthController {
 	var refreshRIDTokenCommand iam_in.RefreshRIDTokenCommand
 	err := container.Resolve(&refreshRIDTokenCommand)
 	if err != nil {
-		slog.Error("Cannot resolve iam_in.RefreshRIDTokenCommand for new AuthController", "err", err)
-		panic(err)
+		slog.Warn("RefreshRIDTokenCommand not available", "error", err)
 	}
 
 	var revokeRIDTokenCommand iam_in.RevokeRIDTokenCommand
 	err = container.Resolve(&revokeRIDTokenCommand)
 	if err != nil {
-		slog.Error("Cannot resolve iam_in.RevokeRIDTokenCommand for new AuthController", "err", err)
-		panic(err)
+		slog.Warn("RevokeRIDTokenCommand not available", "error", err)
+	}
+
+	var createRIDTokenCommand iam_in.CreateRIDTokenCommand
+	err = container.Resolve(&createRIDTokenCommand)
+	if err != nil {
+		slog.Warn("CreateRIDTokenCommand not available", "error", err)
 	}
 
 	return &AuthController{
 		RefreshRIDTokenCommand: refreshRIDTokenCommand,
 		RevokeRIDTokenCommand:  revokeRIDTokenCommand,
+		CreateRIDTokenCommand:  createRIDTokenCommand,
 	}
 }
 
@@ -278,3 +285,87 @@ func (c *AuthController) Logout(apiContext context.Context) http.HandlerFunc {
 	}
 }
 
+// GuestTokenResponse represents the response for guest token creation
+type GuestTokenResponse struct {
+	Success       bool   `json:"success"`
+	TokenID       string `json:"token_id,omitempty"`
+	UserID        string `json:"user_id,omitempty"`
+	ExpiresAt     string `json:"expires_at,omitempty"`
+	Message       string `json:"message,omitempty"`
+}
+
+// CreateGuestToken handles POST /auth/guest
+// Creates a new guest token for unauthenticated users
+// This allows guests to have a session and potentially convert to full accounts later
+func (c *AuthController) CreateGuestToken(apiContext context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		setCORSHeaders(w)
+
+		// Check if CreateRIDTokenCommand is available
+		if c.CreateRIDTokenCommand == nil {
+			slog.ErrorContext(r.Context(), "CreateRIDTokenCommand not available for guest token creation")
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_ = json.NewEncoder(w).Encode(GuestTokenResponse{
+				Success: false,
+				Message: "Guest token service unavailable",
+			})
+			return
+		}
+
+		// Generate a unique user ID for the guest
+		guestUserID := uuid.New()
+		guestGroupID := uuid.New()
+
+		// Create resource owner for the guest
+		resourceOwner := common.ResourceOwner{
+			TenantID: common.TeamPROTenantID,
+			ClientID: common.TeamPROAppClientID,
+			GroupID:  guestGroupID,
+			UserID:   guestUserID,
+		}
+
+		// Create the guest token
+		ridToken, err := c.CreateRIDTokenCommand.Exec(
+			r.Context(),
+			resourceOwner,
+			iam_entities.RIDSource_Guest,
+			common.UserAudienceIDKey,
+		)
+
+		if err != nil {
+			slog.ErrorContext(r.Context(), "error creating guest token", "err", err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(GuestTokenResponse{
+				Success: false,
+				Message: "Failed to create guest token",
+			})
+			return
+		}
+
+		if ridToken == nil {
+			slog.ErrorContext(r.Context(), "guest token creation returned nil")
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(GuestTokenResponse{
+				Success: false,
+				Message: "Failed to create guest token",
+			})
+			return
+		}
+
+		// Set headers for the new token
+		w.Header().Set(ResourceOwnerIDHeaderKey, ridToken.GetID().String())
+		w.Header().Set(ResourceOwnerAudTypeHeaderKey, string(ridToken.IntendedAudience))
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(GuestTokenResponse{
+			Success:   true,
+			TokenID:   ridToken.GetID().String(),
+			UserID:    guestUserID.String(),
+			ExpiresAt: ridToken.ExpiresAt.Format("2006-01-02T15:04:05Z07:00"),
+			Message:   "Guest token created successfully",
+		})
+	}
+}

@@ -13,6 +13,7 @@ const (
 	RIDSource_Steam  RIDSourceKey = "steam"
 	RIDSource_Google RIDSourceKey = "google"
 	RIDSource_Email  RIDSourceKey = "email"
+	RIDSource_Guest  RIDSourceKey = "guest"
 )
 
 const (
