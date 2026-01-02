@@ -224,6 +224,16 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	r.HandleFunc("/squads/{id}/members/{player_id}", squadController.RemoveMemberHandler(ctx)).Methods("DELETE")
 	r.HandleFunc("/squads/{id}/members/{player_id}/role", squadController.UpdateMemberRoleHandler(ctx)).Methods("PUT")
 
+	// Teams API (alias for Squads - frontend compatibility)
+	r.HandleFunc("/teams", squadQueryController.DefaultSearchHandler).Methods("GET")
+	r.HandleFunc("/teams", squadController.CreateSquadHandler(ctx)).Methods("POST")
+	r.HandleFunc("/teams/{id}", squadController.GetSquadHandler(ctx)).Methods("GET")
+	r.HandleFunc("/teams/{id}", squadController.UpdateSquadHandler(ctx)).Methods("PUT")
+	r.HandleFunc("/teams/{id}", squadController.DeleteSquadHandler(ctx)).Methods("DELETE")
+	r.HandleFunc("/teams/{id}/members", squadController.AddMemberHandler(ctx)).Methods("POST")
+	r.HandleFunc("/teams/{id}/members/{player_id}", squadController.RemoveMemberHandler(ctx)).Methods("DELETE")
+	r.HandleFunc("/teams/{id}/members/{player_id}/role", squadController.UpdateMemberRoleHandler(ctx)).Methods("PUT")
+
 	// Player Profiles API
 	r.HandleFunc("/players", playerProfileController.CreatePlayerProfileHandler(ctx)).Methods("POST")
 	r.HandleFunc("/players", playerProfileQueryController.DefaultSearchHandler).Methods("GET")
