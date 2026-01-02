@@ -993,7 +993,6 @@ func TestHashChainIntegrity(t *testing.T) {
 	}
 
 	// Verify hash chain
-	var prevHash string
 	journalCount := 0
 	for _, journal := range repo.journals {
 		if journal.Hash == "" {
@@ -1001,7 +1000,6 @@ func TestHashChainIntegrity(t *testing.T) {
 		}
 		// Note: hash chain validation skipped due to map iteration order not being guaranteed
 		// PreviousHash validation would require deterministic ordering
-		prevHash = journal.Hash
 		journalCount++
 	}
 
