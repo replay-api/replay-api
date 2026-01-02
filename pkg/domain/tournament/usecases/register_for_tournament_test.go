@@ -75,12 +75,10 @@ func createRegistrationTournament(status tournament_entities.TournamentStatus) *
 func TestRegisterForTournament_Success(t *testing.T) {
 	mockBilling := new(MockBillableOperationHandler)
 	mockTournamentRepo := new(MockTournamentRepository)
-	mockPlayerReader := new(MockPlayerProfileReader)
 
 	usecase := tournament_usecases.NewRegisterForTournamentUseCase(
 		mockBilling,
 		mockTournamentRepo,
-		mockPlayerReader,
 	)
 
 	ctx := context.Background()
@@ -136,12 +134,10 @@ func TestRegisterForTournament_Success(t *testing.T) {
 func TestRegisterForTournament_Unauthenticated(t *testing.T) {
 	mockBilling := new(MockBillableOperationHandler)
 	mockTournamentRepo := new(MockTournamentRepository)
-	mockPlayerReader := new(MockPlayerProfileReader)
 
 	usecase := tournament_usecases.NewRegisterForTournamentUseCase(
 		mockBilling,
 		mockTournamentRepo,
-		mockPlayerReader,
 	)
 
 	ctx := context.Background()
@@ -160,12 +156,10 @@ func TestRegisterForTournament_Unauthenticated(t *testing.T) {
 func TestRegisterForTournament_ImpersonationBlocked(t *testing.T) {
 	mockBilling := new(MockBillableOperationHandler)
 	mockTournamentRepo := new(MockTournamentRepository)
-	mockPlayerReader := new(MockPlayerProfileReader)
 
 	usecase := tournament_usecases.NewRegisterForTournamentUseCase(
 		mockBilling,
 		mockTournamentRepo,
-		mockPlayerReader,
 	)
 
 	ctx := context.Background()
@@ -218,12 +212,10 @@ func TestRegisterForTournament_ImpersonationBlocked(t *testing.T) {
 func TestRegisterForTournament_TournamentNotFound(t *testing.T) {
 	mockBilling := new(MockBillableOperationHandler)
 	mockTournamentRepo := new(MockTournamentRepository)
-	mockPlayerReader := new(MockPlayerProfileReader)
 
 	usecase := tournament_usecases.NewRegisterForTournamentUseCase(
 		mockBilling,
 		mockTournamentRepo,
-		mockPlayerReader,
 	)
 
 	ctx := context.Background()
@@ -269,12 +261,10 @@ func TestRegisterForTournament_TournamentNotFound(t *testing.T) {
 func TestRegisterForTournament_BillingValidationFails(t *testing.T) {
 	mockBilling := new(MockBillableOperationHandler)
 	mockTournamentRepo := new(MockTournamentRepository)
-	mockPlayerReader := new(MockPlayerProfileReader)
 
 	usecase := tournament_usecases.NewRegisterForTournamentUseCase(
 		mockBilling,
 		mockTournamentRepo,
-		mockPlayerReader,
 	)
 
 	ctx := context.Background()
@@ -324,12 +314,10 @@ func TestRegisterForTournament_BillingValidationFails(t *testing.T) {
 func TestRegisterForTournament_UpdateFails(t *testing.T) {
 	mockBilling := new(MockBillableOperationHandler)
 	mockTournamentRepo := new(MockTournamentRepository)
-	mockPlayerReader := new(MockPlayerProfileReader)
 
 	usecase := tournament_usecases.NewRegisterForTournamentUseCase(
 		mockBilling,
 		mockTournamentRepo,
-		mockPlayerReader,
 	)
 
 	ctx := context.Background()
