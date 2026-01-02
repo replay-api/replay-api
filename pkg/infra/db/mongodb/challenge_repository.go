@@ -69,9 +69,17 @@ func (r *ChallengeRepository) GetByMatchID(ctx context.Context, matchID uuid.UUI
 	opts := options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}})
 
 	if search != nil && search.ResultOptions.Limit > 0 {
-		opts.SetLimit(int64(search.ResultOptions.Limit))
+		limit := search.ResultOptions.Limit
+		if limit > 9223372036854775807 { // int64 max
+			limit = 9223372036854775807
+		}
+		opts.SetLimit(int64(limit))
 		if search.ResultOptions.Skip > 0 {
-			opts.SetSkip(int64(search.ResultOptions.Skip))
+			skip := search.ResultOptions.Skip
+			if skip > 9223372036854775807 { // int64 max
+				skip = 9223372036854775807
+			}
+			opts.SetSkip(int64(skip))
 		}
 	}
 
@@ -98,9 +106,17 @@ func (r *ChallengeRepository) GetByChallengerID(ctx context.Context, challengerI
 	opts := options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}})
 
 	if search != nil && search.ResultOptions.Limit > 0 {
-		opts.SetLimit(int64(search.ResultOptions.Limit))
+		limit := search.ResultOptions.Limit
+		if limit > 9223372036854775807 { // int64 max
+			limit = 9223372036854775807
+		}
+		opts.SetLimit(int64(limit))
 		if search.ResultOptions.Skip > 0 {
-			opts.SetSkip(int64(search.ResultOptions.Skip))
+			skip := search.ResultOptions.Skip
+			if skip > 9223372036854775807 { // int64 max
+				skip = 9223372036854775807
+			}
+			opts.SetSkip(int64(skip))
 		}
 	}
 
@@ -176,9 +192,17 @@ func (r *ChallengeRepository) Search(ctx context.Context, criteria challenge_out
 	})
 
 	if criteria.Search != nil && criteria.Search.ResultOptions.Limit > 0 {
-		opts.SetLimit(int64(criteria.Search.ResultOptions.Limit))
+		limit := criteria.Search.ResultOptions.Limit
+		if limit > 9223372036854775807 { // int64 max
+			limit = 9223372036854775807
+		}
+		opts.SetLimit(int64(limit))
 		if criteria.Search.ResultOptions.Skip > 0 {
-			opts.SetSkip(int64(criteria.Search.ResultOptions.Skip))
+			skip := criteria.Search.ResultOptions.Skip
+			if skip > 9223372036854775807 { // int64 max
+				skip = 9223372036854775807
+			}
+			opts.SetSkip(int64(skip))
 		}
 	}
 
