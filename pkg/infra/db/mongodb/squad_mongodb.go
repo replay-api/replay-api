@@ -37,6 +37,8 @@ func NewSquadRepository(client *mongo.Client, dbName string, entityType squad_en
 		"SlugURI":         true,
 		"Description":     true,
 		"Membership":      true,
+		"LogoURI":         true,
+		"BannerURI":       true,
 		"VisibilityLevel": true,
 		"VisibilityType":  true,
 		"ResourceOwner":   true,
@@ -54,6 +56,8 @@ func NewSquadRepository(client *mongo.Client, dbName string, entityType squad_en
 		"Membership.Roles":   "membership.roles",
 		"Membership.Status":  "membership.status",
 		"Membership.History": "membership.history",
+		"LogoURI":            "logo_uri",
+		"BannerURI":          "banner_uri",
 		"VisibilityLevel":    "baseentity.visibility_level",
 		"VisibilityType":     "baseentity.visibility_type",
 		"ResourceOwner":      "baseentity.resource_owner",
@@ -61,7 +65,7 @@ func NewSquadRepository(client *mongo.Client, dbName string, entityType squad_en
 		"UserID":             "baseentity.resource_owner.user_id",
 		"GroupID":            "baseentity.resource_owner.group_id",
 		"ClientID":           "baseentity.resource_owner.client_id",
-		"CreatedAt":          "baseentity.create_at",
+		"CreatedAt":          "baseentity.created_at",
 		"UpdatedAt":          "baseentity.updated_at",
 	})
 
