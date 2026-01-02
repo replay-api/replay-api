@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 
 	common "github.com/replay-api/replay-api/pkg/domain"
 )
@@ -71,60 +72,99 @@ func (c *DefaultSearchController[T]) DefaultSearchHandler(w http.ResponseWriter,
 
 // buildSearchFromQueryParams builds a Search object from URL query parameters
 // This allows the frontend SDK to use query params instead of the x-search header
+//
+// Generic query parameters supported:
+// - q: Text search value (used with search_fields)
+// - search_fields: Comma-separated list of fields to search with 'q' (OR logic)
+// - Any other query param is treated as an exact filter (field name = param key)
+// - limit, offset, page: Pagination
+// - sort, order: Sorting
+//
+// The SDK is responsible for sending correct PascalCase field names that match
+// the Go struct fields. The validation of which fields are queryable is handled
+// by the Compile method which checks against the queryableFields defined in each
+// entity's query service.
 func (c *DefaultSearchController[T]) buildSearchFromQueryParams(r *http.Request) common.Search {
 	query := r.URL.Query()
-	var valueParams []common.SearchableValue
+	var exactFilters []common.SearchableValue
+	var textSearchParams []common.SearchableValue
 
-	// Common search parameters - build SearchableValue for each filter
-	if gameID := query.Get("game_id"); gameID != "" {
-		valueParams = append(valueParams, common.SearchableValue{
-			Field:    "GameID",
-			Values:   []interface{}{gameID},
-			Operator: common.EqualsOperator,
-		})
+	// Reserved params that are not filters
+	reservedParams := map[string]bool{
+		"q": true, "search_fields": true,
+		"limit": true, "offset": true, "page": true,
+		"sort": true, "order": true,
 	}
 
-	// Full-text search on name field using Contains operator
+	// Generic text search: use 'q' value across fields specified in 'search_fields'
+	// SDK specifies which fields to search, validation happens in Compile
 	if q := query.Get("q"); q != "" {
-		valueParams = append(valueParams, common.SearchableValue{
-			Field:    "FullName",
-			Values:   []interface{}{q},
-			Operator: common.ContainsOperator,
-		})
-	}
-
-	// Exact or contains match on name
-	if name := query.Get("name"); name != "" {
-		valueParams = append(valueParams, common.SearchableValue{
-			Field:    "FullName",
-			Values:   []interface{}{name},
-			Operator: common.ContainsOperator,
-		})
-	}
-
-	// Nickname/ShortName search
-	if nickname := query.Get("nickname"); nickname != "" {
-		valueParams = append(valueParams, common.SearchableValue{
-			Field:    "ShortName",
-			Values:   []interface{}{nickname},
-			Operator: common.ContainsOperator,
-		})
-	}
-
-	// Build SearchAggregation from value params
-	var searchParams []common.SearchAggregation
-	if len(valueParams) > 0 {
-		searchParams = []common.SearchAggregation{
-			{
-				Params: []common.SearchParameter{
-					{
-						ValueParams:       valueParams,
-						AggregationClause: common.AndAggregationClause,
-					},
-				},
-				AggregationClause: common.AndAggregationClause,
-			},
+		searchFields := query.Get("search_fields")
+		if searchFields != "" {
+			// SDK specified which fields to search (PascalCase expected)
+			for _, field := range strings.Split(searchFields, ",") {
+				field = strings.TrimSpace(field)
+				if field != "" {
+					textSearchParams = append(textSearchParams, common.SearchableValue{
+						Field:    field,
+						Values:   []interface{}{q},
+						Operator: common.ContainsOperator,
+					})
+				}
+			}
 		}
+	}
+
+	// Any non-reserved query param is treated as an exact filter
+	// SDK must send field names in PascalCase matching Go struct fields
+	for key, values := range query {
+		if reservedParams[key] || len(values) == 0 || values[0] == "" {
+			continue
+		}
+
+		value := values[0]
+		operator := common.EqualsOperator
+
+		// Support wildcard search: value containing * uses ContainsOperator
+		if strings.Contains(value, "*") {
+			operator = common.ContainsOperator
+			value = strings.ReplaceAll(value, "*", "")
+		}
+
+		exactFilters = append(exactFilters, common.SearchableValue{
+			Field:    key, // SDK sends PascalCase field names directly
+			Values:   []interface{}{value},
+			Operator: operator,
+		})
+	}
+
+	// Build SearchAggregation - combine exact filters (AND) with text search (OR)
+	var searchParams []common.SearchAggregation
+
+	// Add exact filter params (AND logic)
+	if len(exactFilters) > 0 {
+		searchParams = append(searchParams, common.SearchAggregation{
+			Params: []common.SearchParameter{
+				{
+					ValueParams:       exactFilters,
+					AggregationClause: common.AndAggregationClause,
+				},
+			},
+			AggregationClause: common.AndAggregationClause,
+		})
+	}
+
+	// Add text search params (OR logic) - match ANY of the specified search fields
+	if len(textSearchParams) > 0 {
+		searchParams = append(searchParams, common.SearchAggregation{
+			Params: []common.SearchParameter{
+				{
+					ValueParams:       textSearchParams,
+					AggregationClause: common.OrAggregationClause, // OR between text fields
+				},
+			},
+			AggregationClause: common.AndAggregationClause, // AND with other filters
+		})
 	}
 
 	// Result options

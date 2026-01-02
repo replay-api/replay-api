@@ -92,7 +92,7 @@ func ResourceOwnershipMiddleware(config ResourceOwnershipConfig) mux.MiddlewareF
 }
 
 // isUserAuthorizedForResource checks if the user has access to the resource
-func isUserAuthorizedForResource(ctx context.Context, resourceID uuid.UUID, config ResourceOwnershipConfig) bool {
+func isUserAuthorizedForResource(ctx context.Context, _ uuid.UUID, _ ResourceOwnershipConfig) bool {
 	userID, ok := ctx.Value(common.UserIDKey).(uuid.UUID)
 	if !ok {
 		return false

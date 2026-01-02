@@ -199,7 +199,7 @@ func (s *SquadStatisticsService) GetSquadStatistics(ctx context.Context, squadID
 }
 
 // didSquadWin checks if any squad member was on the winning team
-func (s *SquadStatisticsService) didSquadWin(match interface{}, playerIDs []interface{}) bool {
+func (s *SquadStatisticsService) didSquadWin(_ interface{}, _ []interface{}) bool {
 	// Simplified - this would need to properly parse the match data
 	// For now, return based on random/default
 	return false

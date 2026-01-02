@@ -335,11 +335,16 @@ func (r *MongoDBRepository[T]) setMatchValues(queryCtx context.Context, params [
 		panic(fmt.Errorf("queryableFields not initialized in MongoDBRepository of %s", r.entityName))
 	}
 
-	clauses := bson.A{}
+	// outerClauses collects the result from each SearchParameter
+	outerClauses := bson.A{}
+
 	for _, p := range params {
+		// innerClauses collects filters within this SearchParameter
+		innerClauses := bson.A{}
+
 		if p.FullTextSearchParam != "" {
 			// Full text search
-			clauses = append(clauses, bson.M{"$text": bson.M{"$search": p.FullTextSearchParam}})
+			innerClauses = append(innerClauses, bson.M{"$text": bson.M{"$search": p.FullTextSearchParam}})
 
 			slog.InfoContext(queryCtx, "query: $text", "value: %v", p.FullTextSearchParam)
 		}
@@ -368,9 +373,9 @@ func (r *MongoDBRepository[T]) setMatchValues(queryCtx context.Context, params [
 			// Build filter based on operator (default to $in if not specified)
 			if strings.HasSuffix(v.Field, ".*") && strings.Contains(bsonFieldName, ".") {
 				// Nested field with wildcard: use $elemMatch
-				clauses = append(clauses, bson.M{bsonFieldName: bson.M{"$elemMatch": filter}})
+				innerClauses = append(innerClauses, bson.M{bsonFieldName: bson.M{"$elemMatch": filter}})
 			} else {
-				clauses = append(clauses, bson.M{bsonFieldName: filter})
+				innerClauses = append(innerClauses, bson.M{bsonFieldName: filter})
 			}
 
 			slog.InfoContext(queryCtx, "query: %v, value: %v", bsonFieldName, v.Values)
@@ -390,7 +395,7 @@ func (r *MongoDBRepository[T]) setMatchValues(queryCtx context.Context, params [
 			if d.Max != nil {
 				dateFilter["$lte"] = *d.Max
 			}
-			clauses = append(clauses, bson.M{bsonFieldName: dateFilter})
+			innerClauses = append(innerClauses, bson.M{bsonFieldName: dateFilter})
 		}
 
 		// Handle DurationParams (similar to DateParams)
@@ -407,30 +412,51 @@ func (r *MongoDBRepository[T]) setMatchValues(queryCtx context.Context, params [
 			if dur.Max != nil {
 				durationFilter["$lte"] = *dur.Max
 			}
-			clauses = append(clauses, bson.M{bsonFieldName: durationFilter})
+			innerClauses = append(innerClauses, bson.M{bsonFieldName: durationFilter})
 		}
 
-		if p.AggregationParams == nil {
-			continue
+		if p.AggregationParams != nil {
+			for i, v := range p.AggregationParams {
+				if i+1 >= MAX_RECURSIVE_DEPTH {
+					slog.WarnContext(queryCtx, "setMatchValue MaxRecursiveDepth exceeded", "depth", i, "MAX_RECURSIVE_DEPTH", MAX_RECURSIVE_DEPTH, "params", p.AggregationParams)
+					break
+				}
+
+				innerAggregate := bson.M{}
+				r.setMatchValues(queryCtx, v.Params, &innerAggregate, v.AggregationClause)
+				innerClauses = append(innerClauses, innerAggregate)
+			}
 		}
 
-		for i, v := range p.AggregationParams {
-			if i+1 >= MAX_RECURSIVE_DEPTH {
-				slog.WarnContext(queryCtx, "setMatchValue MaxRecursiveDepth exceeded", "depth", i, "MAX_RECURSIVE_DEPTH", MAX_RECURSIVE_DEPTH, "params", p.AggregationParams)
-				break
+		// Combine innerClauses using this SearchParameter's AggregationClause
+		if len(innerClauses) > 0 {
+			paramClause := p.AggregationClause
+			if paramClause == "" {
+				paramClause = common.AndAggregationClause // default
 			}
 
-			innerAggregate := bson.M{}
-			r.setMatchValues(queryCtx, v.Params, &innerAggregate, clause)
-			clauses = append(clauses, innerAggregate)
+			if len(innerClauses) == 1 {
+				// Single clause doesn't need $and/$or wrapper
+				outerClauses = append(outerClauses, innerClauses[0])
+			} else if paramClause == common.OrAggregationClause {
+				outerClauses = append(outerClauses, bson.M{"$or": innerClauses})
+			} else {
+				outerClauses = append(outerClauses, bson.M{"$and": innerClauses})
+			}
 		}
 	}
 
-	if len(clauses) > 0 {
-		if clause == common.OrAggregationClause {
-			(*aggregate)["$or"] = clauses
+	// Combine all SearchParameter results using the outer clause
+	if len(outerClauses) > 0 {
+		if len(outerClauses) == 1 {
+			// Single outer clause - merge directly into aggregate
+			for k, v := range outerClauses[0].(bson.M) {
+				(*aggregate)[k] = v
+			}
+		} else if clause == common.OrAggregationClause {
+			(*aggregate)["$or"] = outerClauses
 		} else {
-			(*aggregate)["$and"] = clauses
+			(*aggregate)["$and"] = outerClauses
 		}
 	}
 }
@@ -609,11 +635,6 @@ func (r *MongoDBRepository[T]) EnsureTenancy(queryCtx context.Context, agg bson.
 		return agg, fmt.Errorf("TENANCY.RequestSource: `tenant_id` in queryCtx does not match `tenant_id` in `common.Search`: %v vs %v", tenantID, s.VisibilityOptions.RequestSource.TenantID)
 	}
 
-	agg["$or"] = bson.A{
-		bson.M{"resource_owner.tenant_id": tenantID},
-		bson.M{"baseentity.resource_owner.tenant_id": tenantID}, // TODO: this OR on tenancy will degrade performance. choose to keep only base entity
-	}
-
 	slog.InfoContext(queryCtx, "TENANCY.RequestSource: tenant_id", "tenant_id", tenantID)
 
 	switch s.VisibilityOptions.IntendedAudience {
@@ -650,14 +671,39 @@ func ensureClientID(ctx context.Context, agg bson.M, s common.Search) (bson.M, e
 		return agg, fmt.Errorf("TENANCY.ApplicationLevel: `client_id` in queryCtx does not match `client_id` in `common.Search`: %v vs %v", clientID, s.VisibilityOptions.RequestSource.ClientID)
 	}
 
-	agg["$or"] = bson.A{
+	tenancyOr := bson.A{
 		bson.M{"resource_owner.client_id": clientID},
 		bson.M{"baseentity.resource_owner.client_id": clientID}, // TODO: this OR on tenancy will degrade performance. choose to keep only base entity
 	}
 
 	slog.InfoContext(ctx, "TENANCY.ApplicationLevel: client_id", "client_id", clientID)
 
-	return agg, nil
+	return mergeTenancyCondition(agg, tenancyOr), nil
+}
+
+// mergeTenancyCondition adds tenancy conditions to agg without overwriting search filters.
+// It ensures both search filters and tenancy conditions are combined with $and.
+func mergeTenancyCondition(agg bson.M, tenancyOr bson.A) bson.M {
+	// If agg has no search conditions, just set $or
+	if len(agg) == 0 {
+		return bson.M{"$or": tenancyOr}
+	}
+
+	// Extract existing search conditions from agg
+	searchConditions := bson.M{}
+	for k, v := range agg {
+		searchConditions[k] = v
+	}
+
+	// Create a new aggregate that combines search conditions AND tenancy
+	result := bson.M{
+		"$and": bson.A{
+			searchConditions,
+			bson.M{"$or": tenancyOr},
+		},
+	}
+
+	return result
 }
 
 func ensureUserOrGroupID(ctx context.Context, agg bson.M, s common.Search, aud common.IntendedAudienceKey) (bson.M, error) {
@@ -686,8 +732,9 @@ func ensureUserOrGroupID(ctx context.Context, agg bson.M, s common.Search, aud c
 		return agg, fmt.Errorf("TENANCY.UserLevel: user_id is required in search parameters for intended audience: %s", string(aud))
 	}
 
+	var tenancyOr bson.A
 	if groupOK && userOK {
-		agg["$or"] = bson.A{
+		tenancyOr = bson.A{
 			bson.M{"resource_owner.group_id": groupID},
 			bson.M{"resource_owner.user_id": userID},
 			bson.M{"baseentity.resource_owner.group_id": groupID}, // TODO: review, for performance reasons, use only baseentity
@@ -702,7 +749,7 @@ func ensureUserOrGroupID(ctx context.Context, agg bson.M, s common.Search, aud c
 		}
 		slog.InfoContext(ctx, "TENANCY.GroupLevel: group_id OR user_id", "group_id", groupID, "user_id", userID)
 	} else if groupOK {
-		agg["$or"] = bson.A{
+		tenancyOr = bson.A{
 			bson.M{
 				"$or": bson.A{
 					bson.M{"visibility_type": common.PublicVisibilityTypeKey},
@@ -715,7 +762,7 @@ func ensureUserOrGroupID(ctx context.Context, agg bson.M, s common.Search, aud c
 		}
 		slog.InfoContext(ctx, "TENANCY.GroupLevel: group_id", "group_id", groupID)
 	} else {
-		agg["$or"] = bson.A{
+		tenancyOr = bson.A{
 			bson.M{
 				"$or": bson.A{
 					bson.M{"visibility_type": common.PublicVisibilityTypeKey},
@@ -729,7 +776,7 @@ func ensureUserOrGroupID(ctx context.Context, agg bson.M, s common.Search, aud c
 		slog.InfoContext(ctx, "TENANCY.UserLevel: user_id", "user_id", userID)
 	}
 
-	return agg, nil
+	return mergeTenancyCondition(agg, tenancyOr), nil
 }
 
 func (r *MongoDBRepository[T]) Search(ctx context.Context, s common.Search) ([]T, error) {

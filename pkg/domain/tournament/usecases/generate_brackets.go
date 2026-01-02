@@ -336,7 +336,7 @@ type SeedPair struct {
 
 // generateSeedPairs generates standard tournament seeding pairs
 // example for 8 players: (1,8), (4,5), (2,7), (3,6)
-func generateSeedPairs(actualPlayers, bracketSize int) []SeedPair {
+func generateSeedPairs(_, bracketSize int) []SeedPair {
 	var pairs []SeedPair
 
 	// generate pairs using standard bracket seeding algorithm

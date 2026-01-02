@@ -466,10 +466,11 @@ func (s *PrizeDistributionService) GetPrizePoolStatus(ctx context.Context, poolI
 	var completedPayouts, failedPayouts int
 	var distributedAmount big.Float
 	for _, payout := range pool.Payouts {
-		if payout.Status == tournament_entities.PayoutStatusCompleted {
+		switch payout.Status {
+		case tournament_entities.PayoutStatusCompleted:
 			completedPayouts++
 			distributedAmount.Add(&distributedAmount, payout.NetAmount)
-		} else if payout.Status == tournament_entities.PayoutStatusFailed {
+		case tournament_entities.PayoutStatusFailed:
 			failedPayouts++
 		}
 	}

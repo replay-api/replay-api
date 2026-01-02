@@ -42,6 +42,23 @@ const (
 	Group string = "/groups"
 
 	Search string = "/search/{query:.*}"
+
+	// Aliases (plural forms for frontend compatibility)
+	Matches            string = "/games/{game_id}/matches"
+	MatchesDetail      string = "/games/{game_id}/matches/{match_id}"
+	MatchesTrajectory  string = "/games/{game_id}/matches/{match_id}/trajectory"
+	MatchesHeatmap     string = "/games/{game_id}/matches/{match_id}/heatmap"
+	MatchesPosStats    string = "/games/{game_id}/matches/{match_id}/positioning-stats"
+	MatchesEvents      string = "/games/{game_id}/matches/{match_id}/events"
+	MatchesScoreboard  string = "/games/{game_id}/matches/{match_id}/scoreboard"
+	RoundTrajectory    string = "/games/{game_id}/matches/{match_id}/rounds/{round_number}/trajectory"
+	RoundHeatmap       string = "/games/{game_id}/matches/{match_id}/rounds/{round_number}/heatmap"
+
+	// Notifications
+	Notifications       string = "/notifications"
+	NotificationDetail  string = "/notifications/{notification_id}"
+	NotificationRead    string = "/notifications/{notification_id}/read"
+	NotificationsReadAll string = "/notifications/read-all"
 )
 
 func NewRouter(ctx context.Context, container container.Container) http.Handler {
@@ -151,7 +168,11 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	r.HandleFunc(MatchDetail, matchController.GetMatchDetailHandler).Methods("GET")
 	// r.HandleFunc("/games/{game_id}/matches/{match_id}/share", metadataController.GetEventsByGameIDAndMatchID(ctx)).Methods("POST")
 
-	// Replay API
+	// Replay Files Query API (search/list)
+	replayFileQueryController := query_controllers.NewReplayFileQueryController(container)
+	r.HandleFunc(Replay, replayFileQueryController.ListReplayFilesHandler).Methods("GET")
+
+	// Replay API (upload)
 	r.HandleFunc(Replay, fileController.UploadHandler(ctx)).Methods("POST")
 	r.HandleFunc(Replay, OptionsHandler).Methods("OPTIONS") // TODO: remover
 	r.HandleFunc("/games/{game_id}/replays/{id}", fileController.GetReplayMetadata(ctx)).Methods("GET")
@@ -272,6 +293,39 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 
 	// Stripe Webhook (no auth required)
 	r.HandleFunc("/webhooks/stripe", paymentController.StripeWebhookHandler(ctx)).Methods("POST")
+
+	// Matches API (plural routes - aliases for frontend compatibility)
+	r.HandleFunc(Matches, matchController.DefaultSearchHandler).Methods("GET")
+	r.HandleFunc(Matches, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(MatchesDetail, matchController.GetMatchDetailHandler).Methods("GET")
+	r.HandleFunc(MatchesDetail, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(MatchesTrajectory, matchAnalyticsController.GetMatchTrajectoryHandler).Methods("GET")
+	r.HandleFunc(MatchesTrajectory, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(MatchesHeatmap, matchAnalyticsController.GetMatchHeatmapHandler).Methods("GET")
+	r.HandleFunc(MatchesHeatmap, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(MatchesPosStats, matchAnalyticsController.GetPositioningStatsHandler).Methods("GET")
+	r.HandleFunc(MatchesPosStats, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(RoundTrajectory, matchAnalyticsController.GetRoundTrajectoryHandler).Methods("GET")
+	r.HandleFunc(RoundTrajectory, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(RoundHeatmap, matchAnalyticsController.GetRoundHeatmapHandler).Methods("GET")
+	r.HandleFunc(RoundHeatmap, OptionsHandler).Methods("OPTIONS")
+
+	// Notifications API (stub - returns empty for now)
+	notificationHandler := NewNotificationStubHandler()
+	r.HandleFunc(Notifications, notificationHandler.ListNotifications).Methods("GET")
+	r.HandleFunc(Notifications, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(NotificationDetail, notificationHandler.GetNotification).Methods("GET")
+	r.HandleFunc(NotificationDetail, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(NotificationRead, notificationHandler.MarkAsRead).Methods("PUT", "POST")
+	r.HandleFunc(NotificationRead, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(NotificationsReadAll, notificationHandler.MarkAllAsRead).Methods("PUT", "POST")
+	r.HandleFunc(NotificationsReadAll, OptionsHandler).Methods("OPTIONS")
+
+	// Add NotFound handler with CORS headers
+	r.NotFoundHandler = corsMiddleware.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte("404 page not found"))
+	}))
 
 	return r
 }

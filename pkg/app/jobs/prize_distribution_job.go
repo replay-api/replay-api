@@ -95,7 +95,8 @@ func (j *PrizeDistributionJob) distributePool(ctx context.Context, pool *matchma
 
 	// Distribute prizes to each winner
 	successCount := 0
-	for _, winner := range pool.Winners {
+	for i := range pool.Winners {
+		winner := &pool.Winners[i] // Use pointer to modify original
 		addPrizeCmd := wallet_in.AddPrizeCommand{
 			UserID:   winner.PlayerID,
 			Currency: string(pool.Currency),

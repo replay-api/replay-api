@@ -104,11 +104,14 @@ func (hc *HealthController) DetailedHealthCheck(apiContext context.Context) http
 	return func(w http.ResponseWriter, r *http.Request) {
 		result := hc.healthService.Check(r.Context())
 
-		statusCode := http.StatusOK
-		if result.Status == observability.HealthStatusUnhealthy {
+		var statusCode int
+		switch result.Status {
+		case observability.HealthStatusUnhealthy:
 			statusCode = http.StatusServiceUnavailable
-		} else if result.Status == observability.HealthStatusDegraded {
+		case observability.HealthStatusDegraded:
 			statusCode = http.StatusOK // Still 200 but status shows degraded
+		default:
+			statusCode = http.StatusOK
 		}
 
 		w.Header().Set("Content-Type", "application/json")

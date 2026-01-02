@@ -201,9 +201,10 @@ func (p *PrizePool) AddContribution(contribution PrizeContribution) error {
 
 	// Update totals
 	p.TotalAmount = new(big.Float).Add(p.TotalAmount, contribution.Amount)
-	if contribution.Type == "entry_fee" {
+	switch contribution.Type {
+	case "entry_fee":
 		p.EntryFeeAmount = new(big.Float).Add(p.EntryFeeAmount, contribution.Amount)
-	} else if contribution.Type == "sponsor" {
+	case "sponsor":
 		p.SponsorAmount = new(big.Float).Add(p.SponsorAmount, contribution.Amount)
 	}
 
