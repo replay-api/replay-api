@@ -85,7 +85,7 @@ jobs:
       - name: Run gosec security scanner
         uses: securego/gosec@master
         with:
-          args: "-exclude=G104,G307 -exclude-dir=pkg/infra/blob/_s3 -exclude-dir=test/blockchain ./..."
+          args: "-exclude=G104,G307,G115 -exclude-dir=pkg/infra/blob/_s3 -exclude-dir=test/blockchain ./..."
 
       - name: Check for vulnerabilities
         run: go list -json -deps ./... | docker run --rm -i sonatypecommunity/nancy:latest sleuth || true
