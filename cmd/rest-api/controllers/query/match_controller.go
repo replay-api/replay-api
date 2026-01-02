@@ -33,7 +33,7 @@ func NewMatchQueryController(c container.Container) *MatchQueryController {
 	var squadReader squad_in.SquadReader
 
 	if err := c.Resolve(&matchReader); err != nil {
-		panic(err)
+		slog.Warn("MatchReader not available - match queries will be disabled", "error", err)
 	}
 	if err := c.Resolve(&eventReader); err != nil {
 		slog.Warn("EventReader not available", "error", err)

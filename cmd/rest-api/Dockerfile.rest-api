@@ -5,7 +5,8 @@ WORKDIR /app
 COPY go.mod go.sum ./
 COPY vendor ./vendor
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -ldflags="-s -w" -o replay-api-http-service ./cmd/rest-api/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -ldflags="-s -w" -o replay-api-http-service ./cmd/rest-api
+RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -ldflags="-s -w" -o rpc-api ./cmd/rpc-api
 RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -ldflags="-s -w" -o seed ./cmd/cli/seed/main.go
 RUN mkdir -p /app/replay_files
 RUN mkdir -p /app/coverage
@@ -16,6 +17,7 @@ COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=build /usr/share/zoneinfo /usr/share/zoneinfo
 WORKDIR /app
 COPY --from=build /app/replay-api-http-service ./
+COPY --from=build /app/rpc-api ./rpc-api
 COPY --from=build /app/seed ./seed
 COPY --from=build /app/replay_files ./replay_files
 COPY --from=build /app/coverage ./coverage

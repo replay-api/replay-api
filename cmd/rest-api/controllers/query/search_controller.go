@@ -110,8 +110,7 @@ func NewMatchSearchController(c *container.Container) *SearchController[replay_e
 	err := c.Resolve(&s)
 
 	if err != nil {
-		slog.Error("Cannot resolve replay_out.MatchReader for NewMatchSearchController", "err", err)
-		panic(err)
+		slog.Warn("MatchReader not available for NewMatchSearchController", "error", err)
 	}
 
 	return &SearchController[replay_entity.Match]{
@@ -124,8 +123,7 @@ func NewReplayFileSearchController(c *container.Container) *SearchController[rep
 	err := c.Resolve(&s)
 
 	if err != nil {
-		slog.Error("Cannot resolve replay_in.ReplayFileReader for NewReplayFileSearchController", "err", err)
-		panic(err)
+		slog.Warn("ReplayFileReader not available for NewReplayFileSearchController", "error", err)
 	}
 
 	return &SearchController[replay_entity.ReplayFile]{
@@ -138,8 +136,7 @@ func NewTeamSearchController(c *container.Container) *SearchController[replay_en
 	err := c.Resolve(&s)
 
 	if err != nil {
-		slog.Error("Cannot resolve replay_in.TeamReader for NewTeamSearchController", "err", err)
-		panic(err)
+		slog.Warn("TeamReader not available for NewTeamSearchController", "error", err)
 	}
 
 	return &SearchController[replay_entity.Team]{
@@ -152,8 +149,7 @@ func NewPlayerSearchController(c *container.Container) *SearchController[replay_
 	err := c.Resolve(&s)
 
 	if err != nil {
-		slog.Error("Cannot resolve replay_in.PlayerReader for NewPlayerSearchController", "err", err)
-		panic(err)
+		slog.Warn("PlayerMetadataReader not available for NewPlayerSearchController", "error", err)
 	}
 
 	return &SearchController[replay_entity.PlayerMetadata]{
@@ -166,8 +162,7 @@ func NePlayerProfileSearchController(c *container.Container) *SearchController[s
 	err := c.Resolve(&s)
 
 	if err != nil {
-		slog.Error("Cannot resolve replay_in.PlayerProfileReader for NePlayerProfileSearchController", "err", err)
-		panic(err)
+		slog.Warn("PlayerProfileReader not available for NePlayerProfileSearchController", "error", err)
 	}
 
 	return &SearchController[squad_entities.PlayerProfile]{
@@ -180,8 +175,7 @@ func NewEventSearchController(c *container.Container) *SearchController[replay_e
 	err := c.Resolve(&s)
 
 	if err != nil {
-		slog.Error("Cannot resolve replay_in.EventReader for NewEventSearchController", "err", err)
-		panic(err)
+		slog.Warn("EventReader not available for NewEventSearchController", "error", err)
 	}
 
 	return &SearchController[replay_entity.GameEvent]{
@@ -194,8 +188,7 @@ func NewBadgeSearchController(c *container.Container) *SearchController[replay_e
 	err := c.Resolve(&s)
 
 	if err != nil {
-		slog.Error("Cannot resolve replay_in.BadgeReader for NewBadgeSearchController", "err", err)
-		panic(err)
+		slog.Warn("BadgeReader not available for NewBadgeSearchController", "error", err)
 	}
 
 	return &SearchController[replay_entity.Badge]{
@@ -208,8 +201,7 @@ func NewProfileSearchController(c *container.Container) *SearchController[iam_en
 	err := c.Resolve(&s)
 
 	if err != nil {
-		slog.Error("Cannot resolve iam_entities.ProfileReader for NewProfileSearchController", "err", err)
-		panic(err)
+		slog.Warn("ProfileReader not available for NewProfileSearchController", "error", err)
 	}
 
 	return &SearchController[iam_entities.Profile]{
@@ -222,8 +214,7 @@ func NewMembershipSearchController(c *container.Container) *SearchController[iam
 	err := c.Resolve(&s)
 
 	if err != nil {
-		slog.Error("Cannot resolve iam_entities.MembershipReader for NeMembershipSearchController", "err", err)
-		panic(err)
+		slog.Warn("MembershipReader not available for NeMembershipSearchController", "error", err)
 	}
 
 	return &SearchController[iam_entities.Membership]{
@@ -236,8 +227,7 @@ func NewPlayerProfileSearchController(c *container.Container) *SearchController[
 	err := c.Resolve(&s)
 
 	if err != nil {
-		slog.Error("Cannot resolve squad_in.PlayerProfileReader for NewPlayerProfileSearchController", "err", err)
-		panic(err)
+		slog.Warn("PlayerProfileReader not available for NewPlayerProfileSearchController", "error", err)
 	}
 
 	return &SearchController[squad_entities.PlayerProfile]{
@@ -250,8 +240,7 @@ func NewSquadSearchController(c *container.Container) *SearchController[squad_en
 	err := c.Resolve(&s)
 
 	if err != nil {
-		slog.Error("Cannot resolve squad_in.SquadReader for NewSquadSearchController", "err", err)
-		panic(err)
+		slog.Warn("SquadReader not available for NewSquadSearchController", "error", err)
 	}
 
 	return &SearchController[squad_entities.Squad]{
@@ -264,8 +253,7 @@ func NewSubscriptionSearchController(c *container.Container) *SearchController[b
 	err := c.Resolve(&s)
 
 	if err != nil {
-		slog.Error("Cannot resolve billing_in.SubscriptionReader for NewSubscriptionSearchController", "err", err)
-		panic(err)
+		slog.Warn("SubscriptionReader not available for NewSubscriptionSearchController", "error", err)
 	}
 
 	return &SearchController[billing_entities.Subscription]{
@@ -278,8 +266,7 @@ func NewPlanSearchController(c *container.Container) *SearchController[billing_e
 	err := c.Resolve(&s)
 
 	if err != nil {
-		slog.Error("Cannot resolve billing_in.PlanReader for NewPlanSearchController", "err", err)
-		panic(err)
+		slog.Warn("PlanReader not available for NewPlanSearchController", "error", err)
 	}
 
 	return &SearchController[billing_entities.Plan]{

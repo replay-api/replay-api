@@ -11,22 +11,26 @@ import (
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
 	matchmaking_in "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/in"
 	matchmaking_out "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/out"
+	kafka "github.com/replay-api/replay-api/pkg/infra/kafka"
 )
 
 // LeaveMatchmakingQueueUseCase handles player leaving matchmaking queue
 type LeaveMatchmakingQueueUseCase struct {
 	billableOperationHandler billing_in.BillableOperationCommandHandler
 	sessionRepository        matchmaking_out.MatchmakingSessionRepository
+	eventPublisher           *kafka.EventPublisher
 }
 
 // NewLeaveMatchmakingQueueUseCase creates a new leave queue usecase
 func NewLeaveMatchmakingQueueUseCase(
 	billableOperationHandler billing_in.BillableOperationCommandHandler,
 	sessionRepository matchmaking_out.MatchmakingSessionRepository,
+	eventPublisher *kafka.EventPublisher,
 ) matchmaking_in.LeaveMatchmakingQueueCommandHandler {
 	return &LeaveMatchmakingQueueUseCase{
 		billableOperationHandler: billableOperationHandler,
 		sessionRepository:        sessionRepository,
+		eventPublisher:           eventPublisher,
 	}
 }
 
@@ -76,6 +80,25 @@ func (uc *LeaveMatchmakingQueueUseCase) Exec(ctx context.Context, cmd matchmakin
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update session status", "error", err, "session_id", cmd.SessionID)
 		return fmt.Errorf("failed to leave matchmaking queue")
+	}
+
+	// publish queue left event
+	if uc.eventPublisher != nil {
+		queueEvent := &kafka.QueueEvent{
+			PlayerID:  cmd.PlayerID,
+			GameType:  session.Preferences.GameID,
+			Region:    session.Preferences.Region,
+			MMR:       session.PlayerMMR,
+			EventType: kafka.EventTypeQueueLeft,
+			Metadata: map[string]string{
+				"session_id": cmd.SessionID.String(),
+				"game_mode": session.Preferences.GameMode,
+			},
+		}
+
+		if err := uc.eventPublisher.PublishQueueEvent(ctx, queueEvent); err != nil {
+			slog.WarnContext(ctx, "failed to publish queue left event", "error", err, "player_id", cmd.PlayerID)
+		}
 	}
 
 	// billing execution AFTER successful operation

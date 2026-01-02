@@ -9,6 +9,8 @@ import (
 	"os"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 
 	billing "github.com/replay-api/replay-api/pkg/app/proto/billing/generated/billing"
 	iam "github.com/replay-api/replay-api/pkg/app/proto/iam/generated/iam"
@@ -20,7 +22,7 @@ func main() {
 
 	builder := ioc.NewContainerBuilder()
 
-	c := builder.WithEnvFile().With(ioc.InjectMongoDB).WithInboundPorts().WithSquadAPI().Build()
+	c := builder.WithEnvFile().WithKafka().With(ioc.InjectMongoDB).WithSquadAPI().WithInboundPorts().Build()
 
 	rpcPort := os.Getenv("GRPC_API_PORT")
 
@@ -35,6 +37,12 @@ func main() {
 	iam.RegisterRIDServiceServer(grpcServer, api)
 	squad.RegisterPlayerProfileServiceServer(grpcServer, api)
 	billing.RegisterSubscriptionServiceServer(grpcServer, api)
+	
+	// Register health service
+	healthServer := health.NewServer()
+	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
+	healthServer.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
+	
 	log.Printf("gRPC server is listening on %v", lis.Addr())
 
 	if err := grpcServer.Serve(lis); err != nil {

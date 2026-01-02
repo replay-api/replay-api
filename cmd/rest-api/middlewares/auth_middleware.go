@@ -26,6 +26,7 @@ func NewAuthMiddleware() *AuthMiddleware {
 			"/onboarding/email":  true,
 			"/auth/login":        true,
 			"/auth/logout":       true, // Logout should work even with expired tokens
+			"/auth/guest":        true, // Guest token creation doesn't require auth
 			"/webhooks/stripe":   true,
 		},
 	}
@@ -39,6 +40,7 @@ func (am *AuthMiddleware) isPublicPostPath(path string) bool {
 		"/onboarding/email":  true,
 		"/auth/login":        true,
 		"/auth/logout":       true, // Logout should work even with expired tokens
+		"/auth/guest":        true, // Guest token creation doesn't require auth
 		"/webhooks/stripe":   true,
 	}
 	return publicPostPaths[path]

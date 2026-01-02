@@ -3,7 +3,6 @@ package matchmaking_usecases_test
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	common "github.com/replay-api/replay-api/pkg/domain"
@@ -18,12 +17,11 @@ import (
 func TestJoinMatchmakingQueue_Success(t *testing.T) {
 	mockBilling := new(MockBillableOperationHandler)
 	mockSessionRepo := new(MockMatchmakingSessionRepository)
-	mockPoolRepo := new(MockMatchmakingPoolRepository)
 
 	usecase := matchmaking_usecases.NewJoinMatchmakingQueueUseCase(
 		mockBilling,
 		mockSessionRepo,
-		mockPoolRepo,
+		nil, // eventPublisher - not needed for this test
 	)
 
 	ctx := context.Background()
@@ -50,21 +48,6 @@ func TestJoinMatchmakingQueue_Success(t *testing.T) {
 	// mock billing validation
 	mockBilling.On("Validate", mock.Anything, mock.Anything).Return(nil)
 
-	// mock pool retrieval - return existing pool
-	pool := &matchmaking_entities.MatchmakingPool{
-		ID:       uuid.New(),
-		GameID:   "cs2",
-		GameMode: "competitive",
-		Region:   "us-east",
-		PoolStats: matchmaking_entities.PoolStatistics{
-			TotalPlayers:    10,
-			AverageWaitTime: 45,
-		},
-		CreatedAt: time.Now().UTC(),
-		UpdatedAt: time.Now().UTC(),
-	}
-	mockPoolRepo.On("GetByGameModeRegion", mock.Anything, "cs2", "competitive", "us-east").Return(pool, nil)
-
 	// mock session save
 	mockSessionRepo.On("Save", mock.Anything, mock.Anything).Return(nil)
 
@@ -80,18 +63,16 @@ func TestJoinMatchmakingQueue_Success(t *testing.T) {
 	assert.Equal(t, matchmaking_entities.StatusQueued, session.Status)
 	mockBilling.AssertExpectations(t)
 	mockSessionRepo.AssertExpectations(t)
-	mockPoolRepo.AssertExpectations(t)
 }
 
 func TestJoinMatchmakingQueue_Unauthenticated(t *testing.T) {
 	mockBilling := new(MockBillableOperationHandler)
 	mockSessionRepo := new(MockMatchmakingSessionRepository)
-	mockPoolRepo := new(MockMatchmakingPoolRepository)
 
 	usecase := matchmaking_usecases.NewJoinMatchmakingQueueUseCase(
 		mockBilling,
 		mockSessionRepo,
-		mockPoolRepo,
+		nil, // eventPublisher
 	)
 
 	ctx := context.Background()
@@ -115,12 +96,11 @@ func TestJoinMatchmakingQueue_Unauthenticated(t *testing.T) {
 func TestJoinMatchmakingQueue_AlreadyInQueue(t *testing.T) {
 	mockBilling := new(MockBillableOperationHandler)
 	mockSessionRepo := new(MockMatchmakingSessionRepository)
-	mockPoolRepo := new(MockMatchmakingPoolRepository)
 
 	usecase := matchmaking_usecases.NewJoinMatchmakingQueueUseCase(
 		mockBilling,
 		mockSessionRepo,
-		mockPoolRepo,
+		nil, // eventPublisher
 	)
 
 	ctx := context.Background()
@@ -141,10 +121,15 @@ func TestJoinMatchmakingQueue_AlreadyInQueue(t *testing.T) {
 	}
 
 	// mock existing session
+	resourceOwner := common.ResourceOwner{
+		TenantID: uuid.New(),
+		ClientID: uuid.New(),
+		UserID:   playerID,
+	}
 	existingSession := &matchmaking_entities.MatchmakingSession{
-		ID:       uuid.New(),
-		PlayerID: playerID,
-		Status:   matchmaking_entities.StatusQueued,
+		BaseEntity: common.NewEntity(resourceOwner),
+		PlayerID:   playerID,
+		Status:     matchmaking_entities.StatusQueued,
 	}
 	mockSessionRepo.On("GetByPlayerID", mock.Anything, playerID).Return([]*matchmaking_entities.MatchmakingSession{existingSession}, nil)
 

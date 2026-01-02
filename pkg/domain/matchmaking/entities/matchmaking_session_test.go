@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	common "github.com/replay-api/replay-api/pkg/domain"
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
 	"github.com/stretchr/testify/assert"
 )
@@ -35,8 +36,6 @@ func TestMatchmakingSession_IsExpired(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			session := &matchmaking_entities.MatchmakingSession{
-				ID:        uuid.New(),
-				PlayerID:  uuid.New(),
 				ExpiresAt: tt.expiresAt,
 			}
 
@@ -87,9 +86,7 @@ func TestMatchmakingSession_CanMatch(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			session := &matchmaking_entities.MatchmakingSession{
-				ID:       uuid.New(),
-				PlayerID: uuid.New(),
-				Status:   tt.status,
+				Status: tt.status,
 			}
 
 			result := session.CanMatch()
@@ -134,8 +131,6 @@ func TestMatchmakingSession_GetTierPriority(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			session := &matchmaking_entities.MatchmakingSession{
-				ID:       uuid.New(),
-				PlayerID: uuid.New(),
 				Preferences: matchmaking_entities.MatchPreferences{
 					Tier: tt.tier,
 				},
@@ -149,9 +144,15 @@ func TestMatchmakingSession_GetTierPriority(t *testing.T) {
 
 func TestMatchmakingSession_GetID(t *testing.T) {
 	expectedID := uuid.New()
-	session := &matchmaking_entities.MatchmakingSession{
-		ID: expectedID,
+	resourceOwner := common.ResourceOwner{
+		TenantID: uuid.New(),
+		ClientID: uuid.New(),
+		UserID:   uuid.New(),
 	}
+	session := &matchmaking_entities.MatchmakingSession{
+		BaseEntity: common.NewEntity(resourceOwner),
+	}
+	session.ID = expectedID // Override the generated ID
 
 	assert.Equal(t, expectedID, session.GetID())
 }
@@ -171,10 +172,15 @@ func TestMatchmakingSession_FullSession(t *testing.T) {
 	squadID := uuid.New()
 	now := time.Now()
 
+	resourceOwner := common.ResourceOwner{
+		TenantID: uuid.New(),
+		ClientID: uuid.New(),
+		UserID:   playerID,
+	}
 	session := &matchmaking_entities.MatchmakingSession{
-		ID:       uuid.New(),
-		PlayerID: playerID,
-		SquadID:  &squadID,
+		BaseEntity: common.NewEntity(resourceOwner),
+		PlayerID:   playerID,
+		SquadID:    &squadID,
 		Preferences: matchmaking_entities.MatchPreferences{
 			GameID:   "cs2",
 			GameMode: "competitive",
@@ -193,9 +199,8 @@ func TestMatchmakingSession_FullSession(t *testing.T) {
 		QueuedAt:      now,
 		EstimatedWait: 30,
 		ExpiresAt:     now.Add(10 * time.Minute),
-		CreatedAt:     now,
-		UpdatedAt:     now,
 	}
+	session.ID = uuid.New() // Override the generated ID for testing
 
 	assert.True(t, session.CanMatch())
 	assert.False(t, session.IsExpired())

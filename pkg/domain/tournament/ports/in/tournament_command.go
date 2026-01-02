@@ -180,80 +180,6 @@ func (c *CancelTournamentCommand) Validate() error {
 	return nil
 }
 
-// ScheduleMatchesCommand represents the command to schedule tournament matches
-type ScheduleMatchesCommand struct {
-	TournamentID       uuid.UUID
-	StartTime          *time.Time // Override tournament start time
-	MatchDurationMins  int        // Expected duration per match
-	BreakBetweenMins   int        // Break between matches
-	ConcurrentMatches  int        // Max concurrent matches (0 = sequential)
-}
-
-// Validate validates the ScheduleMatchesCommand
-func (c *ScheduleMatchesCommand) Validate() error {
-	if c.TournamentID == uuid.Nil {
-		return errors.New("tournament_id is required")
-	}
-	if c.MatchDurationMins < 0 {
-		return errors.New("match_duration_mins cannot be negative")
-	}
-	if c.BreakBetweenMins < 0 {
-		return errors.New("break_between_mins cannot be negative")
-	}
-	if c.ConcurrentMatches < 0 {
-		return errors.New("concurrent_matches cannot be negative")
-	}
-	return nil
-}
-
-// RescheduleMatchCommand represents the command to reschedule a specific match
-type RescheduleMatchCommand struct {
-	TournamentID uuid.UUID
-	MatchID      uuid.UUID
-	NewTime      time.Time
-	Reason       string
-}
-
-// Validate validates the RescheduleMatchCommand
-func (c *RescheduleMatchCommand) Validate() error {
-	if c.TournamentID == uuid.Nil {
-		return errors.New("tournament_id is required")
-	}
-	if c.MatchID == uuid.Nil {
-		return errors.New("match_id is required")
-	}
-	if c.NewTime.IsZero() {
-		return errors.New("new_time is required")
-	}
-	return nil
-}
-
-// ReportMatchResultCommand represents reporting match results
-type ReportMatchResultCommand struct {
-	TournamentID uuid.UUID
-	MatchID      uuid.UUID
-	WinnerID     uuid.UUID
-	Score        string // e.g., "16-14", "2-1"
-	ReportedBy   uuid.UUID
-}
-
-// Validate validates the ReportMatchResultCommand
-func (c *ReportMatchResultCommand) Validate() error {
-	if c.TournamentID == uuid.Nil {
-		return errors.New("tournament_id is required")
-	}
-	if c.MatchID == uuid.Nil {
-		return errors.New("match_id is required")
-	}
-	if c.WinnerID == uuid.Nil {
-		return errors.New("winner_id is required")
-	}
-	if strings.TrimSpace(c.Score) == "" {
-		return errors.New("score is required")
-	}
-	return nil
-}
-
 // TournamentCommand defines operations for managing tournaments
 type TournamentCommand interface {
 	// CreateTournament creates a new tournament
@@ -279,18 +205,6 @@ type TournamentCommand interface {
 
 	// StartTournament begins the tournament
 	StartTournament(ctx context.Context, tournamentID uuid.UUID) error
-
-	// GenerateBrackets generates tournament brackets based on format (single/double elimination, round-robin, swiss)
-	GenerateBrackets(ctx context.Context, tournamentID uuid.UUID) error
-
-	// ScheduleMatches automatically schedules all tournament matches
-	ScheduleMatches(ctx context.Context, cmd ScheduleMatchesCommand) error
-
-	// RescheduleMatch reschedules a specific match
-	RescheduleMatch(ctx context.Context, cmd RescheduleMatchCommand) error
-
-	// ReportMatchResult reports the result of a completed match
-	ReportMatchResult(ctx context.Context, cmd ReportMatchResultCommand) error
 
 	// CompleteTournament marks tournament as completed with winners
 	CompleteTournament(ctx context.Context, cmd CompleteTournamentCommand) error

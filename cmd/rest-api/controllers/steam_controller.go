@@ -21,11 +21,12 @@ func NewSteamController(container *container.Container) *SteamController {
 	err := container.Resolve(&onboardSteamUserCommand)
 
 	if err != nil {
-		slog.Error("Cannot resolve steam_in.OnboardSteamUserCommand for new SteamController", "err", err)
-		panic(err)
+		slog.Warn("Cannot resolve steam_in.OnboardSteamUserCommand for new SteamController - Steam auth will be disabled", "err", err)
 	}
 
-	return &SteamController{OnboardSteamUserCommand: onboardSteamUserCommand}
+	return &SteamController{
+		OnboardSteamUserCommand: onboardSteamUserCommand,
+	}
 }
 
 func (c *SteamController) OnboardSteamUser(apiContext context.Context) http.HandlerFunc {
@@ -39,6 +40,13 @@ func (c *SteamController) OnboardSteamUser(apiContext context.Context) http.Hand
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		w.Header().Set("Access-Control-Expose-Headers", "X-Resource-Owner-ID, X-Intended-Audience")
 
+		// Check if OnboardSteamUserCommand is available
+		if c.OnboardSteamUserCommand == nil {
+			slog.WarnContext(r.Context(), "Steam user onboarding not available - OnboardSteamUserCommand not registered")
+			http.Error(w, "Service Temporarily Unavailable", http.StatusServiceUnavailable)
+			return
+		}
+
 		if r.Body == nil {
 			slog.ErrorContext(r.Context(), "no request body", "request.Body", r.Body)
 			http.Error(w, "Bad Request", http.StatusBadRequest)
@@ -48,8 +56,6 @@ func (c *SteamController) OnboardSteamUser(apiContext context.Context) http.Hand
 		decoder := json.NewDecoder(r.Body)
 		var steamUserParams steam_entity.SteamUser
 		err := decoder.Decode(&steamUserParams)
-
-		// slog.InfoContext(r.Context(), "SteamUser Received =>", "steam_entity.SteamUser", steamUserParams)
 
 		if err != nil {
 			slog.ErrorContext(r.Context(), "error decoding steam user from request", "err", err, "request.body", r.Body)

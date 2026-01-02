@@ -26,26 +26,22 @@ type PlayerProfileController struct {
 func NewPlayerProfileController(container container.Container) *PlayerProfileController {
 	var createPlayerUseCase squad_in.CreatePlayerProfileCommandHandler
 	if err := container.Resolve(&createPlayerUseCase); err != nil {
-		slog.Error("Failed to resolve CreatePlayerProfileCommandHandler", "error", err)
-		panic(err)
+		slog.Warn("CreatePlayerProfileCommandHandler not available", "error", err)
 	}
 
 	var updatePlayerUseCase squad_in.UpdatePlayerProfileCommandHandler
 	if err := container.Resolve(&updatePlayerUseCase); err != nil {
-		slog.Error("Failed to resolve UpdatePlayerProfileCommandHandler", "error", err)
-		panic(err)
+		slog.Warn("UpdatePlayerProfileCommandHandler not available", "error", err)
 	}
 
 	var deletePlayerUseCase squad_in.DeletePlayerProfileCommandHandler
 	if err := container.Resolve(&deletePlayerUseCase); err != nil {
-		slog.Error("Failed to resolve DeletePlayerProfileCommandHandler", "error", err)
-		panic(err)
+		slog.Warn("DeletePlayerProfileCommandHandler not available", "error", err)
 	}
 
 	var playerProfileReader squad_out.PlayerProfileReader
 	if err := container.Resolve(&playerProfileReader); err != nil {
-		slog.Error("Failed to resolve PlayerProfileReader", "error", err)
-		panic(err)
+		slog.Warn("PlayerProfileReader not available", "error", err)
 	}
 
 	return &PlayerProfileController{

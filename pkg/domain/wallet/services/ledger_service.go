@@ -914,3 +914,153 @@ func (s *LedgerService) RecordPrizeWinning(
 	
 	return journal.ID, nil
 }
+
+// NoOpLedgerRepository provides a no-op implementation of LedgerRepository for basic functionality
+type NoOpLedgerRepository struct{}
+
+// NewNoOpLedgerRepository creates a new no-op ledger repository
+func NewNoOpLedgerRepository() *NoOpLedgerRepository {
+	return &NoOpLedgerRepository{}
+}
+
+// CreateAccount is a no-op implementation
+func (r *NoOpLedgerRepository) CreateAccount(ctx context.Context, account *wallet_entities.LedgerAccount) error {
+	slog.Debug("[NoOpLedgerRepository] CreateAccount called", "account_id", account.ID, "code", account.Code)
+	return nil
+}
+
+// GetAccountByID is a no-op implementation
+func (r *NoOpLedgerRepository) GetAccountByID(ctx context.Context, id uuid.UUID) (*wallet_entities.LedgerAccount, error) {
+	slog.Debug("[NoOpLedgerRepository] GetAccountByID called", "id", id)
+	return &wallet_entities.LedgerAccount{
+		ID:               id,
+		Code:             "NOOP",
+		Name:             "No-op Account",
+		Type:             wallet_entities.AccountTypeAsset,
+		Currency:         "USD",
+		Balance:          big.NewFloat(0),
+		AvailableBalance: big.NewFloat(0),
+		HeldBalance:      big.NewFloat(0),
+		IsActive:         true,
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
+		Version:          1,
+	}, nil
+}
+
+// GetAccountByCode is a no-op implementation
+func (r *NoOpLedgerRepository) GetAccountByCode(ctx context.Context, code string) (*wallet_entities.LedgerAccount, error) {
+	slog.Debug("[NoOpLedgerRepository] GetAccountByCode called", "code", code)
+	return &wallet_entities.LedgerAccount{
+		ID:               uuid.New(),
+		Code:             code,
+		Name:             "No-op Account",
+		Type:             wallet_entities.AccountTypeAsset,
+		Currency:         "USD",
+		Balance:          big.NewFloat(0),
+		AvailableBalance: big.NewFloat(0),
+		HeldBalance:      big.NewFloat(0),
+		IsActive:         true,
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
+		Version:          1,
+	}, nil
+}
+
+// GetAccountByUserID is a no-op implementation
+func (r *NoOpLedgerRepository) GetAccountByUserID(ctx context.Context, userID uuid.UUID, currency string) (*wallet_entities.LedgerAccount, error) {
+	slog.Debug("[NoOpLedgerRepository] GetAccountByUserID called", "user_id", userID, "currency", currency)
+	return &wallet_entities.LedgerAccount{
+		ID:               uuid.New(),
+		Code:             fmt.Sprintf("USER-%s", userID.String()[:8]),
+		Name:             "User Account",
+		Type:             wallet_entities.AccountTypeAsset,
+		Currency:         currency,
+		Balance:          big.NewFloat(0),
+		AvailableBalance: big.NewFloat(0),
+		HeldBalance:      big.NewFloat(0),
+		IsActive:         true,
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
+		Version:          1,
+	}, nil
+}
+
+// UpdateAccountBalance is a no-op implementation
+func (r *NoOpLedgerRepository) UpdateAccountBalance(ctx context.Context, accountID uuid.UUID, balance, available, held *big.Float, version int) error {
+	slog.Debug("[NoOpLedgerRepository] UpdateAccountBalance called", "account_id", accountID)
+	return nil
+}
+
+// CreateJournal is a no-op implementation
+func (r *NoOpLedgerRepository) CreateJournal(ctx context.Context, journal *wallet_entities.JournalEntry) error {
+	slog.Debug("[NoOpLedgerRepository] CreateJournal called", "journal_id", journal.ID)
+	return nil
+}
+
+// GetJournalByID is a no-op implementation
+func (r *NoOpLedgerRepository) GetJournalByID(ctx context.Context, id uuid.UUID) (*wallet_entities.JournalEntry, error) {
+	slog.Debug("[NoOpLedgerRepository] GetJournalByID called", "id", id)
+	return &wallet_entities.JournalEntry{
+		ID:          id,
+		Description: "No-op Journal",
+		Currency:    "USD",
+		Status:      wallet_entities.JournalStatusPosted,
+		CreatedAt:   time.Now(),
+	}, nil
+}
+
+// GetLastJournalHash is a no-op implementation
+func (r *NoOpLedgerRepository) GetLastJournalHash(ctx context.Context) (string, error) {
+	slog.Debug("[NoOpLedgerRepository] GetLastJournalHash called")
+	return "noop-hash", nil
+}
+
+// UpdateJournalStatus is a no-op implementation
+func (r *NoOpLedgerRepository) UpdateJournalStatus(ctx context.Context, id uuid.UUID, status wallet_entities.JournalStatus) error {
+	slog.Debug("[NoOpLedgerRepository] UpdateJournalStatus called", "id", id, "status", status)
+	return nil
+}
+
+// CreateWallet is a no-op implementation
+func (r *NoOpLedgerRepository) CreateWallet(ctx context.Context, wallet *wallet_entities.LedgerWallet) error {
+	slog.Debug("[NoOpLedgerRepository] CreateWallet called", "wallet_id", wallet.ID)
+	return nil
+}
+
+// GetWalletByUserID is a no-op implementation
+func (r *NoOpLedgerRepository) GetWalletByUserID(ctx context.Context, userID uuid.UUID, currency string) (*wallet_entities.LedgerWallet, error) {
+	slog.Debug("[NoOpLedgerRepository] GetWalletByUserID called", "user_id", userID, "currency", currency)
+	return &wallet_entities.LedgerWallet{
+		ID:               uuid.New(),
+		UserID:           userID,
+		Currency:         currency,
+		Balance:          big.NewFloat(0),
+		AvailableBalance: big.NewFloat(0),
+		HeldBalance:      big.NewFloat(0),
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
+		Version:          1,
+	}, nil
+}
+
+// UpdateWallet is a no-op implementation
+func (r *NoOpLedgerRepository) UpdateWallet(ctx context.Context, wallet *wallet_entities.LedgerWallet) error {
+	slog.Debug("[NoOpLedgerRepository] UpdateWallet called", "wallet_id", wallet.ID)
+	return nil
+}
+
+// GetJournalsByDateRange is a no-op implementation
+func (r *NoOpLedgerRepository) GetJournalsByDateRange(ctx context.Context, from, to time.Time) ([]wallet_entities.JournalEntry, error) {
+	slog.Debug("[NoOpLedgerRepository] GetJournalsByDateRange called", "from", from, "to", to)
+	return []wallet_entities.JournalEntry{}, nil
+}
+
+// GetAccountBalances is a no-op implementation
+func (r *NoOpLedgerRepository) GetAccountBalances(ctx context.Context) ([]wallet_entities.LedgerAccount, error) {
+	slog.Debug("[NoOpLedgerRepository] GetAccountBalances called")
+	return []wallet_entities.LedgerAccount{}, nil
+}
+
+// Ensure NoOpLedgerRepository implements LedgerRepository
+var _ LedgerRepository = (*NoOpLedgerRepository)(nil)

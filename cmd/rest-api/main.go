@@ -5,8 +5,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	//	"golang.org/x/oauth2/jwt"
@@ -18,8 +16,7 @@ import (
 )
 
 func main() {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := context.Background()
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
@@ -27,7 +24,22 @@ func main() {
 
 	builder := ioc.NewContainerBuilder()
 
-	c := builder.WithEnvFile().With(ioc.InjectMongoDB).WithSquadAPI().WithInboundPorts().Build()
+	// Build container with env and event publisher
+	c := builder.WithEnvFile().WithEventPublisher().Build()
+
+	// Inject MongoDB services (includes squad services)
+	if err := ioc.InjectMongoDB(c); err != nil {
+		slog.Error("Failed to inject MongoDB services", "error", err)
+		panic(err)
+	}
+
+	// Register Squad API services (repositories, writers, command handlers)
+	// This must be called AFTER InjectMongoDB since squad services depend on MongoDB
+	builder.WithSquadAPI()
+
+	// Register inbound ports (services/use cases that depend on MongoDB repositories)
+	// This must be called AFTER InjectMongoDB and WithSquadAPI since inbound ports depend on outbound ports (repos)
+	builder.WithInboundPorts()
 
 	defer builder.Close(c)
 
@@ -66,35 +78,8 @@ func main() {
 		IdleTimeout:  120 * time.Second,
 	}
 
-	// Graceful shutdown handler for Kubernetes SIGTERM
-	shutdownChan := make(chan os.Signal, 1)
-	signal.Notify(shutdownChan, syscall.SIGTERM, syscall.SIGINT)
-
-	go func() {
-		sig := <-shutdownChan
-		slog.InfoContext(ctx, "Received shutdown signal", "signal", sig.String())
-
-		// Give Kubernetes time to update endpoints
-		slog.InfoContext(ctx, "Waiting for Kubernetes endpoint update...")
-		time.Sleep(5 * time.Second)
-
-		// Graceful shutdown with timeout
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer shutdownCancel()
-
-		slog.InfoContext(ctx, "Shutting down server gracefully...")
-		if err := server.Shutdown(shutdownCtx); err != nil {
-			slog.ErrorContext(ctx, "Server shutdown error", "error", err)
-		}
-
-		// Cancel main context to stop background jobs
-		cancel()
-		slog.InfoContext(ctx, "Server shutdown complete")
-	}()
-
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	if err := server.ListenAndServe(); err != nil {
 		slog.ErrorContext(ctx, "Server error", "err", err)
-		os.Exit(1)
 	}
 
 }
