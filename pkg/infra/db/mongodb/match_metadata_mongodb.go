@@ -32,6 +32,9 @@ func NewMatchMetadataRepository(client *mongo.Client, dbName string, entityType 
 		"ID":                             true,
 		"ReplayFileID":                   true,
 		"GameID":                         true,
+		"MapName":                        true, // Added for search
+		"GameMode":                       true, // Added for search
+		"Status":                         true, // Added for search
 		"Visibility":                     true,
 		"ResourceOwner":                  true,
 		"CreatedAt":                      true,
@@ -50,6 +53,9 @@ func NewMatchMetadataRepository(client *mongo.Client, dbName string, entityType 
 		"ID":                             "_id",
 		"ReplayFileID":                   "replay_file_id",
 		"GameID":                         "game_id",
+		"MapName":                        "map_name",
+		"GameMode":                       "game_mode",
+		"Status":                         "status",
 		"Visibility":                     "visibility",
 		"ResourceOwner":                  "resource_owner",
 		"CreatedAt":                      "created_at",

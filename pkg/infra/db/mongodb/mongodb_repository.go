@@ -119,6 +119,18 @@ func (r *MongoDBRepository[T]) InitQueryableFields(queryableFields map[string]bo
 	Repositories[common.ResourceType(r.entityName)] = r
 }
 
+// GetQueryableFields returns the map of queryable fields for this repository
+// Used by the search schema endpoint to expose field configuration to frontend
+func (r *MongoDBRepository[T]) GetQueryableFields() map[string]bool {
+	return r.QueryableFields
+}
+
+// GetBsonFieldMappings returns the BSON field mappings for this repository
+// Used for debugging and advanced schema introspection
+func (r *MongoDBRepository[T]) GetBsonFieldMappings() map[string]string {
+	return r.BsonFieldMappings
+}
+
 func (r *MongoDBRepository[T]) GetBSONFieldName(fieldName string) (string, error) {
 	if cachedBSONName, exists := r.mappingCache[r.entityName][fieldName]; exists {
 		return cachedBSONName, nil

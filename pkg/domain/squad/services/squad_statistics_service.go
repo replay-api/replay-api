@@ -7,9 +7,9 @@ import (
 
 	"github.com/google/uuid"
 	common "github.com/replay-api/replay-api/pkg/domain"
+	replay_in "github.com/replay-api/replay-api/pkg/domain/replay/ports/in"
 	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
-	replay_in "github.com/replay-api/replay-api/pkg/domain/replay/ports/in"
 )
 
 // SquadStatisticsService aggregates statistics for squads

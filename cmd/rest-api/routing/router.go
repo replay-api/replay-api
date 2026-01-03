@@ -100,6 +100,9 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	// search controllers
 	searchMux := query_controllers.NewSearchMux(&container)
 
+	// Search schema controller - exposes queryable fields to frontend SDK
+	searchSchemaController := query_controllers.NewSearchSchemaController()
+
 	r := mux.NewRouter()
 
 	// Global OPTIONS handler - must be registered BEFORE other routes
@@ -136,6 +139,10 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	// Enable CORS for browser access
 	corsMiddleware := middlewares.NewCORSMiddleware()
 	r.Use(corsMiddleware.Handler)
+
+	// Search Schema API - Frontend SDK fetches this to discover queryable fields
+	r.HandleFunc("/api/search/schema", searchSchemaController.GetSearchSchemaHandler).Methods("GET")
+	r.HandleFunc("/api/search/schema/{entity_type}", searchSchemaController.GetEntitySchemaHandler).Methods("GET")
 
 	// search mux
 	r.HandleFunc(Search, searchMux.Dispatch).Methods("GET")
