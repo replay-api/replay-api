@@ -2,8 +2,10 @@ package middlewares
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -74,8 +76,23 @@ func getClientIP(r *http.Request) string {
 	return r.RemoteAddr
 }
 
+// RateLimitResult contains the result of a rate limit check
+type RateLimitResult struct {
+	Allowed       bool
+	Remaining     int
+	Limit         int
+	ResetAfter    time.Duration
+	RetryAfterSec int
+}
+
 // Allow checks if the client is allowed to make a request
 func (rl *RateLimiter) Allow(clientIP string) bool {
+	result := rl.Check(clientIP)
+	return result.Allowed
+}
+
+// Check performs a rate limit check and returns detailed information
+func (rl *RateLimiter) Check(clientIP string) RateLimitResult {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
 
@@ -87,7 +104,12 @@ func (rl *RateLimiter) Allow(clientIP string) bool {
 			tokens:     rl.rate - 1, // Use one token for this request
 			lastRefill: now,
 		}
-		return true
+		return RateLimitResult{
+			Allowed:    true,
+			Remaining:  rl.rate - 1,
+			Limit:      rl.rate,
+			ResetAfter: rl.interval,
+		}
 	}
 
 	// Refill tokens based on time elapsed
@@ -102,10 +124,31 @@ func (rl *RateLimiter) Allow(clientIP string) bool {
 	// Check if we have tokens available
 	if bucket.tokens > 0 {
 		bucket.tokens--
-		return true
+		return RateLimitResult{
+			Allowed:    true,
+			Remaining:  bucket.tokens,
+			Limit:      rl.rate,
+			ResetAfter: rl.interval - elapsed,
+		}
 	}
 
-	return false
+	// Calculate time until next token refill
+	timeUntilRefill := rl.interval - elapsed
+	if timeUntilRefill < 0 {
+		timeUntilRefill = rl.interval
+	}
+	retryAfterSec := int(timeUntilRefill.Seconds())
+	if retryAfterSec < 1 {
+		retryAfterSec = 1
+	}
+
+	return RateLimitResult{
+		Allowed:       false,
+		Remaining:     0,
+		Limit:         rl.rate,
+		ResetAfter:    timeUntilRefill,
+		RetryAfterSec: retryAfterSec,
+	}
 }
 
 // RateLimitMiddleware creates an HTTP middleware for rate limiting
@@ -128,26 +171,65 @@ func NewRateLimitMiddlewareWithConfig(rate int, interval time.Duration) *RateLim
 	}
 }
 
+// RateLimitErrorResponse represents the error response for rate limiting
+type RateLimitErrorResponse struct {
+	Success bool              `json:"success"`
+	Error   *RateLimitError   `json:"error"`
+}
+
+// RateLimitError contains detailed rate limit error information
+type RateLimitError struct {
+	Code       string `json:"code"`
+	Message    string `json:"message"`
+	Details    string `json:"details,omitempty"`
+	RetryAfter int    `json:"retry_after_seconds"`
+	Limit      int    `json:"limit_per_minute"`
+	Remaining  int    `json:"remaining"`
+}
+
 // Handler is the HTTP middleware handler
 func (rlm *RateLimitMiddleware) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		clientIP := getClientIP(r)
+		// Skip rate limiting for CORS preflight requests
+		// OPTIONS requests are lightweight and should not consume rate limit tokens
+		if r.Method == http.MethodOptions {
+			next.ServeHTTP(w, r)
+			return
+		}
 
-		if !rlm.limiter.Allow(clientIP) {
+		clientIP := getClientIP(r)
+		result := rlm.limiter.Check(clientIP)
+
+		// Always set rate limit headers for visibility
+		w.Header().Set("X-RateLimit-Limit", strconv.Itoa(result.Limit))
+		w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(result.Remaining))
+		w.Header().Set("X-RateLimit-Reset", strconv.FormatInt(time.Now().Add(result.ResetAfter).Unix(), 10))
+
+		if !result.Allowed {
 			slog.Warn("rate limit exceeded",
 				"client_ip", clientIP,
 				"path", r.URL.Path,
 				"method", r.Method,
+				"limit", result.Limit,
+				"retry_after_sec", result.RetryAfterSec,
 			)
 
 			w.Header().Set("Content-Type", "application/json")
-			w.Header().Set("Retry-After", "60")
+			w.Header().Set("Retry-After", strconv.Itoa(result.RetryAfterSec))
 			w.WriteHeader(http.StatusTooManyRequests)
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
-				"success": false,
-				"error":   "Rate limit exceeded. Please wait before making more requests.",
-				"code":    "RATE_LIMIT_EXCEEDED",
-			})
+
+			errorResponse := RateLimitErrorResponse{
+				Success: false,
+				Error: &RateLimitError{
+					Code:       "RATE_LIMIT_EXCEEDED",
+					Message:    "Too many requests. Please slow down and try again.",
+					Details:    fmt.Sprintf("You have exceeded the rate limit of %d requests per minute. Please wait %d seconds before retrying.", result.Limit, result.RetryAfterSec),
+					RetryAfter: result.RetryAfterSec,
+					Limit:      result.Limit,
+					Remaining:  0,
+				},
+			}
+			_ = json.NewEncoder(w).Encode(errorResponse)
 			return
 		}
 

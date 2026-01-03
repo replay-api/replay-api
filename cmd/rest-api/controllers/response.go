@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 )
 
@@ -153,9 +154,14 @@ func WriteServiceUnavailable(w http.ResponseWriter, message ...string) {
 }
 
 // WriteTooManyRequests writes a 429 Too Many Requests response
-func WriteTooManyRequests(w http.ResponseWriter, retryAfter int) {
-	w.Header().Set("Retry-After", string(rune(retryAfter)))
-	WriteError(w, http.StatusTooManyRequests, ErrCodeRateLimited, "Rate limit exceeded")
+func WriteTooManyRequests(w http.ResponseWriter, retryAfter int, details ...string) {
+	w.Header().Set("Retry-After", fmt.Sprintf("%d", retryAfter))
+	msg := "Too many requests. Please slow down and try again."
+	if len(details) > 0 {
+		WriteError(w, http.StatusTooManyRequests, ErrCodeRateLimited, msg, details[0])
+	} else {
+		WriteError(w, http.StatusTooManyRequests, ErrCodeRateLimited, msg)
+	}
 }
 
 // WriteNoContent writes a 204 No Content response
