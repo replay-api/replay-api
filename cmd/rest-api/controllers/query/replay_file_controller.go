@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/golobby/container/v3"
 	"github.com/gorilla/mux"
@@ -19,6 +20,10 @@ type ReplayFileQueryController struct {
 	controllers.DefaultSearchController[replay_entity.ReplayFile]
 	replayFileReader replay_in.ReplayFileReader
 }
+
+// Default search fields for replays - used when no search_fields param is provided
+// These must match fields defined in the search schema
+var replayDefaultSearchFields = []string{"Header"}
 
 // NewReplayFileQueryController creates a new ReplayFileQueryController
 func NewReplayFileQueryController(c container.Container) *ReplayFileQueryController {
@@ -37,7 +42,11 @@ func NewReplayFileQueryController(c container.Container) *ReplayFileQueryControl
 }
 
 // ListReplayFilesHandler handles GET /games/{game_id}/replays
-// Supports query parameters: q (search term), player_id, squad_id, status, visibility, limit, offset
+// Supports query parameters:
+//   - q: Text search term (searches in fields specified by search_fields)
+//   - search_fields: Comma-separated list of fields to search (default: Header)
+//   - player_id, squad_id, status, visibility: Exact match filters
+//   - limit, offset: Pagination
 func (c *ReplayFileQueryController) ListReplayFilesHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	gameID := vars["game_id"]
@@ -45,6 +54,7 @@ func (c *ReplayFileQueryController) ListReplayFilesHandler(w http.ResponseWriter
 	// Get query parameters
 	query := r.URL.Query()
 	searchTerm := query.Get("q")
+	searchFieldsParam := query.Get("search_fields")
 	playerID := query.Get("player_id")
 	squadID := query.Get("squad_id")
 	status := query.Get("status")
@@ -66,7 +76,7 @@ func (c *ReplayFileQueryController) ListReplayFilesHandler(w http.ResponseWriter
 		}
 	}
 
-	slog.Info("ListReplayFilesHandler", "game_id", gameID, "q", searchTerm, "player_id", playerID, "limit", limit, "offset", offset)
+	slog.Info("ListReplayFilesHandler", "game_id", gameID, "q", searchTerm, "search_fields", searchFieldsParam, "limit", limit, "offset", offset)
 
 	// Build value parameters for search
 	var valueParams []common.SearchableValue
@@ -83,7 +93,7 @@ func (c *ReplayFileQueryController) ListReplayFilesHandler(w http.ResponseWriter
 	// Filter by player_id if provided
 	if playerID != "" {
 		valueParams = append(valueParams, common.SearchableValue{
-			Field:    "UploadedBy",
+			Field:    "ResourceOwner",
 			Values:   []interface{}{playerID},
 			Operator: common.EqualsOperator,
 		})
@@ -92,7 +102,7 @@ func (c *ReplayFileQueryController) ListReplayFilesHandler(w http.ResponseWriter
 	// Filter by squad_id if provided
 	if squadID != "" {
 		valueParams = append(valueParams, common.SearchableValue{
-			Field:    "SquadID",
+			Field:    "ResourceOwner",
 			Values:   []interface{}{squadID},
 			Operator: common.EqualsOperator,
 		})
@@ -107,22 +117,36 @@ func (c *ReplayFileQueryController) ListReplayFilesHandler(w http.ResponseWriter
 		})
 	}
 
-	// Filter by visibility if provided
+	// Filter by visibility if provided (maps to VisibilityLevel in schema)
 	if visibility != "" {
 		valueParams = append(valueParams, common.SearchableValue{
-			Field:    "Visibility",
+			Field:    "VisibilityLevel",
 			Values:   []interface{}{visibility},
 			Operator: common.EqualsOperator,
 		})
 	}
 
-	// Add search term if provided (search in filename)
+	// Add search term if provided - use search_fields from query or defaults
 	if searchTerm != "" {
-		valueParams = append(valueParams, common.SearchableValue{
-			Field:    "FileName",
-			Values:   []interface{}{searchTerm},
-			Operator: common.ContainsOperator,
-		})
+		searchFields := replayDefaultSearchFields
+		if searchFieldsParam != "" {
+			// Use fields from query param (SDK sends these based on schema)
+			searchFields = strings.Split(searchFieldsParam, ",")
+			for i := range searchFields {
+				searchFields[i] = strings.TrimSpace(searchFields[i])
+			}
+		}
+
+		// Add text search for each specified field (OR logic handled by search engine)
+		for _, field := range searchFields {
+			if field != "" {
+				valueParams = append(valueParams, common.SearchableValue{
+					Field:    field,
+					Values:   []interface{}{searchTerm},
+					Operator: common.ContainsOperator,
+				})
+			}
+		}
 	}
 
 	// Build the search using the helper function

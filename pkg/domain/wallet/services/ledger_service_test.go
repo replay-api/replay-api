@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math/big"
+	"sync"
 	"testing"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 // Mock implementations
 
 type mockLedgerRepository struct {
+	mu               sync.RWMutex // Protects all map access for thread safety
 	accounts         map[uuid.UUID]*wallet_entities.LedgerAccount
 	accountsByCode   map[string]*wallet_entities.LedgerAccount
 	accountsByUser   map[string]*wallet_entities.LedgerAccount // key: userID:currency
@@ -45,6 +47,8 @@ func (m *mockLedgerRepository) CreateAccount(ctx context.Context, account *walle
 	if m.createAccountErr != nil {
 		return m.createAccountErr
 	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.accounts[account.ID] = account
 	m.accountsByCode[account.Code] = account
 	if account.UserID != nil {
@@ -55,6 +59,8 @@ func (m *mockLedgerRepository) CreateAccount(ctx context.Context, account *walle
 }
 
 func (m *mockLedgerRepository) GetAccountByID(ctx context.Context, id uuid.UUID) (*wallet_entities.LedgerAccount, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	account, ok := m.accounts[id]
 	if !ok {
 		return nil, errors.New("account not found")
@@ -63,6 +69,8 @@ func (m *mockLedgerRepository) GetAccountByID(ctx context.Context, id uuid.UUID)
 }
 
 func (m *mockLedgerRepository) GetAccountByCode(ctx context.Context, code string) (*wallet_entities.LedgerAccount, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	account, ok := m.accountsByCode[code]
 	if !ok {
 		return nil, errors.New("account not found")
@@ -71,6 +79,8 @@ func (m *mockLedgerRepository) GetAccountByCode(ctx context.Context, code string
 }
 
 func (m *mockLedgerRepository) GetAccountByUserID(ctx context.Context, userID uuid.UUID, currency string) (*wallet_entities.LedgerAccount, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	key := userID.String() + ":" + currency
 	account, ok := m.accountsByUser[key]
 	if !ok {
@@ -83,6 +93,8 @@ func (m *mockLedgerRepository) UpdateAccountBalance(ctx context.Context, account
 	if m.updateErr != nil {
 		return m.updateErr
 	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	account, ok := m.accounts[accountID]
 	if !ok {
 		return errors.New("account not found")
@@ -98,12 +110,16 @@ func (m *mockLedgerRepository) CreateJournal(ctx context.Context, journal *walle
 	if m.createJournalErr != nil {
 		return m.createJournalErr
 	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.journals[journal.ID] = journal
 	m.lastHash = journal.Hash
 	return nil
 }
 
 func (m *mockLedgerRepository) GetJournalByID(ctx context.Context, id uuid.UUID) (*wallet_entities.JournalEntry, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	journal, ok := m.journals[id]
 	if !ok {
 		return nil, errors.New("journal not found")
@@ -112,10 +128,14 @@ func (m *mockLedgerRepository) GetJournalByID(ctx context.Context, id uuid.UUID)
 }
 
 func (m *mockLedgerRepository) GetLastJournalHash(ctx context.Context) (string, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	return m.lastHash, nil
 }
 
 func (m *mockLedgerRepository) UpdateJournalStatus(ctx context.Context, id uuid.UUID, status wallet_entities.JournalStatus) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	journal, ok := m.journals[id]
 	if !ok {
 		return errors.New("journal not found")
@@ -128,12 +148,16 @@ func (m *mockLedgerRepository) CreateWallet(ctx context.Context, wallet *wallet_
 	if m.createWalletErr != nil {
 		return m.createWalletErr
 	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	key := wallet.UserID.String() + ":" + wallet.Currency
 	m.wallets[key] = wallet
 	return nil
 }
 
 func (m *mockLedgerRepository) GetWalletByUserID(ctx context.Context, userID uuid.UUID, currency string) (*wallet_entities.LedgerWallet, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	key := userID.String() + ":" + currency
 	wallet, ok := m.wallets[key]
 	if !ok {
@@ -146,12 +170,16 @@ func (m *mockLedgerRepository) UpdateWallet(ctx context.Context, wallet *wallet_
 	if m.updateErr != nil {
 		return m.updateErr
 	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	key := wallet.UserID.String() + ":" + wallet.Currency
 	m.wallets[key] = wallet
 	return nil
 }
 
 func (m *mockLedgerRepository) GetJournalsByDateRange(ctx context.Context, from, to time.Time) ([]wallet_entities.JournalEntry, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	var result []wallet_entities.JournalEntry
 	for _, j := range m.journals {
 		if j.CreatedAt.After(from) && j.CreatedAt.Before(to) {
@@ -162,6 +190,8 @@ func (m *mockLedgerRepository) GetJournalsByDateRange(ctx context.Context, from,
 }
 
 func (m *mockLedgerRepository) GetAccountBalances(ctx context.Context) ([]wallet_entities.LedgerAccount, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	var result []wallet_entities.LedgerAccount
 	for _, acct := range m.accounts {
 		result = append(result, *acct)

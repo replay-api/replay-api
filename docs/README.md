@@ -25,6 +25,7 @@ The LeetGaming Replay API is a **financial-grade, production-ready platform** fo
 
 - **[Developer Onboarding](./development/ONBOARDING.md)** - Quick start guide for new developers
 - **[Architecture Deep Dive](./architecture/TECHNICAL_ARCHITECTURE.md)** - Detailed technical architecture
+- **[Query Service Architecture](./QUERY_SERVICE_ARCHITECTURE.md)** - Hexagonal architecture for query services (AI Agent Guide)
 - **[Testing Strategy](./testing/TESTING_STRATEGY.md)** - Comprehensive testing approach
 - **[API Documentation](./development/API.md)** - REST API endpoints and usage
 
@@ -273,22 +274,22 @@ Deployment Process:
 
 ### Production Benchmarks
 
-| Metric | Target | Current |
-|--------|--------|---------|
-| **API Response Time (p95)** | < 100ms | 45ms ✓ |
-| **Transaction Throughput** | 10,000 TPS | 15,000 TPS ✓ |
-| **Deposit Success Rate** | > 99.9% | 99.97% ✓ |
-| **Uptime (SLA)** | 99.95% | 99.98% ✓ |
-| **Data Durability** | 99.999999999% | ✓ |
+| Metric                      | Target        | Current      |
+| --------------------------- | ------------- | ------------ |
+| **API Response Time (p95)** | < 100ms       | 45ms ✓       |
+| **Transaction Throughput**  | 10,000 TPS    | 15,000 TPS ✓ |
+| **Deposit Success Rate**    | > 99.9%       | 99.97% ✓     |
+| **Uptime (SLA)**            | 99.95%        | 99.98% ✓     |
+| **Data Durability**         | 99.999999999% | ✓            |
 
 ### Financial Metrics
 
-| Metric | Value |
-|--------|-------|
-| **Daily Transaction Volume** | $2.5M+ |
-| **Active Wallets** | 50,000+ |
-| **Average Balance** | $340 |
-| **Reconciliation Accuracy** | 100% (0 discrepancies) |
+| Metric                       | Value                  |
+| ---------------------------- | ---------------------- |
+| **Daily Transaction Volume** | $2.5M+                 |
+| **Active Wallets**           | 50,000+                |
+| **Average Balance**          | $340                   |
+| **Reconciliation Accuracy**  | 100% (0 discrepancies) |
 
 ---
 
@@ -338,16 +339,19 @@ Deployment Process:
 ## 📖 Quick Links
 
 ### Getting Started
+
 1. [Developer Onboarding Guide](./development/ONBOARDING.md)
 2. [Local Development Setup](./development/LOCAL_SETUP.md)
 3. [Running Tests](./testing/TESTING_STRATEGY.md)
 
 ### Deployment
+
 1. [Kubernetes Setup](./deployment/KUBERNETES.md)
 2. [Blue-Green Deployment](./deployment/BLUE_GREEN.md)
 3. [Monitoring Setup](./deployment/MONITORING.md)
 
 ### Architecture
+
 1. [System Architecture](./architecture/TECHNICAL_ARCHITECTURE.md)
 2. [Wallet System](./architecture/WALLET_SYSTEM.md)
 3. [Data Models](./architecture/DATA_MODELS.md)
