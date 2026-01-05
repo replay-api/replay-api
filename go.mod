@@ -1,6 +1,6 @@
 module github.com/replay-api/replay-api
 
-go 1.24.0
+go 1.25.4
 
 require (
 	github.com/golang/geo v0.0.0-20230421003525-6adc56603217
@@ -12,9 +12,11 @@ require (
 	github.com/markus-wa/demoinfocs-golang/v4 v4.1.3
 	github.com/markus-wa/godispatch v1.4.1
 	github.com/prometheus/client_golang v1.19.0
+	github.com/replay-api/replay-common v0.0.0-20260105112215-8b0482eb32de
+	github.com/resource-ownership/go-common v0.0.0-20260105112203-d0ca3b914188
 	github.com/segmentio/kafka-go v0.4.49
 	github.com/streadway/amqp v1.1.0
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.11.1
 	github.com/stripe/stripe-go/v76 v76.25.0
 	go.mongodb.org/mongo-driver v1.15.0
 	golang.org/x/crypto v0.45.0
