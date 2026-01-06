@@ -2578,6 +2578,69 @@ func InjectMongoDB(c container.Container) error {
 		panic(err)
 	}
 
+	// Wallet Query Service (must be registered before WalletQuery)
+	err = c.Singleton(func() (*wallet_services.WalletQueryService, error) {
+		var walletRepo wallet_out.WalletRepository
+
+		if err := c.Resolve(&walletRepo); err != nil {
+			slog.Error("Failed to resolve wallet_out.WalletRepository for WalletQueryService.", "err", err)
+			return nil, err
+		}
+
+		return wallet_services.NewWalletQueryService(walletRepo), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load *wallet_services.WalletQueryService.", "err", err)
+		panic(err)
+	}
+
+	// GetWalletBalanceUseCase
+	err = c.Singleton(func() (*wallet_usecases.GetWalletBalanceUseCase, error) {
+		var walletQuerySvc *wallet_services.WalletQueryService
+
+		if err := c.Resolve(&walletQuerySvc); err != nil {
+			slog.Error("Failed to resolve WalletQueryService for GetWalletBalanceUseCase.", "err", err)
+			return nil, err
+		}
+
+		return wallet_usecases.NewGetWalletBalanceUseCase(walletQuerySvc), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load GetWalletBalanceUseCase.", "err", err)
+		panic(err)
+	}
+
+	// GetTransactionsUseCase
+	err = c.Singleton(func() (*wallet_usecases.GetTransactionsUseCase, error) {
+		var walletRepo wallet_out.WalletRepository
+		var walletQuerySvc *wallet_services.WalletQueryService
+		var ledgerRepo wallet_out.LedgerRepository
+
+		if err := c.Resolve(&walletRepo); err != nil {
+			slog.Error("Failed to resolve wallet_out.WalletRepository for GetTransactionsUseCase.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&walletQuerySvc); err != nil {
+			slog.Error("Failed to resolve WalletQueryService for GetTransactionsUseCase.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&ledgerRepo); err != nil {
+			slog.Error("Failed to resolve wallet_out.LedgerRepository for GetTransactionsUseCase.", "err", err)
+			return nil, err
+		}
+
+		return wallet_usecases.NewGetTransactionsUseCase(walletRepo, walletQuerySvc, ledgerRepo), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load GetTransactionsUseCase.", "err", err)
+		panic(err)
+	}
+
 	// Wallet Service (no-op for basic functionality)
 	err = c.Singleton(func() (wallet_in.WalletCommand, error) {
 		return &NoOpWalletCommand{}, nil
@@ -3107,6 +3170,23 @@ func InjectMongoDB(c container.Container) error {
 
 	if err != nil {
 		slog.Error("Failed to load tournament_in.TournamentCommand.", "err", err)
+		panic(err)
+	}
+
+	// Tournament Query Service
+	err = c.Singleton(func() (*tournament_services.TournamentQueryService, error) {
+		var tournamentRepo tournament_out.TournamentRepository
+
+		if err := c.Resolve(&tournamentRepo); err != nil {
+			slog.Error("Failed to resolve tournament_out.TournamentRepository for TournamentQueryService.", "err", err)
+			return nil, err
+		}
+
+		return tournament_services.NewTournamentQueryService(tournamentRepo), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load *tournament_services.TournamentQueryService.", "err", err)
 		panic(err)
 	}
 

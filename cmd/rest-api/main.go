@@ -33,13 +33,13 @@ func main() {
 		panic(err)
 	}
 
-	// Register Squad API services (repositories, writers, command handlers)
-	// This must be called AFTER InjectMongoDB since squad services depend on MongoDB
-	builder.WithSquadAPI()
-
 	// Register inbound ports (services/use cases that depend on MongoDB repositories)
-	// This must be called AFTER InjectMongoDB and WithSquadAPI since inbound ports depend on outbound ports (repos)
+	// This must be called AFTER InjectMongoDB since inbound ports depend on outbound ports (repos)
 	builder.WithInboundPorts()
+
+	// Register Squad API services (repositories, writers, command handlers)
+	// This must be called AFTER InjectMongoDB and WithInboundPorts since squad services depend on MongoDB
+	builder.WithSquadAPI()
 
 	defer builder.Close(c)
 
