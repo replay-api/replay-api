@@ -5,24 +5,25 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	matchmaking_vo "github.com/replay-api/replay-api/pkg/domain/matchmaking/value-objects"
 	wallet_vo "github.com/replay-api/replay-api/pkg/domain/wallet/value-objects"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // PrizePool is an aggregate root representing accumulated prize money for a match
 type PrizePool struct {
-	common.BaseEntity
-	MatchID              uuid.UUID                              `json:"match_id" bson:"match_id"`
-	GameID               common.GameIDKey                       `json:"game_id" bson:"game_id"`
-	Region               string                                 `json:"region" bson:"region"`
-	Currency             wallet_vo.Currency                     `json:"currency" bson:"currency"`
-	TotalAmount          wallet_vo.Amount                       `json:"total_amount" bson:"total_amount"`
-	PlatformContribution wallet_vo.Amount                       `json:"platform_contribution" bson:"platform_contribution"` // $0.50 from platform
-	PlayerContributions  map[uuid.UUID]wallet_vo.Amount         `json:"player_contributions" bson:"player_contributions"`
-	DistributionRule     matchmaking_vo.DistributionRule        `json:"distribution_rule" bson:"distribution_rule"`
-	Status               PrizePoolStatus                        `json:"status" bson:"status"`
-	LockedAt             *time.Time                             `json:"locked_at,omitempty" bson:"locked_at,omitempty"`
+	shared.BaseEntity
+	MatchID              uuid.UUID                         `json:"match_id" bson:"match_id"`
+	GameID               replay_common.GameIDKey           `json:"game_id" bson:"game_id"`
+	Region               string                            `json:"region" bson:"region"`
+	Currency             wallet_vo.Currency                `json:"currency" bson:"currency"`
+	TotalAmount          wallet_vo.Amount                  `json:"total_amount" bson:"total_amount"`
+	PlatformContribution wallet_vo.Amount                  `json:"platform_contribution" bson:"platform_contribution"` // $0.50 from platform
+	PlayerContributions  map[uuid.UUID]wallet_vo.Amount    `json:"player_contributions" bson:"player_contributions"`
+	DistributionRule     matchmaking_vo.DistributionRule   `json:"distribution_rule" bson:"distribution_rule"`
+	Status               PrizePoolStatus                   `json:"status" bson:"status"`
+	LockedAt             *time.Time                        `json:"locked_at,omitempty" bson:"locked_at,omitempty"`
 	DistributedAt        *time.Time                             `json:"distributed_at,omitempty" bson:"distributed_at,omitempty"`
 	Winners              []PrizeWinner                          `json:"winners,omitempty" bson:"winners,omitempty"`
 	MVPPlayerID          *uuid.UUID                             `json:"mvp_player_id,omitempty" bson:"mvp_player_id,omitempty"`
@@ -50,15 +51,15 @@ type PrizeWinner struct {
 
 // NewPrizePool creates a new prize pool
 func NewPrizePool(
-	resourceOwner common.ResourceOwner,
+	resourceOwner shared.ResourceOwner,
 	matchID uuid.UUID,
-	gameID common.GameIDKey,
+	gameID replay_common.GameIDKey,
 	region string,
 	currency wallet_vo.Currency,
 	distributionRule matchmaking_vo.DistributionRule,
 	platformContribution wallet_vo.Amount,
 ) *PrizePool {
-	baseEntity := common.NewUnrestrictedEntity(resourceOwner) // Prize pools are public
+	baseEntity := shared.NewUnrestrictedEntity(resourceOwner) // Prize pools are public
 
 	return &PrizePool{
 		BaseEntity:           baseEntity,

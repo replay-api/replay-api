@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -78,8 +78,8 @@ func (m *MockPlayerRatingRepository) GetRatingHistory(ctx context.Context, playe
 // HELPER FUNCTIONS
 // =============================================================================
 
-func testResourceOwner() common.ResourceOwner {
-	return common.ResourceOwner{
+func testResourceOwner() shared.ResourceOwner {
+	return shared.ResourceOwner{
 		UserID:   uuid.New(),
 		TenantID: uuid.New(),
 		ClientID: uuid.New(),
@@ -89,9 +89,9 @@ func testResourceOwner() common.ResourceOwner {
 func testContext() context.Context {
 	ro := testResourceOwner()
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.TenantIDKey, ro.TenantID)
-	ctx = context.WithValue(ctx, common.ClientIDKey, ro.ClientID)
-	ctx = context.WithValue(ctx, common.UserIDKey, ro.UserID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, ro.TenantID)
+	ctx = context.WithValue(ctx, shared.ClientIDKey, ro.ClientID)
+	ctx = context.WithValue(ctx, shared.UserIDKey, ro.UserID)
 	return ctx
 }
 

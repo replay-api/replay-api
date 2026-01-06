@@ -6,13 +6,14 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
 	matchmaking_in "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/in"
 	matchmaking_out "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/out"
 	wallet_in "github.com/replay-api/replay-api/pkg/domain/wallet/ports/in"
 	wallet_vo "github.com/replay-api/replay-api/pkg/domain/wallet/value-objects"
 	ws "github.com/replay-api/replay-api/pkg/infra/websocket"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // LobbyOrchestrationService coordinates lobby → prize pool → wallet operations with Saga pattern
@@ -38,7 +39,7 @@ wsHub *ws.WebSocketHub,
 }
 
 func (s *LobbyOrchestrationService) CreateLobby(ctx context.Context, cmd matchmaking_in.CreateLobbyCommand) (*matchmaking_entities.MatchmakingLobby, error) {
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 
 	lobby, err := matchmaking_entities.NewMatchmakingLobby(
 resourceOwner,
@@ -331,7 +332,7 @@ func (s *LobbyOrchestrationService) CancelLobby(ctx context.Context, lobbyID uui
 }
 
 func (s *LobbyOrchestrationService) createPrizePool(ctx context.Context, cmd matchmaking_in.CreatePrizePoolCommand) (*matchmaking_entities.PrizePool, error) {
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 
 	currency, err := wallet_vo.ParseCurrency(cmd.Currency)
 	if err != nil {
@@ -343,7 +344,7 @@ func (s *LobbyOrchestrationService) createPrizePool(ctx context.Context, cmd mat
 	pool := matchmaking_entities.NewPrizePool(
 		resourceOwner,
 		cmd.MatchID,
-		common.GameIDKey(cmd.GameID),
+		replay_common.GameIDKey(cmd.GameID),
 		cmd.Region,
 		currency,
 		cmd.DistributionRule,

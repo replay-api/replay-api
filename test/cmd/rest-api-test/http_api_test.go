@@ -1,4 +1,4 @@
-//go:build !smoke
+//go:build integration
 
 package rest_api_test
 
@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"encoding/json"
 
@@ -18,8 +19,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/replay-api/replay-api/cmd/rest-api/controllers"
 	"github.com/replay-api/replay-api/cmd/rest-api/routing"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	ioc "github.com/replay-api/replay-api/pkg/infra/ioc"
+	shared "github.com/resource-ownership/go-common/pkg/common"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	google_out "github.com/replay-api/replay-api/pkg/domain/google/ports/out"
 	iam_dtos "github.com/replay-api/replay-api/pkg/domain/iam/dtos"
@@ -33,6 +36,18 @@ type Tester struct {
 }
 
 func NewTester() *Tester {
+	// Skip if MongoDB is not available
+	if os.Getenv("MONGO_URI") == "" || os.Getenv("MONGO_URI") == "mongodb://127.0.0.1:37019/replay" {
+		// Try to connect to MongoDB to see if it's available
+		client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI("mongodb://127.0.0.1:37019").SetServerSelectionTimeout(2*time.Second))
+		if err != nil || client.Ping(context.TODO(), nil) != nil {
+			panic("MongoDB not available, skipping integration test")
+		}
+		if client != nil {
+			client.Disconnect(context.TODO())
+		}
+	}
+
 	os.Setenv("DEV_ENV", "test")
 	os.Setenv("MONGO_URI", "mongodb://127.0.0.1:37019/replay")
 	os.Setenv("MONGO_DB_NAME", "replay")
@@ -49,7 +64,7 @@ func NewTester() *Tester {
 func (t *Tester) Exec(req *http.Request) *httptest.ResponseRecorder {
 	rec := httptest.NewRecorder()
 
-	// if len(req.Header.Get(string(common.ResourceOwnerIDParamKey))) > 0 {
+	// if len(req.Header.Get(string(shared.ResourceOwnerIDParamKey))) > 0 {
 
 	// }
 
@@ -80,7 +95,7 @@ func expectUUIDHeader(t *testing.T, key string, r *httptest.ResponseRecorder) {
 
 }
 
-func expectHeader(t *testing.T, key string, r *httptest.ResponseRecorder, aud common.IntendedAudienceKey) {
+func expectHeader(t *testing.T, key string, r *httptest.ResponseRecorder, aud shared.IntendedAudienceKey) {
 	if len(r.Header().Get(key)) == 0 {
 		t.Errorf("Expected response header %s to be a valid UUID. Got %s", key, r.Header().Get(key))
 	}
@@ -191,7 +206,7 @@ func Test_SteamOnboarding_Success(t *testing.T) {
 
 	expectStatus(t, http.StatusCreated, response)
 	expectUUIDHeader(t, controllers.ResourceOwnerIDHeaderKey, response)
-	expectHeader(t, controllers.ResourceOwnerAudTypeHeaderKey, response, common.UserAudienceIDKey)
+	expectHeader(t, controllers.ResourceOwnerAudTypeHeaderKey, response, shared.UserAudienceIDKey)
 
 	// should query the profile
 

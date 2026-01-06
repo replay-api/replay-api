@@ -11,7 +11,7 @@ import (
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
 	squad_out "github.com/replay-api/replay-api/pkg/domain/squad/ports/out"
 	squad_value_objects "github.com/replay-api/replay-api/pkg/domain/squad/value-objects"
@@ -92,7 +92,7 @@ func (ctrl *SquadController) CreateSquadHandler(apiContext context.Context) http
 			"squad_name", squad.Name,
 			"slug_uri", squad.SlugURI,
 			"group_id", squad.ResourceOwner.GroupID,
-			"user_id", r.Context().Value(common.UserIDKey))
+			"user_id", r.Context().Value(shared.UserIDKey))
 
 		err = json.NewEncoder(w).Encode(squad)
 		if err != nil {
@@ -148,8 +148,8 @@ func (ctrl *SquadController) AddMemberHandler(apiContext context.Context) http.H
 			http.Error(w, "invalid squad_id format", http.StatusBadRequest)
 			return
 		}
-		valueParams := []common.SearchableValue{{Field: "ID", Values: []interface{}{idUUID}, Operator: common.EqualsOperator}}
-		search := common.NewSearchByValues(r.Context(), valueParams, common.SearchResultOptions{Limit: 1}, common.UserAudienceIDKey)
+		valueParams := []shared.SearchableValue{{Field: "ID", Values: []interface{}{idUUID}, Operator: shared.EqualsOperator}}
+		search := shared.NewSearchByValues(r.Context(), valueParams, shared.SearchResultOptions{Limit: 1}, shared.UserAudienceIDKey)
 		results, err := squadReader.Search(r.Context(), search)
 		if err != nil || len(results) == 0 {
 			http.Error(w, "squad not found", http.StatusNotFound)
@@ -236,8 +236,8 @@ func (ctrl *SquadController) RemoveMemberHandler(apiContext context.Context) htt
 			http.Error(w, "invalid squad_id format", http.StatusBadRequest)
 			return
 		}
-		valueParams := []common.SearchableValue{{Field: "ID", Values: []interface{}{idUUID}, Operator: common.EqualsOperator}}
-		search := common.NewSearchByValues(r.Context(), valueParams, common.SearchResultOptions{Limit: 1}, common.UserAudienceIDKey)
+		valueParams := []shared.SearchableValue{{Field: "ID", Values: []interface{}{idUUID}, Operator: shared.EqualsOperator}}
+		search := shared.NewSearchByValues(r.Context(), valueParams, shared.SearchResultOptions{Limit: 1}, shared.UserAudienceIDKey)
 		results, err := squadReader.Search(r.Context(), search)
 		if err != nil || len(results) == 0 {
 			http.Error(w, "squad not found", http.StatusNotFound)
@@ -323,8 +323,8 @@ func (ctrl *SquadController) UpdateMemberRoleHandler(apiContext context.Context)
 			http.Error(w, "invalid squad_id format", http.StatusBadRequest)
 			return
 		}
-		valueParams := []common.SearchableValue{{Field: "ID", Values: []interface{}{idUUID}, Operator: common.EqualsOperator}}
-		search := common.NewSearchByValues(r.Context(), valueParams, common.SearchResultOptions{Limit: 1}, common.UserAudienceIDKey)
+		valueParams := []shared.SearchableValue{{Field: "ID", Values: []interface{}{idUUID}, Operator: shared.EqualsOperator}}
+		search := shared.NewSearchByValues(r.Context(), valueParams, shared.SearchResultOptions{Limit: 1}, shared.UserAudienceIDKey)
 		results, err := squadReader.Search(r.Context(), search)
 		if err != nil || len(results) == 0 {
 			http.Error(w, "squad not found", http.StatusNotFound)
@@ -408,8 +408,8 @@ func (ctrl *SquadController) GetSquadHandler(apiContext context.Context) http.Ha
 			http.Error(w, "invalid squad_id format", http.StatusBadRequest)
 			return
 		}
-		valueParams := []common.SearchableValue{{Field: "ID", Values: []interface{}{idUUID}, Operator: common.EqualsOperator}}
-		search := common.NewSearchByValues(r.Context(), valueParams, common.SearchResultOptions{Limit: 1}, common.UserAudienceIDKey)
+		valueParams := []shared.SearchableValue{{Field: "ID", Values: []interface{}{idUUID}, Operator: shared.EqualsOperator}}
+		search := shared.NewSearchByValues(r.Context(), valueParams, shared.SearchResultOptions{Limit: 1}, shared.UserAudienceIDKey)
 		results, err := squadReader.Search(r.Context(), search)
 		if err != nil {
 			http.Error(w, "error fetching squad", http.StatusInternalServerError)
@@ -463,8 +463,8 @@ func (ctrl *SquadController) UpdateSquadHandler(apiContext context.Context) http
 			http.Error(w, "invalid squad_id format", http.StatusBadRequest)
 			return
 		}
-		valueParams := []common.SearchableValue{{Field: "ID", Values: []interface{}{idUUID}, Operator: common.EqualsOperator}}
-		search := common.NewSearchByValues(r.Context(), valueParams, common.SearchResultOptions{Limit: 1}, common.UserAudienceIDKey)
+		valueParams := []shared.SearchableValue{{Field: "ID", Values: []interface{}{idUUID}, Operator: shared.EqualsOperator}}
+		search := shared.NewSearchByValues(r.Context(), valueParams, shared.SearchResultOptions{Limit: 1}, shared.UserAudienceIDKey)
 		results, err := squadReader.Search(r.Context(), search)
 		if err != nil || len(results) == 0 {
 			http.Error(w, "squad not found", http.StatusNotFound)
@@ -577,18 +577,18 @@ func (ctrl *SquadController) GetSquadStatsHandler(apiContext context.Context) ht
 		}
 
 		// Get squad to verify existence
-		searchParams := []common.SearchAggregation{
+		searchParams := []shared.SearchAggregation{
 			{
-				Params: []common.SearchParameter{
+				Params: []shared.SearchParameter{
 					{
-						ValueParams: []common.SearchableValue{
-							{Field: "ID", Values: []interface{}{squadUUID.String()}, Operator: common.EqualsOperator},
+						ValueParams: []shared.SearchableValue{
+							{Field: "ID", Values: []interface{}{squadUUID.String()}, Operator: shared.EqualsOperator},
 						},
 					},
 				},
 			},
 		}
-		resultOpts := common.SearchResultOptions{Limit: 1}
+		resultOpts := shared.SearchResultOptions{Limit: 1}
 
 		compiledSearch, err := squadReader.Compile(r.Context(), searchParams, resultOpts)
 		if err != nil {

@@ -6,9 +6,11 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	e "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 	replay_out "github.com/replay-api/replay-api/pkg/domain/replay/ports/out"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	fps_events "github.com/replay-api/replay-common/pkg/replay/events/game/fps"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 const CHUNK_SIZE = 10
@@ -78,7 +80,7 @@ func (usecase *ProcessReplayFileUseCase) Exec(ctx context.Context, replayFileID 
 
 	eventsChan := make(chan *e.GameEvent, 1000)
 
-	entitiesMap := make(map[common.ResourceType][]interface{})
+	entitiesMap := make(map[shared.ResourceType][]interface{})
 
 	gameEvents := make([]*e.GameEvent, 0)
 
@@ -88,7 +90,7 @@ func (usecase *ProcessReplayFileUseCase) Exec(ctx context.Context, replayFileID 
 		defer wg.Done()
 		for event := range eventsChan {
 			slog.InfoContext(ctx, "event", "event.Type", event.Type)
-			if event.Type != common.Event_GenericGameEventID {
+			if event.Type != fps_events.Event_GenericGameEventID {
 				match.Events = append(match.Events, event)
 			}
 
@@ -115,7 +117,7 @@ func (usecase *ProcessReplayFileUseCase) Exec(ctx context.Context, replayFileID 
 
 	playersMap := make(map[string]*e.PlayerMetadata)
 
-	for _, p := range entitiesMap[common.ResourceTypePlayerMetadata] {
+	for _, p := range entitiesMap[replay_common.ResourceTypePlayerMetadata] {
 		player := p.(*e.PlayerMetadata)
 		playersMap[player.NetworkUserID] = player
 	}
@@ -134,7 +136,7 @@ func (usecase *ProcessReplayFileUseCase) Exec(ctx context.Context, replayFileID 
 
 	for resourceKey, entities := range entitiesMap {
 		switch resourceKey {
-		case common.ResourceTypeMatch:
+		case replay_common.ResourceTypeMatch:
 			for _, rawEntity := range entities {
 				slog.InfoContext(ctx, "MatchMetadata", "entity", rawEntity)
 				entity := rawEntity.(*e.Match)

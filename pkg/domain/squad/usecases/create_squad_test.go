@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
@@ -54,7 +54,7 @@ type MockSquadReader struct {
 	mock.Mock
 }
 
-func (m *MockSquadReader) Search(ctx context.Context, search common.Search) ([]squad_entities.Squad, error) {
+func (m *MockSquadReader) Search(ctx context.Context, search shared.Search) ([]squad_entities.Squad, error) {
 	args := m.Called(ctx, search)
 	return args.Get(0).([]squad_entities.Squad), args.Error(1)
 }
@@ -67,12 +67,12 @@ func (m *MockSquadReader) GetByID(ctx context.Context, id uuid.UUID) (*squad_ent
 	return args.Get(0).(*squad_entities.Squad), args.Error(1)
 }
 
-func (m *MockSquadReader) Compile(ctx context.Context, aggregations []common.SearchAggregation, options common.SearchResultOptions) (*common.Search, error) {
+func (m *MockSquadReader) Compile(ctx context.Context, aggregations []shared.SearchAggregation, options shared.SearchResultOptions) (*shared.Search, error) {
 	args := m.Called(ctx, aggregations, options)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*common.Search), args.Error(1)
+	return args.Get(0).(*shared.Search), args.Error(1)
 }
 
 type MockGroupWriter struct {
@@ -109,7 +109,7 @@ type MockGroupReader struct {
 	mock.Mock
 }
 
-func (m *MockGroupReader) Search(ctx context.Context, search common.Search) ([]iam_entities.Group, error) {
+func (m *MockGroupReader) Search(ctx context.Context, search shared.Search) ([]iam_entities.Group, error) {
 	args := m.Called(ctx, search)
 	return args.Get(0).([]iam_entities.Group), args.Error(1)
 }
@@ -122,12 +122,12 @@ func (m *MockGroupReader) GetByID(ctx context.Context, id uuid.UUID) (*iam_entit
 	return args.Get(0).(*iam_entities.Group), args.Error(1)
 }
 
-func (m *MockGroupReader) Compile(ctx context.Context, aggregations []common.SearchAggregation, options common.SearchResultOptions) (*common.Search, error) {
+func (m *MockGroupReader) Compile(ctx context.Context, aggregations []shared.SearchAggregation, options shared.SearchResultOptions) (*shared.Search, error) {
 	args := m.Called(ctx, aggregations, options)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*common.Search), args.Error(1)
+	return args.Get(0).(*shared.Search), args.Error(1)
 }
 
 type MockMediaWriter struct {
@@ -164,9 +164,9 @@ func (m *MockBillableOperationHandler) Exec(ctx context.Context, cmd billing_in.
 // Helper to create authenticated context
 func createAuthenticatedContext(userID, tenantID uuid.UUID) context.Context {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, tenantID)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, tenantID)
 	return ctx
 }
 
@@ -395,7 +395,7 @@ func TestCreateSquadUseCase_Exec_DuplicateSlugURI(t *testing.T) {
 
 	// Mock existing squad with same slug
 	existingSquad := squad_entities.Squad{
-		BaseEntity: common.BaseEntity{
+		BaseEntity: shared.BaseEntity{
 			ID: uuid.New(),
 		},
 		SlugURI: "test-squad",
@@ -462,7 +462,7 @@ func TestCreateSquadUseCase_Exec_Success(t *testing.T) {
 
 	// Squad creation
 	createdSquad := &squad_entities.Squad{
-		BaseEntity: common.BaseEntity{
+		BaseEntity: shared.BaseEntity{
 			ID: uuid.New(),
 		},
 		Name:    "Test Squad",
@@ -585,9 +585,9 @@ func TestCreateSquadUseCase_Exec_WithMembers(t *testing.T) {
 
 	// Player profile for membership
 	playerProfile := squad_entities.PlayerProfile{
-		BaseEntity: common.BaseEntity{
+		BaseEntity: shared.BaseEntity{
 			ID: playerProfileID,
-			ResourceOwner: common.ResourceOwner{
+			ResourceOwner: shared.ResourceOwner{
 				UserID:   userID,
 				TenantID: tenantID,
 			},
@@ -601,7 +601,7 @@ func TestCreateSquadUseCase_Exec_WithMembers(t *testing.T) {
 
 	// Squad creation
 	createdSquad := &squad_entities.Squad{
-		BaseEntity: common.BaseEntity{
+		BaseEntity: shared.BaseEntity{
 			ID: uuid.New(),
 		},
 		Name:    "Test Squad",

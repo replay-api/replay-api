@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"time"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	squad "github.com/replay-api/replay-api/pkg/domain/squad"
@@ -13,6 +12,8 @@ import (
 	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
 	squad_out "github.com/replay-api/replay-api/pkg/domain/squad/ports/out"
 	squad_value_objects "github.com/replay-api/replay-api/pkg/domain/squad/value-objects"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type UpdateSquadMemberRoleUseCase struct {
@@ -38,19 +39,19 @@ func NewUpdateSquadMemberRoleUseCase(
 
 func (uc *UpdateSquadMemberRoleUseCase) Exec(ctx context.Context, cmd squad_in.UpdateSquadMemberRoleCommand) (*squad_entities.Squad, error) {
 	// 1. Authentication check
-	isAuthenticated := ctx.Value(common.AuthenticatedKey)
+	isAuthenticated := ctx.Value(shared.AuthenticatedKey)
 	if isAuthenticated == nil || !isAuthenticated.(bool) {
-		return nil, common.NewErrUnauthorized()
+		return nil, shared.NewErrUnauthorized()
 	}
 
 	// 2. Check if squad exists
-	squads, err := uc.SquadReader.Search(ctx, common.NewSearchByID(ctx, cmd.SquadID, common.ClientApplicationAudienceIDKey))
+	squads, err := uc.SquadReader.Search(ctx, shared.NewSearchByID(ctx, cmd.SquadID, shared.ClientApplicationAudienceIDKey))
 	if err != nil {
 		return nil, err
 	}
 
 	if len(squads) == 0 {
-		return nil, common.NewErrNotFound(common.ResourceTypeSquad, "ID", cmd.SquadID.String())
+		return nil, shared.NewErrNotFound(replay_common.ResourceTypeSquad, "ID", cmd.SquadID.String())
 	}
 
 	squadEntity := squads[0]
@@ -65,7 +66,7 @@ func (uc *UpdateSquadMemberRoleUseCase) Exec(ctx context.Context, cmd squad_in.U
 	}
 
 	if memberIndex == -1 {
-		return nil, common.NewErrNotFound(common.ResourceTypeSquad, "MemberID", cmd.PlayerID.String())
+		return nil, shared.NewErrNotFound(replay_common.ResourceTypeSquad, "MemberID", cmd.PlayerID.String())
 	}
 
 	// 4. Authorization check - only owner/admin can update roles
@@ -76,14 +77,14 @@ func (uc *UpdateSquadMemberRoleUseCase) Exec(ctx context.Context, cmd squad_in.U
 	}
 
 	if err := squad.CanUpdateMemberRole(ctx, &squadEntity, cmd.PlayerID, newMembershipType); err != nil {
-		slog.WarnContext(ctx, "Unauthorized squad member role update attempt", "squad_id", cmd.SquadID, "target_player", cmd.PlayerID, "user_id", common.GetResourceOwner(ctx).UserID, "error", err)
+		slog.WarnContext(ctx, "Unauthorized squad member role update attempt", "squad_id", cmd.SquadID, "target_player", cmd.PlayerID, "user_id", shared.GetResourceOwner(ctx).UserID, "error", err)
 		return nil, err
 	}
 
 	// 5. Billing validation
 	billingCmd := billing_in.BillableOperationCommand{
 		OperationID: billing_entities.OperationTypeUpdateSquadMemberRole,
-		UserID:      common.GetResourceOwner(ctx).UserID,
+		UserID:      shared.GetResourceOwner(ctx).UserID,
 		Amount:      1,
 	}
 	err = uc.billableOperationHandler.Validate(ctx, billingCmd)
@@ -124,14 +125,14 @@ func (uc *UpdateSquadMemberRoleUseCase) Exec(ctx context.Context, cmd squad_in.U
 	}
 
 	// 10. Record history
-	history := squad_entities.NewSquadHistory(cmd.SquadID, common.GetResourceOwner(ctx).UserID, historyAction, common.GetResourceOwner(ctx))
+	history := squad_entities.NewSquadHistory(cmd.SquadID, shared.GetResourceOwner(ctx).UserID, historyAction, shared.GetResourceOwner(ctx))
 	_, err = uc.SquadHistoryWriter.Create(ctx, history)
 	if err != nil {
 		slog.WarnContext(ctx, "Failed to create squad history for update member role", "error", err, "squad_id", cmd.SquadID)
 	}
 
 	// 11. Log success
-	slog.InfoContext(ctx, "squad member role updated", "squad_id", cmd.SquadID, "player_id", cmd.PlayerID, "roles", cmd.Roles, "user_id", common.GetResourceOwner(ctx).UserID)
+	slog.InfoContext(ctx, "squad member role updated", "squad_id", cmd.SquadID, "player_id", cmd.PlayerID, "roles", cmd.Roles, "user_id", shared.GetResourceOwner(ctx).UserID)
 
 	return updatedSquad, nil
 }

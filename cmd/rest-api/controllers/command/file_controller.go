@@ -9,7 +9,7 @@ import (
 
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 	replay_in "github.com/replay-api/replay-api/pkg/domain/replay/ports/in"
 )
@@ -30,9 +30,9 @@ func (ctlr *FileController) UploadHandler(apiContext context.Context) http.Handl
 		// r.Body = http.MaxBytesReader(w, r.Body, 32<<57)
 		_ = r.ParseMultipartForm(32 << 50)
 
-		reqContext := context.WithValue(r.Context(), common.GameIDParamKey, r.FormValue("game_id"))
+		reqContext := context.WithValue(r.Context(), shared.GameIDParamKey, r.FormValue("game_id"))
 
-		slog.InfoContext(reqContext, "Receiving file", string(common.GameIDParamKey), r.FormValue("game_id"))
+		slog.InfoContext(reqContext, "Receiving file", string(shared.GameIDParamKey), r.FormValue("game_id"))
 
 		file, _, err := r.FormFile("file")
 		if err != nil {
@@ -78,7 +78,7 @@ func (ctlr *FileController) UploadHandler(apiContext context.Context) http.Handl
 // 		w.Header().Set("Access-Control-Allow-Methods", "GET")
 // 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
-// 		reqContext := context.WithValue(r.Context(), common.GameIDParamKey, r.FormValue("game_id"))
+// 		reqContext := context.WithValue(r.Context(), shared.GameIDParamKey, r.FormValue("game_id"))
 
 // 		var replayFileMetadataReader replay_in.ReplayFileMetadataReader
 // 		err := ctlr.container.Resolve(&replayFileMetadataReader)
@@ -88,10 +88,10 @@ func (ctlr *FileController) UploadHandler(apiContext context.Context) http.Handl
 // 			return
 // 		}
 
-// 		var params []common.SearchAggregation
+// 		var params []shared.SearchAggregation
 
 // 		// for key, values := range r.URL.Query() {
-// 		// 	params = append(params, common.SearchAggregation{
+// 		// 	params = append(params, shared.SearchAggregation{
 // 		// 		Key:    key,
 // 		// 		Values: values,
 // 		// 	})
@@ -144,14 +144,14 @@ func (ctlr *FileController) GetReplayMetadata(apiContext context.Context) http.H
 			return
 		}
 
-		valueParams := []common.SearchableValue{
-			{Field: "ID", Values: []interface{}{idUUID}, Operator: common.EqualsOperator},
+		valueParams := []shared.SearchableValue{
+			{Field: "ID", Values: []interface{}{idUUID}, Operator: shared.EqualsOperator},
 		}
 		if gameID != "" {
-			valueParams = append(valueParams, common.SearchableValue{Field: "GameID", Values: []interface{}{gameID}, Operator: common.EqualsOperator})
+			valueParams = append(valueParams, shared.SearchableValue{Field: "GameID", Values: []interface{}{gameID}, Operator: shared.EqualsOperator})
 		}
 
-		search := common.NewSearchByValues(r.Context(), valueParams, common.SearchResultOptions{Limit: 1}, common.UserAudienceIDKey)
+		search := shared.NewSearchByValues(r.Context(), valueParams, shared.SearchResultOptions{Limit: 1}, shared.UserAudienceIDKey)
 		results, err := replayFileReader.Search(r.Context(), search)
 		if err != nil {
 			slog.Error("GetReplayMetadata: error searching replay", "err", err)
@@ -177,14 +177,14 @@ func (ctlr *FileController) requireReplayOwnership(w http.ResponseWriter, r *htt
 	ctx := r.Context()
 	
 	// Check authentication
-	authenticated, ok := ctx.Value(common.AuthenticatedKey).(bool)
+	authenticated, ok := ctx.Value(shared.AuthenticatedKey).(bool)
 	if !ok || !authenticated {
 		slog.WarnContext(ctx, "replay modification attempted without authentication", "replay_id", replayID)
 		http.Error(w, `{"error":"authentication required"}`, http.StatusUnauthorized)
 		return nil
 	}
 	
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 	if resourceOwner.UserID == uuid.Nil {
 		slog.WarnContext(ctx, "replay modification attempted without valid user ID", "replay_id", replayID)
 		http.Error(w, `{"error":"valid user authentication required"}`, http.StatusUnauthorized)
@@ -199,10 +199,10 @@ func (ctlr *FileController) requireReplayOwnership(w http.ResponseWriter, r *htt
 		return nil
 	}
 	
-	valueParams := []common.SearchableValue{
-		{Field: "ID", Values: []interface{}{replayID}, Operator: common.EqualsOperator},
+	valueParams := []shared.SearchableValue{
+		{Field: "ID", Values: []interface{}{replayID}, Operator: shared.EqualsOperator},
 	}
-	search := common.NewSearchByValues(ctx, valueParams, common.SearchResultOptions{Limit: 1}, common.UserAudienceIDKey)
+	search := shared.NewSearchByValues(ctx, valueParams, shared.SearchResultOptions{Limit: 1}, shared.UserAudienceIDKey)
 	results, err := replayFileReader.Search(ctx, search)
 	if err != nil {
 		slog.ErrorContext(ctx, "error fetching replay for ownership check", "err", err, "replay_id", replayID)
@@ -220,7 +220,7 @@ func (ctlr *FileController) requireReplayOwnership(w http.ResponseWriter, r *htt
 	
 	// SECURITY: Verify ownership - user must own the replay to modify it
 	// Allow admins to bypass this check
-	isAdmin := common.IsAdmin(ctx)
+	isAdmin := shared.IsAdmin(ctx)
 	if !isAdmin && replay.ResourceOwner.UserID != resourceOwner.UserID {
 		slog.WarnContext(ctx, "unauthorized replay modification attempt",
 			"replay_id", replayID,
@@ -270,10 +270,10 @@ func (ctlr *FileController) DownloadReplayFile(apiContext context.Context) http.
 		}
 
 		// Get replay metadata
-		valueParams := []common.SearchableValue{
-			{Field: "ID", Values: []interface{}{replayID}, Operator: common.EqualsOperator},
+		valueParams := []shared.SearchableValue{
+			{Field: "ID", Values: []interface{}{replayID}, Operator: shared.EqualsOperator},
 		}
-		search := common.NewSearchByValues(ctx, valueParams, common.SearchResultOptions{Limit: 1}, common.UserAudienceIDKey)
+		search := shared.NewSearchByValues(ctx, valueParams, shared.SearchResultOptions{Limit: 1}, shared.UserAudienceIDKey)
 		results, err := replayFileReader.Search(ctx, search)
 		if err != nil {
 			slog.ErrorContext(ctx, "error fetching replay metadata", "err", err, "replay_id", replayID)
@@ -289,9 +289,9 @@ func (ctlr *FileController) DownloadReplayFile(apiContext context.Context) http.
 		replay := &results[0]
 
 		// Check access: owner, share token, or admin
-		resourceOwner := common.GetResourceOwner(ctx)
+		resourceOwner := shared.GetResourceOwner(ctx)
 		isOwner := replay.ResourceOwner.UserID == resourceOwner.UserID
-		isAdmin := common.IsAdmin(ctx)
+		isAdmin := shared.IsAdmin(ctx)
 
 		// Check share token if provided
 		hasValidShareToken := false
@@ -444,11 +444,11 @@ func (ctlr *FileController) GetReplayProcessingStatus(apiContext context.Context
 			return
 		}
 
-		valueParams := []common.SearchableValue{
-			{Field: "ID", Values: []interface{}{idUUID}, Operator: common.EqualsOperator},
+		valueParams := []shared.SearchableValue{
+			{Field: "ID", Values: []interface{}{idUUID}, Operator: shared.EqualsOperator},
 		}
 
-		search := common.NewSearchByValues(r.Context(), valueParams, common.SearchResultOptions{Limit: 1}, common.UserAudienceIDKey)
+		search := shared.NewSearchByValues(r.Context(), valueParams, shared.SearchResultOptions{Limit: 1}, shared.UserAudienceIDKey)
 		results, err := replayFileReader.Search(r.Context(), search)
 		if err != nil {
 			http.Error(w, "error fetching replay", http.StatusInternalServerError)
@@ -499,11 +499,11 @@ func (ctlr *FileController) GetReplayEvents(apiContext context.Context) http.Han
 			return
 		}
 
-		valueParams := []common.SearchableValue{
-			{Field: "replay_file_id", Values: []interface{}{idUUID}, Operator: common.EqualsOperator},
+		valueParams := []shared.SearchableValue{
+			{Field: "replay_file_id", Values: []interface{}{idUUID}, Operator: shared.EqualsOperator},
 		}
 
-		search := common.NewSearchByValues(r.Context(), valueParams, common.SearchResultOptions{Limit: 1}, common.UserAudienceIDKey)
+		search := shared.NewSearchByValues(r.Context(), valueParams, shared.SearchResultOptions{Limit: 1}, shared.UserAudienceIDKey)
 		results, err := matchReader.Search(r.Context(), search)
 		if err != nil {
 			http.Error(w, "error fetching match", http.StatusInternalServerError)
@@ -565,11 +565,11 @@ func (ctlr *FileController) GetReplayScoreboard(apiContext context.Context) http
 			return
 		}
 
-		valueParams := []common.SearchableValue{
-			{Field: "replay_file_id", Values: []interface{}{idUUID}, Operator: common.EqualsOperator},
+		valueParams := []shared.SearchableValue{
+			{Field: "replay_file_id", Values: []interface{}{idUUID}, Operator: shared.EqualsOperator},
 		}
 
-		search := common.NewSearchByValues(r.Context(), valueParams, common.SearchResultOptions{Limit: 1}, common.UserAudienceIDKey)
+		search := shared.NewSearchByValues(r.Context(), valueParams, shared.SearchResultOptions{Limit: 1}, shared.UserAudienceIDKey)
 		results, err := matchReader.Search(r.Context(), search)
 		if err != nil {
 			http.Error(w, "error fetching match", http.StatusInternalServerError)
@@ -620,11 +620,11 @@ func (ctlr *FileController) GetReplayTimeline(apiContext context.Context) http.H
 			return
 		}
 
-		valueParams := []common.SearchableValue{
-			{Field: "replay_file_id", Values: []interface{}{idUUID}, Operator: common.EqualsOperator},
+		valueParams := []shared.SearchableValue{
+			{Field: "replay_file_id", Values: []interface{}{idUUID}, Operator: shared.EqualsOperator},
 		}
 
-		search := common.NewSearchByValues(r.Context(), valueParams, common.SearchResultOptions{Limit: 1}, common.UserAudienceIDKey)
+		search := shared.NewSearchByValues(r.Context(), valueParams, shared.SearchResultOptions{Limit: 1}, shared.UserAudienceIDKey)
 		results, err := matchReader.Search(r.Context(), search)
 		if err != nil {
 			http.Error(w, "error fetching match", http.StatusInternalServerError)

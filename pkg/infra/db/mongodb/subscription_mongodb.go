@@ -8,7 +8,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/mongo"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 )
 
@@ -72,7 +72,7 @@ func NewSubscriptionRepository(client *mongo.Client, dbName string, entityType b
 	}
 }
 
-func (r *SubscriptionRepository) Search(ctx context.Context, s common.Search) ([]billing_entities.Subscription, error) {
+func (r *SubscriptionRepository) Search(ctx context.Context, s shared.Search) ([]billing_entities.Subscription, error) {
 	cursor, err := r.Query(ctx, s)
 	if cursor != nil {
 		defer cursor.Close(ctx)
@@ -100,31 +100,31 @@ func (r *SubscriptionRepository) Search(ctx context.Context, s common.Search) ([
 	return subscriptions, nil
 }
 
-func (r *SubscriptionRepository) GetCurrentSubscription(ctx context.Context, rxn common.ResourceOwner) (*billing_entities.Subscription, error) {
-	search := common.NewSearchByValues(ctx, []common.SearchableValue{
+func (r *SubscriptionRepository) GetCurrentSubscription(ctx context.Context, rxn shared.ResourceOwner) (*billing_entities.Subscription, error) {
+	search := shared.NewSearchByValues(ctx, []shared.SearchableValue{
 		{
 			Field:    "Status",
 			Values:   []interface{}{billing_entities.SubscriptionStatusActive},
-			Operator: common.EqualsOperator,
+			Operator: shared.EqualsOperator,
 		},
 		{
 			Field:    "StartDate",
 			Values:   []interface{}{time.Now()},
-			Operator: common.LessThanOperator,
+			Operator: shared.LessThanOperator,
 		},
 		{
 			Field:    "EndDate",
 			Values:   []interface{}{time.Now()},
-			Operator: common.GreaterThanOperator,
+			Operator: shared.GreaterThanOperator,
 		},
 		{
 			Field: "UserID",
 			Values: []interface{}{
 				rxn.UserID,
 			},
-			Operator: common.EqualsOperator,
+			Operator: shared.EqualsOperator,
 		},
-	}, common.NewSearchResultOptions(0, 1), common.ClientApplicationAudienceIDKey)
+	}, shared.NewSearchResultOptions(0, 1), shared.ClientApplicationAudienceIDKey)
 
 	subscriptions, err := r.Search(ctx, search)
 	if err != nil {

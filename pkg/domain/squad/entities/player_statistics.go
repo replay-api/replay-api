@@ -4,20 +4,20 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
 )
 
 // PlayerStatistics represents aggregated statistics for a player
 type PlayerStatistics struct {
-	PlayerID      uuid.UUID            `json:"player_id" bson:"player_id"`
-	GameID        common.GameIDKey     `json:"game_id" bson:"game_id"`
-	TotalMatches  int                  `json:"total_matches" bson:"total_matches"`
-	TotalWins     int                  `json:"total_wins" bson:"total_wins"`
-	TotalLosses   int                  `json:"total_losses" bson:"total_losses"`
-	TotalDraws    int                  `json:"total_draws" bson:"total_draws"`
-	WinRate       float64              `json:"win_rate" bson:"win_rate"`
-	TotalKills    int                  `json:"total_kills" bson:"total_kills"`
-	TotalDeaths   int                  `json:"total_deaths" bson:"total_deaths"`
+	PlayerID      uuid.UUID               `json:"player_id" bson:"player_id"`
+	GameID        replay_common.GameIDKey `json:"game_id" bson:"game_id"`
+	TotalMatches  int                     `json:"total_matches" bson:"total_matches"`
+	TotalWins     int                     `json:"total_wins" bson:"total_wins"`
+	TotalLosses   int                     `json:"total_losses" bson:"total_losses"`
+	TotalDraws    int                     `json:"total_draws" bson:"total_draws"`
+	WinRate       float64                 `json:"win_rate" bson:"win_rate"`
+	TotalKills    int                     `json:"total_kills" bson:"total_kills"`
+	TotalDeaths   int                     `json:"total_deaths" bson:"total_deaths"`
 	TotalAssists  int                  `json:"total_assists" bson:"total_assists"`
 	KDRatio       float64              `json:"kd_ratio" bson:"kd_ratio"`
 	KDARatio      float64              `json:"kda_ratio" bson:"kda_ratio"`
@@ -45,7 +45,7 @@ type RecentMatchSummary struct {
 }
 
 // NewPlayerStatistics creates a new PlayerStatistics instance
-func NewPlayerStatistics(playerID uuid.UUID, gameID common.GameIDKey) *PlayerStatistics {
+func NewPlayerStatistics(playerID uuid.UUID, gameID replay_common.GameIDKey) *PlayerStatistics {
 	return &PlayerStatistics{
 		PlayerID:      playerID,
 		GameID:        gameID,

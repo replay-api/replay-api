@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
 	iam_use_cases "github.com/replay-api/replay-api/pkg/domain/iam/use_cases"
 	"github.com/stretchr/testify/assert"
@@ -49,7 +49,7 @@ type MockRIDTokenReader struct {
 	mock.Mock
 }
 
-func (m *MockRIDTokenReader) Search(ctx context.Context, search common.Search) ([]iam_entities.RIDToken, error) {
+func (m *MockRIDTokenReader) Search(ctx context.Context, search shared.Search) ([]iam_entities.RIDToken, error) {
 	args := m.Called(ctx, search)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -84,7 +84,7 @@ func TestCreateRIDToken_UserAudience_Success(t *testing.T) {
 	groupID := uuid.New()
 	tenantID := uuid.New()
 
-	resourceOwner := common.ResourceOwner{
+	resourceOwner := shared.ResourceOwner{
 		UserID:   userID,
 		GroupID:  groupID,
 		TenantID: tenantID,
@@ -96,7 +96,7 @@ func TestCreateRIDToken_UserAudience_Success(t *testing.T) {
 	mockWriter.On("Create", mock.Anything, mock.MatchedBy(func(token *iam_entities.RIDToken) bool {
 		return token.ResourceOwner.UserID == userID &&
 			token.Source == source &&
-			token.IntendedAudience == common.UserAudienceIDKey &&
+			token.IntendedAudience == shared.UserAudienceIDKey &&
 			token.GrantType == "authorization_code" &&
 			token.ExpiresAt.After(time.Now())
 	})).Return(&iam_entities.RIDToken{
@@ -104,18 +104,18 @@ func TestCreateRIDToken_UserAudience_Success(t *testing.T) {
 		Key:              uuid.New(),
 		Source:           source,
 		ResourceOwner:    resourceOwner,
-		IntendedAudience: common.UserAudienceIDKey,
+		IntendedAudience: shared.UserAudienceIDKey,
 		GrantType:        "authorization_code",
 		ExpiresAt:        time.Now().Add(1 * time.Hour),
 		CreatedAt:        time.Now(),
 	}, nil)
 
-	token, err := usecase.Exec(ctx, resourceOwner, source, common.UserAudienceIDKey)
+	token, err := usecase.Exec(ctx, resourceOwner, source, shared.UserAudienceIDKey)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, token)
 	assert.Equal(t, "authorization_code", token.GrantType)
-	assert.Equal(t, common.UserAudienceIDKey, token.IntendedAudience)
+	assert.Equal(t, shared.UserAudienceIDKey, token.IntendedAudience)
 	assert.Equal(t, userID, token.ResourceOwner.UserID)
 	mockWriter.AssertExpectations(t)
 }
@@ -130,7 +130,7 @@ func TestCreateRIDToken_ClientAudience_Success(t *testing.T) {
 	userID := uuid.New()
 	groupID := uuid.New()
 
-	resourceOwner := common.ResourceOwner{
+	resourceOwner := shared.ResourceOwner{
 		UserID:  userID,
 		GroupID: groupID,
 	}
@@ -140,24 +140,24 @@ func TestCreateRIDToken_ClientAudience_Success(t *testing.T) {
 	// Mock successful token creation for client application
 	mockWriter.On("Create", mock.Anything, mock.MatchedBy(func(token *iam_entities.RIDToken) bool {
 		return token.GrantType == "client_credentials" &&
-			token.IntendedAudience == common.ClientApplicationAudienceIDKey
+			token.IntendedAudience == shared.ClientApplicationAudienceIDKey
 	})).Return(&iam_entities.RIDToken{
 		ID:               uuid.New(),
 		Key:              uuid.New(),
 		Source:           source,
 		ResourceOwner:    resourceOwner,
-		IntendedAudience: common.ClientApplicationAudienceIDKey,
+		IntendedAudience: shared.ClientApplicationAudienceIDKey,
 		GrantType:        "client_credentials",
 		ExpiresAt:        time.Now().Add(1 * time.Hour),
 		CreatedAt:        time.Now(),
 	}, nil)
 
-	token, err := usecase.Exec(ctx, resourceOwner, source, common.ClientApplicationAudienceIDKey)
+	token, err := usecase.Exec(ctx, resourceOwner, source, shared.ClientApplicationAudienceIDKey)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, token)
 	assert.Equal(t, "client_credentials", token.GrantType)
-	assert.Equal(t, common.ClientApplicationAudienceIDKey, token.IntendedAudience)
+	assert.Equal(t, shared.ClientApplicationAudienceIDKey, token.IntendedAudience)
 	mockWriter.AssertExpectations(t)
 }
 
@@ -168,7 +168,7 @@ func TestCreateRIDToken_WriterError(t *testing.T) {
 	usecase := iam_use_cases.NewCreateRIDTokenUseCase(mockWriter, mockReader)
 
 	ctx := context.Background()
-	resourceOwner := common.ResourceOwner{
+	resourceOwner := shared.ResourceOwner{
 		UserID:  uuid.New(),
 		GroupID: uuid.New(),
 	}
@@ -176,7 +176,7 @@ func TestCreateRIDToken_WriterError(t *testing.T) {
 	// Mock database error
 	mockWriter.On("Create", mock.Anything, mock.Anything).Return(nil, assert.AnError)
 
-	token, err := usecase.Exec(ctx, resourceOwner, iam_entities.RIDSource_Email, common.UserAudienceIDKey)
+	token, err := usecase.Exec(ctx, resourceOwner, iam_entities.RIDSource_Email, shared.UserAudienceIDKey)
 
 	assert.Error(t, err)
 	assert.Nil(t, token)
@@ -190,7 +190,7 @@ func TestCreateRIDToken_ExpirationIsOneHour(t *testing.T) {
 	usecase := iam_use_cases.NewCreateRIDTokenUseCase(mockWriter, mockReader)
 
 	ctx := context.Background()
-	resourceOwner := common.ResourceOwner{
+	resourceOwner := shared.ResourceOwner{
 		UserID:  uuid.New(),
 		GroupID: uuid.New(),
 	}
@@ -203,7 +203,7 @@ func TestCreateRIDToken_ExpirationIsOneHour(t *testing.T) {
 		ExpiresAt: time.Now().Add(1 * time.Hour),
 	}, nil)
 
-	usecase.Exec(ctx, resourceOwner, iam_entities.RIDSource_Steam, common.UserAudienceIDKey)
+	usecase.Exec(ctx, resourceOwner, iam_entities.RIDSource_Steam, shared.UserAudienceIDKey)
 
 	// Verify expiration is approximately 1 hour from now
 	expectedExpiry := time.Now().Add(1 * time.Hour)
@@ -219,7 +219,7 @@ func TestCreateRIDToken_UniqueIDsGenerated(t *testing.T) {
 	usecase := iam_use_cases.NewCreateRIDTokenUseCase(mockWriter, mockReader)
 
 	ctx := context.Background()
-	resourceOwner := common.ResourceOwner{
+	resourceOwner := shared.ResourceOwner{
 		UserID:  uuid.New(),
 		GroupID: uuid.New(),
 	}
@@ -238,7 +238,7 @@ func TestCreateRIDToken_UniqueIDsGenerated(t *testing.T) {
 
 	// Create multiple tokens
 	for i := 0; i < 3; i++ {
-		usecase.Exec(ctx, resourceOwner, iam_entities.RIDSource_Steam, common.UserAudienceIDKey)
+		usecase.Exec(ctx, resourceOwner, iam_entities.RIDSource_Steam, shared.UserAudienceIDKey)
 	}
 
 	// Verify all IDs are unique

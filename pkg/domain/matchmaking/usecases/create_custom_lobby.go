@@ -6,7 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
@@ -34,9 +34,9 @@ func NewCreateCustomLobbyUseCase(
 // CreateLobby creates a new custom matchmaking lobby
 func (uc *CreateCustomLobbyUseCase) CreateLobby(ctx context.Context, cmd matchmaking_in.CreateLobbyCommand) (*matchmaking_entities.MatchmakingLobby, error) {
 	// auth check
-	isAuthenticated := ctx.Value(common.AuthenticatedKey)
+	isAuthenticated := ctx.Value(shared.AuthenticatedKey)
 	if isAuthenticated == nil || !isAuthenticated.(bool) {
-		return nil, common.NewErrUnauthorized()
+		return nil, shared.NewErrUnauthorized()
 	}
 
 	// validate max players
@@ -47,7 +47,7 @@ func (uc *CreateCustomLobbyUseCase) CreateLobby(ctx context.Context, cmd matchma
 	// billing validation BEFORE creating lobby
 	billingCmd := billing_in.BillableOperationCommand{
 		OperationID: billing_entities.OperationTypeCreateCustomLobby,
-		UserID:      common.GetResourceOwner(ctx).UserID,
+		UserID:      shared.GetResourceOwner(ctx).UserID,
 		Amount:      1,
 		Args: map[string]interface{}{
 			"game_id":     cmd.GameID,
@@ -64,7 +64,7 @@ func (uc *CreateCustomLobbyUseCase) CreateLobby(ctx context.Context, cmd matchma
 
 	// create lobby entity
 	lobby, err := matchmaking_entities.NewMatchmakingLobby(
-		common.GetResourceOwner(ctx),
+		shared.GetResourceOwner(ctx),
 		cmd.CreatorID,
 		cmd.GameID,
 		cmd.Region,

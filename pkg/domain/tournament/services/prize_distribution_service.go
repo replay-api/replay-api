@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	tournament_entities "github.com/replay-api/replay-api/pkg/domain/tournament/entities"
@@ -88,7 +88,7 @@ func NewPrizeDistributionService(
 
 // CreatePrizePool creates a new prize pool for a tournament
 func (s *PrizeDistributionService) CreatePrizePool(ctx context.Context, req CreatePrizePoolRequest) (*tournament_entities.PrizePool, error) {
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 
 	pool := tournament_entities.NewPrizePool(
 		req.TournamentID,
@@ -121,7 +121,7 @@ func (s *PrizeDistributionService) CreatePrizePool(ctx context.Context, req Crea
 
 // AddContribution adds a contribution to the prize pool
 func (s *PrizeDistributionService) AddContribution(ctx context.Context, poolID uuid.UUID, contribution tournament_entities.PrizeContribution) error {
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 
 	pool, err := s.prizePoolRepo.GetByID(ctx, poolID)
 	if err != nil {
@@ -273,7 +273,7 @@ func (s *PrizeDistributionService) CalculateAndSetPayouts(ctx context.Context, p
 
 // DistributePrizes executes all pending payouts
 func (s *PrizeDistributionService) DistributePrizes(ctx context.Context, poolID uuid.UUID) error {
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 
 	pool, err := s.prizePoolRepo.GetByID(ctx, poolID)
 	if err != nil {

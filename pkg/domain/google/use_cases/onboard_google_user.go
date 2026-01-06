@@ -6,7 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 
 	"github.com/replay-api/replay-api/pkg/domain/google"
 	google_entity "github.com/replay-api/replay-api/pkg/domain/google/entities"
@@ -70,8 +70,8 @@ func (usecase *OnboardGoogleUserUseCase) Exec(ctx context.Context, googleUser *g
 
 		googleUser = &googleUserResult[0]
 
-		ctx = context.WithValue(ctx, common.UserIDKey, googleUser.ResourceOwner.UserID)
-		ctx = context.WithValue(ctx, common.GroupIDKey, googleUser.ResourceOwner.GroupID)
+		ctx = context.WithValue(ctx, shared.UserIDKey, googleUser.ResourceOwner.UserID)
+		ctx = context.WithValue(ctx, shared.GroupIDKey, googleUser.ResourceOwner.GroupID)
 	}
 
 	profile, ridToken, err := usecase.OnboardOpenIDUser.Exec(ctx, iam_in.OnboardOpenIDUserCommand{
@@ -91,10 +91,10 @@ func (usecase *OnboardGoogleUserUseCase) Exec(ctx context.Context, googleUser *g
 		return nil, nil, google.NewGoogleUserCreationError(fmt.Sprintf("error creating rid token: %v", googleUser.Email))
 	}
 
-	ctx = context.WithValue(ctx, common.UserIDKey, profile.ResourceOwner.UserID)
-	ctx = context.WithValue(ctx, common.GroupIDKey, profile.ResourceOwner.GroupID)
+	ctx = context.WithValue(ctx, shared.UserIDKey, profile.ResourceOwner.UserID)
+	ctx = context.WithValue(ctx, shared.GroupIDKey, profile.ResourceOwner.GroupID)
 
-	googleUser.ResourceOwner = common.GetResourceOwner(ctx)
+	googleUser.ResourceOwner = shared.GetResourceOwner(ctx)
 
 	if googleUser.ID == uuid.Nil {
 		googleUser.ID = profile.ResourceOwner.UserID
@@ -127,12 +127,12 @@ func NewOnboardGoogleUserUseCase(googleUserWriter google_out.GoogleUserWriter, g
 	}
 }
 
-func (uc *OnboardGoogleUserUseCase) newSearchByVHash(ctx context.Context, vhashString string) common.Search {
-	params := []common.SearchAggregation{
+func (uc *OnboardGoogleUserUseCase) newSearchByVHash(ctx context.Context, vhashString string) shared.Search {
+	params := []shared.SearchAggregation{
 		{
-			Params: []common.SearchParameter{
+			Params: []shared.SearchParameter{
 				{
-					ValueParams: []common.SearchableValue{
+					ValueParams: []shared.SearchableValue{
 						{
 							Field: "VHash",
 							Values: []interface{}{
@@ -145,17 +145,17 @@ func (uc *OnboardGoogleUserUseCase) newSearchByVHash(ctx context.Context, vhashS
 		},
 	}
 
-	visibility := common.SearchVisibilityOptions{
-		RequestSource:    common.GetResourceOwner(ctx),
-		IntendedAudience: common.ClientApplicationAudienceIDKey,
+	visibility := shared.SearchVisibilityOptions{
+		RequestSource:    shared.GetResourceOwner(ctx),
+		IntendedAudience: shared.ClientApplicationAudienceIDKey,
 	}
 
-	result := common.SearchResultOptions{
+	result := shared.SearchResultOptions{
 		Skip:  0,
 		Limit: 1,
 	}
 
-	return common.Search{
+	return shared.Search{
 		SearchParams:      params,
 		ResultOptions:     result,
 		VisibilityOptions: visibility,

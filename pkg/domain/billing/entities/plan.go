@@ -3,7 +3,7 @@ package billing_entities
 import (
 	"time"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type BillingPeriodType string
@@ -286,7 +286,7 @@ const (
 )
 
 type Plan struct {
-	common.BaseEntity
+	shared.BaseEntity
 	Name                 string                                `json:"name" bson:"name"`
 	Description          string                                `json:"description" bson:"description"`
 	Kind                 PlanKindType                          `json:"kind" bson:"kind"`

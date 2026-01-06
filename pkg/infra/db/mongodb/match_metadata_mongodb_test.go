@@ -5,9 +5,10 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 	db "github.com/replay-api/replay-api/pkg/infra/db/mongodb"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -31,10 +32,10 @@ func TestMatchMetadataRepository_Search(t *testing.T) {
 
 	setContextWithValues := func(tenantID, clientID, groupID, userID uuid.UUID) context.Context {
 		newCtx := context.TODO()
-		newCtx = context.WithValue(newCtx, common.TenantIDKey, tenantID)
-		newCtx = context.WithValue(newCtx, common.ClientIDKey, clientID)
-		newCtx = context.WithValue(newCtx, common.GroupIDKey, groupID)
-		newCtx = context.WithValue(newCtx, common.UserIDKey, userID)
+		newCtx = context.WithValue(newCtx, shared.TenantIDKey, tenantID)
+		newCtx = context.WithValue(newCtx, shared.ClientIDKey, clientID)
+		newCtx = context.WithValue(newCtx, shared.GroupIDKey, groupID)
+		newCtx = context.WithValue(newCtx, shared.UserIDKey, userID)
 		return newCtx
 	}
 
@@ -42,42 +43,42 @@ func TestMatchMetadataRepository_Search(t *testing.T) {
 	squadAContext := setContextWithValues(tenantID, clientID, groupID, userID)
 
 	sampleMatches := []replay_entity.Match{
-		{ID: uuid.New(), GameID: common.CS2_GAME_ID, Visibility: replay_entity.MatchVisibilityPublic, ResourceOwner: common.GetResourceOwner(defaultContext)},
-		{ID: uuid.New(), GameID: common.CS2_GAME_ID, Visibility: replay_entity.MatchVisibilitySquad, ResourceOwner: common.GetResourceOwner(squadAContext)},
-		{ID: uuid.New(), GameID: common.VLRNT_GAME_ID, Visibility: replay_entity.MatchVisibilityPublic, ResourceOwner: common.GetResourceOwner(defaultContext)},
+		{ID: uuid.New(), GameID: replay_common.CS2_GAME_ID, Visibility: replay_entity.MatchVisibilityPublic, ResourceOwner: shared.GetResourceOwner(defaultContext)},
+		{ID: uuid.New(), GameID: replay_common.CS2_GAME_ID, Visibility: replay_entity.MatchVisibilitySquad, ResourceOwner: shared.GetResourceOwner(squadAContext)},
+		{ID: uuid.New(), GameID: replay_common.VLRNT_GAME_ID, Visibility: replay_entity.MatchVisibilityPublic, ResourceOwner: shared.GetResourceOwner(defaultContext)},
 	}
 
 	tests := []struct {
 		name          string
-		search        common.Search
+		search        shared.Search
 		expectedIDs   []uuid.UUID
 		expectedError error
 		context       context.Context
 	}{
 		{
 			name:          "Filter by GameID",
-			search:        common.NewSearchByValues(defaultContext, []common.SearchableValue{{Field: "GameID", Values: []interface{}{common.CS2_GAME_ID}}}, common.NewSearchResultOptions(0, 100), common.UserAudienceIDKey),
+			search:        shared.NewSearchByValues(defaultContext, []shared.SearchableValue{{Field: "GameID", Values: []interface{}{replay_common.CS2_GAME_ID}}}, shared.NewSearchResultOptions(0, 100), shared.UserAudienceIDKey),
 			expectedIDs:   []uuid.UUID{sampleMatches[0].ID, sampleMatches[1].ID},
 			expectedError: nil,
 			context:       defaultContext,
 		},
 		{
 			name:          "Filter by Visibility (As User)",
-			search:        common.NewSearchByValues(defaultContext, []common.SearchableValue{{Field: "Visibility", Values: []interface{}{replay_entity.MatchVisibilitySquad}}}, common.NewSearchResultOptions(0, 100), common.UserAudienceIDKey),
+			search:        shared.NewSearchByValues(defaultContext, []shared.SearchableValue{{Field: "Visibility", Values: []interface{}{replay_entity.MatchVisibilitySquad}}}, shared.NewSearchResultOptions(0, 100), shared.UserAudienceIDKey),
 			expectedIDs:   []uuid.UUID{sampleMatches[1].ID},
 			expectedError: nil,
 			context:       defaultContext,
 		},
 		{
 			name:          "Filter by Visibility (As Group)",
-			search:        common.NewSearchByValues(squadAContext, []common.SearchableValue{{Field: "Visibility", Values: []interface{}{replay_entity.MatchVisibilitySquad}}}, common.NewSearchResultOptions(0, 100), common.GroupAudienceIDKey),
+			search:        shared.NewSearchByValues(squadAContext, []shared.SearchableValue{{Field: "Visibility", Values: []interface{}{replay_entity.MatchVisibilitySquad}}}, shared.NewSearchResultOptions(0, 100), shared.GroupAudienceIDKey),
 			expectedIDs:   []uuid.UUID{sampleMatches[1].ID},
 			expectedError: nil,
 			context:       squadAContext,
 		},
 		{
 			name:          "Filter by GameID and Visibility",
-			search:        common.NewSearchByValues(defaultContext, []common.SearchableValue{{Field: "GameID", Values: []interface{}{common.CS2_GAME_ID}}, {Field: "Visibility", Values: []interface{}{replay_entity.MatchVisibilityPublic}}}, common.NewSearchResultOptions(0, 100), common.UserAudienceIDKey),
+			search:        shared.NewSearchByValues(defaultContext, []shared.SearchableValue{{Field: "GameID", Values: []interface{}{replay_common.CS2_GAME_ID}}, {Field: "Visibility", Values: []interface{}{replay_entity.MatchVisibilityPublic}}}, shared.NewSearchResultOptions(0, 100), shared.UserAudienceIDKey),
 			expectedIDs:   []uuid.UUID{sampleMatches[0].ID},
 			expectedError: nil,
 			context:       defaultContext,
@@ -85,37 +86,37 @@ func TestMatchMetadataRepository_Search(t *testing.T) {
 		// },
 		// {
 		// 	name:          "Filter by GameID and Visibility with no matches",
-		// 	search:        common.NewSearchByValues(defaultContext, []common.SearchableValue{{Field: "GameID", Values: []interface{}{common.VLRNT_GAME_ID}}, {Field: "Visibility", Values: []interface{}{replay_entity.MatchVisibilitySquad}}}, common.NewSearchResultOptions(0, 1), common.UserAudienceIDKey),
+		// 	search:        shared.NewSearchByValues(defaultContext, []shared.SearchableValue{{Field: "GameID", Values: []interface{}{shared.VLRNT_GAME_ID}}, {Field: "Visibility", Values: []interface{}{replay_entity.MatchVisibilitySquad}}}, shared.NewSearchResultOptions(0, 1), shared.UserAudienceIDKey),
 		// 	expectedIDs:   []uuid.UUID{},
 		// 	expectedError: nil,
 		// },
 		// {
 		// 	name:          "Filter by non-existent field",
-		// 	search:        common.NewSearchByValues(defaultContext, []common.SearchableValue{{Field: "NonExistentField", Values: []interface{}{"value"}}}, common.NewSearchResultOptions(0, 1), common.UserAudienceIDKey),
+		// 	search:        shared.NewSearchByValues(defaultContext, []shared.SearchableValue{{Field: "NonExistentField", Values: []interface{}{"value"}}}, shared.NewSearchResultOptions(0, 1), shared.UserAudienceIDKey),
 		// 	expectedIDs:   []uuid.UUID{},
 		// 	expectedError: nil,
 		// },
 		// {
 		// 	name:          "Filter by non-existent field with invalid value",
-		// 	search:        common.NewSearchByValues(defaultContext, []common.SearchableValue{{Field: "NonExistentField", Values: []interface{}{1}}}, common.NewSearchResultOptions(0, 1), common.UserAudienceIDKey),
+		// 	search:        shared.NewSearchByValues(defaultContext, []shared.SearchableValue{{Field: "NonExistentField", Values: []interface{}{1}}}, shared.NewSearchResultOptions(0, 1), shared.UserAudienceIDKey),
 		// 	expectedIDs:   []uuid.UUID{},
 		// 	expectedError: nil,
 		// },
 		// {
 		// 	name:          "Filter by non-existent field with multiple values",
-		// 	search:        common.NewSearchByValues(defaultContext, []common.SearchableValue{{Field: "NonExistentField", Values: []interface{}{"value1", "value2"}}}, common.NewSearchResultOptions(0, 1), common.UserAudienceIDKey),
+		// 	search:        shared.NewSearchByValues(defaultContext, []shared.SearchableValue{{Field: "NonExistentField", Values: []interface{}{"value1", "value2"}}}, shared.NewSearchResultOptions(0, 1), shared.UserAudienceIDKey),
 		// 	expectedIDs:   []uuid.UUID{},
 		// 	expectedError: nil,
 		// },
 		// {
 		// 	name:          "Filter by non-existent field with multiple values with invalid value",
-		// 	search:        common.NewSearchByValues(defaultContext, []common.SearchableValue{{Field: "NonExistentField", Values: []interface{}{"value1", 2}}}, common.NewSearchResultOptions(0, 1), common.UserAudienceIDKey),
+		// 	search:        shared.NewSearchByValues(defaultContext, []shared.SearchableValue{{Field: "NonExistentField", Values: []interface{}{"value1", 2}}}, shared.NewSearchResultOptions(0, 1), shared.UserAudienceIDKey),
 		// 	expectedIDs:   []uuid.UUID{},
 		// 	expectedError: nil,
 		// },
 		// {
 		// 	name:          "Filter nested field",
-		// 	search:        common.NewSearchByValues(defaultContext, []common.SearchableValue{{Field: "Scoreboard.MVP", Values: []interface{}{uuid.New()}}}, common.NewSearchResultOptions(0, 1), common.UserAudienceIDKey),
+		// 	search:        shared.NewSearchByValues(defaultContext, []shared.SearchableValue{{Field: "Scoreboard.MVP", Values: []interface{}{uuid.New()}}}, shared.NewSearchResultOptions(0, 1), shared.UserAudienceIDKey),
 		// 	expectedIDs:   []uuid.UUID{},
 		// 	expectedError: nil,
 		// },

@@ -15,7 +15,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	billing_usecases "github.com/replay-api/replay-api/pkg/domain/billing/usecases"
@@ -116,11 +116,11 @@ func TestE2E_WithdrawalLifecycle(t *testing.T) {
 	userID := uuid.New()
 	walletID := uuid.New()
 	groupID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.GroupIDKey, groupID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, common.TeamPROTenantID)
-	ctx = context.WithValue(ctx, common.ClientIDKey, common.TeamPROAppClientID)
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.GroupIDKey, groupID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, replay_common.TeamPROTenantID)
+	ctx = context.WithValue(ctx, shared.ClientIDKey, replay_common.TeamPROAppClientID)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 
 	t.Log("✓ Test environment initialized")
 
@@ -300,11 +300,11 @@ func TestE2E_WithdrawalLifecycle(t *testing.T) {
 		// Create context with different user
 		otherUserID := uuid.New()
 		otherGroupID := uuid.New()
-		otherCtx := context.WithValue(ctx, common.UserIDKey, otherUserID)
-		otherCtx = context.WithValue(otherCtx, common.GroupIDKey, otherGroupID)
-		otherCtx = context.WithValue(otherCtx, common.TenantIDKey, common.TeamPROTenantID)
-		otherCtx = context.WithValue(otherCtx, common.ClientIDKey, common.TeamPROAppClientID)
-		otherCtx = context.WithValue(otherCtx, common.AuthenticatedKey, true)
+		otherCtx := context.WithValue(ctx, shared.UserIDKey, otherUserID)
+		otherCtx = context.WithValue(otherCtx, shared.GroupIDKey, otherGroupID)
+		otherCtx = context.WithValue(otherCtx, shared.TenantIDKey, replay_common.TeamPROTenantID)
+		otherCtx = context.WithValue(otherCtx, shared.ClientIDKey, replay_common.TeamPROAppClientID)
+		otherCtx = context.WithValue(otherCtx, shared.AuthenticatedKey, true)
 
 		// Try to cancel with different user
 		_, err = withdrawalUseCase.Cancel(otherCtx, withdrawal.ID)
@@ -399,11 +399,11 @@ func TestE2E_WithdrawalPersistence(t *testing.T) {
 
 	userID := uuid.New()
 	walletID := uuid.New()
-	resourceOwner := common.ResourceOwner{
+	resourceOwner := shared.ResourceOwner{
 		UserID:   userID,
 		GroupID:  uuid.New(),
-		TenantID: common.TeamPROTenantID,
-		ClientID: common.TeamPROAppClientID,
+		TenantID: replay_common.TeamPROTenantID,
+		ClientID: replay_common.TeamPROAppClientID,
 	}
 
 	// Create withdrawal directly via repository

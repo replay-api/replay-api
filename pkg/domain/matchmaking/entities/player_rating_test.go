@@ -5,13 +5,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	"github.com/stretchr/testify/assert"
 )
 
 // testMatchmakingResourceOwner creates a test resource owner
-func testMatchmakingResourceOwner() common.ResourceOwner {
-	return common.ResourceOwner{
+func testMatchmakingResourceOwner() shared.ResourceOwner {
+	return shared.ResourceOwner{
 		TenantID: uuid.New(),
 		ClientID: uuid.New(),
 	}
@@ -54,12 +55,12 @@ func TestNewPlayerRating_CreatesValidRating(t *testing.T) {
 	playerID := uuid.New()
 	rxn := testMatchmakingResourceOwner()
 
-	rating := NewPlayerRating(playerID, common.CS2_GAME_ID, rxn)
+	rating := NewPlayerRating(playerID, replay_common.CS2_GAME_ID, rxn)
 
 	assert.NotNil(rating)
 	assert.NotEqual(uuid.Nil, rating.ID)
 	assert.Equal(playerID, rating.PlayerID)
-	assert.Equal(common.CS2_GAME_ID, rating.GameID)
+	assert.Equal(replay_common.CS2_GAME_ID, rating.GameID)
 	assert.Equal(DefaultRating, rating.Rating)
 	assert.Equal(DefaultRatingDeviation, rating.RatingDeviation)
 	assert.Equal(DefaultVolatility, rating.Volatility)
@@ -77,7 +78,7 @@ func TestNewPlayerRating_SetsTimestamps(t *testing.T) {
 	assert := assert.New(t)
 	before := time.Now()
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 
 	assert.WithinDuration(before, rating.CreatedAt, time.Second)
 	assert.WithinDuration(before, rating.UpdatedAt, time.Second)
@@ -87,7 +88,7 @@ func TestNewPlayerRating_SetsTimestamps(t *testing.T) {
 func TestNewPlayerRating_InitializesEmptyHistory(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 
 	assert.NotNil(rating.RatingHistory)
 	assert.Len(rating.RatingHistory, 0)
@@ -100,7 +101,7 @@ func TestNewPlayerRating_InitializesEmptyHistory(t *testing.T) {
 func TestPlayerRating_GetID(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 
 	assert.Equal(rating.ID, rating.GetID())
 }
@@ -112,7 +113,7 @@ func TestPlayerRating_GetID(t *testing.T) {
 func TestGetMMR_ReturnsRoundedInteger(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 
 	// Default rating
 	assert.Equal(1500, rating.GetMMR())
@@ -131,7 +132,7 @@ func TestGetMMR_ReturnsRoundedInteger(t *testing.T) {
 func TestGetMMR_HandlesExtremeValues(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 
 	rating.Rating = 0
 	assert.Equal(0, rating.GetMMR())
@@ -147,7 +148,7 @@ func TestGetMMR_HandlesExtremeValues(t *testing.T) {
 func TestGetRank_ReturnsBronzeForLowRating(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 	rating.Rating = 1000
 
 	assert.Equal(RankBronze, rating.GetRank())
@@ -156,7 +157,7 @@ func TestGetRank_ReturnsBronzeForLowRating(t *testing.T) {
 func TestGetRank_ReturnsSilverAt1200(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 	rating.Rating = 1200
 
 	assert.Equal(RankSilver, rating.GetRank())
@@ -165,7 +166,7 @@ func TestGetRank_ReturnsSilverAt1200(t *testing.T) {
 func TestGetRank_ReturnsGoldAt1400(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 	rating.Rating = 1400
 
 	assert.Equal(RankGold, rating.GetRank())
@@ -174,7 +175,7 @@ func TestGetRank_ReturnsGoldAt1400(t *testing.T) {
 func TestGetRank_ReturnsPlatinumAt1600(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 	rating.Rating = 1600
 
 	assert.Equal(RankPlatinum, rating.GetRank())
@@ -183,7 +184,7 @@ func TestGetRank_ReturnsPlatinumAt1600(t *testing.T) {
 func TestGetRank_ReturnsDiamondAt1900(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 	rating.Rating = 1900
 
 	assert.Equal(RankDiamond, rating.GetRank())
@@ -192,7 +193,7 @@ func TestGetRank_ReturnsDiamondAt1900(t *testing.T) {
 func TestGetRank_ReturnsMasterAt2200(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 	rating.Rating = 2200
 
 	assert.Equal(RankMaster, rating.GetRank())
@@ -201,7 +202,7 @@ func TestGetRank_ReturnsMasterAt2200(t *testing.T) {
 func TestGetRank_ReturnsGrandmasterAt2500(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 	rating.Rating = 2500
 
 	assert.Equal(RankGrandmaster, rating.GetRank())
@@ -210,7 +211,7 @@ func TestGetRank_ReturnsGrandmasterAt2500(t *testing.T) {
 func TestGetRank_ReturnsChallengerAt2800(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 	rating.Rating = 2800
 
 	assert.Equal(RankChallenger, rating.GetRank())
@@ -243,7 +244,7 @@ func TestGetRank_AllBoundaries(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+		rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 		rating.Rating = tc.rating
 		assert.Equal(tc.expectedRank, rating.GetRank(), "Rating %.0f should be %s", tc.rating, tc.expectedRank)
 	}
@@ -256,7 +257,7 @@ func TestGetRank_AllBoundaries(t *testing.T) {
 func TestGetConfidence_ReturnsLowConfidenceForNewPlayer(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 
 	// New player has RD of 350, should have ~0% confidence
 	confidence := rating.GetConfidence()
@@ -266,7 +267,7 @@ func TestGetConfidence_ReturnsLowConfidenceForNewPlayer(t *testing.T) {
 func TestGetConfidence_ReturnsHighConfidenceForEstablishedPlayer(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 	rating.RatingDeviation = 50 // Very confident
 
 	confidence := rating.GetConfidence()
@@ -276,7 +277,7 @@ func TestGetConfidence_ReturnsHighConfidenceForEstablishedPlayer(t *testing.T) {
 func TestGetConfidence_Returns100PercentAtZeroRD(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 	rating.RatingDeviation = 0
 
 	confidence := rating.GetConfidence()
@@ -286,7 +287,7 @@ func TestGetConfidence_Returns100PercentAtZeroRD(t *testing.T) {
 func TestGetConfidence_ClampsBetween0And100(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 
 	// Very high RD should return 0
 	rating.RatingDeviation = 500
@@ -304,7 +305,7 @@ func TestGetConfidence_ClampsBetween0And100(t *testing.T) {
 func TestIsProvisional_ReturnsTrueForNewPlayer(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 
 	assert.True(rating.IsProvisional())
 }
@@ -312,7 +313,7 @@ func TestIsProvisional_ReturnsTrueForNewPlayer(t *testing.T) {
 func TestIsProvisional_ReturnsTrueForLessThan10Matches(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 	rating.MatchesPlayed = 9
 
 	assert.True(rating.IsProvisional())
@@ -321,7 +322,7 @@ func TestIsProvisional_ReturnsTrueForLessThan10Matches(t *testing.T) {
 func TestIsProvisional_ReturnsFalseFor10OrMoreMatches(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 	rating.MatchesPlayed = 10
 
 	assert.False(rating.IsProvisional())
@@ -334,7 +335,7 @@ func TestIsProvisional_ReturnsFalseFor10OrMoreMatches(t *testing.T) {
 func TestGetWinRate_ReturnsZeroForNoMatches(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 
 	assert.Equal(0.0, rating.GetWinRate())
 }
@@ -342,7 +343,7 @@ func TestGetWinRate_ReturnsZeroForNoMatches(t *testing.T) {
 func TestGetWinRate_Returns100ForAllWins(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 	rating.Wins = 10
 	rating.Losses = 0
 	rating.Draws = 0
@@ -353,7 +354,7 @@ func TestGetWinRate_Returns100ForAllWins(t *testing.T) {
 func TestGetWinRate_Returns0ForAllLosses(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 	rating.Wins = 0
 	rating.Losses = 10
 	rating.Draws = 0
@@ -364,7 +365,7 @@ func TestGetWinRate_Returns0ForAllLosses(t *testing.T) {
 func TestGetWinRate_CalculatesCorrectly(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 	rating.Wins = 6
 	rating.Losses = 3
 	rating.Draws = 1
@@ -376,7 +377,7 @@ func TestGetWinRate_CalculatesCorrectly(t *testing.T) {
 func TestGetWinRate_IncludesDrawsInTotal(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 	rating.Wins = 5
 	rating.Losses = 0
 	rating.Draws = 5
@@ -392,7 +393,7 @@ func TestGetWinRate_IncludesDrawsInTotal(t *testing.T) {
 func TestApplyInactivityDecay_DoesNothingForZeroDays(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 	initialRD := rating.RatingDeviation
 
 	rating.ApplyInactivityDecay(0)
@@ -403,7 +404,7 @@ func TestApplyInactivityDecay_DoesNothingForZeroDays(t *testing.T) {
 func TestApplyInactivityDecay_DoesNothingForNegativeDays(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 	initialRD := rating.RatingDeviation
 
 	rating.ApplyInactivityDecay(-5)
@@ -414,7 +415,7 @@ func TestApplyInactivityDecay_DoesNothingForNegativeDays(t *testing.T) {
 func TestApplyInactivityDecay_IncreasesRDForInactivity(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 	rating.RatingDeviation = 100 // Established player
 
 	rating.ApplyInactivityDecay(30) // 1 month inactive
@@ -425,7 +426,7 @@ func TestApplyInactivityDecay_IncreasesRDForInactivity(t *testing.T) {
 func TestApplyInactivityDecay_CapsAtDefaultRD(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 	rating.RatingDeviation = 100
 
 	// The decay formula is sqrt(RD² + (25/30)² * days)
@@ -440,7 +441,7 @@ func TestApplyInactivityDecay_CapsAtDefaultRD(t *testing.T) {
 func TestApplyInactivityDecay_UpdatesTimestamp(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 	rating.RatingDeviation = 100
 	oldUpdatedAt := rating.UpdatedAt
 
@@ -486,7 +487,7 @@ func TestScenario_NewPlayerPlacementMatches(t *testing.T) {
 	assert := assert.New(t)
 
 	// New player starts with provisional rating
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 
 	assert.True(rating.IsProvisional())
 	assert.Equal(RankGold, rating.GetRank()) // Default 1500 = Gold
@@ -505,7 +506,7 @@ func TestScenario_NewPlayerPlacementMatches(t *testing.T) {
 func TestScenario_HighLevelCompetitivePlayer(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 	rating.Rating = 2850
 	rating.RatingDeviation = 60
 	rating.Volatility = 0.04
@@ -525,7 +526,7 @@ func TestScenario_InactivePlayerReturns(t *testing.T) {
 	assert := assert.New(t)
 
 	// Player was active at Diamond
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 	rating.Rating = 1950
 	rating.RatingDeviation = 80
 	rating.MatchesPlayed = 100
@@ -545,7 +546,7 @@ func TestScenario_InactivePlayerReturns(t *testing.T) {
 func TestScenario_RatingProgression(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 
 	// Simulate matches and rating progression
 	rating.Wins = 5
@@ -578,7 +579,7 @@ func TestScenario_RatingProgression(t *testing.T) {
 func TestToGlicko2Scale_ConvertsCorrectly(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 	rating.Rating = 1500
 	rating.RatingDeviation = 350
 
@@ -592,7 +593,7 @@ func TestToGlicko2Scale_ConvertsCorrectly(t *testing.T) {
 func TestToGlicko2Scale_HigherRating(t *testing.T) {
 	assert := assert.New(t)
 
-	rating := NewPlayerRating(uuid.New(), common.CS2_GAME_ID, testMatchmakingResourceOwner())
+	rating := NewPlayerRating(uuid.New(), replay_common.CS2_GAME_ID, testMatchmakingResourceOwner())
 	rating.Rating = 2000 // 500 above default
 	rating.RatingDeviation = 100
 

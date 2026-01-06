@@ -6,7 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	billing_out "github.com/replay-api/replay-api/pkg/domain/billing/ports/out"
@@ -49,7 +49,7 @@ func (useCase *CreateBillableEntryUseCase) Exec(ctx context.Context, command bil
 		return nil, nil, err
 	}
 
-	rxn := common.GetResourceOwner(ctx)
+	rxn := shared.GetResourceOwner(ctx)
 
 	sub, err := useCase.SubscriptionReader.GetCurrentSubscription(ctx, rxn)
 	if err != nil {
@@ -63,7 +63,7 @@ func (useCase *CreateBillableEntryUseCase) Exec(ctx context.Context, command bil
 			return nil, nil, fmt.Errorf("unable to get default free plan for user %v", rxn)
 		}
 
-		be := common.NewRestrictedEntity(rxn)
+		be := shared.NewRestrictedEntity(rxn)
 
 		sub, err = useCase.SubscriptionWriter.Create(ctx, &billing_entities.Subscription{
 			BaseEntity:    be,
@@ -95,7 +95,7 @@ func (useCase *CreateBillableEntryUseCase) Exec(ctx context.Context, command bil
 	// TODO: chamar (grpc) pra verificar arbitrariamente termos de uso, regras de compliance, regra de seguranca/block etc...
 
 	entry, err := useCase.BillableOperationWriter.Create(ctx, &billing_entities.BillableEntry{
-		BaseEntity:     common.NewRestrictedEntity(rxn),
+		BaseEntity:     shared.NewRestrictedEntity(rxn),
 		OperationID:    command.OperationID,
 		PlanID:         sub.PlanID,
 		SubscriptionID: sub.ID,
@@ -118,7 +118,7 @@ func (useCase *CreateBillableEntryUseCase) Validate(ctx context.Context, command
 		return err
 	}
 
-	rxn := common.GetResourceOwner(ctx)
+	rxn := shared.GetResourceOwner(ctx)
 
 	sub, err := useCase.SubscriptionReader.GetCurrentSubscription(ctx, rxn)
 	if err != nil {
@@ -166,7 +166,7 @@ func formatAmount(amount float64) string {
 }
 
 func (useCase *CreateBillableEntryUseCase) prepareUserContext(ctx context.Context, userID uuid.UUID) (context.Context, error) {
-	userContext := context.WithValue(ctx, common.UserIDKey, userID)
+	userContext := context.WithValue(ctx, shared.UserIDKey, userID)
 	groupAccountSearch := iam_entities.NewGroupAccountSearchByUser(userContext)
 
 	groupAccount, err := useCase.GroupReader.Search(userContext, groupAccountSearch)
@@ -176,7 +176,7 @@ func (useCase *CreateBillableEntryUseCase) prepareUserContext(ctx context.Contex
 	}
 
 	if len(groupAccount) > 0 {
-		userContext = context.WithValue(userContext, common.GroupIDKey, groupAccount[0].ID)
+		userContext = context.WithValue(userContext, shared.GroupIDKey, groupAccount[0].ID)
 	}
 
 	return userContext, nil

@@ -2,11 +2,11 @@ package billing_entities
 
 import (
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type BillableEntry struct {
-	common.BaseEntity
+	shared.BaseEntity
 	OperationID    BillableOperationKey   `json:"operation_id" bson:"operation_id"`
 	PlanID         uuid.UUID              `json:"plan_id" bson:"plan_id"`
 	Amount         float64                `json:"amount" bson:"amount"`

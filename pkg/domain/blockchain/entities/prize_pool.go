@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	blockchain_vo "github.com/replay-api/replay-api/pkg/domain/blockchain/value-objects"
 	wallet_vo "github.com/replay-api/replay-api/pkg/domain/wallet/value-objects"
 )
@@ -26,7 +26,7 @@ const (
 // OnChainPrizePool represents a prize pool on the blockchain.
 // Thread-safe: all mutating operations are protected by internal mutex.
 type OnChainPrizePool struct {
-	common.BaseEntity
+	shared.BaseEntity
 	mu sync.RWMutex `json:"-" bson:"-"` // Protects concurrent access to mutable fields
 
 	// Identifiers
@@ -83,7 +83,7 @@ type PrizeWinner struct {
 
 // NewOnChainPrizePool creates a new on-chain prize pool record
 func NewOnChainPrizePool(
-	resourceOwner common.ResourceOwner,
+	resourceOwner shared.ResourceOwner,
 	matchID uuid.UUID,
 	chainID blockchain_vo.ChainID,
 	contractAddr wallet_vo.EVMAddress,
@@ -92,7 +92,7 @@ func NewOnChainPrizePool(
 	entryFee wallet_vo.Amount,
 	platformFeePercent uint16,
 ) *OnChainPrizePool {
-	baseEntity := common.NewPrivateEntity(resourceOwner)
+	baseEntity := shared.NewPrivateEntity(resourceOwner)
 
 	// Generate on-chain ID from match ID
 	var onChainID [32]byte

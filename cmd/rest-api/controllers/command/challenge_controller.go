@@ -9,7 +9,7 @@ import (
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	challenge_entities "github.com/replay-api/replay-api/pkg/domain/challenge/entities"
 	challenge_in "github.com/replay-api/replay-api/pkg/domain/challenge/ports/in"
 )
@@ -150,7 +150,7 @@ func (ctrl *ChallengeController) CreateChallengeHandler(apiContext context.Conte
 
 		// Get authenticated user
 		ctx := r.Context()
-		resourceOwner := common.GetResourceOwner(ctx)
+		resourceOwner := shared.GetResourceOwner(ctx)
 		if resourceOwner.UserID == uuid.Nil {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
@@ -358,7 +358,7 @@ func (ctrl *ChallengeController) VoteHandler(apiContext context.Context) http.Ha
 
 		// Get authenticated user
 		ctx := r.Context()
-		resourceOwner := common.GetResourceOwner(ctx)
+		resourceOwner := shared.GetResourceOwner(ctx)
 		if resourceOwner.UserID == uuid.Nil {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
@@ -408,7 +408,7 @@ func (ctrl *ChallengeController) ResolveHandler(apiContext context.Context) http
 
 		// Get authenticated user (admin)
 		ctx := r.Context()
-		resourceOwner := common.GetResourceOwner(ctx)
+		resourceOwner := shared.GetResourceOwner(ctx)
 		if resourceOwner.UserID == uuid.Nil {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
@@ -459,7 +459,7 @@ func (ctrl *ChallengeController) CancelHandler(apiContext context.Context) http.
 
 		// Get authenticated user
 		ctx := r.Context()
-		resourceOwner := common.GetResourceOwner(ctx)
+		resourceOwner := shared.GetResourceOwner(ctx)
 		if resourceOwner.UserID == uuid.Nil {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return

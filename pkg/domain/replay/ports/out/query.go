@@ -5,7 +5,7 @@ import (
 	"io"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 )
 
@@ -14,15 +14,15 @@ type EventsByGameReader interface {
 }
 
 type GameEventReader interface {
-	common.Searchable[replay_entity.GameEvent]
+	shared.Searchable[replay_entity.GameEvent]
 }
 
 type MatchMetadataReader interface {
-	common.Searchable[replay_entity.Match]
+	shared.Searchable[replay_entity.Match]
 }
 
 type ReplayFileMetadataReader interface {
-	common.Searchable[replay_entity.ReplayFile]
+	shared.Searchable[replay_entity.ReplayFile]
 	GetByID(ctx context.Context, replayFileID uuid.UUID) (*replay_entity.ReplayFile, error)
 }
 
@@ -31,19 +31,19 @@ type ReplayFileContentReader interface {
 }
 
 type TeamReader interface {
-	common.Searchable[replay_entity.Team]
+	shared.Searchable[replay_entity.Team]
 }
 
 type PlayerMetadataReader interface {
-	common.Searchable[replay_entity.PlayerMetadata]
+	shared.Searchable[replay_entity.PlayerMetadata]
 }
 
 type BadgeReader interface {
-	common.Searchable[replay_entity.Badge]
+	shared.Searchable[replay_entity.Badge]
 }
 
 type ShareTokenReader interface {
-	common.Searchable[replay_entity.ShareToken]
+	shared.Searchable[replay_entity.ShareToken]
 	FindByToken(ctx context.Context, tokenID uuid.UUID) (*replay_entity.ShareToken, error)
 	FindByResourceID(ctx context.Context, resourceID uuid.UUID) ([]replay_entity.ShareToken, error)
 }

@@ -1,6 +1,9 @@
 package entities
 
-import common "github.com/replay-api/replay-api/pkg/domain"
+import (
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
+)
 
 type CSHitBoxType byte
 
@@ -41,7 +44,7 @@ type CSBattleStats struct {
 	OpponentTradeFrags      float64
 	TotalOpponentFrags      float64
 
-	FragStatsByVictim map[common.PlayerIDType]map[common.TickIDType]CSHitStats
+	FragStatsByVictim map[shared.PlayerIDType]map[replay_common.TickIDType]CSHitStats
 }
 
 type CSHitStats struct {

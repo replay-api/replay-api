@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 	replay_in "github.com/replay-api/replay-api/pkg/domain/replay/ports/in"
 	replay_out "github.com/replay-api/replay-api/pkg/domain/replay/ports/out"
@@ -13,7 +13,7 @@ import (
 // RoundQueryService provides query capabilities for Round entities
 // Rounds are embedded within Match entities, so we query through MatchMetadataReader
 type RoundQueryService struct {
-	common.BaseQueryService[replay_entity.Round]
+	shared.BaseQueryService[replay_entity.Round]
 }
 
 // NewRoundQueryService creates a new RoundQueryService
@@ -36,7 +36,7 @@ func NewRoundQueryService(matchReader replay_out.MatchMetadataReader) replay_in.
 		"Title":       true,
 		"Description": true,
 		"ImageURL":    true,
-		"Events":      common.DENY,
+		"Events":      shared.DENY,
 		"CreatedAt":   true,
 		"UpdatedAt":   true,
 	}
@@ -46,12 +46,12 @@ func NewRoundQueryService(matchReader replay_out.MatchMetadataReader) replay_in.
 		matchReader: matchReader,
 	}
 
-	return &common.BaseQueryService[replay_entity.Round]{
+	return &shared.BaseQueryService[replay_entity.Round]{
 		Reader:          roundAdapter,
 		QueryableFields: queryableFields,
 		ReadableFields:  readableFields,
 		MaxPageSize:     100,
-		Audience:        common.UserAudienceIDKey,
+		Audience:        shared.UserAudienceIDKey,
 	}
 }
 
@@ -60,29 +60,29 @@ type RoundSearchableAdapter struct {
 	matchReader replay_out.MatchMetadataReader
 }
 
-// GetByID implements common.Searchable[replay_entity.Round]
+// GetByID implements shared.Searchable[replay_entity.Round]
 func (a *RoundSearchableAdapter) GetByID(ctx context.Context, id uuid.UUID) (*replay_entity.Round, error) {
 	// Rounds are embedded in matches, so we would need to search matches to find the round
 	// For now, return nil as rounds don't have their own collection
 	return nil, nil
 }
 
-// Search implements common.Searchable[replay_entity.Round]
-func (a *RoundSearchableAdapter) Search(ctx context.Context, s common.Search) ([]replay_entity.Round, error) {
+// Search implements shared.Searchable[replay_entity.Round]
+func (a *RoundSearchableAdapter) Search(ctx context.Context, s shared.Search) ([]replay_entity.Round, error) {
 	// For now, return empty results since rounds are embedded in matches
 	// A full implementation would query matches and extract rounds
 	return []replay_entity.Round{}, nil
 }
 
-// Compile implements common.Searchable[replay_entity.Round]
-func (a *RoundSearchableAdapter) Compile(ctx context.Context, searchParams []common.SearchAggregation, resultOptions common.SearchResultOptions) (*common.Search, error) {
+// Compile implements shared.Searchable[replay_entity.Round]
+func (a *RoundSearchableAdapter) Compile(ctx context.Context, searchParams []shared.SearchAggregation, resultOptions shared.SearchResultOptions) (*shared.Search, error) {
 	// Return a basic search object
-	return &common.Search{
+	return &shared.Search{
 		SearchParams:  searchParams,
 		ResultOptions: resultOptions,
-		VisibilityOptions: common.SearchVisibilityOptions{
-			RequestSource:    common.GetResourceOwner(ctx),
-			IntendedAudience: common.UserAudienceIDKey,
+		VisibilityOptions: shared.SearchVisibilityOptions{
+			RequestSource:    shared.GetResourceOwner(ctx),
+			IntendedAudience: shared.UserAudienceIDKey,
 		},
 	}, nil
 }

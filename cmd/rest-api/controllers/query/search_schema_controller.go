@@ -15,7 +15,7 @@ import (
 	"sort"
 	"strings"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // SearchSchemaController exposes the search schema API to frontend clients.
@@ -57,7 +57,7 @@ import (
 type SearchSchemaController struct {
 	// registry is the global QueryServiceRegistry singleton.
 	// All schema information is read from here.
-	registry *common.QueryServiceRegistry
+	registry *shared.QueryServiceRegistry
 }
 
 // NewSearchSchemaController creates a controller that reads from service registry.
@@ -72,7 +72,7 @@ type SearchSchemaController struct {
 //	router.HandleFunc("/api/search/schema", controller.GetSearchSchemaHandler)
 func NewSearchSchemaController() *SearchSchemaController {
 	return &SearchSchemaController{
-		registry: common.GetQueryServiceRegistry(),
+		registry: shared.GetQueryServiceRegistry(),
 	}
 }
 
@@ -88,8 +88,8 @@ func NewSearchSchemaController() *SearchSchemaController {
 //	Service defines schema → Registers with registry → Controller reads here
 //
 // Thread Safety: Safe for concurrent calls.
-func (c *SearchSchemaController) getSchemas() map[string]common.EntitySearchSchema {
-	schemas := make(map[string]common.EntitySearchSchema)
+func (c *SearchSchemaController) getSchemas() map[string]shared.EntitySearchSchema {
+	schemas := make(map[string]shared.EntitySearchSchema)
 
 	// Read all schemas from the registry (populated by query services)
 	for entityType, serviceSchema := range c.registry.GetAllSchemas() {
@@ -98,7 +98,7 @@ func (c *SearchSchemaController) getSchemas() map[string]common.EntitySearchSche
 		copy(queryableFields, serviceSchema.QueryableFields)
 		sort.Strings(queryableFields)
 
-		schemas[entityType] = common.EntitySearchSchema{
+		schemas[entityType] = shared.EntitySearchSchema{
 			EntityType:          serviceSchema.EntityType,
 			QueryableFields:     queryableFields,
 			DefaultSearchFields: serviceSchema.DefaultSearchFields,
@@ -124,7 +124,7 @@ func (c *SearchSchemaController) getSchemas() map[string]common.EntitySearchSche
 func (c *SearchSchemaController) GetSearchSchemaHandler(w http.ResponseWriter, r *http.Request) {
 	schemas := c.getSchemas()
 
-	response := common.SearchSchema{
+	response := shared.SearchSchema{
 		Version:  "1.0.0",
 		Entities: schemas,
 	}
@@ -195,7 +195,7 @@ func (c *SearchSchemaController) GetEntitySchemaHandler(w http.ResponseWriter, r
 // Returns:
 //   - schema: Pointer to EntitySearchSchema if found
 //   - exists: true if the entity type exists, false otherwise
-func (c *SearchSchemaController) GetSchema(entityType string) (*common.EntitySearchSchema, bool) {
+func (c *SearchSchemaController) GetSchema(entityType string) (*shared.EntitySearchSchema, bool) {
 	schemas := c.getSchemas()
 	schema, exists := schemas[entityType]
 	if !exists {

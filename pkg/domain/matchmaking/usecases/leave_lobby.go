@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	matchmaking_in "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/in"
@@ -32,9 +32,9 @@ func NewLeaveLobbyUseCase(
 // Exec removes a player from a lobby
 func (uc *LeaveLobbyUseCase) Exec(ctx context.Context, cmd matchmaking_in.LeaveLobbyCommand) error {
 	// auth check
-	isAuthenticated := ctx.Value(common.AuthenticatedKey)
+	isAuthenticated := ctx.Value(shared.AuthenticatedKey)
 	if isAuthenticated == nil || !isAuthenticated.(bool) {
-		return common.NewErrUnauthorized()
+		return shared.NewErrUnauthorized()
 	}
 
 	// get lobby
@@ -47,7 +47,7 @@ func (uc *LeaveLobbyUseCase) Exec(ctx context.Context, cmd matchmaking_in.LeaveL
 	// billing validation BEFORE leaving
 	billingCmd := billing_in.BillableOperationCommand{
 		OperationID: billing_entities.OperationTypeLeaveLobby,
-		UserID:      common.GetResourceOwner(ctx).UserID,
+		UserID:      shared.GetResourceOwner(ctx).UserID,
 		Amount:      1,
 		Args: map[string]interface{}{
 			"lobby_id": cmd.LobbyID.String(),

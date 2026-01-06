@@ -7,7 +7,7 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	payment_entities "github.com/replay-api/replay-api/pkg/domain/payment/entities"
 	payment_in "github.com/replay-api/replay-api/pkg/domain/payment/ports/in"
 	payment_out "github.com/replay-api/replay-api/pkg/domain/payment/ports/out"
@@ -345,7 +345,7 @@ func (s *PaymentService) creditWallet(ctx context.Context, payment *payment_enti
 	}
 
 	// Get resource owner from context or payment
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 	if resourceOwner.UserID == uuid.Nil {
 		resourceOwner.UserID = payment.UserID
 	}

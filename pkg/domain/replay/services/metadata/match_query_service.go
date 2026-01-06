@@ -1,7 +1,7 @@
 package metadata
 
 import (
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 	replay_in "github.com/replay-api/replay-api/pkg/domain/replay/ports/in"
 	replay_out "github.com/replay-api/replay-api/pkg/domain/replay/ports/out"
@@ -24,7 +24,7 @@ import (
 //   - Error is DENY (internal error details - security risk)
 //   - ResourceOwner is DENY in ReadableFields (not exposed in responses)
 type MatchQueryService struct {
-	common.BaseQueryService[replay_entity.Match]
+	shared.BaseQueryService[replay_entity.Match]
 }
 
 // NewMatchQueryService creates and registers a new MatchQueryService.
@@ -43,7 +43,7 @@ func NewMatchQueryService(matchReader replay_out.MatchMetadataReader) replay_in.
 		"GameID":        true,               // Filter by game (CS2, Valorant)
 		"NetworkID":     true,               // Network/region identifier
 		"Status":        true,               // Match status
-		"Error":         common.DENY,        // SECURITY: Internal error details
+		"Error":         shared.DENY,        // SECURITY: Internal error details
 		"MapName":       true,               // Map name for search
 		"ResourceOwner": true,               // Allow querying by owner
 		"CreatedAt":     true,               // Match creation timestamp
@@ -56,15 +56,15 @@ func NewMatchQueryService(matchReader replay_out.MatchMetadataReader) replay_in.
 		"GameID":        true,
 		"NetworkID":     true,
 		"Status":        true,
-		"Error":         common.DENY,        // SECURITY: Never expose error details
+		"Error":         shared.DENY,        // SECURITY: Never expose error details
 		"MapName":       true,
-		"ResourceOwner": common.DENY,        // SECURITY: Hide resource ownership
+		"ResourceOwner": shared.DENY,        // SECURITY: Hide resource ownership
 		"CreatedAt":     true,
 		"UpdatedAt":     true,
 	}
 
-	service := &common.BaseQueryService[replay_entity.Match]{
-		Reader:          matchReader.(common.Searchable[replay_entity.Match]),
+	service := &shared.BaseQueryService[replay_entity.Match]{
+		Reader:          matchReader.(shared.Searchable[replay_entity.Match]),
 		QueryableFields: queryableFields,
 		ReadableFields:  readableFields,
 
@@ -78,14 +78,14 @@ func NewMatchQueryService(matchReader replay_out.MatchMetadataReader) replay_in.
 		FilterableFields: []string{"GameID", "Status", "NetworkID"},
 
 		MaxPageSize: 100,
-		Audience:    common.UserAudienceIDKey,
+		Audience:    shared.UserAudienceIDKey,
 
 		// EntityType: URL path segment
 		EntityType: "matches",
 	}
 
 	// CRITICAL: Register with global registry for schema discovery
-	common.GetQueryServiceRegistry().Register("matches", service)
+	shared.GetQueryServiceRegistry().Register("matches", service)
 
 	return service
 }

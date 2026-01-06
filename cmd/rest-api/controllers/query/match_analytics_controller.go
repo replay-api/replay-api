@@ -11,9 +11,10 @@ import (
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	cs_entities "github.com/replay-api/replay-api/pkg/domain/cs/entities"
 	replay_in "github.com/replay-api/replay-api/pkg/domain/replay/ports/in"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type MatchAnalyticsController struct {
@@ -77,12 +78,12 @@ type PositioningStatsResponse struct {
 }
 
 // extractPositioningStats extracts CSPositioningStats from GameEvent.Stats
-func extractPositioningStats(stats map[common.StatType][]interface{}) *cs_entities.CSPositioningStats {
+func extractPositioningStats(stats map[replay_common.StatType][]interface{}) *cs_entities.CSPositioningStats {
 	if stats == nil {
 		return nil
 	}
 
-	positioningData, ok := stats[common.PositioningStatTypeKey]
+	positioningData, ok := stats[replay_common.PositioningStatTypeKey]
 	if !ok || len(positioningData) == 0 {
 		return nil
 	}
@@ -121,9 +122,9 @@ func (ctrl *MatchAnalyticsController) GetMatchTrajectoryHandler(w http.ResponseW
 		return
 	}
 
-	search := common.NewSearchByValues(r.Context(), []common.SearchableValue{
-		{Field: "ID", Values: []interface{}{matchUUID}, Operator: common.EqualsOperator},
-	}, common.SearchResultOptions{Limit: 1}, common.UserAudienceIDKey)
+	search := shared.NewSearchByValues(r.Context(), []shared.SearchableValue{
+		{Field: "ID", Values: []interface{}{matchUUID}, Operator: shared.EqualsOperator},
+	}, shared.SearchResultOptions{Limit: 1}, shared.UserAudienceIDKey)
 
 	matches, err := matchReader.Search(r.Context(), search)
 	if err != nil || len(matches) == 0 {
@@ -221,9 +222,9 @@ func (ctrl *MatchAnalyticsController) GetRoundTrajectoryHandler(w http.ResponseW
 		return
 	}
 
-	search := common.NewSearchByValues(r.Context(), []common.SearchableValue{
-		{Field: "ID", Values: []interface{}{matchUUID}, Operator: common.EqualsOperator},
-	}, common.SearchResultOptions{Limit: 1}, common.UserAudienceIDKey)
+	search := shared.NewSearchByValues(r.Context(), []shared.SearchableValue{
+		{Field: "ID", Values: []interface{}{matchUUID}, Operator: shared.EqualsOperator},
+	}, shared.SearchResultOptions{Limit: 1}, shared.UserAudienceIDKey)
 
 	matches, err := matchReader.Search(r.Context(), search)
 	if err != nil || len(matches) == 0 {
@@ -332,9 +333,9 @@ func (ctrl *MatchAnalyticsController) GetMatchHeatmapHandler(w http.ResponseWrit
 		return
 	}
 
-	search := common.NewSearchByValues(r.Context(), []common.SearchableValue{
-		{Field: "ID", Values: []interface{}{matchUUID}, Operator: common.EqualsOperator},
-	}, common.SearchResultOptions{Limit: 1}, common.UserAudienceIDKey)
+	search := shared.NewSearchByValues(r.Context(), []shared.SearchableValue{
+		{Field: "ID", Values: []interface{}{matchUUID}, Operator: shared.EqualsOperator},
+	}, shared.SearchResultOptions{Limit: 1}, shared.UserAudienceIDKey)
 
 	matches, err := matchReader.Search(r.Context(), search)
 	if err != nil || len(matches) == 0 {
@@ -444,9 +445,9 @@ func (ctrl *MatchAnalyticsController) GetRoundHeatmapHandler(w http.ResponseWrit
 		return
 	}
 
-	search := common.NewSearchByValues(r.Context(), []common.SearchableValue{
-		{Field: "ID", Values: []interface{}{matchUUID}, Operator: common.EqualsOperator},
-	}, common.SearchResultOptions{Limit: 1}, common.UserAudienceIDKey)
+	search := shared.NewSearchByValues(r.Context(), []shared.SearchableValue{
+		{Field: "ID", Values: []interface{}{matchUUID}, Operator: shared.EqualsOperator},
+	}, shared.SearchResultOptions{Limit: 1}, shared.UserAudienceIDKey)
 
 	matches, err := matchReader.Search(r.Context(), search)
 	if err != nil || len(matches) == 0 {
@@ -535,9 +536,9 @@ func (ctrl *MatchAnalyticsController) GetPositioningStatsHandler(w http.Response
 		return
 	}
 
-	search := common.NewSearchByValues(r.Context(), []common.SearchableValue{
-		{Field: "ID", Values: []interface{}{matchUUID}, Operator: common.EqualsOperator},
-	}, common.SearchResultOptions{Limit: 1}, common.UserAudienceIDKey)
+	search := shared.NewSearchByValues(r.Context(), []shared.SearchableValue{
+		{Field: "ID", Values: []interface{}{matchUUID}, Operator: shared.EqualsOperator},
+	}, shared.SearchResultOptions{Limit: 1}, shared.UserAudienceIDKey)
 
 	matches, err := matchReader.Search(r.Context(), search)
 	if err != nil || len(matches) == 0 {

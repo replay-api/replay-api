@@ -9,7 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	challenge_entities "github.com/replay-api/replay-api/pkg/domain/challenge/entities"
 	challenge_out "github.com/replay-api/replay-api/pkg/domain/challenge/ports/out"
 )
@@ -61,7 +61,7 @@ func (r *ChallengeRepository) GetByID(ctx context.Context, id uuid.UUID) (*chall
 }
 
 // GetByMatchID retrieves all challenges for a match
-func (r *ChallengeRepository) GetByMatchID(ctx context.Context, matchID uuid.UUID, search *common.Search) ([]*challenge_entities.Challenge, error) {
+func (r *ChallengeRepository) GetByMatchID(ctx context.Context, matchID uuid.UUID, search *shared.Search) ([]*challenge_entities.Challenge, error) {
 	collection := r.db.Collection(challengeCollectionName)
 
 	query := bson.M{"match_id": matchID}
@@ -98,7 +98,7 @@ func (r *ChallengeRepository) GetByMatchID(ctx context.Context, matchID uuid.UUI
 }
 
 // GetByChallengerID retrieves challenges submitted by a player
-func (r *ChallengeRepository) GetByChallengerID(ctx context.Context, challengerID uuid.UUID, search *common.Search) ([]*challenge_entities.Challenge, error) {
+func (r *ChallengeRepository) GetByChallengerID(ctx context.Context, challengerID uuid.UUID, search *shared.Search) ([]*challenge_entities.Challenge, error) {
 	collection := r.db.Collection(challengeCollectionName)
 
 	query := bson.M{"challenger_id": challengerID}

@@ -6,7 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
 	iam_in "github.com/replay-api/replay-api/pkg/domain/iam/ports/in"
 	iam_out "github.com/replay-api/replay-api/pkg/domain/iam/ports/out"
@@ -101,7 +101,7 @@ func (uc *OnboardOpenIDUserUseCase) Exec(ctx context.Context, cmd iam_in.Onboard
 		return &profiles[0], ridToken, nil
 	}
 
-	rxn := common.GetResourceOwner(ctx)
+	rxn := shared.GetResourceOwner(ctx)
 
 	if rxn.UserID == uuid.Nil {
 		return nil, nil, fmt.Errorf("invalid resource owner: no user id")
@@ -170,13 +170,13 @@ func (uc *OnboardOpenIDUserUseCase) Exec(ctx context.Context, cmd iam_in.Onboard
 	return profile, ridToken, nil
 }
 
-func (uc *OnboardOpenIDUserUseCase) newSearchByProfileSourceKey(ctx context.Context, source iam_entities.RIDSourceKey, key string) common.Search {
-	params := []common.SearchAggregation{
+func (uc *OnboardOpenIDUserUseCase) newSearchByProfileSourceKey(ctx context.Context, source iam_entities.RIDSourceKey, key string) shared.Search {
+	params := []shared.SearchAggregation{
 		{
-			Params: []common.SearchParameter{
+			Params: []shared.SearchParameter{
 				{
-					// Operator: common.EqualsOperator,
-					ValueParams: []common.SearchableValue{
+					// Operator: shared.EqualsOperator,
+					ValueParams: []shared.SearchableValue{
 						{
 							Field: "RIDSource",
 							Values: []interface{}{
@@ -195,17 +195,17 @@ func (uc *OnboardOpenIDUserUseCase) newSearchByProfileSourceKey(ctx context.Cont
 		},
 	}
 
-	visibility := common.SearchVisibilityOptions{
-		RequestSource:    common.GetResourceOwner(ctx),
-		IntendedAudience: common.ClientApplicationAudienceIDKey,
+	visibility := shared.SearchVisibilityOptions{
+		RequestSource:    shared.GetResourceOwner(ctx),
+		IntendedAudience: shared.ClientApplicationAudienceIDKey,
 	}
 
-	result := common.SearchResultOptions{
+	result := shared.SearchResultOptions{
 		Skip:  0,
 		Limit: 1,
 	}
 
-	return common.Search{
+	return shared.Search{
 		SearchParams:      params,
 		ResultOptions:     result,
 		VisibilityOptions: visibility,

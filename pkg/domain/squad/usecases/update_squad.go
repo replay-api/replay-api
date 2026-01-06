@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	iam_out "github.com/replay-api/replay-api/pkg/domain/iam/ports/out"
@@ -17,6 +16,8 @@ import (
 	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
 	squad_out "github.com/replay-api/replay-api/pkg/domain/squad/ports/out"
 	squad_value_objects "github.com/replay-api/replay-api/pkg/domain/squad/value-objects"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type UpdateSquadUseCase struct {
@@ -54,7 +55,7 @@ func NewUpdateSquadUseCase(
 
 func (uc *UpdateSquadUseCase) Exec(ctx context.Context, squadID uuid.UUID, cmd squad_in.CreateOrUpdatedSquadCommand) (*squad_entities.Squad, error) {
 	if !uc.isAuthenticated(ctx) {
-		return nil, common.NewErrUnauthorized()
+		return nil, shared.NewErrUnauthorized()
 	}
 
 	if err := uc.validateCommand(cmd); err != nil {
@@ -68,14 +69,14 @@ func (uc *UpdateSquadUseCase) Exec(ctx context.Context, squadID uuid.UUID, cmd s
 
 	// Authorization check - only owner or admin can update squad
 	if err := squad_auth.MustBeSquadOwnerOrAdmin(ctx, existingSquad); err != nil {
-		slog.WarnContext(ctx, "Unauthorized squad update attempt", "squad_id", squadID, "user_id", common.GetResourceOwner(ctx).UserID, "error", err)
+		slog.WarnContext(ctx, "Unauthorized squad update attempt", "squad_id", squadID, "user_id", shared.GetResourceOwner(ctx).UserID, "error", err)
 		return nil, err
 	}
 
 	// Billing validation
 	billingCmd := billing_in.BillableOperationCommand{
 		OperationID: billing_entities.OperationTypeUpdateSquadProfile,
-		UserID:      common.GetResourceOwner(ctx).UserID,
+		UserID:      shared.GetResourceOwner(ctx).UserID,
 		Amount:      1,
 	}
 	err = uc.billableOperationHandler.Validate(ctx, billingCmd)
@@ -111,7 +112,7 @@ func (uc *UpdateSquadUseCase) Exec(ctx context.Context, squadID uuid.UUID, cmd s
 }
 
 func (uc *UpdateSquadUseCase) isAuthenticated(ctx context.Context) bool {
-	isAuthenticated, ok := ctx.Value(common.AuthenticatedKey).(bool)
+	isAuthenticated, ok := ctx.Value(shared.AuthenticatedKey).(bool)
 	return ok && isAuthenticated
 }
 
@@ -132,23 +133,23 @@ func (uc *UpdateSquadUseCase) getExistingSquad(ctx context.Context, squadID uuid
 	if err := uc.checkSquadExists(ctx, squad_entities.NewSearchByName(ctx, cmd.Name), "Name", cmd.Name); err != nil {
 		return nil, err
 	}
-	existingSquads, err := uc.SquadReader.Search(ctx, common.NewSearchByID(ctx, squadID, common.ClientApplicationAudienceIDKey))
+	existingSquads, err := uc.SquadReader.Search(ctx, shared.NewSearchByID(ctx, squadID, shared.ClientApplicationAudienceIDKey))
 	if err != nil {
 		return nil, err
 	}
 	if len(existingSquads) == 0 {
-		return nil, common.NewErrNotFound(common.ResourceTypeSquad, "ID", squadID.String())
+		return nil, shared.NewErrNotFound(replay_common.ResourceTypeSquad, "ID", squadID.String())
 	}
 	return &existingSquads[0], nil
 }
 
-func (uc *UpdateSquadUseCase) checkSquadExists(ctx context.Context, search common.Search, field, value string) error {
+func (uc *UpdateSquadUseCase) checkSquadExists(ctx context.Context, search shared.Search, field, value string) error {
 	existingSquads, err := uc.SquadReader.Search(ctx, search)
 	if err != nil {
 		return err
 	}
 	if len(existingSquads) > 0 {
-		return common.NewErrAlreadyExists(common.ResourceTypeSquad, field, value)
+		return shared.NewErrAlreadyExists(replay_common.ResourceTypeSquad, field, value)
 	}
 	return nil
 }
@@ -176,7 +177,7 @@ func (uc *UpdateSquadUseCase) ProcessMemberships(ctx context.Context, squad *squ
 			return nil, err
 		}
 		if len(players) == 0 {
-			return nil, common.NewErrNotFound(common.ResourceTypePlayerProfile, "ID", playerProfileID.String())
+			return nil, shared.NewErrNotFound(replay_common.ResourceTypePlayerProfile, "ID", playerProfileID.String())
 		}
 		slog.InfoContext(ctx, "ProcessMemberships:roles", "roles", v.Roles)
 		userID := players[0].ResourceOwner.UserID
@@ -184,17 +185,17 @@ func (uc *UpdateSquadUseCase) ProcessMemberships(ctx context.Context, squad *squ
 		if exists {
 			action := uc.GetPromotedOrDemotedStatus(ctx, squad, existingMembership)
 			if action != squad_entities.SquadMemberAdded {
-				_, _ = uc.SquadHistoryWriter.Create(ctx, squad_entities.NewSquadHistory(squad.ID, userID, action, common.GetResourceOwner(ctx)))
+				_, _ = uc.SquadHistoryWriter.Create(ctx, squad_entities.NewSquadHistory(squad.ID, userID, action, shared.GetResourceOwner(ctx)))
 			}
 			existingMembership.Type = v.Type
 			existingMembership.Roles = squad_auth.Unique(v.Roles)
 			if len(existingMembership.Status) == 0 || existingMembership.Status[latestStatusTime(existingMembership.Status)] != v.Status {
 				existingMembership.Status[time.Now()] = v.Status
-				_, _ = uc.SquadHistoryWriter.Create(ctx, squad_entities.NewSquadHistory(squad.ID, userID, squad_entities.SquadMemberAdded, common.GetResourceOwner(ctx)))
+				_, _ = uc.SquadHistoryWriter.Create(ctx, squad_entities.NewSquadHistory(squad.ID, userID, squad_entities.SquadMemberAdded, shared.GetResourceOwner(ctx)))
 			}
 		} else {
 			memberships[playerProfileID] = squad_value_objects.NewSquadMembership(userID, playerProfileID, v.Type, squad_auth.Unique(v.Roles), v.Status, v.Type)
-			_, _ = uc.SquadHistoryWriter.Create(ctx, squad_entities.NewSquadHistory(squad.ID, userID, squad_entities.SquadMemberAdded, common.GetResourceOwner(ctx)))
+			_, _ = uc.SquadHistoryWriter.Create(ctx, squad_entities.NewSquadHistory(squad.ID, userID, squad_entities.SquadMemberAdded, shared.GetResourceOwner(ctx)))
 		}
 	}
 	return memberships, nil
@@ -219,7 +220,7 @@ func (uc *UpdateSquadUseCase) updateSquad(ctx context.Context, squad *squad_enti
 	if err != nil {
 		return nil, err
 	}
-	_, _ = uc.SquadHistoryWriter.Create(ctx, squad_entities.NewSquadHistory(updatedSquad.GetID(), common.GetResourceOwner(ctx).UserID, squad_entities.SquadUpdated, common.GetResourceOwner(ctx)))
+	_, _ = uc.SquadHistoryWriter.Create(ctx, squad_entities.NewSquadHistory(updatedSquad.GetID(), shared.GetResourceOwner(ctx).UserID, squad_entities.SquadUpdated, shared.GetResourceOwner(ctx)))
 	return updatedSquad, nil
 }
 

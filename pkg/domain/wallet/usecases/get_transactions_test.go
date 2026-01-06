@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	wallet_entities "github.com/replay-api/replay-api/pkg/domain/wallet/entities"
 	wallet_in "github.com/replay-api/replay-api/pkg/domain/wallet/ports/in"
 	wallet_out "github.com/replay-api/replay-api/pkg/domain/wallet/ports/out"
@@ -122,14 +122,14 @@ func TestGetTransactions_Success(t *testing.T) {
 	usecase := wallet_usecases.NewGetTransactionsUseCase(mockWalletRepo, mockLedgerRepo)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
 
 	walletID := uuid.New()
 	now := time.Now()
 	testWallet := &wallet_entities.UserWallet{
-		BaseEntity: common.BaseEntity{
+		BaseEntity: shared.BaseEntity{
 			ID:        walletID,
 			CreatedAt: now,
 			UpdatedAt: now,
@@ -229,7 +229,7 @@ func TestGetTransactions_InvalidQuery(t *testing.T) {
 	usecase := wallet_usecases.NewGetTransactionsUseCase(mockWalletRepo, mockLedgerRepo)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 
 	// Empty UserID
 	query := wallet_in.GetTransactionsQuery{
@@ -252,9 +252,9 @@ func TestGetTransactions_WalletNotFound_ReturnsEmpty(t *testing.T) {
 	usecase := wallet_usecases.NewGetTransactionsUseCase(mockWalletRepo, mockLedgerRepo)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
 
 	// Wallet not found
 	mockWalletRepo.On("FindByUserID", mock.Anything, userID).Return(nil, errors.New("wallet not found"))
@@ -283,14 +283,14 @@ func TestGetTransactions_LedgerError(t *testing.T) {
 	usecase := wallet_usecases.NewGetTransactionsUseCase(mockWalletRepo, mockLedgerRepo)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
 
 	walletID := uuid.New()
 	now := time.Now()
 	testWallet := &wallet_entities.UserWallet{
-		BaseEntity: common.BaseEntity{
+		BaseEntity: shared.BaseEntity{
 			ID:        walletID,
 			CreatedAt: now,
 			UpdatedAt: now,
@@ -322,14 +322,14 @@ func TestGetTransactions_EmptyTransactions(t *testing.T) {
 	usecase := wallet_usecases.NewGetTransactionsUseCase(mockWalletRepo, mockLedgerRepo)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
 
 	walletID := uuid.New()
 	now := time.Now()
 	testWallet := &wallet_entities.UserWallet{
-		BaseEntity: common.BaseEntity{
+		BaseEntity: shared.BaseEntity{
 			ID:        walletID,
 			CreatedAt: now,
 			UpdatedAt: now,
@@ -365,14 +365,14 @@ func TestGetTransactions_WithPagination(t *testing.T) {
 	usecase := wallet_usecases.NewGetTransactionsUseCase(mockWalletRepo, mockLedgerRepo)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
 
 	walletID := uuid.New()
 	now := time.Now()
 	testWallet := &wallet_entities.UserWallet{
-		BaseEntity: common.BaseEntity{
+		BaseEntity: shared.BaseEntity{
 			ID:        walletID,
 			CreatedAt: now,
 			UpdatedAt: now,

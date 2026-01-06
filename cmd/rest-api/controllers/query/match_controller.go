@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	controllers "github.com/replay-api/replay-api/cmd/rest-api/controllers"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 	replay_in "github.com/replay-api/replay-api/pkg/domain/replay/ports/in"
 	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
@@ -75,21 +75,21 @@ func (c *MatchQueryController) GetMatchDetailHandler(w http.ResponseWriter, r *h
 	slog.Info("Fetching match detail", "match_id", matchID, "game_id", gameID)
 
 	// Search for the specific match
-	searchParams := []common.SearchAggregation{
+	searchParams := []shared.SearchAggregation{
 		{
-			Params: []common.SearchParameter{
+			Params: []shared.SearchParameter{
 				{
-					ValueParams: []common.SearchableValue{
-						{Field: "id", Values: []interface{}{matchID}, Operator: common.EqualsOperator},
-						{Field: "game_id", Values: []interface{}{gameID}, Operator: common.EqualsOperator},
+					ValueParams: []shared.SearchableValue{
+						{Field: "id", Values: []interface{}{matchID}, Operator: shared.EqualsOperator},
+						{Field: "game_id", Values: []interface{}{gameID}, Operator: shared.EqualsOperator},
 					},
 				},
 			},
-			AggregationClause: common.AndAggregationClause,
+			AggregationClause: shared.AndAggregationClause,
 		},
 	}
 
-	resultOptions := common.SearchResultOptions{
+	resultOptions := shared.SearchResultOptions{
 		Limit: 1,
 		Skip:  0,
 	}
@@ -166,24 +166,24 @@ func (c *MatchQueryController) GetPlayerMatchHistoryHandler(w http.ResponseWrite
 	slog.Info("Fetching player match history", "player_id", playerID, "limit", limit, "offset", offset)
 
 	// Search for matches containing this player in the scoreboard
-	searchParams := []common.SearchAggregation{
+	searchParams := []shared.SearchAggregation{
 		{
-			Params: []common.SearchParameter{
+			Params: []shared.SearchParameter{
 				{
-					ValueParams: []common.SearchableValue{
+					ValueParams: []shared.SearchableValue{
 						{
 							Field:    "scoreboard.team_scoreboards.players._id",
 							Values:   []interface{}{playerID.String()},
-							Operator: common.EqualsOperator,
+							Operator: shared.EqualsOperator,
 						},
 					},
 				},
 			},
-			AggregationClause: common.AndAggregationClause,
+			AggregationClause: shared.AndAggregationClause,
 		},
 	}
 
-	resultOptions := common.SearchResultOptions{
+	resultOptions := shared.SearchResultOptions{
 		Limit: uint(limit),  // #nosec G115 - limit is validated to be non-negative
 		Skip:  uint(offset), // #nosec G115 - offset is validated to be non-negative
 	}
@@ -262,24 +262,24 @@ func (c *MatchQueryController) GetSquadMatchHistoryHandler(w http.ResponseWriter
 		return
 	}
 
-	squadSearchParams := []common.SearchAggregation{
+	squadSearchParams := []shared.SearchAggregation{
 		{
-			Params: []common.SearchParameter{
+			Params: []shared.SearchParameter{
 				{
-					ValueParams: []common.SearchableValue{
+					ValueParams: []shared.SearchableValue{
 						{
 							Field:    "ID",
 							Values:   []interface{}{squadID.String()},
-							Operator: common.EqualsOperator,
+							Operator: shared.EqualsOperator,
 						},
 					},
 				},
 			},
-			AggregationClause: common.AndAggregationClause,
+			AggregationClause: shared.AndAggregationClause,
 		},
 	}
 
-	squadResultOptions := common.SearchResultOptions{
+	squadResultOptions := shared.SearchResultOptions{
 		Limit: 1,
 		Skip:  0,
 	}
@@ -329,24 +329,24 @@ func (c *MatchQueryController) GetSquadMatchHistoryHandler(w http.ResponseWriter
 	}
 
 	// Search for matches containing any of the squad members
-	searchParams := []common.SearchAggregation{
+	searchParams := []shared.SearchAggregation{
 		{
-			Params: []common.SearchParameter{
+			Params: []shared.SearchParameter{
 				{
-					ValueParams: []common.SearchableValue{
+					ValueParams: []shared.SearchableValue{
 						{
 							Field:    "scoreboard.team_scoreboards.players._id",
 							Values:   playerIDs,
-							Operator: common.InOperator,
+							Operator: shared.InOperator,
 						},
 					},
 				},
 			},
-			AggregationClause: common.AndAggregationClause,
+			AggregationClause: shared.AndAggregationClause,
 		},
 	}
 
-	resultOptions := common.SearchResultOptions{
+	resultOptions := shared.SearchResultOptions{
 		Limit: uint(limit),  // #nosec G115 - limit is validated to be non-negative
 		Skip:  uint(offset), // #nosec G115 - offset is validated to be non-negative
 	}

@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type SquadHistoryAction string
@@ -38,7 +38,7 @@ type SquadHistory struct {
 	SquadID       uuid.UUID            `json:"squad_id" bson:"squad_id"`
 	UserID        uuid.UUID            `json:"user_id" bson:"user_id"`
 	Action        SquadHistoryAction   `json:"action" bson:"action"`
-	ResourceOwner common.ResourceOwner `json:"resource_owner" bson:"resource_owner"`
+	ResourceOwner shared.ResourceOwner `json:"resource_owner" bson:"resource_owner"`
 	CreatedAt     time.Time            `json:"created_at" bson:"created_at"`
 }
 
@@ -46,7 +46,7 @@ func (e SquadHistory) GetID() uuid.UUID {
 	return e.ID
 }
 
-func NewSquadHistory(squadID, userID uuid.UUID, action SquadHistoryAction, resourceOwner common.ResourceOwner) *SquadHistory {
+func NewSquadHistory(squadID, userID uuid.UUID, action SquadHistoryAction, resourceOwner shared.ResourceOwner) *SquadHistory {
 	return &SquadHistory{
 		ID:            uuid.New(),
 		SquadID:       squadID,

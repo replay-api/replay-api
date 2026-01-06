@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 	replay_in "github.com/replay-api/replay-api/pkg/domain/replay/ports/in"
 	replay_out "github.com/replay-api/replay-api/pkg/domain/replay/ports/out"
@@ -13,7 +13,7 @@ import (
 // TeamQueryService provides query capabilities for Team entities
 // Teams are embedded within Match entities, so we query through MatchMetadataReader
 type TeamQueryService struct {
-	common.BaseQueryService[replay_entity.Team]
+	shared.BaseQueryService[replay_entity.Team]
 }
 
 // NewTeamQueryService creates a new TeamQueryService
@@ -42,7 +42,7 @@ func NewTeamQueryService(matchReader replay_out.MatchMetadataReader) replay_in.T
 		"CurrentDisplayName": true,
 		"NameHistory":        true,
 		"Players":            true,
-		"ResourceOwner":      common.DENY,
+		"ResourceOwner":      shared.DENY,
 		"CreatedAt":          true,
 		"UpdatedAt":          true,
 	}
@@ -52,12 +52,12 @@ func NewTeamQueryService(matchReader replay_out.MatchMetadataReader) replay_in.T
 		matchReader: matchReader,
 	}
 
-	return &common.BaseQueryService[replay_entity.Team]{
+	return &shared.BaseQueryService[replay_entity.Team]{
 		Reader:          teamAdapter,
 		QueryableFields: queryableFields,
 		ReadableFields:  readableFields,
 		MaxPageSize:     100,
-		Audience:        common.UserAudienceIDKey,
+		Audience:        shared.UserAudienceIDKey,
 	}
 }
 
@@ -66,29 +66,29 @@ type TeamSearchableAdapter struct {
 	matchReader replay_out.MatchMetadataReader
 }
 
-// GetByID implements common.Searchable[replay_entity.Team]
+// GetByID implements shared.Searchable[replay_entity.Team]
 func (a *TeamSearchableAdapter) GetByID(ctx context.Context, id uuid.UUID) (*replay_entity.Team, error) {
 	// Teams are embedded in matches, so we would need to search matches to find the team
 	// For now, return nil as teams don't have their own collection
 	return nil, nil
 }
 
-// Search implements common.Searchable[replay_entity.Team]
-func (a *TeamSearchableAdapter) Search(ctx context.Context, s common.Search) ([]replay_entity.Team, error) {
+// Search implements shared.Searchable[replay_entity.Team]
+func (a *TeamSearchableAdapter) Search(ctx context.Context, s shared.Search) ([]replay_entity.Team, error) {
 	// For now, return empty results since teams are embedded in matches
 	// A full implementation would query matches and extract unique teams
 	return []replay_entity.Team{}, nil
 }
 
-// Compile implements common.Searchable[replay_entity.Team]
-func (a *TeamSearchableAdapter) Compile(ctx context.Context, searchParams []common.SearchAggregation, resultOptions common.SearchResultOptions) (*common.Search, error) {
+// Compile implements shared.Searchable[replay_entity.Team]
+func (a *TeamSearchableAdapter) Compile(ctx context.Context, searchParams []shared.SearchAggregation, resultOptions shared.SearchResultOptions) (*shared.Search, error) {
 	// Return a basic search object
-	return &common.Search{
+	return &shared.Search{
 		SearchParams:  searchParams,
 		ResultOptions: resultOptions,
-		VisibilityOptions: common.SearchVisibilityOptions{
-			RequestSource:    common.GetResourceOwner(ctx),
-			IntendedAudience: common.UserAudienceIDKey,
+		VisibilityOptions: shared.SearchVisibilityOptions{
+			RequestSource:    shared.GetResourceOwner(ctx),
+			IntendedAudience: shared.UserAudienceIDKey,
 		},
 	}, nil
 }

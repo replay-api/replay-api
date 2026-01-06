@@ -5,12 +5,13 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
 	squad_out "github.com/replay-api/replay-api/pkg/domain/squad/ports/out"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type DeletePlayerUseCase struct {
@@ -36,9 +37,9 @@ func NewDeletePlayerUseCase(
 
 func (uc *DeletePlayerUseCase) Exec(ctx context.Context, playerID uuid.UUID) error {
 	// 1. Authentication check
-	isAuthenticated := ctx.Value(common.AuthenticatedKey)
+	isAuthenticated := ctx.Value(shared.AuthenticatedKey)
 	if isAuthenticated == nil || !isAuthenticated.(bool) {
-		return common.NewErrUnauthorized()
+		return shared.NewErrUnauthorized()
 	}
 
 	// 2. Check if player exists and ownership
@@ -49,17 +50,17 @@ func (uc *DeletePlayerUseCase) Exec(ctx context.Context, playerID uuid.UUID) err
 	}
 
 	if len(playerProfile) == 0 {
-		return common.NewErrNotFound(common.ResourceTypePlayerProfile, "ID", playerID.String())
+		return shared.NewErrNotFound(replay_common.ResourceTypePlayerProfile, "ID", playerID.String())
 	}
 
-	if playerProfile[0].ResourceOwner.UserID != common.GetResourceOwner(ctx).UserID {
-		return common.NewErrUnauthorized()
+	if playerProfile[0].ResourceOwner.UserID != shared.GetResourceOwner(ctx).UserID {
+		return shared.NewErrUnauthorized()
 	}
 
 	// 3. Billing validation
 	billingCmd := billing_in.BillableOperationCommand{
 		OperationID: billing_entities.OperationTypeDeletePlayerProfile,
-		UserID:      common.GetResourceOwner(ctx).UserID,
+		UserID:      shared.GetResourceOwner(ctx).UserID,
 		Amount:      1,
 	}
 	err = uc.billableOperationHandler.Validate(ctx, billingCmd)
@@ -82,14 +83,14 @@ func (uc *DeletePlayerUseCase) Exec(ctx context.Context, playerID uuid.UUID) err
 	}
 
 	// 6. Record history
-	history := squad_entities.NewPlayerProfileHistory(playerID, squad_entities.PlayerHistoryActionDelete, common.GetResourceOwner(ctx))
+	history := squad_entities.NewPlayerProfileHistory(playerID, squad_entities.PlayerHistoryActionDelete, shared.GetResourceOwner(ctx))
 	_, err = uc.PlayerHistoryWriter.Create(ctx, history)
 	if err != nil {
 		slog.WarnContext(ctx, "Failed to create player history for delete", "error", err, "player_id", playerID)
 	}
 
 	// 7. Log success
-	slog.InfoContext(ctx, "player profile deleted", "player_id", playerID, "user_id", common.GetResourceOwner(ctx).UserID)
+	slog.InfoContext(ctx, "player profile deleted", "player_id", playerID, "user_id", shared.GetResourceOwner(ctx).UserID)
 
 	return nil
 }

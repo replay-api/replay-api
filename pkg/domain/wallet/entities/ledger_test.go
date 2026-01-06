@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // =============================================================================
@@ -614,8 +614,8 @@ func createBalancedJournalEntry() *JournalEntry {
 	return journal
 }
 
-func testResourceOwner() common.ResourceOwner {
-	return common.ResourceOwner{
+func testResourceOwner() shared.ResourceOwner {
+	return shared.ResourceOwner{
 		UserID:   uuid.New(),
 		TenantID: uuid.New(),
 	}

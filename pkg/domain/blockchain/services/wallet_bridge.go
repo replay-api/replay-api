@@ -7,7 +7,7 @@ import (
 	"math/big"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	blockchain_entities "github.com/replay-api/replay-api/pkg/domain/blockchain/entities"
 	blockchain_in "github.com/replay-api/replay-api/pkg/domain/blockchain/ports/in"
 	blockchain_vo "github.com/replay-api/replay-api/pkg/domain/blockchain/value-objects"
@@ -302,7 +302,7 @@ type ReconciliationResult struct {
 // BlockchainWalletEventHandler handles blockchain events that affect wallets
 type BlockchainWalletEventHandler struct {
 	walletService     wallet_in.WalletCommand
-	resourceOwner     common.ResourceOwner //nolint:unused // Reserved for event context
+	resourceOwner     shared.ResourceOwner //nolint:unused // Reserved for event context
 }
 
 // NewBlockchainWalletEventHandler creates a new event handler
@@ -337,7 +337,7 @@ func (h *BlockchainWalletEventHandler) OnUserWithdrawal(ctx context.Context, eve
 }
 
 // Helper to convert wallet transaction to blockchain transaction
-func WalletTxToBlockchainTx(walletTx *wallet_entities.WalletTransaction, chainID blockchain_vo.ChainID, from, to wallet_vo.EVMAddress, currency wallet_vo.Currency, amount wallet_vo.Amount, resourceOwner common.ResourceOwner) *blockchain_entities.BlockchainTransaction {
+func WalletTxToBlockchainTx(walletTx *wallet_entities.WalletTransaction, chainID blockchain_vo.ChainID, from, to wallet_vo.EVMAddress, currency wallet_vo.Currency, amount wallet_vo.Amount, resourceOwner shared.ResourceOwner) *blockchain_entities.BlockchainTransaction {
 	var txType blockchain_entities.TransactionType
 	switch walletTx.Type {
 	case "Deposit":

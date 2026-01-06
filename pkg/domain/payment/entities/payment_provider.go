@@ -70,7 +70,7 @@ type Payment struct {
 	IdempotencyKey      string          `json:"idempotency_key" bson:"idempotency_key"`
 }
 
-// GetID returns the payment ID (implements common.Entity interface)
+// GetID returns the payment ID (implements shared.Entity interface)
 func (p *Payment) GetID() uuid.UUID {
 	return p.ID
 }

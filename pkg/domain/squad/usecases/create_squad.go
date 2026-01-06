@@ -6,7 +6,6 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
@@ -17,6 +16,8 @@ import (
 	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
 	squad_out "github.com/replay-api/replay-api/pkg/domain/squad/ports/out"
 	squad_value_objects "github.com/replay-api/replay-api/pkg/domain/squad/value-objects"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // CreateSquadUseCase handles the creation of competitive squads (teams) on the platform.
@@ -37,7 +38,7 @@ import (
 //  8. Squad persistence - creates squad entity with history record
 //
 // Security:
-//   - Requires authenticated context (common.AuthenticatedKey)
+//   - Requires authenticated context (shared.AuthenticatedKey)
 //   - Creates isolated IAM group for squad resource ownership
 //   - Validates all member player profiles exist and are accessible
 //
@@ -112,9 +113,9 @@ func ValidateSlugURL(slugURI string) error {
 // - A pointer to the created squad entity.
 // - An error if any validation or operation fails.
 func (uc *CreateSquadUseCase) Exec(ctx context.Context, cmd squad_in.CreateOrUpdatedSquadCommand) (*squad_entities.Squad, error) {
-	isAuthenticated := ctx.Value(common.AuthenticatedKey)
+	isAuthenticated := ctx.Value(shared.AuthenticatedKey)
 	if isAuthenticated == nil || !isAuthenticated.(bool) {
-		return nil, common.NewErrUnauthorized()
+		return nil, shared.NewErrUnauthorized()
 	}
 
 	err := ValidateMembershipUUIDs(cmd.Members)
@@ -136,7 +137,7 @@ func (uc *CreateSquadUseCase) Exec(ctx context.Context, cmd squad_in.CreateOrUpd
 	}
 
 	if len(existingSquads) > 0 {
-		return nil, common.NewErrAlreadyExists(common.ResourceTypeSquad, "SlugURI", cmd.SlugURI)
+		return nil, shared.NewErrAlreadyExists(replay_common.ResourceTypeSquad, "SlugURI", cmd.SlugURI)
 	}
 
 	existingSquads, err = uc.SquadReader.Search(ctx, squad_entities.NewSearchByName(ctx, cmd.Name))
@@ -146,7 +147,7 @@ func (uc *CreateSquadUseCase) Exec(ctx context.Context, cmd squad_in.CreateOrUpd
 	}
 
 	if len(existingSquads) > 0 {
-		return nil, common.NewErrAlreadyExists(common.ResourceTypeSquad, "Name", cmd.Name)
+		return nil, shared.NewErrAlreadyExists(replay_common.ResourceTypeSquad, "Name", cmd.Name)
 	}
 
 	groupSearch := iam_entities.NewGroupAccountSearchByUser(ctx)
@@ -157,7 +158,7 @@ func (uc *CreateSquadUseCase) Exec(ctx context.Context, cmd squad_in.CreateOrUpd
 		return nil, err
 	}
 
-	rxn := common.GetResourceOwner(ctx)
+	rxn := shared.GetResourceOwner(ctx)
 
 	var group *iam_entities.Group
 
@@ -172,7 +173,7 @@ func (uc *CreateSquadUseCase) Exec(ctx context.Context, cmd squad_in.CreateOrUpd
 		group = &groups[0]
 	}
 
-	ctx = context.WithValue(ctx, common.GroupIDKey, group.GetID())
+	ctx = context.WithValue(ctx, shared.GroupIDKey, group.GetID())
 
 	billingCmd := billing_in.BillableOperationCommand{
 		OperationID: billing_entities.OperationTypeCreateSquadProfile,
@@ -202,7 +203,7 @@ func (uc *CreateSquadUseCase) Exec(ctx context.Context, cmd squad_in.CreateOrUpd
 		}
 
 		if len(players) == 0 {
-			return nil, common.NewErrNotFound(common.ResourceTypePlayerProfile, "ID", playerProfileID.String())
+			return nil, shared.NewErrNotFound(replay_common.ResourceTypePlayerProfile, "ID", playerProfileID.String())
 		}
 		slog.InfoContext(ctx, "roles", "roles", v.Roles)
 		userID := players[0].ResourceOwner.UserID

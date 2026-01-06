@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // MatchmakingTier represents subscription tier for matchmaking
@@ -50,7 +50,7 @@ type SkillRange struct {
 
 // MatchmakingSession represents a player's matchmaking session
 type MatchmakingSession struct {
-	common.BaseEntity `bson:",inline"`
+	shared.BaseEntity `bson:",inline"`
 	PlayerID          uuid.UUID         `json:"player_id" bson:"player_id"`
 	SquadID           *uuid.UUID        `json:"squad_id,omitempty" bson:"squad_id,omitempty"`
 	Preferences       MatchPreferences  `json:"preferences" bson:"preferences"`

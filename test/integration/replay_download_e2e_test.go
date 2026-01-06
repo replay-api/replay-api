@@ -16,7 +16,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 )
 
@@ -34,7 +35,7 @@ func newMockReplayContentReader() *mockReplayContentReader {
 func (m *mockReplayContentReader) GetByID(ctx context.Context, replayFileID uuid.UUID) (io.ReadSeekCloser, error) {
 	content, ok := m.content[replayFileID]
 	if !ok {
-		return nil, common.NewErrNotFound(common.ResourceTypeReplayFile, "ID", replayFileID.String())
+		return nil, shared.NewErrNotFound("ReplayFile", "ID", replayFileID.String())
 	}
 	return &readSeekCloser{bytes.NewReader(content)}, nil
 }
@@ -77,13 +78,13 @@ func TestE2E_ReplayDownload(t *testing.T) {
 	userID := uuid.New()
 	groupID := uuid.New()
 
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.GroupIDKey, groupID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, common.TeamPROTenantID)
-	ctx = context.WithValue(ctx, common.ClientIDKey, common.TeamPROAppClientID)
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.GroupIDKey, groupID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, replay_common.TeamPROTenantID)
+	ctx = context.WithValue(ctx, shared.ClientIDKey, replay_common.TeamPROAppClientID)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 
 	t.Run("ReplayFile_EntityCreation", func(t *testing.T) {
 		// Create replay file entity
@@ -97,8 +98,8 @@ func TestE2E_ReplayDownload(t *testing.T) {
 
 		require.NotNil(t, replayFile)
 		assert.NotEqual(t, uuid.Nil, replayFile.ID)
-		assert.Equal(t, common.GameIDKey("cs2"), replayFile.GameID)
-		assert.Equal(t, common.NetworkIDKey("steam"), replayFile.NetworkID)
+		assert.Equal(t, replay_common.GameIDKey("cs2"), replayFile.GameID)
+		assert.Equal(t, replay_common.NetworkIDKey("steam"), replayFile.NetworkID)
 		assert.Equal(t, 1024*1024, replayFile.Size)
 		assert.Equal(t, replay_entity.ReplayFileStatusPending, replayFile.Status)
 		assert.Equal(t, userID, replayFile.ResourceOwner.UserID)

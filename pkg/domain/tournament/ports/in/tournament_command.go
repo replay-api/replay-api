@@ -8,17 +8,18 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	tournament_entities "github.com/replay-api/replay-api/pkg/domain/tournament/entities"
 	wallet_vo "github.com/replay-api/replay-api/pkg/domain/wallet/value-objects"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // CreateTournamentCommand represents the data needed to create a tournament
 type CreateTournamentCommand struct {
-	ResourceOwner     common.ResourceOwner
+	ResourceOwner     shared.ResourceOwner
 	Name              string
 	Description       string
-	GameID            common.GameIDKey
+	GameID            replay_common.GameIDKey
 	GameMode          string
 	Region            string
 	Format            tournament_entities.TournamentFormat

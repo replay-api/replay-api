@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // SmurfDetectionStatus indicates the result of smurf analysis
@@ -61,7 +61,7 @@ type SmurfIndicator struct {
 
 // SmurfProfile represents the complete smurf analysis for a player
 type SmurfProfile struct {
-	common.BaseEntity
+	shared.BaseEntity
 	PlayerID          uuid.UUID            `json:"player_id" bson:"player_id"`
 	Status            SmurfDetectionStatus `json:"status" bson:"status"`
 	OverallScore      float64              `json:"overall_score" bson:"overall_score"` // 0-100, higher = more likely smurf
@@ -155,10 +155,10 @@ const (
 )
 
 // NewSmurfProfile creates a new smurf detection profile
-func NewSmurfProfile(playerID uuid.UUID, rxn common.ResourceOwner) *SmurfProfile {
+func NewSmurfProfile(playerID uuid.UUID, rxn shared.ResourceOwner) *SmurfProfile {
 	now := time.Now().UTC()
 	return &SmurfProfile{
-		BaseEntity:      common.NewEntity(rxn),
+		BaseEntity:      shared.NewEntity(rxn),
 		PlayerID:        playerID,
 		Status:          SmurfStatusClean,
 		OverallScore:    0,

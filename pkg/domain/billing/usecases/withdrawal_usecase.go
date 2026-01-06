@@ -6,7 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	billing_out "github.com/replay-api/replay-api/pkg/domain/billing/ports/out"
@@ -64,9 +64,9 @@ func (uc *WithdrawalUseCase) Create(ctx context.Context, cmd billing_in.CreateWi
 	)
 
 	// Validate user is authenticated
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 	if resourceOwner.UserID == uuid.Nil {
-		return nil, common.NewErrUnauthorized()
+		return nil, shared.NewErrUnauthorized()
 	}
 
 	// Validate user can only create withdrawals for themselves
@@ -75,7 +75,7 @@ func (uc *WithdrawalUseCase) Create(ctx context.Context, cmd billing_in.CreateWi
 			"requesting_user", resourceOwner.UserID,
 			"target_user", cmd.UserID,
 		)
-		return nil, common.NewErrForbidden("cannot create withdrawal for another user")
+		return nil, shared.NewErrForbidden("cannot create withdrawal for another user")
 	}
 
 	// Validate amount limits
@@ -146,9 +146,9 @@ func (uc *WithdrawalUseCase) Create(ctx context.Context, cmd billing_in.CreateWi
 
 // Cancel cancels a pending withdrawal
 func (uc *WithdrawalUseCase) Cancel(ctx context.Context, withdrawalID uuid.UUID) (*billing_entities.Withdrawal, error) {
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 	if resourceOwner.UserID == uuid.Nil {
-		return nil, common.NewErrUnauthorized()
+		return nil, shared.NewErrUnauthorized()
 	}
 
 	withdrawal, err := uc.withdrawalRepo.GetByID(ctx, withdrawalID)
@@ -158,7 +158,7 @@ func (uc *WithdrawalUseCase) Cancel(ctx context.Context, withdrawalID uuid.UUID)
 
 	// Validate ownership
 	if withdrawal.UserID != resourceOwner.UserID {
-		return nil, common.NewErrForbidden("cannot cancel another user's withdrawal")
+		return nil, shared.NewErrForbidden("cannot cancel another user's withdrawal")
 	}
 
 	// Check if cancelable
@@ -187,7 +187,7 @@ func (uc *WithdrawalUseCase) Cancel(ctx context.Context, withdrawalID uuid.UUID)
 
 // GetByID retrieves a withdrawal by ID
 func (uc *WithdrawalUseCase) GetByID(ctx context.Context, withdrawalID uuid.UUID) (*billing_entities.Withdrawal, error) {
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 
 	withdrawal, err := uc.withdrawalRepo.GetByID(ctx, withdrawalID)
 	if err != nil {
@@ -195,8 +195,8 @@ func (uc *WithdrawalUseCase) GetByID(ctx context.Context, withdrawalID uuid.UUID
 	}
 
 	// Only owner or admin can view
-	if withdrawal.UserID != resourceOwner.UserID && !common.IsAdmin(ctx) {
-		return nil, common.NewErrForbidden("cannot view another user's withdrawal")
+	if withdrawal.UserID != resourceOwner.UserID && !shared.IsAdmin(ctx) {
+		return nil, shared.NewErrForbidden("cannot view another user's withdrawal")
 	}
 
 	return withdrawal, nil
@@ -204,11 +204,11 @@ func (uc *WithdrawalUseCase) GetByID(ctx context.Context, withdrawalID uuid.UUID
 
 // GetByUserID retrieves all withdrawals for a user
 func (uc *WithdrawalUseCase) GetByUserID(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]billing_entities.Withdrawal, error) {
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 
 	// Only owner or admin can view
-	if userID != resourceOwner.UserID && !common.IsAdmin(ctx) {
-		return nil, common.NewErrForbidden("cannot view another user's withdrawals")
+	if userID != resourceOwner.UserID && !shared.IsAdmin(ctx) {
+		return nil, shared.NewErrForbidden("cannot view another user's withdrawals")
 	}
 
 	return uc.withdrawalRepo.GetByUserID(ctx, userID, limit, offset)

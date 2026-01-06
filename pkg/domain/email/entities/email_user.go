@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type EmailUser struct {
@@ -14,7 +14,7 @@ type EmailUser struct {
 	PasswordHash  string               `json:"-" bson:"password_hash"`
 	EmailVerified bool                 `json:"email_verified" bson:"email_verified"`
 	DisplayName   string               `json:"display_name" bson:"display_name"`
-	ResourceOwner common.ResourceOwner `json:"resource_owner" bson:"resource_owner"`
+	ResourceOwner shared.ResourceOwner `json:"resource_owner" bson:"resource_owner"`
 	CreatedAt     time.Time            `json:"created_at" bson:"created_at"`
 	UpdatedAt     time.Time            `json:"updated_at" bson:"updated_at"`
 }

@@ -4,16 +4,16 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
 )
 
 type CreateRIDTokenCommand interface {
-	Exec(ctx context.Context, reso common.ResourceOwner, source iam_entities.RIDSourceKey, aud common.IntendedAudienceKey) (*iam_entities.RIDToken, error)
+	Exec(ctx context.Context, reso shared.ResourceOwner, source iam_entities.RIDSourceKey, aud shared.IntendedAudienceKey) (*iam_entities.RIDToken, error)
 }
 
 type VerifyRIDKeyCommand interface {
-	Exec(ctx context.Context, key uuid.UUID) (common.ResourceOwner, common.IntendedAudienceKey, error)
+	Exec(ctx context.Context, key uuid.UUID) (shared.ResourceOwner, shared.IntendedAudienceKey, error)
 }
 
 // RefreshRIDTokenCommand refreshes an existing token with a new expiration

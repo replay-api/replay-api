@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
@@ -36,7 +36,7 @@ import (
 //   - Cross-platform matching support
 //
 // Security:
-//   - Requires authenticated context (common.AuthenticatedKey)
+//   - Requires authenticated context (shared.AuthenticatedKey)
 //   - Uses resource ownership from context for billing
 //
 // Dependencies:
@@ -65,9 +65,9 @@ func NewJoinMatchmakingQueueUseCase(
 // Exec executes the join matchmaking queue command
 func (uc *JoinMatchmakingQueueUseCase) Exec(ctx context.Context, cmd matchmaking_in.JoinMatchmakingQueueCommand) (*matchmaking_entities.MatchmakingSession, error) {
 	// auth check
-	isAuthenticated := ctx.Value(common.AuthenticatedKey)
+	isAuthenticated := ctx.Value(shared.AuthenticatedKey)
 	if isAuthenticated == nil || !isAuthenticated.(bool) {
-		return nil, common.NewErrUnauthorized()
+		return nil, shared.NewErrUnauthorized()
 	}
 
 	// validate team format
@@ -108,7 +108,7 @@ func (uc *JoinMatchmakingQueueUseCase) Exec(ctx context.Context, cmd matchmaking
 
 	billingCmd := billing_in.BillableOperationCommand{
 		OperationID: operationType,
-		UserID:      common.GetResourceOwner(ctx).UserID,
+		UserID:      shared.GetResourceOwner(ctx).UserID,
 		Amount:      1,
 		Args: map[string]interface{}{
 			"game_id":       cmd.GameID,
@@ -129,10 +129,10 @@ func (uc *JoinMatchmakingQueueUseCase) Exec(ctx context.Context, cmd matchmaking
 	now := time.Now().UTC()
 	expiresAt := now.Add(10 * time.Minute) // 10 minute queue timeout
 
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 
 	session := &matchmaking_entities.MatchmakingSession{
-		BaseEntity: common.NewEntity(resourceOwner),
+		BaseEntity: shared.NewEntity(resourceOwner),
 		PlayerID:   cmd.PlayerID,
 		SquadID:    cmd.SquadID,
 		Preferences: matchmaking_entities.MatchPreferences{

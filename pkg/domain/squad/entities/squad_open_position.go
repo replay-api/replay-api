@@ -2,11 +2,11 @@ package squad_entities
 
 import (
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type SquadOpenPosition struct {
-	common.BaseEntity
+	shared.BaseEntity
 	SquadID          uuid.UUID `json:"squad_id" bson:"squad_id"`
 	PositionID       uuid.UUID `json:"position_id" bson:"position_id"`
 	Description      string    `json:"description" bson:"description"`

@@ -3,24 +3,24 @@ package entities
 import (
 	"github.com/golang/geo/r3"
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type CSPositioningStats struct {
 	// TickID                       TickIDType
-	PlayerTrajectory             map[common.PlayerIDType][]CSPositioningTrajectoryStats `json:"player_trajectory" bson:"player_trajectory"` // TODO: review se não está redundante esse array, talvez pode ser só um objeto
-	PlayerZoneFrequencies        map[common.PlayerIDType]map[ZoneCodeType]int           `json:"player_zone_frequencies"`                    // Player -> Zone -> Count
-	PlayerZoneDwellTimes         map[common.PlayerIDType]map[ZoneCodeType]float64       `json:"player_zone_dwell_times"`                    // Player -> Zone -> Total Time
-	PlayerAverageSpeed           map[common.PlayerIDType]float64                        `json:"player_average_speed"`
-	PlayerAverageSpeedCrouching  map[common.PlayerIDType]float64
-	PlayerAverageSpeedWalking    map[common.PlayerIDType]float64
-	PlayerAverageSpeedRunning    map[common.PlayerIDType]float64
-	PlayerAverageSpeedAirborne   map[common.PlayerIDType]float64
-	PlayerAverageSpeedJumping    map[common.PlayerIDType]float64
-	PlayerAverageSpeedStrafing   map[common.PlayerIDType]float64
-	PlayerAverageSpeedInBombZone map[common.PlayerIDType]float64
+	PlayerTrajectory             map[shared.PlayerIDType][]CSPositioningTrajectoryStats `json:"player_trajectory" bson:"player_trajectory"` // TODO: review se não está redundante esse array, talvez pode ser só um objeto
+	PlayerZoneFrequencies        map[shared.PlayerIDType]map[ZoneCodeType]int           `json:"player_zone_frequencies"`                    // Player -> Zone -> Count
+	PlayerZoneDwellTimes         map[shared.PlayerIDType]map[ZoneCodeType]float64       `json:"player_zone_dwell_times"`                    // Player -> Zone -> Total Time
+	PlayerAverageSpeed           map[shared.PlayerIDType]float64                        `json:"player_average_speed"`
+	PlayerAverageSpeedCrouching  map[shared.PlayerIDType]float64
+	PlayerAverageSpeedWalking    map[shared.PlayerIDType]float64
+	PlayerAverageSpeedRunning    map[shared.PlayerIDType]float64
+	PlayerAverageSpeedAirborne   map[shared.PlayerIDType]float64
+	PlayerAverageSpeedJumping    map[shared.PlayerIDType]float64
+	PlayerAverageSpeedStrafing   map[shared.PlayerIDType]float64
+	PlayerAverageSpeedInBombZone map[shared.PlayerIDType]float64
 
-	PlayerAverageSpeedInBuyZone map[common.PlayerIDType]float64
+	PlayerAverageSpeedInBuyZone map[shared.PlayerIDType]float64
 }
 
 type CSTick struct {

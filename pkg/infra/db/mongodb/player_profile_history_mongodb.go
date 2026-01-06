@@ -7,7 +7,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/mongo"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 )
 
@@ -53,7 +53,7 @@ func NewPlayerProfileHistoryRepository(client *mongo.Client, dbName string, enti
 	}
 }
 
-func (r *PlayerProfileHistoryRepository) Search(ctx context.Context, s common.Search) ([]squad_entities.PlayerProfileHistory, error) {
+func (r *PlayerProfileHistoryRepository) Search(ctx context.Context, s shared.Search) ([]squad_entities.PlayerProfileHistory, error) {
 	cursor, err := r.Query(ctx, s)
 	if cursor != nil {
 		defer cursor.Close(ctx)

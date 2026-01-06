@@ -6,7 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	matchmaking_in "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/in"
@@ -37,9 +37,9 @@ func NewJoinLobbyUseCase(
 // Exec joins a player to a lobby
 func (uc *JoinLobbyUseCase) Exec(ctx context.Context, cmd matchmaking_in.JoinLobbyCommand) error {
 	// auth check
-	isAuthenticated := ctx.Value(common.AuthenticatedKey)
+	isAuthenticated := ctx.Value(shared.AuthenticatedKey)
 	if isAuthenticated == nil || !isAuthenticated.(bool) {
-		return common.NewErrUnauthorized()
+		return shared.NewErrUnauthorized()
 	}
 
 	// get lobby
@@ -52,7 +52,7 @@ func (uc *JoinLobbyUseCase) Exec(ctx context.Context, cmd matchmaking_in.JoinLob
 	// billing validation BEFORE joining
 	billingCmd := billing_in.BillableOperationCommand{
 		OperationID: billing_entities.OperationTypeJoinLobby,
-		UserID:      common.GetResourceOwner(ctx).UserID,
+		UserID:      shared.GetResourceOwner(ctx).UserID,
 		Amount:      1,
 		Args: map[string]interface{}{
 			"lobby_id": cmd.LobbyID.String(),

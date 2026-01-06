@@ -15,7 +15,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	wallet_entities "github.com/replay-api/replay-api/pkg/domain/wallet/entities"
 	wallet_out "github.com/replay-api/replay-api/pkg/domain/wallet/ports/out"
 	wallet_services "github.com/replay-api/replay-api/pkg/domain/wallet/services"
@@ -72,16 +73,16 @@ func TestE2E_WalletLifecycle(t *testing.T) {
 	// Create test user
 	userID := uuid.New()
 	groupID := uuid.New()
-	resourceOwner := common.ResourceOwner{
+	resourceOwner := shared.ResourceOwner{
 		UserID:   userID,
 		GroupID:  groupID,
-		TenantID: common.TeamPROTenantID,
-		ClientID: common.TeamPROAppClientID,
+		TenantID: replay_common.TeamPROTenantID,
+		ClientID: replay_common.TeamPROAppClientID,
 	}
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.GroupIDKey, groupID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, common.TeamPROTenantID)
-	ctx = context.WithValue(ctx, common.ClientIDKey, common.TeamPROAppClientID)
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.GroupIDKey, groupID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, replay_common.TeamPROTenantID)
+	ctx = context.WithValue(ctx, shared.ClientIDKey, replay_common.TeamPROAppClientID)
 
 	// Create wallet
 	evmAddress, err := wallet_vo.NewEVMAddress("0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0")
@@ -367,16 +368,16 @@ func BenchmarkDeposit(b *testing.B) {
 
 	userID := uuid.New()
 	groupID := uuid.New()
-	resourceOwner := common.ResourceOwner{
+	resourceOwner := shared.ResourceOwner{
 		UserID:   userID,
 		GroupID:  groupID,
-		TenantID: common.TeamPROTenantID,
-		ClientID: common.TeamPROAppClientID,
+		TenantID: replay_common.TeamPROTenantID,
+		ClientID: replay_common.TeamPROAppClientID,
 	}
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.GroupIDKey, groupID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, common.TeamPROTenantID)
-	ctx = context.WithValue(ctx, common.ClientIDKey, common.TeamPROAppClientID)
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.GroupIDKey, groupID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, replay_common.TeamPROTenantID)
+	ctx = context.WithValue(ctx, shared.ClientIDKey, replay_common.TeamPROAppClientID)
 
 	evmAddress, _ := wallet_vo.NewEVMAddress("0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0")
 	wallet, _ := wallet_entities.NewUserWallet(resourceOwner, evmAddress)

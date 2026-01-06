@@ -6,11 +6,12 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
 	squad_out "github.com/replay-api/replay-api/pkg/domain/squad/ports/out"
 	squad_value_objects "github.com/replay-api/replay-api/pkg/domain/squad/value-objects"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 const defaultExpirationDays = 7
@@ -47,9 +48,9 @@ func (uc *SquadInvitationUseCase) InvitePlayer(ctx context.Context, cmd squad_in
 	slog.InfoContext(ctx, "Inviting player to squad", "squad_id", cmd.SquadID, "player_id", cmd.PlayerID)
 
 	// Verify authentication
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 	if resourceOwner.UserID == uuid.Nil {
-		return nil, common.NewErrUnauthorized()
+		return nil, shared.NewErrUnauthorized()
 	}
 
 	// Get squad and verify user is owner/admin
@@ -124,9 +125,9 @@ func (uc *SquadInvitationUseCase) InvitePlayer(ctx context.Context, cmd squad_in
 func (uc *SquadInvitationUseCase) RequestJoin(ctx context.Context, cmd squad_in.RequestJoinCommand) (*squad_entities.SquadInvitation, error) {
 	slog.InfoContext(ctx, "Player requesting to join squad", "squad_id", cmd.SquadID)
 
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 	if resourceOwner.UserID == uuid.Nil {
-		return nil, common.NewErrUnauthorized()
+		return nil, shared.NewErrUnauthorized()
 	}
 
 	// Get squad
@@ -190,15 +191,15 @@ func (uc *SquadInvitationUseCase) RequestJoin(ctx context.Context, cmd squad_in.
 func (uc *SquadInvitationUseCase) RespondToInvitation(ctx context.Context, cmd squad_in.RespondToInvitationCommand) (*squad_entities.SquadInvitation, error) {
 	slog.InfoContext(ctx, "Responding to invitation", "invitation_id", cmd.InvitationID, "accept", cmd.Accept)
 
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 	if resourceOwner.UserID == uuid.Nil {
-		return nil, common.NewErrUnauthorized()
+		return nil, shared.NewErrUnauthorized()
 	}
 
 	// Get invitation
 	invitation, err := uc.invitationReader.GetByID(ctx, cmd.InvitationID)
 	if err != nil {
-		return nil, common.NewErrNotFound(common.ResourceTypeSquad, "invitation", cmd.InvitationID.String())
+		return nil, shared.NewErrNotFound(replay_common.ResourceTypeSquad, "invitation", cmd.InvitationID.String())
 	}
 
 	if !invitation.IsPending() {
@@ -209,7 +210,7 @@ func (uc *SquadInvitationUseCase) RespondToInvitation(ctx context.Context, cmd s
 	if invitation.InvitationType == squad_entities.InvitationTypeSquadToPlayer {
 		// Player must respond to squad invitation
 		if invitation.PlayerProfileID != resourceOwner.UserID {
-			return nil, common.NewErrUnauthorized()
+			return nil, shared.NewErrUnauthorized()
 		}
 	} else {
 		// Squad admin must respond to join request
@@ -283,14 +284,14 @@ func (uc *SquadInvitationUseCase) RespondToInvitation(ctx context.Context, cmd s
 
 // CancelInvitation cancels a pending invitation
 func (uc *SquadInvitationUseCase) CancelInvitation(ctx context.Context, invitationID uuid.UUID) error {
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 	if resourceOwner.UserID == uuid.Nil {
-		return common.NewErrUnauthorized()
+		return shared.NewErrUnauthorized()
 	}
 
 	invitation, err := uc.invitationReader.GetByID(ctx, invitationID)
 	if err != nil {
-		return common.NewErrNotFound(common.ResourceTypeSquad, "invitation", invitationID.String())
+		return shared.NewErrNotFound(replay_common.ResourceTypeSquad, "invitation", invitationID.String())
 	}
 
 	if !invitation.IsPending() {
@@ -305,7 +306,7 @@ func (uc *SquadInvitationUseCase) CancelInvitation(ctx context.Context, invitati
 			return err
 		}
 		if !uc.canManageMembers(squad, resourceOwner.UserID) {
-			return common.NewErrUnauthorized()
+			return shared.NewErrUnauthorized()
 		}
 	}
 
@@ -332,18 +333,18 @@ func (uc *SquadInvitationUseCase) GetSquadInvitations(ctx context.Context, squad
 // Helper functions
 
 func (uc *SquadInvitationUseCase) getSquad(ctx context.Context, squadID uuid.UUID) (*squad_entities.Squad, error) {
-	searchParams := []common.SearchAggregation{
+	searchParams := []shared.SearchAggregation{
 		{
-			Params: []common.SearchParameter{
+			Params: []shared.SearchParameter{
 				{
-					ValueParams: []common.SearchableValue{
-						{Field: "ID", Values: []interface{}{squadID.String()}, Operator: common.EqualsOperator},
+					ValueParams: []shared.SearchableValue{
+						{Field: "ID", Values: []interface{}{squadID.String()}, Operator: shared.EqualsOperator},
 					},
 				},
 			},
 		},
 	}
-	resultOpts := common.SearchResultOptions{Limit: 1}
+	resultOpts := shared.SearchResultOptions{Limit: 1}
 
 	compiledSearch, err := uc.squadReader.Compile(ctx, searchParams, resultOpts)
 	if err != nil {
@@ -356,7 +357,7 @@ func (uc *SquadInvitationUseCase) getSquad(ctx context.Context, squadID uuid.UUI
 	}
 
 	if len(squads) == 0 {
-		return nil, common.NewErrNotFound(common.ResourceTypeSquad, "ID", squadID.String())
+		return nil, shared.NewErrNotFound(replay_common.ResourceTypeSquad, "ID", squadID.String())
 	}
 
 	return &squads[0], nil
@@ -370,7 +371,7 @@ func (uc *SquadInvitationUseCase) getPlayer(ctx context.Context, playerID uuid.U
 	}
 
 	if len(players) == 0 {
-		return nil, common.NewErrNotFound(common.ResourceTypePlayerProfile, "ID", playerID.String())
+		return nil, shared.NewErrNotFound(replay_common.ResourceTypePlayerProfile, "ID", playerID.String())
 	}
 
 	return &players[0], nil

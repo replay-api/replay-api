@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	wallet_entities "github.com/replay-api/replay-api/pkg/domain/wallet/entities"
@@ -152,7 +152,7 @@ func (s *LedgerService) GetOrCreateUserWallet(ctx context.Context, userID uuid.U
 
 // Deposit processes a deposit transaction
 func (s *LedgerService) Deposit(ctx context.Context, req DepositRequest) (*wallet_entities.JournalEntry, error) {
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 
 	// Get user wallet (creates if not exists)
 	wallet, err := s.GetOrCreateUserWallet(ctx, req.UserID, req.Currency)
@@ -268,7 +268,7 @@ func (s *LedgerService) Deposit(ctx context.Context, req DepositRequest) (*walle
 
 // Withdraw processes a withdrawal transaction
 func (s *LedgerService) Withdraw(ctx context.Context, req WithdrawRequest) (*wallet_entities.JournalEntry, error) {
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 
 	wallet, err := s.repo.GetWalletByUserID(ctx, req.UserID, req.Currency)
 	if err != nil || wallet == nil {
@@ -404,7 +404,7 @@ func (s *LedgerService) Withdraw(ctx context.Context, req WithdrawRequest) (*wal
 
 // HoldFunds places a hold on user funds
 func (s *LedgerService) HoldFunds(ctx context.Context, userID uuid.UUID, amount float64, currency string, reference uuid.UUID, reason string) error {
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 
 	wallet, err := s.repo.GetWalletByUserID(ctx, userID, currency)
 	if err != nil || wallet == nil {
@@ -478,7 +478,7 @@ func (s *LedgerService) HoldFunds(ctx context.Context, userID uuid.UUID, amount 
 
 // ReleaseFunds releases a hold on user funds
 func (s *LedgerService) ReleaseFunds(ctx context.Context, userID uuid.UUID, amount float64, currency string, reference uuid.UUID, reason string) error {
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 
 	wallet, err := s.repo.GetWalletByUserID(ctx, userID, currency)
 	if err != nil || wallet == nil {
@@ -637,7 +637,7 @@ func (s *LedgerService) RecordDeposit(
 	paymentID uuid.UUID,
 	metadata wallet_entities.LedgerMetadata,
 ) (uuid.UUID, error) {
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 	
 	// Convert to deposit request
 	req := DepositRequest{
@@ -665,7 +665,7 @@ func (s *LedgerService) RecordWithdrawal(
 	recipientAddress string,
 	metadata wallet_entities.LedgerMetadata,
 ) (uuid.UUID, error) {
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 	
 	req := WithdrawRequest{
 		UserID:           resourceOwner.UserID,
@@ -690,7 +690,7 @@ func (s *LedgerService) RecordRefund(
 	originalTxID uuid.UUID,
 	reason string,
 ) (uuid.UUID, error) {
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 	
 	// Get the original journal entry
 	originalJournal, err := s.repo.GetJournalByID(ctx, originalTxID)
@@ -740,7 +740,7 @@ func (s *LedgerService) RecordEntryFee(
 	tournamentID *uuid.UUID,
 	metadata wallet_entities.LedgerMetadata,
 ) (uuid.UUID, error) {
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 	
 	// Get wallet
 	wallet, err := s.repo.GetWalletByUserID(ctx, resourceOwner.UserID, string(currency))
@@ -826,7 +826,7 @@ func (s *LedgerService) RecordPrizeWinning(
 	tournamentID *uuid.UUID,
 	metadata wallet_entities.LedgerMetadata,
 ) (uuid.UUID, error) {
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 	
 	// Get or create wallet
 	wallet, err := s.GetOrCreateUserWallet(ctx, resourceOwner.UserID, string(currency))

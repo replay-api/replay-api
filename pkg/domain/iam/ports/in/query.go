@@ -4,16 +4,16 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	iam_dtos "github.com/replay-api/replay-api/pkg/domain/iam/dtos"
 	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
 )
 
 type ProfileReader interface {
-	common.Searchable[iam_entities.Profile]
+	shared.Searchable[iam_entities.Profile]
 }
 
 type MembershipReader interface {
-	common.Searchable[iam_entities.Membership]
-	ListMemberGroups(ctx context.Context, s *common.Search) (map[uuid.UUID]iam_dtos.GroupMembershipDTO, error)
+	shared.Searchable[iam_entities.Membership]
+	ListMemberGroups(ctx context.Context, s *shared.Search) (map[uuid.UUID]iam_dtos.GroupMembershipDTO, error)
 }

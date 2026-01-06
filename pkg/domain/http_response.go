@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type HTTPResponse struct {
@@ -52,15 +54,15 @@ func WriteError(w http.ResponseWriter, status int, code string, message string, 
 
 func WriteErrorFromDomainError(w http.ResponseWriter, err error) {
 	switch e := err.(type) {
-	case *ErrUnauthorized:
+	case *shared.ErrUnauthorized:
 		WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", e.Error(), "")
-	case *ErrNotFound:
+	case *shared.ErrNotFound:
 		WriteError(w, http.StatusNotFound, "NOT_FOUND", e.Error(), "")
-	case *ErrAlreadyExists:
+	case *shared.ErrAlreadyExists:
 		WriteError(w, http.StatusConflict, "ALREADY_EXISTS", e.Error(), "")
-	case *ErrInvalidInput:
+	case *shared.ErrInvalidInput:
 		WriteError(w, http.StatusBadRequest, "INVALID_INPUT", e.Error(), "")
-	case *ErrForbidden:
+	case *shared.ErrForbidden:
 		WriteError(w, http.StatusForbidden, "FORBIDDEN", e.Error(), "")
 	default:
 		WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "An unexpected error occurred", err.Error())

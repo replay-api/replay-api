@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	blockchain_vo "github.com/replay-api/replay-api/pkg/domain/blockchain/value-objects"
 	wallet_vo "github.com/replay-api/replay-api/pkg/domain/wallet/value-objects"
 )
@@ -35,7 +35,7 @@ const (
 
 // BlockchainTransaction represents a transaction on the blockchain
 type BlockchainTransaction struct {
-	common.BaseEntity
+	shared.BaseEntity
 
 	// Chain info
 	ChainID     blockchain_vo.ChainID `json:"chain_id" bson:"chain_id"`
@@ -83,7 +83,7 @@ type BlockchainTransaction struct {
 
 // NewBlockchainTransaction creates a new blockchain transaction
 func NewBlockchainTransaction(
-	resourceOwner common.ResourceOwner,
+	resourceOwner shared.ResourceOwner,
 	chainID blockchain_vo.ChainID,
 	txType TransactionType,
 	from wallet_vo.EVMAddress,
@@ -91,7 +91,7 @@ func NewBlockchainTransaction(
 	currency wallet_vo.Currency,
 	amount wallet_vo.Amount,
 ) *BlockchainTransaction {
-	baseEntity := common.NewPrivateEntity(resourceOwner)
+	baseEntity := shared.NewPrivateEntity(resourceOwner)
 	now := time.Now()
 
 	return &BlockchainTransaction{

@@ -5,19 +5,20 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	wallet_vo "github.com/replay-api/replay-api/pkg/domain/wallet/value-objects"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // Tournament is an aggregate root representing a competitive gaming tournament
 type Tournament struct {
-	common.BaseEntity
-	Name              string                `json:"name" bson:"name"`
-	Description       string                `json:"description" bson:"description"`
-	GameID            common.GameIDKey      `json:"game_id" bson:"game_id"`
-	GameMode          string                `json:"game_mode" bson:"game_mode"`
-	Region            string                `json:"region" bson:"region"`
-	Format            TournamentFormat      `json:"format" bson:"format"`                 // SingleElimination, DoubleElimination, RoundRobin, Swiss
+	shared.BaseEntity
+	Name              string                   `json:"name" bson:"name"`
+	Description       string                   `json:"description" bson:"description"`
+	GameID            replay_common.GameIDKey  `json:"game_id" bson:"game_id"`
+	GameMode          string                   `json:"game_mode" bson:"game_mode"`
+	Region            string                   `json:"region" bson:"region"`
+	Format            TournamentFormat         `json:"format" bson:"format"`                 // SingleElimination, DoubleElimination, RoundRobin, Swiss
 	MaxParticipants   int                   `json:"max_participants" bson:"max_participants"`
 	MinParticipants   int                   `json:"min_participants" bson:"min_participants"`
 	EntryFee          wallet_vo.Amount      `json:"entry_fee" bson:"entry_fee"`
@@ -110,9 +111,9 @@ type TournamentRules struct {
 
 // NewTournament creates a new tournament
 func NewTournament(
-	resourceOwner common.ResourceOwner,
+	resourceOwner shared.ResourceOwner,
 	name, description string,
-	gameID common.GameIDKey,
+	gameID replay_common.GameIDKey,
 	gameMode, region string,
 	format TournamentFormat,
 	maxParticipants, minParticipants int,
@@ -134,7 +135,7 @@ func NewTournament(
 		return nil, fmt.Errorf("registration open must be before registration close")
 	}
 
-	baseEntity := common.NewUnrestrictedEntity(resourceOwner) // Tournaments are public
+	baseEntity := shared.NewUnrestrictedEntity(resourceOwner) // Tournaments are public
 
 	// Calculate initial prize pool (platform may add seed money)
 	platformSeed := wallet_vo.NewAmount(0) // Could be configurable

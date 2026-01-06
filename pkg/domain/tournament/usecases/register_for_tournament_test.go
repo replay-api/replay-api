@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 	tournament_entities "github.com/replay-api/replay-api/pkg/domain/tournament/entities"
 	tournament_in "github.com/replay-api/replay-api/pkg/domain/tournament/ports/in"
@@ -29,7 +29,7 @@ func (m *MockPlayerProfileReader) GetByID(ctx context.Context, id uuid.UUID) (*s
 	return args.Get(0).(*squad_entities.PlayerProfile), args.Error(1)
 }
 
-func (m *MockPlayerProfileReader) Search(ctx context.Context, search common.Search) ([]squad_entities.PlayerProfile, error) {
+func (m *MockPlayerProfileReader) Search(ctx context.Context, search shared.Search) ([]squad_entities.PlayerProfile, error) {
 	args := m.Called(ctx, search)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -37,12 +37,12 @@ func (m *MockPlayerProfileReader) Search(ctx context.Context, search common.Sear
 	return args.Get(0).([]squad_entities.PlayerProfile), args.Error(1)
 }
 
-func (m *MockPlayerProfileReader) Compile(ctx context.Context, searchParams []common.SearchAggregation, resultOptions common.SearchResultOptions) (*common.Search, error) {
+func (m *MockPlayerProfileReader) Compile(ctx context.Context, searchParams []shared.SearchAggregation, resultOptions shared.SearchResultOptions) (*shared.Search, error) {
 	args := m.Called(ctx, searchParams, resultOptions)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*common.Search), args.Error(1)
+	return args.Get(0).(*shared.Search), args.Error(1)
 }
 
 func createRegistrationTournament(status tournament_entities.TournamentStatus) *tournament_entities.Tournament {
@@ -50,13 +50,13 @@ func createRegistrationTournament(status tournament_entities.TournamentStatus) *
 	registrationOpen := time.Now().UTC().Add(-1 * time.Hour)
 	registrationClose := startTime.Add(-1 * time.Hour)
 
-	resourceOwner := common.ResourceOwner{
+	resourceOwner := shared.ResourceOwner{
 		UserID:   uuid.New(),
 		TenantID: uuid.New(),
 	}
 
 	return &tournament_entities.Tournament{
-		BaseEntity:        common.NewUnrestrictedEntity(resourceOwner),
+		BaseEntity:        shared.NewUnrestrictedEntity(resourceOwner),
 		Name:              "Test Tournament",
 		Format:            tournament_entities.TournamentFormatSingleElimination,
 		MaxParticipants:   16,
@@ -82,11 +82,11 @@ func TestRegisterForTournament_Success(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
 	tenantID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, tenantID)
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, tenantID)
 
 	tournament := createRegistrationTournament(tournament_entities.TournamentStatusRegistration)
 	tournamentID := tournament.ID
@@ -94,7 +94,7 @@ func TestRegisterForTournament_Success(t *testing.T) {
 
 	// Create player profile that belongs to the authenticated user
 	playerProfile := squad_entities.PlayerProfile{
-		BaseEntity: common.NewUnrestrictedEntity(common.ResourceOwner{
+		BaseEntity: shared.NewUnrestrictedEntity(shared.ResourceOwner{
 			UserID:   userID, // Same user as authenticated - ownership check passes
 			TenantID: tenantID,
 		}),
@@ -163,17 +163,17 @@ func TestRegisterForTournament_ImpersonationBlocked(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	attackerUserID := uuid.New()                                    // The attacker
 	victimUserID := uuid.New()                                      // The victim (different user)
-	ctx = context.WithValue(ctx, common.UserIDKey, attackerUserID)  // Attacker is authenticated
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.UserIDKey, attackerUserID)  // Attacker is authenticated
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	playerID := uuid.New()
 
 	// Create player profile that belongs to the VICTIM, not the attacker
 	playerProfile := squad_entities.PlayerProfile{
-		BaseEntity: common.NewUnrestrictedEntity(common.ResourceOwner{
+		BaseEntity: shared.NewUnrestrictedEntity(shared.ResourceOwner{
 			UserID:   victimUserID, // Belongs to victim, not attacker
 			TenantID: uuid.New(),
 		}),
@@ -219,18 +219,18 @@ func TestRegisterForTournament_TournamentNotFound(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
 	tenantID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, tenantID)
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, tenantID)
 
 	tournamentID := uuid.New()
 	playerID := uuid.New()
 
 	// Create player profile that belongs to the authenticated user
 	playerProfile := squad_entities.PlayerProfile{
-		BaseEntity: common.NewUnrestrictedEntity(common.ResourceOwner{
+		BaseEntity: shared.NewUnrestrictedEntity(shared.ResourceOwner{
 			UserID:   userID,
 			TenantID: tenantID,
 		}),
@@ -268,11 +268,11 @@ func TestRegisterForTournament_BillingValidationFails(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
 	tenantID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, tenantID)
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, tenantID)
 
 	tournament := createRegistrationTournament(tournament_entities.TournamentStatusRegistration)
 	tournamentID := tournament.ID
@@ -280,7 +280,7 @@ func TestRegisterForTournament_BillingValidationFails(t *testing.T) {
 
 	// Create player profile that belongs to the authenticated user
 	playerProfile := squad_entities.PlayerProfile{
-		BaseEntity: common.NewUnrestrictedEntity(common.ResourceOwner{
+		BaseEntity: shared.NewUnrestrictedEntity(shared.ResourceOwner{
 			UserID:   userID,
 			TenantID: tenantID,
 		}),
@@ -321,11 +321,11 @@ func TestRegisterForTournament_UpdateFails(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
 	tenantID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, tenantID)
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, tenantID)
 
 	tournament := createRegistrationTournament(tournament_entities.TournamentStatusRegistration)
 	tournamentID := tournament.ID
@@ -333,7 +333,7 @@ func TestRegisterForTournament_UpdateFails(t *testing.T) {
 
 	// Create player profile that belongs to the authenticated user
 	playerProfile := squad_entities.PlayerProfile{
-		BaseEntity: common.NewUnrestrictedEntity(common.ResourceOwner{
+		BaseEntity: shared.NewUnrestrictedEntity(shared.ResourceOwner{
 			UserID:   userID,
 			TenantID: tenantID,
 		}),

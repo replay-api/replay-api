@@ -13,8 +13,9 @@ import (
 	dispatch "github.com/markus-wa/godispatch"
 	h "github.com/replay-api/replay-api/pkg/app/cs/handlers"
 	"github.com/replay-api/replay-api/pkg/app/cs/state"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	e "github.com/replay-api/replay-api/pkg/domain/replay/entities"
+	fps_events "github.com/replay-api/replay-common/pkg/replay/events/game/fps"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -236,10 +237,10 @@ func TestClutchStart(t *testing.T) {
 }
 
 func getUserContext() context.Context {
-	tentantContext := context.WithValue(context.Background(), common.TenantIDKey, uuid.MustParse("00000000-0000-0000-0000-000000000001"))
-	clientContext := context.WithValue(tentantContext, common.ClientIDKey, uuid.MustParse("00000000-0000-0000-0000-000000000002"))
-	groupContext := context.WithValue(clientContext, common.GroupIDKey, uuid.MustParse("00000000-0000-0000-0000-000000000003"))
-	userContext := context.WithValue(groupContext, common.UserIDKey, uuid.MustParse("00000000-0000-0000-0000-000000000004"))
+	tentantContext := context.WithValue(context.Background(), shared.TenantIDKey, uuid.MustParse("00000000-0000-0000-0000-000000000001"))
+	clientContext := context.WithValue(tentantContext, shared.ClientIDKey, uuid.MustParse("00000000-0000-0000-0000-000000000002"))
+	groupContext := context.WithValue(clientContext, shared.GroupIDKey, uuid.MustParse("00000000-0000-0000-0000-000000000003"))
+	userContext := context.WithValue(groupContext, shared.UserIDKey, uuid.MustParse("00000000-0000-0000-0000-000000000004"))
 
 	return userContext
 }
@@ -261,7 +262,7 @@ func getDefaultTestCaseArgs() testMatrixArgs {
 			{
 				ID:            uuid.New(),
 				MatchID:       matchCtx.MatchID,
-				Type:          common.Event_ClutchStartID,
+				Type:          fps_events.Event_ClutchStartID,
 				GameTime:      time.Duration(1),
 				ResourceOwner: matchCtx.ResourceOwner,
 			},

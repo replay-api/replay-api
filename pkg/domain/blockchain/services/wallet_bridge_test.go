@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	blockchain_entities "github.com/replay-api/replay-api/pkg/domain/blockchain/entities"
 	blockchain_in "github.com/replay-api/replay-api/pkg/domain/blockchain/ports/in"
 	blockchain_vo "github.com/replay-api/replay-api/pkg/domain/blockchain/value-objects"
@@ -819,8 +819,8 @@ func TestWalletTxToBlockchainTx(t *testing.T) {
 }
 
 // Helper to create test resource owner for wallet bridge tests
-func bridgeTestResourceOwner() common.ResourceOwner {
-	return common.ResourceOwner{
+func bridgeTestResourceOwner() shared.ResourceOwner {
+	return shared.ResourceOwner{
 		UserID:   uuid.New(),
 		TenantID: uuid.New(),
 		ClientID: uuid.New(),

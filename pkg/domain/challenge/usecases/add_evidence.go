@@ -5,10 +5,11 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	challenge_entities "github.com/replay-api/replay-api/pkg/domain/challenge/entities"
 	challenge_in "github.com/replay-api/replay-api/pkg/domain/challenge/ports/in"
 	challenge_out "github.com/replay-api/replay-api/pkg/domain/challenge/ports/out"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // AddEvidenceUseCase implements adding evidence to challenges
@@ -26,9 +27,9 @@ func NewAddEvidenceUseCase(challengeRepo challenge_out.ChallengeRepository) *Add
 // Exec executes the add evidence use case
 func (uc *AddEvidenceUseCase) Exec(ctx context.Context, cmd challenge_in.AddEvidenceCommand) (*challenge_entities.Challenge, error) {
 	// 1. Validate authentication
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 	if resourceOwner.UserID == uuid.Nil {
-		return nil, common.NewErrUnauthorized()
+		return nil, shared.NewErrUnauthorized()
 	}
 
 	// 2. Validate command
@@ -61,12 +62,12 @@ func (uc *AddEvidenceUseCase) Exec(ctx context.Context, cmd challenge_in.AddEvid
 		return nil, fmt.Errorf("failed to fetch challenge: %w", err)
 	}
 	if challenge == nil {
-		return nil, common.NewErrNotFound(common.ResourceTypeChallenge, "id", cmd.ChallengeID)
+		return nil, shared.NewErrNotFound(replay_common.ResourceTypeChallenge, "id", cmd.ChallengeID)
 	}
 
 	// 4. Verify the user is the challenger (only challenger can add evidence)
 	if challenge.ChallengerID != resourceOwner.UserID {
-		return nil, common.NewErrForbidden()
+		return nil, shared.NewErrForbidden()
 	}
 
 	// 5. Build tick range if provided

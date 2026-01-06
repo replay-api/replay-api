@@ -8,10 +8,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
 	matchmaking_in "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/in"
 	matchmaking_out "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/out"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // Glicko2RatingService implements the Glicko-2 rating algorithm
@@ -28,7 +29,7 @@ func NewGlicko2RatingService(ratingRepository matchmaking_out.PlayerRatingReposi
 }
 
 // GetPlayerRating retrieves or creates a player's rating
-func (s *Glicko2RatingService) GetPlayerRating(ctx context.Context, playerID uuid.UUID, gameID common.GameIDKey) (*matchmaking_entities.PlayerRating, error) {
+func (s *Glicko2RatingService) GetPlayerRating(ctx context.Context, playerID uuid.UUID, gameID replay_common.GameIDKey) (*matchmaking_entities.PlayerRating, error) {
 	rating, err := s.ratingRepository.FindByPlayerAndGame(ctx, playerID, gameID)
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to find player rating", "player_id", playerID, "game_id", gameID, "error", err)
@@ -37,7 +38,7 @@ func (s *Glicko2RatingService) GetPlayerRating(ctx context.Context, playerID uui
 
 	// Create new rating if none exists
 	if rating == nil {
-		resourceOwner := common.GetResourceOwner(ctx)
+		resourceOwner := shared.GetResourceOwner(ctx)
 		rating = matchmaking_entities.NewPlayerRating(playerID, gameID, resourceOwner)
 		
 		if err := s.ratingRepository.Save(ctx, rating); err != nil {
@@ -278,12 +279,12 @@ func (s *Glicko2RatingService) f(x, delta, phi, v, a float64) float64 {
 }
 
 // GetLeaderboard returns top players by rating
-func (s *Glicko2RatingService) GetLeaderboard(ctx context.Context, gameID common.GameIDKey, limit int) ([]*matchmaking_entities.PlayerRating, error) {
+func (s *Glicko2RatingService) GetLeaderboard(ctx context.Context, gameID replay_common.GameIDKey, limit int) ([]*matchmaking_entities.PlayerRating, error) {
 	return s.ratingRepository.GetTopPlayers(ctx, gameID, limit)
 }
 
 // GetRankDistribution returns the distribution of players across ranks
-func (s *Glicko2RatingService) GetRankDistribution(ctx context.Context, gameID common.GameIDKey) (map[matchmaking_entities.Rank]int, error) {
+func (s *Glicko2RatingService) GetRankDistribution(ctx context.Context, gameID replay_common.GameIDKey) (map[matchmaking_entities.Rank]int, error) {
 	return s.ratingRepository.GetRankDistribution(ctx, gameID)
 }
 

@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/mongo"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 )
 
@@ -74,7 +74,7 @@ func NewSquadRepository(client *mongo.Client, dbName string, entityType squad_en
 	}
 }
 
-func (r *SquadRepository) Search(ctx context.Context, s common.Search) ([]squad_entities.Squad, error) {
+func (r *SquadRepository) Search(ctx context.Context, s shared.Search) ([]squad_entities.Squad, error) {
 	cursor, err := r.Query(ctx, s)
 	if cursor != nil {
 		defer cursor.Close(ctx)

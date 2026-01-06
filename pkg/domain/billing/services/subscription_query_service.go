@@ -7,14 +7,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	billing_out "github.com/replay-api/replay-api/pkg/domain/billing/ports/out"
 )
 
 type SubscriptionQueryService struct {
-	common.BaseQueryService[billing_entities.Subscription]
+	shared.BaseQueryService[billing_entities.Subscription]
 }
 
 func NewSubscriptionQueryService(eventReader billing_out.SubscriptionReader) billing_in.SubscriptionReader {
@@ -42,31 +42,31 @@ func NewSubscriptionQueryService(eventReader billing_out.SubscriptionReader) bil
 		"Args":          true,
 	}
 
-	return &common.BaseQueryService[billing_entities.Subscription]{
-		Reader:          eventReader.(common.Searchable[billing_entities.Subscription]),
+	return &shared.BaseQueryService[billing_entities.Subscription]{
+		Reader:          eventReader.(shared.Searchable[billing_entities.Subscription]),
 		QueryableFields: queryableFields,
 		ReadableFields:  readableFields,
 		MaxPageSize:     100,
-		Audience:        common.UserAudienceIDKey,
+		Audience:        shared.UserAudienceIDKey,
 	}
 }
 
 func (s *SubscriptionQueryService) GetSubscriptionByUserID(ctx context.Context, userID uuid.UUID) (*billing_entities.Subscription, error) {
-	isAuthenticated := ctx.Value(common.AuthenticatedKey)
+	isAuthenticated := ctx.Value(shared.AuthenticatedKey)
 	if isAuthenticated == nil || !isAuthenticated.(bool) {
-		return nil, common.NewErrUnauthorized()
+		return nil, shared.NewErrUnauthorized()
 	}
 
-	if userID != common.GetResourceOwner(ctx).UserID && !common.IsAdmin(ctx) {
-		return nil, common.NewErrForbidden()
+	if userID != shared.GetResourceOwner(ctx).UserID && !shared.IsAdmin(ctx) {
+		return nil, shared.NewErrForbidden()
 	}
 
-	search := common.Search{
-		VisibilityOptions: common.SearchVisibilityOptions{
-			RequestSource:    common.GetResourceOwner(ctx),
-			IntendedAudience: ctx.Value(common.UserAudienceIDKey).(common.IntendedAudienceKey),
+	search := shared.Search{
+		VisibilityOptions: shared.SearchVisibilityOptions{
+			RequestSource:    shared.GetResourceOwner(ctx),
+			IntendedAudience: ctx.Value(shared.UserAudienceIDKey).(shared.IntendedAudienceKey),
 		},
-		IncludeParams: []common.IncludeParam{
+		IncludeParams: []shared.IncludeParam{
 			{
 				From:         "BillableEntry",
 				LocalField:   "SubscriptionID",
@@ -80,20 +80,20 @@ func (s *SubscriptionQueryService) GetSubscriptionByUserID(ctx context.Context, 
 				IsArray:      false,
 			},
 		},
-		SearchParams: []common.SearchAggregation{
+		SearchParams: []shared.SearchAggregation{
 			{
-				AggregationClause: common.AndAggregationClause,
-				Params: []common.SearchParameter{
+				AggregationClause: shared.AndAggregationClause,
+				Params: []shared.SearchParameter{
 					{
-						ValueParams: []common.SearchableValue{
+						ValueParams: []shared.SearchableValue{
 							{
 								Field:    "EndAt",
-								Operator: common.GreaterThanOperator,
+								Operator: shared.GreaterThanOperator,
 								Values:   []interface{}{time.Now()},
 							},
 							{
 								Field:    "Status",
-								Operator: common.EqualsOperator,
+								Operator: shared.EqualsOperator,
 								Values:   []interface{}{billing_entities.SubscriptionStatusActive},
 							},
 						},
@@ -101,13 +101,13 @@ func (s *SubscriptionQueryService) GetSubscriptionByUserID(ctx context.Context, 
 				},
 			},
 		},
-		SortOptions: []common.SortableField{
+		SortOptions: []shared.SortableField{
 			{
 				Field:     "StartAt",
-				Direction: common.DescendingIDKey,
+				Direction: shared.DescendingIDKey,
 			},
 		},
-		ResultOptions: common.SearchResultOptions{
+		ResultOptions: shared.SearchResultOptions{
 			Skip:  0,
 			Limit: 1,
 		},

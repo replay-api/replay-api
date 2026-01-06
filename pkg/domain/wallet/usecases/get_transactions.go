@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	wallet_in "github.com/replay-api/replay-api/pkg/domain/wallet/ports/in"
 	wallet_out "github.com/replay-api/replay-api/pkg/domain/wallet/ports/out"
 )
@@ -31,13 +31,13 @@ func (uc *GetTransactionsUseCase) GetTransactions(ctx context.Context, query wal
 	// Validate query
 	if err := query.Validate(); err != nil {
 		slog.WarnContext(ctx, "GetTransactions: invalid query", "error", err)
-		return nil, common.NewErrInvalidInput(err.Error())
+		return nil, shared.NewErrInvalidInput(err.Error())
 	}
 
 	// Auth check - user must be authenticated
-	isAuthenticated := ctx.Value(common.AuthenticatedKey)
+	isAuthenticated := ctx.Value(shared.AuthenticatedKey)
 	if isAuthenticated == nil || !isAuthenticated.(bool) {
-		return nil, common.NewErrUnauthorized()
+		return nil, shared.NewErrUnauthorized()
 	}
 
 	slog.InfoContext(ctx, "GetTransactions: fetching transactions",

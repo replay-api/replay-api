@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	"github.com/replay-api/replay-api/pkg/domain/email"
 	email_entities "github.com/replay-api/replay-api/pkg/domain/email/entities"
 	email_in "github.com/replay-api/replay-api/pkg/domain/email/ports/in"
@@ -75,7 +75,7 @@ func (usecase *LoginEmailUserUseCase) Exec(ctx context.Context, emailAddr string
 		ctx,
 		emailUser.ResourceOwner,
 		iam_entities.RIDSource_Email,
-		common.UserAudienceIDKey,
+		shared.UserAudienceIDKey,
 	)
 
 	if err != nil {
@@ -100,12 +100,12 @@ func NewLoginEmailUserUseCase(
 	}
 }
 
-func (uc *LoginEmailUserUseCase) newSearchByEmail(ctx context.Context, emailString string) common.Search {
-	params := []common.SearchAggregation{
+func (uc *LoginEmailUserUseCase) newSearchByEmail(ctx context.Context, emailString string) shared.Search {
+	params := []shared.SearchAggregation{
 		{
-			Params: []common.SearchParameter{
+			Params: []shared.SearchParameter{
 				{
-					ValueParams: []common.SearchableValue{
+					ValueParams: []shared.SearchableValue{
 						{
 							Field: "Email",
 							Values: []interface{}{
@@ -118,17 +118,17 @@ func (uc *LoginEmailUserUseCase) newSearchByEmail(ctx context.Context, emailStri
 		},
 	}
 
-	visibility := common.SearchVisibilityOptions{
-		RequestSource:    common.GetResourceOwner(ctx),
-		IntendedAudience: common.ClientApplicationAudienceIDKey,
+	visibility := shared.SearchVisibilityOptions{
+		RequestSource:    shared.GetResourceOwner(ctx),
+		IntendedAudience: shared.ClientApplicationAudienceIDKey,
 	}
 
-	result := common.SearchResultOptions{
+	result := shared.SearchResultOptions{
 		Skip:  0,
 		Limit: 1,
 	}
 
-	return common.Search{
+	return shared.Search{
 		SearchParams:      params,
 		ResultOptions:     result,
 		VisibilityOptions: visibility,

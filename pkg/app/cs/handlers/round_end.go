@@ -9,7 +9,8 @@ import (
 	"github.com/replay-api/replay-api/pkg/app/cs/builders"
 	event_factory "github.com/replay-api/replay-api/pkg/app/cs/factories"
 	state "github.com/replay-api/replay-api/pkg/app/cs/state"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	fps_events "github.com/replay-api/replay-common/pkg/replay/events/game/fps"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 )
 
@@ -34,10 +35,10 @@ func RoundEnd(p dem.Parser, matchContext *state.CS2MatchContext, out chan *repla
 		payload := b.Build()
 
 		gameEvent, err := event_factory.NewGameEvent(
-			common.Event_RoundEndID,
+			fps_events.Event_RoundEndID,
 			matchContext,
 			roundIndex,
-			common.TickIDType(gs.IngameTick()),
+			replay_common.TickIDType(gs.IngameTick()),
 			p.CurrentTime(),
 			payload,
 		)

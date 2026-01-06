@@ -7,7 +7,8 @@ import (
 	evt "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs/events"
 	event_factory "github.com/replay-api/replay-api/pkg/app/cs/factories"
 	"github.com/replay-api/replay-api/pkg/app/cs/state"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	fps_events "github.com/replay-api/replay-common/pkg/replay/events/game/fps"
 	"github.com/replay-api/replay-api/pkg/domain/replay/entities"
 )
 
@@ -20,10 +21,10 @@ func GenericGameEvent(p dem.Parser, matchContext *state.CS2MatchContext, out cha
 		roundIndex := gs.TotalRoundsPlayed()
 
 		matchContext = matchContext.WithRound(roundIndex, gs)
-		currentTick := common.TickIDType(gs.IngameTick())
+		currentTick := replay_common.TickIDType(gs.IngameTick())
 
 		gameEvent, err := event_factory.NewGameEvent(
-			common.Event_GenericGameEventID,
+			fps_events.Event_GenericGameEventID,
 			matchContext,
 			roundIndex,
 			currentTick,

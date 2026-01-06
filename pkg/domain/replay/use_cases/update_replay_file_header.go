@@ -6,9 +6,10 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 	replay_out "github.com/replay-api/replay-api/pkg/domain/replay/ports/out"
+	fps_events "github.com/replay-api/replay-common/pkg/replay/events/game/fps"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type UpdateReplayFileHeaderUseCase struct {
@@ -34,26 +35,26 @@ func (usecase *UpdateReplayFileHeaderUseCase) Exec(ctx context.Context, replayFi
 		return nil, err
 	}
 
-	params := []common.SearchableValue{
+	params := []shared.SearchableValue{
 		{
 			Field: "Type",
 			Values: []interface{}{
-				common.Event_MatchStartID,
+				fps_events.Event_MatchStartID,
 			},
 		},
 	}
 
-	resultOptions := common.SearchResultOptions{
+	resultOptions := shared.SearchResultOptions{
 		Skip:  0,
 		Limit: 1,
 	}
 
-	s := common.NewSearchByValues(ctx, params, resultOptions, common.UserAudienceIDKey)
+	s := shared.NewSearchByValues(ctx, params, resultOptions, shared.UserAudienceIDKey)
 
 	events, err := usecase.EventReader.Search(ctx, s)
 
 	if err != nil {
-		slog.ErrorContext(ctx, "error searching for replay file header event (common.Event_MatchStartID)", "err", err, "Type", common.Event_MatchStartID, "events", events)
+		slog.ErrorContext(ctx, "error searching for replay file header event (fps_events.Event_MatchStartID)", "err", err, "Type", fps_events.Event_MatchStartID, "events", events)
 		return nil, err
 	}
 
@@ -62,7 +63,7 @@ func (usecase *UpdateReplayFileHeaderUseCase) Exec(ctx context.Context, replayFi
 	}
 
 	if len(events) == 0 {
-		slog.ErrorContext(ctx, "replay file header Event not found", "Type", common.Event_MatchStartID, "s", s, "events", events)
+		slog.ErrorContext(ctx, "replay file header Event not found", "Type", fps_events.Event_MatchStartID, "s", s, "events", events)
 		return nil, err
 	}
 

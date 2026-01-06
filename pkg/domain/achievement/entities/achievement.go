@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // AchievementCategory represents the category of achievement
@@ -65,7 +65,7 @@ type PlayerAchievement struct {
 	UnlockedAt    *time.Time          `json:"unlocked_at" bson:"unlocked_at"`
 	CreatedAt     time.Time           `json:"created_at" bson:"created_at"`
 	UpdatedAt     time.Time           `json:"updated_at" bson:"updated_at"`
-	ResourceOwner common.ResourceOwner `json:"-" bson:"resource_owner"`
+	ResourceOwner shared.ResourceOwner `json:"-" bson:"resource_owner"`
 }
 
 // IsUnlocked returns true if the achievement has been unlocked
@@ -82,7 +82,7 @@ func (pa *PlayerAchievement) GetProgressPercentage() float64 {
 }
 
 // NewPlayerAchievement creates a new player achievement tracking record
-func NewPlayerAchievement(playerID, achievementID uuid.UUID, targetValue int, resourceOwner common.ResourceOwner) *PlayerAchievement {
+func NewPlayerAchievement(playerID, achievementID uuid.UUID, targetValue int, resourceOwner shared.ResourceOwner) *PlayerAchievement {
 	now := time.Now()
 	return &PlayerAchievement{
 		ID:            uuid.New(),

@@ -9,7 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 )
 
@@ -61,7 +61,7 @@ func NewPlayerMetadataRepository(client *mongo.Client, dbName string, entityType
 	}
 }
 
-func (r *PlayerMetadataRepository) Search(ctx context.Context, s common.Search) ([]replay_entity.PlayerMetadata, error) {
+func (r *PlayerMetadataRepository) Search(ctx context.Context, s shared.Search) ([]replay_entity.PlayerMetadata, error) {
 	cursor, err := r.Query(ctx, s)
 	if cursor != nil {
 		defer cursor.Close(ctx)

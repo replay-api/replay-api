@@ -6,7 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
 	iam_in "github.com/replay-api/replay-api/pkg/domain/iam/ports/in"
 	"github.com/replay-api/replay-api/pkg/domain/steam"
@@ -69,8 +69,8 @@ func (usecase *OnboardSteamUserUseCase) Exec(ctx context.Context, steamUser *ste
 
 		steamUser = &steamUserResult[0]
 
-		ctx = context.WithValue(ctx, common.UserIDKey, steamUser.ResourceOwner.UserID)
-		ctx = context.WithValue(ctx, common.GroupIDKey, steamUser.ResourceOwner.GroupID)
+		ctx = context.WithValue(ctx, shared.UserIDKey, steamUser.ResourceOwner.UserID)
+		ctx = context.WithValue(ctx, shared.GroupIDKey, steamUser.ResourceOwner.GroupID)
 	}
 
 	profile, ridToken, err := usecase.OnboardOpenIDUser.Exec(ctx, iam_in.OnboardOpenIDUserCommand{
@@ -90,10 +90,10 @@ func (usecase *OnboardSteamUserUseCase) Exec(ctx context.Context, steamUser *ste
 		return nil, nil, steam.NewSteamUserCreationError(fmt.Sprintf("error creating rid token: %v", steamUser.Steam.ID))
 	}
 
-	ctx = context.WithValue(ctx, common.UserIDKey, profile.ResourceOwner.UserID)
-	ctx = context.WithValue(ctx, common.GroupIDKey, profile.ResourceOwner.GroupID)
+	ctx = context.WithValue(ctx, shared.UserIDKey, profile.ResourceOwner.UserID)
+	ctx = context.WithValue(ctx, shared.GroupIDKey, profile.ResourceOwner.GroupID)
 
-	steamUser.ResourceOwner = common.GetResourceOwner(ctx)
+	steamUser.ResourceOwner = shared.GetResourceOwner(ctx)
 
 	if steamUser.ID == uuid.Nil {
 		steamUser.ID = profile.ResourceOwner.UserID
@@ -126,12 +126,12 @@ func NewOnboardSteamUserUseCase(steamUserWriter steam_out.SteamUserWriter, steam
 	}
 }
 
-func (uc *OnboardSteamUserUseCase) newSearchByVHash(ctx context.Context, vhashString string) common.Search {
-	params := []common.SearchAggregation{
+func (uc *OnboardSteamUserUseCase) newSearchByVHash(ctx context.Context, vhashString string) shared.Search {
+	params := []shared.SearchAggregation{
 		{
-			Params: []common.SearchParameter{
+			Params: []shared.SearchParameter{
 				{
-					ValueParams: []common.SearchableValue{
+					ValueParams: []shared.SearchableValue{
 						{
 							Field: "VHash",
 							Values: []interface{}{
@@ -144,17 +144,17 @@ func (uc *OnboardSteamUserUseCase) newSearchByVHash(ctx context.Context, vhashSt
 		},
 	}
 
-	visibility := common.SearchVisibilityOptions{
-		RequestSource:    common.GetResourceOwner(ctx),
-		IntendedAudience: common.ClientApplicationAudienceIDKey,
+	visibility := shared.SearchVisibilityOptions{
+		RequestSource:    shared.GetResourceOwner(ctx),
+		IntendedAudience: shared.ClientApplicationAudienceIDKey,
 	}
 
-	result := common.SearchResultOptions{
+	result := shared.SearchResultOptions{
 		Skip:  0,
 		Limit: 1,
 	}
 
-	return common.Search{
+	return shared.Search{
 		SearchParams:      params,
 		ResultOptions:     result,
 		VisibilityOptions: visibility,

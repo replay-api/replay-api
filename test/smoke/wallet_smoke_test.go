@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	wallet_entities "github.com/replay-api/replay-api/pkg/domain/wallet/entities"
 	wallet_vo "github.com/replay-api/replay-api/pkg/domain/wallet/value-objects"
 )
@@ -20,7 +20,7 @@ import (
 func TestSmoke_WalletCreation(t *testing.T) {
 	// Create test user
 	userID := uuid.New()
-	resourceOwner := common.ResourceOwner{UserID: userID}
+	resourceOwner := shared.ResourceOwner{UserID: userID}
 
 	// Create EVM address
 	evmAddress, err := wallet_vo.NewEVMAddress("0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0")
@@ -279,7 +279,7 @@ func createTestWallet(t *testing.T) *wallet_entities.UserWallet {
 	t.Helper()
 
 	userID := uuid.New()
-	resourceOwner := common.ResourceOwner{UserID: userID}
+	resourceOwner := shared.ResourceOwner{UserID: userID}
 	evmAddress, err := wallet_vo.NewEVMAddress("0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0")
 	require.NoError(t, err)
 
@@ -292,7 +292,7 @@ func createTestWallet(t *testing.T) *wallet_entities.UserWallet {
 // Benchmark tests
 func BenchmarkWalletDeposit(b *testing.B) {
 	userID := uuid.New()
-	resourceOwner := common.ResourceOwner{UserID: userID}
+	resourceOwner := shared.ResourceOwner{UserID: userID}
 	evmAddress, _ := wallet_vo.NewEVMAddress("0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0")
 	wallet, _ := wallet_entities.NewUserWallet(resourceOwner, evmAddress)
 	amount := wallet_vo.NewAmount(10.00)

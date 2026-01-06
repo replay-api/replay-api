@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
 	matchmaking_in "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/in"
@@ -25,10 +25,10 @@ func TestCreateCustomLobby_Success(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	creatorID := uuid.New()
 	cmd := matchmaking_in.CreateLobbyCommand{
@@ -96,10 +96,10 @@ func TestCreateCustomLobby_InvalidMaxPlayers(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	// test max players too low
 	cmd := matchmaking_in.CreateLobbyCommand{
@@ -134,10 +134,10 @@ func TestCreateCustomLobby_BillingValidationFails(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	cmd := matchmaking_in.CreateLobbyCommand{
 		CreatorID:  uuid.New(),
@@ -165,10 +165,10 @@ func TestCreateCustomLobby_SaveFails(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	cmd := matchmaking_in.CreateLobbyCommand{
 		CreatorID:        uuid.New(),

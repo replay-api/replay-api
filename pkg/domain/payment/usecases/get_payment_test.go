@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	payment_entities "github.com/replay-api/replay-api/pkg/domain/payment/entities"
 	payment_in "github.com/replay-api/replay-api/pkg/domain/payment/ports/in"
 	payment_out "github.com/replay-api/replay-api/pkg/domain/payment/ports/out"
@@ -106,7 +106,7 @@ func TestGetPayment_Success(t *testing.T) {
 	usecase := payment_usecases.NewGetPaymentUseCase(mockRepo)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
 	walletID := uuid.New()
 
@@ -155,7 +155,7 @@ func TestGetPayment_InvalidQuery_NoPaymentID(t *testing.T) {
 	usecase := payment_usecases.NewGetPaymentUseCase(mockRepo)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 
 	query := payment_in.GetPaymentQuery{
 		PaymentID: uuid.Nil,
@@ -173,7 +173,7 @@ func TestGetPayment_InvalidQuery_NoUserID(t *testing.T) {
 	usecase := payment_usecases.NewGetPaymentUseCase(mockRepo)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 
 	query := payment_in.GetPaymentQuery{
 		PaymentID: uuid.New(),
@@ -191,7 +191,7 @@ func TestGetPayment_NotFound(t *testing.T) {
 	usecase := payment_usecases.NewGetPaymentUseCase(mockRepo)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 
 	paymentID := uuid.New()
 	userID := uuid.New()
@@ -216,7 +216,7 @@ func TestGetPayment_UnauthorizedAccess(t *testing.T) {
 	usecase := payment_usecases.NewGetPaymentUseCase(mockRepo)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 
 	ownerID := uuid.New()
 	attackerID := uuid.New()

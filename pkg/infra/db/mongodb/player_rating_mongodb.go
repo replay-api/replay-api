@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
 	matchmaking_out "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/out"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -86,7 +86,7 @@ func (r *PlayerRatingMongoDBRepository) Update(ctx context.Context, rating *matc
 }
 
 // FindByPlayerAndGame retrieves a player's rating for a specific game
-func (r *PlayerRatingMongoDBRepository) FindByPlayerAndGame(ctx context.Context, playerID uuid.UUID, gameID common.GameIDKey) (*matchmaking_entities.PlayerRating, error) {
+func (r *PlayerRatingMongoDBRepository) FindByPlayerAndGame(ctx context.Context, playerID uuid.UUID, gameID replay_common.GameIDKey) (*matchmaking_entities.PlayerRating, error) {
 	filter := bson.M{
 		"player_id": playerID,
 		"game_id":   gameID,
@@ -123,7 +123,7 @@ func (r *PlayerRatingMongoDBRepository) GetByID(ctx context.Context, id uuid.UUI
 }
 
 // GetTopPlayers retrieves top players by rating for leaderboard
-func (r *PlayerRatingMongoDBRepository) GetTopPlayers(ctx context.Context, gameID common.GameIDKey, limit int) ([]*matchmaking_entities.PlayerRating, error) {
+func (r *PlayerRatingMongoDBRepository) GetTopPlayers(ctx context.Context, gameID replay_common.GameIDKey, limit int) ([]*matchmaking_entities.PlayerRating, error) {
 	filter := bson.M{
 		"game_id":        gameID,
 		"matches_played": bson.M{"$gte": 10}, // Minimum 10 matches to be on leaderboard
@@ -150,7 +150,7 @@ func (r *PlayerRatingMongoDBRepository) GetTopPlayers(ctx context.Context, gameI
 }
 
 // GetRankDistribution returns the count of players in each rank
-func (r *PlayerRatingMongoDBRepository) GetRankDistribution(ctx context.Context, gameID common.GameIDKey) (map[matchmaking_entities.Rank]int, error) {
+func (r *PlayerRatingMongoDBRepository) GetRankDistribution(ctx context.Context, gameID replay_common.GameIDKey) (map[matchmaking_entities.Rank]int, error) {
 	pipeline := mongo.Pipeline{
 		{{Key: "$match", Value: bson.M{"game_id": gameID, "matches_played": bson.M{"$gte": 1}}}},
 		{{Key: "$project", Value: bson.M{

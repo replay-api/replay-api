@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
 	iam_in "github.com/replay-api/replay-api/pkg/domain/iam/ports/in"
 	iam_use_cases "github.com/replay-api/replay-api/pkg/domain/iam/use_cases"
@@ -23,7 +23,7 @@ type MockUserReader struct {
 	mock.Mock
 }
 
-func (m *MockUserReader) Search(ctx context.Context, s common.Search) ([]iam_entities.User, error) {
+func (m *MockUserReader) Search(ctx context.Context, s shared.Search) ([]iam_entities.User, error) {
 	args := m.Called(ctx, s)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -49,12 +49,12 @@ func (m *MockUserWriter) CreateMany(ctx context.Context, users []*iam_entities.U
 	return args.Error(0)
 }
 
-// MockProfileReader implements iam_out.ProfileReader (common.Searchable[Profile])
+// MockProfileReader implements iam_out.ProfileReader (shared.Searchable[Profile])
 type MockProfileReader struct {
 	mock.Mock
 }
 
-func (m *MockProfileReader) Search(ctx context.Context, s common.Search) ([]iam_entities.Profile, error) {
+func (m *MockProfileReader) Search(ctx context.Context, s shared.Search) ([]iam_entities.Profile, error) {
 	args := m.Called(ctx, s)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -70,12 +70,12 @@ func (m *MockProfileReader) GetByID(ctx context.Context, id uuid.UUID) (*iam_ent
 	return args.Get(0).(*iam_entities.Profile), args.Error(1)
 }
 
-func (m *MockProfileReader) Compile(ctx context.Context, searchParams []common.SearchAggregation, resultOptions common.SearchResultOptions) (*common.Search, error) {
+func (m *MockProfileReader) Compile(ctx context.Context, searchParams []shared.SearchAggregation, resultOptions shared.SearchResultOptions) (*shared.Search, error) {
 	args := m.Called(ctx, searchParams, resultOptions)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*common.Search), args.Error(1)
+	return args.Get(0).(*shared.Search), args.Error(1)
 }
 
 // MockProfileWriter implements iam_out.ProfileWriter
@@ -137,7 +137,7 @@ type MockCreateRIDTokenCommand struct {
 	mock.Mock
 }
 
-func (m *MockCreateRIDTokenCommand) Exec(ctx context.Context, owner common.ResourceOwner, source iam_entities.RIDSourceKey, audience common.IntendedAudienceKey) (*iam_entities.RIDToken, error) {
+func (m *MockCreateRIDTokenCommand) Exec(ctx context.Context, owner shared.ResourceOwner, source iam_entities.RIDSourceKey, audience shared.IntendedAudienceKey) (*iam_entities.RIDToken, error) {
 	args := m.Called(ctx, owner, source, audience)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -151,15 +151,15 @@ func (m *MockCreateRIDTokenCommand) Exec(ctx context.Context, owner common.Resou
 
 func createContextWithResourceOwner(userID, groupID uuid.UUID) context.Context {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.GroupIDKey, groupID)
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.GroupIDKey, groupID)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	return ctx
 }
 
 func createTestProfile(userID, groupID uuid.UUID, source iam_entities.RIDSourceKey, key string) iam_entities.Profile {
-	rxn := common.ResourceOwner{UserID: userID, GroupID: groupID}
+	rxn := shared.ResourceOwner{UserID: userID, GroupID: groupID}
 	return iam_entities.Profile{
 		ID:            uuid.New(),
 		RIDSource:     source,
@@ -168,19 +168,19 @@ func createTestProfile(userID, groupID uuid.UUID, source iam_entities.RIDSourceK
 	}
 }
 
-func createTestUser(id uuid.UUID, name string, rxn common.ResourceOwner) *iam_entities.User {
+func createTestUser(id uuid.UUID, name string, rxn shared.ResourceOwner) *iam_entities.User {
 	return iam_entities.NewUser(id, name, rxn)
 }
 
-func createTestGroup(id uuid.UUID, name string, rxn common.ResourceOwner) *iam_entities.Group {
+func createTestGroup(id uuid.UUID, name string, rxn shared.ResourceOwner) *iam_entities.Group {
 	return iam_entities.NewGroup(id, name, iam_entities.GroupTypeSystem, rxn)
 }
 
-func createTestMembership(rxn common.ResourceOwner) *iam_entities.Membership {
+func createTestMembership(rxn shared.ResourceOwner) *iam_entities.Membership {
 	return iam_entities.NewMembership(iam_entities.MembershipTypeOwner, iam_entities.MembershipStatusActive, rxn)
 }
 
-func createTestRIDToken(rxn common.ResourceOwner, source iam_entities.RIDSourceKey) *iam_entities.RIDToken {
+func createTestRIDToken(rxn shared.ResourceOwner, source iam_entities.RIDSourceKey) *iam_entities.RIDToken {
 	return &iam_entities.RIDToken{
 		ID:               uuid.New(),
 		Key:              uuid.New(),
@@ -202,7 +202,7 @@ func TestScenario_NewUserOnboardingViaSteam(t *testing.T) {
 	groupID := uuid.New()
 	steamID := "76561198012345678"
 	ctx := createContextWithResourceOwner(userID, groupID)
-	rxn := common.ResourceOwner{UserID: userID, GroupID: groupID}
+	rxn := shared.ResourceOwner{UserID: userID, GroupID: groupID}
 
 	mockUserReader := new(MockUserReader)
 	mockUserWriter := new(MockUserWriter)
@@ -282,7 +282,7 @@ func TestScenario_ReturningUserLoginViaSteam(t *testing.T) {
 	groupID := uuid.New()
 	steamID := "76561198012345678"
 	ctx := createContextWithResourceOwner(userID, groupID)
-	rxn := common.ResourceOwner{UserID: userID, GroupID: groupID}
+	rxn := shared.ResourceOwner{UserID: userID, GroupID: groupID}
 
 	mockUserReader := new(MockUserReader)
 	mockUserWriter := new(MockUserWriter)
@@ -339,7 +339,7 @@ func TestScenario_GoogleOAuthOnboarding(t *testing.T) {
 	groupID := uuid.New()
 	googleEmail := "gamer@gmail.com"
 	ctx := createContextWithResourceOwner(userID, groupID)
-	rxn := common.ResourceOwner{UserID: userID, GroupID: groupID}
+	rxn := shared.ResourceOwner{UserID: userID, GroupID: groupID}
 
 	mockUserReader := new(MockUserReader)
 	mockUserWriter := new(MockUserWriter)
@@ -402,8 +402,8 @@ func TestScenario_GoogleOAuthOnboarding(t *testing.T) {
 func TestOnboardOpenIDUser_FailsWithoutUserID(t *testing.T) {
 	// Given: A context without UserID
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
-	ctx = context.WithValue(ctx, common.GroupIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.GroupIDKey, uuid.New())
 
 	mockProfileReader := new(MockProfileReader)
 	mockProfileReader.On("Search", mock.Anything, mock.Anything).Return([]iam_entities.Profile{}, nil)
@@ -437,8 +437,8 @@ func TestOnboardOpenIDUser_FailsWithoutUserID(t *testing.T) {
 func TestOnboardOpenIDUser_FailsWithoutGroupID(t *testing.T) {
 	// Given: A context without GroupID
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
-	ctx = context.WithValue(ctx, common.UserIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.UserIDKey, uuid.New())
 
 	mockProfileReader := new(MockProfileReader)
 	mockProfileReader.On("Search", mock.Anything, mock.Anything).Return([]iam_entities.Profile{}, nil)
@@ -545,7 +545,7 @@ func TestOnboardOpenIDUser_GroupCreationError(t *testing.T) {
 	userID := uuid.New()
 	groupID := uuid.New()
 	ctx := createContextWithResourceOwner(userID, groupID)
-	rxn := common.ResourceOwner{UserID: userID, GroupID: groupID}
+	rxn := shared.ResourceOwner{UserID: userID, GroupID: groupID}
 
 	mockProfileReader := new(MockProfileReader)
 	mockProfileReader.On("Search", mock.Anything, mock.Anything).Return([]iam_entities.Profile{}, nil)
@@ -587,7 +587,7 @@ func TestOnboardOpenIDUser_TokenCreationError(t *testing.T) {
 	userID := uuid.New()
 	groupID := uuid.New()
 	ctx := createContextWithResourceOwner(userID, groupID)
-	rxn := common.ResourceOwner{UserID: userID, GroupID: groupID}
+	rxn := shared.ResourceOwner{UserID: userID, GroupID: groupID}
 
 	mockProfileReader := new(MockProfileReader)
 	mockProfileReader.On("Search", mock.Anything, mock.Anything).Return([]iam_entities.Profile{}, nil)

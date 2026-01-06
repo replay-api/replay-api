@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	challenge_entities "github.com/replay-api/replay-api/pkg/domain/challenge/entities"
 	challenge_in "github.com/replay-api/replay-api/pkg/domain/challenge/ports/in"
 	challenge_out "github.com/replay-api/replay-api/pkg/domain/challenge/ports/out"
@@ -32,7 +32,7 @@ func (m *MockChallengeRepository) GetByID(ctx context.Context, id uuid.UUID) (*c
 	return args.Get(0).(*challenge_entities.Challenge), args.Error(1)
 }
 
-func (m *MockChallengeRepository) GetByMatchID(ctx context.Context, matchID uuid.UUID, search *common.Search) ([]*challenge_entities.Challenge, error) {
+func (m *MockChallengeRepository) GetByMatchID(ctx context.Context, matchID uuid.UUID, search *shared.Search) ([]*challenge_entities.Challenge, error) {
 	args := m.Called(ctx, matchID, search)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -40,7 +40,7 @@ func (m *MockChallengeRepository) GetByMatchID(ctx context.Context, matchID uuid
 	return args.Get(0).([]*challenge_entities.Challenge), args.Error(1)
 }
 
-func (m *MockChallengeRepository) GetByChallengerID(ctx context.Context, challengerID uuid.UUID, search *common.Search) ([]*challenge_entities.Challenge, error) {
+func (m *MockChallengeRepository) GetByChallengerID(ctx context.Context, challengerID uuid.UUID, search *shared.Search) ([]*challenge_entities.Challenge, error) {
 	args := m.Called(ctx, challengerID, search)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -96,10 +96,10 @@ func createAuthenticatedContext(userID uuid.UUID) context.Context {
 	groupID := uuid.New()
 	
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.TenantIDKey, tenantID)
-	ctx = context.WithValue(ctx, common.ClientIDKey, clientID)
-	ctx = context.WithValue(ctx, common.GroupIDKey, groupID)
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, tenantID)
+	ctx = context.WithValue(ctx, shared.ClientIDKey, clientID)
+	ctx = context.WithValue(ctx, shared.GroupIDKey, groupID)
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
 	return ctx
 }
 
@@ -146,7 +146,7 @@ func TestCreateChallengeUseCase_Unauthenticated_ReturnsError(t *testing.T) {
 
 	// Context without user ID but needs tenant to not panic
 	tenantID := uuid.New()
-	ctx := context.WithValue(context.Background(), common.TenantIDKey, tenantID)
+	ctx := context.WithValue(context.Background(), shared.TenantIDKey, tenantID)
 
 	cmd := challenge_in.CreateChallengeCommand{
 		MatchID:      uuid.New(),

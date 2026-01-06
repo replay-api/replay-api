@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type ShareTokenStatus string
@@ -63,7 +63,7 @@ type ShareToken struct {
 	Uri           string               `json:"uri" bson:"uri"`
 	EntityType    string               `json:"entity_type" bson:"entity_type"`
 	Status        ShareTokenStatus     `json:"status" bson:"status"`
-	ResourceOwner common.ResourceOwner `json:"resource_owner" bson:"resource_owner"`
+	ResourceOwner shared.ResourceOwner `json:"resource_owner" bson:"resource_owner"`
 	CreatedAt     time.Time            `json:"created_at" bson:"created_at"`
 	UpdatedAt     time.Time            `json:"updated_at" bson:"updated_at"`
 

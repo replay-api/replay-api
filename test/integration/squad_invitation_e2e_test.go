@@ -12,7 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 )
 
@@ -29,13 +30,13 @@ func TestE2E_SquadInvitation(t *testing.T) {
 	playerUserID := uuid.New()
 	squadID := uuid.New()
 
-	ctx = context.WithValue(ctx, common.UserIDKey, ownerUserID)
-	ctx = context.WithValue(ctx, common.GroupIDKey, uuid.New())
-	ctx = context.WithValue(ctx, common.TenantIDKey, common.TeamPROTenantID)
-	ctx = context.WithValue(ctx, common.ClientIDKey, common.TeamPROAppClientID)
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.UserIDKey, ownerUserID)
+	ctx = context.WithValue(ctx, shared.GroupIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.TenantIDKey, replay_common.TeamPROTenantID)
+	ctx = context.WithValue(ctx, shared.ClientIDKey, replay_common.TeamPROAppClientID)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 
 	t.Run("InvitationStatus_Constants", func(t *testing.T) {
 		assert.Equal(t, squad_entities.InvitationStatus("pending"), squad_entities.InvitationStatusPending)

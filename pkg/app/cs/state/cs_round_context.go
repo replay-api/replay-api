@@ -4,9 +4,10 @@ import (
 	"fmt"
 
 	infocs "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs/common"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	cs_entity "github.com/replay-api/replay-api/pkg/domain/cs/entities"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
 )
 
 type CSRoundType = string
@@ -29,14 +30,14 @@ type CS2RoundContext struct {
 }
 
 // TODO: adicionar parametro para tipo de rede, habilitar demais provides (fcit etc)
-func (r *CS2RoundContext) SetPlayingEntities(playing []*infocs.Player, res common.ResourceOwner) []*replay_entity.PlayerMetadata {
+func (r *CS2RoundContext) SetPlayingEntities(playing []*infocs.Player, res shared.ResourceOwner) []*replay_entity.PlayerMetadata {
 	r.PlayerEntities = make([]*replay_entity.PlayerMetadata, len(playing))
 
 	for index, p := range playing {
 		r.PlayerEntities[index] = replay_entity.NewPlayerMetadata(
 			p.Name,
 			fmt.Sprintf("%d", p.SteamID64),
-			common.SteamNetworkIDKey,
+			replay_common.SteamNetworkIDKey,
 			p.ClanTag(),
 			res,
 		)

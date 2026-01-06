@@ -5,7 +5,8 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
 	challenge_entities "github.com/replay-api/replay-api/pkg/domain/challenge/entities"
 	challenge_in "github.com/replay-api/replay-api/pkg/domain/challenge/ports/in"
 	challenge_out "github.com/replay-api/replay-api/pkg/domain/challenge/ports/out"
@@ -26,9 +27,9 @@ func NewResolveChallengeUseCase(challengeRepo challenge_out.ChallengeRepository)
 // Exec executes the resolve challenge use case
 func (uc *ResolveChallengeUseCase) Exec(ctx context.Context, cmd challenge_in.ResolveChallengeCommand) (*challenge_entities.Challenge, error) {
 	// 1. Validate authentication
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 	if resourceOwner.UserID == uuid.Nil {
-		return nil, common.NewErrUnauthorized()
+		return nil, shared.NewErrUnauthorized()
 	}
 
 	// 2. Validate command
@@ -48,7 +49,7 @@ func (uc *ResolveChallengeUseCase) Exec(ctx context.Context, cmd challenge_in.Re
 		return nil, fmt.Errorf("failed to fetch challenge: %w", err)
 	}
 	if challenge == nil {
-		return nil, common.NewErrNotFound(common.ResourceTypeChallenge, "id", cmd.ChallengeID)
+		return nil, shared.NewErrNotFound(replay_common.ResourceTypeChallenge, "id", cmd.ChallengeID)
 	}
 
 	// 4. Verify admin can review this challenge

@@ -6,22 +6,22 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type mockSchemaProvider struct {
-	schema common.QueryServiceSchema
+	schema shared.QueryServiceSchema
 }
 
-func (m *mockSchemaProvider) GetQuerySchema() common.QueryServiceSchema {
+func (m *mockSchemaProvider) GetQuerySchema() shared.QueryServiceSchema {
 	return m.schema
 }
 
-func setupTestRegistry() *common.QueryServiceRegistry {
-	registry := common.GetQueryServiceRegistry()
+func setupTestRegistry() *shared.QueryServiceRegistry {
+	registry := shared.GetQueryServiceRegistry()
 
 	registry.Register("players", &mockSchemaProvider{
-		schema: common.QueryServiceSchema{
+		schema: shared.QueryServiceSchema{
 			EntityType:          "players",
 			EntityName:          "PlayerProfile",
 			QueryableFields:     []string{"Nickname", "Description", "GameID"},
@@ -31,7 +31,7 @@ func setupTestRegistry() *common.QueryServiceRegistry {
 		},
 	})
 	registry.Register("teams", &mockSchemaProvider{
-		schema: common.QueryServiceSchema{
+		schema: shared.QueryServiceSchema{
 			EntityType:          "teams",
 			EntityName:          "Squad",
 			QueryableFields:     []string{"Name", "Symbol", "Description"},
@@ -67,7 +67,7 @@ func TestSearchSchemaController_GetSearchSchemaHandler(t *testing.T) {
 		t.Errorf("expected Cache-Control 'public, max-age=3600', got '%s'", cacheControl)
 	}
 
-	var response common.SearchSchema
+	var response shared.SearchSchema
 	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -131,7 +131,7 @@ func TestSearchSchemaController_GetEntitySchemaHandler(t *testing.T) {
 			}
 
 			if tt.expectedStatus == http.StatusOK {
-				var schema common.EntitySearchSchema
+				var schema shared.EntitySearchSchema
 				if err := json.NewDecoder(w.Body).Decode(&schema); err != nil {
 					t.Fatalf("failed to decode response: %v", err)
 				}

@@ -5,11 +5,12 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
 	squad_usecases "github.com/replay-api/replay-api/pkg/domain/squad/usecases"
 	squad_value_objects "github.com/replay-api/replay-api/pkg/domain/squad/value-objects"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -18,12 +19,12 @@ type MockPlayerProfileReader struct {
 	mock.Mock
 }
 
-func (m *MockPlayerProfileReader) Compile(ctx context.Context, aggregations []common.SearchAggregation, options common.SearchResultOptions) (*common.Search, error) {
+func (m *MockPlayerProfileReader) Compile(ctx context.Context, aggregations []shared.SearchAggregation, options shared.SearchResultOptions) (*shared.Search, error) {
 	args := m.Called(ctx, aggregations, options)
-	return args.Get(0).(*common.Search), args.Error(1)
+	return args.Get(0).(*shared.Search), args.Error(1)
 }
 
-func (m *MockPlayerProfileReader) Search(ctx context.Context, search common.Search) ([]squad_entities.PlayerProfile, error) {
+func (m *MockPlayerProfileReader) Search(ctx context.Context, search shared.Search) ([]squad_entities.PlayerProfile, error) {
 	args := m.Called(ctx, search)
 	return args.Get(0).([]squad_entities.PlayerProfile), args.Error(1)
 }
@@ -61,16 +62,16 @@ func TestProcessMemberships(t *testing.T) {
 	squadID := uuid.New()
 
 	playerProfile := squad_entities.PlayerProfile{
-		BaseEntity: common.BaseEntity{
+		BaseEntity: shared.BaseEntity{
 			ID: playerProfileID,
-			ResourceOwner: common.ResourceOwner{
+			ResourceOwner: shared.ResourceOwner{
 				UserID:   userID,
 				TenantID: uuid.New(),
 			},
 		},
 	}
 
-	mockPlayerProfileReader.On("Search", mock.Anything, mock.MatchedBy(func(search common.Search) bool {
+	mockPlayerProfileReader.On("Search", mock.Anything, mock.MatchedBy(func(search shared.Search) bool {
 		for _, filter := range search.SearchParams {
 			for _, v := range filter.Params {
 				for _, p := range v.ValueParams {
@@ -87,7 +88,7 @@ func TestProcessMemberships(t *testing.T) {
 		return true
 	})).Return([]squad_entities.PlayerProfile{playerProfile}, nil)
 
-	mockPlayerProfileReader.On("Search", mock.Anything, mock.MatchedBy(func(search common.Search) bool {
+	mockPlayerProfileReader.On("Search", mock.Anything, mock.MatchedBy(func(search shared.Search) bool {
 		for _, filter := range search.SearchParams {
 			for _, v := range filter.Params {
 				for _, p := range v.ValueParams {
@@ -102,7 +103,7 @@ func TestProcessMemberships(t *testing.T) {
 			}
 		}
 		return true
-	})).Return([]squad_entities.PlayerProfile{}, common.NewErrNotFound(common.ResourceTypePlayerProfile, "ID", uuid.New().String()))
+	})).Return([]squad_entities.PlayerProfile{}, shared.NewErrNotFound(replay_common.ResourceTypePlayerProfile, "ID", uuid.New().String()))
 	mockSquadHistoryWriter.On("Create", mock.Anything, mock.Anything).Return(&squad_entities.SquadHistory{}, nil)
 
 	tests := []struct {
@@ -114,9 +115,9 @@ func TestProcessMemberships(t *testing.T) {
 		{
 			name: "Valid Membership",
 			squad: &squad_entities.Squad{
-				BaseEntity: common.BaseEntity{
+				BaseEntity: shared.BaseEntity{
 					ID: squadID,
-					ResourceOwner: common.ResourceOwner{
+					ResourceOwner: shared.ResourceOwner{
 						UserID:   userID,
 						TenantID: uuid.New(),
 					},
@@ -134,9 +135,9 @@ func TestProcessMemberships(t *testing.T) {
 		{
 			name: "Demote Membership",
 			squad: &squad_entities.Squad{
-				BaseEntity: common.BaseEntity{
+				BaseEntity: shared.BaseEntity{
 					ID: squadID,
-					ResourceOwner: common.ResourceOwner{
+					ResourceOwner: shared.ResourceOwner{
 						UserID:   userID,
 						TenantID: uuid.New(),
 					},
@@ -160,9 +161,9 @@ func TestProcessMemberships(t *testing.T) {
 		{
 			name: "Promote Membership",
 			squad: &squad_entities.Squad{
-				BaseEntity: common.BaseEntity{
+				BaseEntity: shared.BaseEntity{
 					ID: squadID,
-					ResourceOwner: common.ResourceOwner{
+					ResourceOwner: shared.ResourceOwner{
 						UserID:   userID,
 						TenantID: uuid.New(),
 					},
@@ -188,9 +189,9 @@ func TestProcessMemberships(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
-			ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
-			ctx = context.WithValue(ctx, common.UserIDKey, userID)
-			ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+			ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
+			ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+			ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 			memberships, err := updateSquadUseCase.ProcessMemberships(ctx, tt.squad, tt.members)
 
 			if tt.expectedError != nil {

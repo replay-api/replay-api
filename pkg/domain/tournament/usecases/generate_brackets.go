@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	tournament_entities "github.com/replay-api/replay-api/pkg/domain/tournament/entities"
@@ -35,9 +35,9 @@ func NewGenerateBracketsUseCase(
 // Exec generates tournament brackets based on format
 func (uc *GenerateBracketsUseCase) Exec(ctx context.Context, tournamentID uuid.UUID) error {
 	// auth check
-	isAuthenticated := ctx.Value(common.AuthenticatedKey)
+	isAuthenticated := ctx.Value(shared.AuthenticatedKey)
 	if isAuthenticated == nil || !isAuthenticated.(bool) {
-		return common.NewErrUnauthorized()
+		return shared.NewErrUnauthorized()
 	}
 
 	// get tournament
@@ -60,7 +60,7 @@ func (uc *GenerateBracketsUseCase) Exec(ctx context.Context, tournamentID uuid.U
 	// billing validation BEFORE generating brackets
 	billingCmd := billing_in.BillableOperationCommand{
 		OperationID: billing_entities.OperationTypeGenerateBrackets,
-		UserID:      common.GetResourceOwner(ctx).UserID,
+		UserID:      shared.GetResourceOwner(ctx).UserID,
 		Amount:      1,
 		Args: map[string]interface{}{
 			"tournament_id": tournamentID.String(),

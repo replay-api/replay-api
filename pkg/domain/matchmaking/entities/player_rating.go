@@ -5,7 +5,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // PlayerRating represents a player's skill rating using Glicko-2 system
@@ -13,21 +14,21 @@ import (
 // - Rating Deviation (RD): confidence in the rating
 // - Volatility (σ): how consistent the player's performance is
 type PlayerRating struct {
-	ID            uuid.UUID            `json:"id" bson:"_id"`
-	PlayerID      uuid.UUID            `json:"player_id" bson:"player_id"`
-	GameID        common.GameIDKey     `json:"game_id" bson:"game_id"`
-	Rating        float64              `json:"rating" bson:"rating"`               // μ (mu) - the player's rating (default: 1500)
-	RatingDeviation float64            `json:"rating_deviation" bson:"rating_deviation"` // φ (phi) - uncertainty (default: 350)
-	Volatility    float64              `json:"volatility" bson:"volatility"`       // σ (sigma) - consistency (default: 0.06)
-	MatchesPlayed int                  `json:"matches_played" bson:"matches_played"`
-	Wins          int                  `json:"wins" bson:"wins"`
-	Losses        int                  `json:"losses" bson:"losses"`
-	Draws         int                  `json:"draws" bson:"draws"`
+	ID            uuid.UUID               `json:"id" bson:"_id"`
+	PlayerID      uuid.UUID               `json:"player_id" bson:"player_id"`
+	GameID        replay_common.GameIDKey `json:"game_id" bson:"game_id"`
+	Rating        float64                 `json:"rating" bson:"rating"`               // μ (mu) - the player's rating (default: 1500)
+	RatingDeviation float64               `json:"rating_deviation" bson:"rating_deviation"` // φ (phi) - uncertainty (default: 350)
+	Volatility    float64                 `json:"volatility" bson:"volatility"`       // σ (sigma) - consistency (default: 0.06)
+	MatchesPlayed int                     `json:"matches_played" bson:"matches_played"`
+	Wins          int                     `json:"wins" bson:"wins"`
+	Losses        int                     `json:"losses" bson:"losses"`
+	Draws         int                     `json:"draws" bson:"draws"`
 	WinStreak     int                  `json:"win_streak" bson:"win_streak"`
 	PeakRating    float64              `json:"peak_rating" bson:"peak_rating"`
 	LastMatchAt   *time.Time           `json:"last_match_at" bson:"last_match_at"`
 	RatingHistory []RatingChange       `json:"rating_history" bson:"rating_history"`
-	ResourceOwner common.ResourceOwner `json:"-" bson:"resource_owner"`
+	ResourceOwner shared.ResourceOwner `json:"-" bson:"resource_owner"`
 	CreatedAt     time.Time            `json:"created_at" bson:"created_at"`
 	UpdatedAt     time.Time            `json:"updated_at" bson:"updated_at"`
 }
@@ -67,7 +68,7 @@ const (
 )
 
 // NewPlayerRating creates a new player rating with default values
-func NewPlayerRating(playerID uuid.UUID, gameID common.GameIDKey, resourceOwner common.ResourceOwner) *PlayerRating {
+func NewPlayerRating(playerID uuid.UUID, gameID replay_common.GameIDKey, resourceOwner shared.ResourceOwner) *PlayerRating {
 	now := time.Now()
 	return &PlayerRating{
 		ID:              uuid.New(),

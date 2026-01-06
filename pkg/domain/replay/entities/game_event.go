@@ -1,64 +1,40 @@
 package entities
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	replay_entities "github.com/replay-api/replay-common/pkg/replay/entities"
+	fps_events "github.com/replay-api/replay-common/pkg/replay/events/game/fps"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
-type GameEvent struct {
-	// header/meta
-	ID       uuid.UUID         `json:"id" bson:"_id"`
-	Type     common.EventIDKey `json:"type" bson:"type"`
-	GameID   common.GameIDKey  `json:"game_id" bson:"game_id"`
-	MatchID  uuid.UUID         `json:"match_id" bson:"match_id"`
-	TickID   common.TickIDType `json:"tick_id" bson:"tick_id"`
-	GameTime time.Duration     `json:"event_time" bson:"event_time"` // // CurrentTime
+// Re-export GameEvent from replay-common for backward compatibility
+type GameEvent = replay_entities.GameEvent
 
-	// data
-	Payload  interface{}                           `json:"-" bson:"payload"`
-	Entities map[common.ResourceType][]interface{} `json:"-" bson:"-"`
-	Stats    map[common.StatType][]interface{}     `json:"stats" bson:"stats"`
+// Re-export game types
+type GameIDKey = replay_common.GameIDKey
+type TickIDType = replay_common.TickIDType
 
-	// default/trail
-	ResourceOwner common.ResourceOwner `json:"-" bson:"resource_owner"`
-	CreatedAt     time.Time            `json:"-" bson:"created_at"`
-}
+// Re-export game constants
+const (
+	CS2_GAME_ID   = replay_common.CS2_GAME_ID
+	CSGO_GAME_ID  = replay_common.CSGO_GAME_ID
+	VLRNT_GAME_ID = replay_common.VLRNT_GAME_ID
+)
 
-func NewGameEvent[T any](matchID uuid.UUID, tickID common.TickIDType, gameTime time.Duration, eventType common.EventIDKey, payload T, entities map[common.ResourceType][]interface{}, stats map[common.StatType][]interface{}, res common.ResourceOwner) *GameEvent {
-	return &GameEvent{
-		ID:            uuid.New(),
-		GameID:        common.CS2_GAME_ID, // TODO: refact => quando aplicavel para go/vlr
-		MatchID:       matchID,
-		TickID:        tickID,
-		Type:          eventType,
-		GameTime:      gameTime,
-		Payload:       payload,
-		Entities:      entities,
-		Stats:         stats,
-		ResourceOwner: res,
-		CreatedAt:     time.Now(),
-	}
-}
+// Re-export network types
+type NetworkIDKey = replay_common.NetworkIDKey
 
-func (ge *GameEvent) GetPlayerIDs() ([]common.PlayerIDType, error) {
-	players, ok := ge.Entities[common.ResourceTypePlayerMetadata]
+// Re-export network constants
+const (
+	SteamNetworkIDKey     = replay_common.SteamNetworkIDKey
+	FaceItNetworkIDKey    = replay_common.FaceItNetworkIDKey
+	BattleNetNetworkIDKey = replay_common.BattleNetNetworkIDKey
+)
 
-	if !ok {
-		return nil, fmt.Errorf("PlayerID not present in GameEvent %v", ge)
-	}
-
-	playerIDs := make([]common.PlayerIDType, len(players))
-
-	for _, p := range players {
-		playerIDs = append(playerIDs, common.PlayerIDType(p.(PlayerMetadata).GetID()))
-	}
-
-	return playerIDs, nil
-}
-
-func (e GameEvent) GetID() uuid.UUID {
-	return e.ID
+// Helper function to create GameEvent using replay-common
+func NewGameEvent[T any](matchID uuid.UUID, tickID replay_common.TickIDType, gameTime time.Duration, eventType fps_events.EventIDKey, payload T, entities map[shared.ResourceType][]interface{}, stats map[replay_common.StatType][]interface{}, res shared.ResourceOwner) *replay_entities.GameEvent {
+	return replay_entities.NewGameEvent(matchID, tickID, gameTime, eventType, payload, entities, stats, res)
 }

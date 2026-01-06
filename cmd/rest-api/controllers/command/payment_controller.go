@@ -10,7 +10,7 @@ import (
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	payment_entities "github.com/replay-api/replay-api/pkg/domain/payment/entities"
 	payment_in "github.com/replay-api/replay-api/pkg/domain/payment/ports/in"
 	payment_out "github.com/replay-api/replay-api/pkg/domain/payment/ports/out"
@@ -86,7 +86,7 @@ func (ctrl *PaymentController) CreatePaymentIntentHandler(apiContext context.Con
 		w.Header().Set("Content-Type", "application/json")
 
 		// Get user ID from context (set by auth middleware)
-		userID, ok := r.Context().Value(common.UserIDKey).(uuid.UUID)
+		userID, ok := r.Context().Value(shared.UserIDKey).(uuid.UUID)
 		if !ok || userID == uuid.Nil {
 			http.Error(w, `{"error": "unauthorized"}`, http.StatusUnauthorized)
 			return
@@ -164,7 +164,7 @@ func (ctrl *PaymentController) GetPaymentHandler(apiContext context.Context) htt
 		}
 
 		// Get user ID from context (set by auth middleware)
-		userID, ok := r.Context().Value(common.UserIDKey).(uuid.UUID)
+		userID, ok := r.Context().Value(shared.UserIDKey).(uuid.UUID)
 		if !ok || userID == uuid.Nil {
 			http.Error(w, `{"error": "unauthorized"}`, http.StatusUnauthorized)
 			return
@@ -172,7 +172,7 @@ func (ctrl *PaymentController) GetPaymentHandler(apiContext context.Context) htt
 
 		// Use query handler with proper authentication context
 		ctx := r.Context()
-		ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+		ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 
 		dto, err := ctrl.paymentQuery.GetPayment(ctx, payment_in.GetPaymentQuery{
 			PaymentID: paymentID,
@@ -180,11 +180,11 @@ func (ctrl *PaymentController) GetPaymentHandler(apiContext context.Context) htt
 		})
 		if err != nil {
 			// Check if it's a not found or unauthorized error
-			if common.IsNotFoundError(err) {
+			if shared.IsNotFoundError(err) {
 				http.Error(w, `{"error": "payment not found"}`, http.StatusNotFound)
 				return
 			}
-			if common.IsUnauthorizedError(err) {
+			if shared.IsUnauthorizedError(err) {
 				http.Error(w, `{"error": "forbidden"}`, http.StatusForbidden)
 				return
 			}
@@ -203,7 +203,7 @@ func (ctrl *PaymentController) GetUserPaymentsHandler(apiContext context.Context
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
-		userID, ok := r.Context().Value(common.UserIDKey).(uuid.UUID)
+		userID, ok := r.Context().Value(shared.UserIDKey).(uuid.UUID)
 		if !ok || userID == uuid.Nil {
 			http.Error(w, `{"error": "unauthorized"}`, http.StatusUnauthorized)
 			return
@@ -211,7 +211,7 @@ func (ctrl *PaymentController) GetUserPaymentsHandler(apiContext context.Context
 
 		// Use query handler with proper authentication context
 		ctx := r.Context()
-		ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+		ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 
 		// Parse query params for filters
 		filters := payment_in.PaymentQueryFilters{
@@ -265,8 +265,8 @@ func (ctrl *PaymentController) ConfirmPaymentHandler(apiContext context.Context)
 			return
 		}
 
-		userID, ok := r.Context().Value(common.UserIDKey).(uuid.UUID)
-		if !ok || (userID != existingPayment.UserID && !common.IsAdmin(r.Context())) {
+		userID, ok := r.Context().Value(shared.UserIDKey).(uuid.UUID)
+		if !ok || (userID != existingPayment.UserID && !shared.IsAdmin(r.Context())) {
 			slog.WarnContext(r.Context(), "unauthorized payment confirm attempt",
 				"payment_id", paymentID,
 				"payment_owner", existingPayment.UserID,
@@ -319,8 +319,8 @@ func (ctrl *PaymentController) CancelPaymentHandler(apiContext context.Context) 
 			return
 		}
 
-		userID, ok := r.Context().Value(common.UserIDKey).(uuid.UUID)
-		if !ok || (userID != existingPayment.UserID && !common.IsAdmin(r.Context())) {
+		userID, ok := r.Context().Value(shared.UserIDKey).(uuid.UUID)
+		if !ok || (userID != existingPayment.UserID && !shared.IsAdmin(r.Context())) {
 			slog.WarnContext(r.Context(), "unauthorized payment cancel attempt",
 				"payment_id", paymentID,
 				"payment_owner", existingPayment.UserID,
@@ -357,7 +357,7 @@ func (ctrl *PaymentController) RefundPaymentHandler(apiContext context.Context) 
 		w.Header().Set("Content-Type", "application/json")
 
 		// Check admin access
-		if !common.IsAdmin(r.Context()) {
+		if !shared.IsAdmin(r.Context()) {
 			http.Error(w, `{"error": "admin access required"}`, http.StatusForbidden)
 			return
 		}

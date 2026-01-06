@@ -4,31 +4,31 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	iam_entity "github.com/replay-api/replay-api/pkg/domain/iam/entities"
 )
 
 type RIDTokenReader interface {
-	Search(ctx context.Context, s common.Search) ([]iam_entity.RIDToken, error)
+	Search(ctx context.Context, s shared.Search) ([]iam_entity.RIDToken, error)
 	FindByID(ctx context.Context, tokenID uuid.UUID) (*iam_entity.RIDToken, error)
 }
 
 type ProfileReader interface {
-	common.Searchable[iam_entity.Profile]
+	shared.Searchable[iam_entity.Profile]
 }
 
 type MembershipReader interface {
-	common.Searchable[iam_entity.Membership]
+	shared.Searchable[iam_entity.Membership]
 }
 
 type UserReader interface {
-	Search(ctx context.Context, s common.Search) ([]iam_entity.User, error)
+	Search(ctx context.Context, s shared.Search) ([]iam_entity.User, error)
 }
 
 type GroupReader interface {
-	Search(ctx context.Context, s common.Search) ([]iam_entity.Group, error)
+	Search(ctx context.Context, s shared.Search) ([]iam_entity.Group, error)
 }
 
 // type RIDTokenReader interface {
-// 	common.Searchable[iam_entity.RIDToken]
+// 	shared.Searchable[iam_entity.RIDToken]
 // }

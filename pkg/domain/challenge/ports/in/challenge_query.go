@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	challenge_entities "github.com/replay-api/replay-api/pkg/domain/challenge/entities"
 )
 
@@ -19,7 +19,7 @@ type ChallengeQuery struct {
 	Statuses      []challenge_entities.ChallengeStatus
 	Priorities    []challenge_entities.ChallengePriority
 	IncludeExpired bool
-	Search        *common.Search
+	Search        *shared.Search
 }
 
 // GetChallengeByIDQuery represents a request to get a challenge by ID
@@ -30,7 +30,7 @@ type GetChallengeByIDQuery struct {
 // GetChallengesByMatchQuery represents a request to get challenges for a match
 type GetChallengesByMatchQuery struct {
 	MatchID uuid.UUID
-	Search  *common.Search
+	Search  *shared.Search
 }
 
 // GetPendingChallengesQuery represents a request for pending challenges requiring review

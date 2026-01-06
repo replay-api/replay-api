@@ -5,13 +5,15 @@ import (
 	"time"
 
 	"github.com/replay-api/replay-api/pkg/app/cs/state"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	fps_events "github.com/replay-api/replay-common/pkg/replay/events/game/fps"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
-func NewGameEvent[T any](eventType common.EventIDKey, matchContext *state.CS2MatchContext, roundIndex int, tickID common.TickIDType, gameTime time.Duration, payload T) (*replay_entity.GameEvent, error) {
-	entities := make(map[common.ResourceType][]interface{})
-	stats := make(map[common.StatType][]interface{})
+func NewGameEvent[T any](eventType fps_events.EventIDKey, matchContext *state.CS2MatchContext, roundIndex int, tickID replay_common.TickIDType, gameTime time.Duration, payload T) (*replay_entity.GameEvent, error) {
+	entities := make(map[shared.ResourceType][]interface{})
+	stats := make(map[replay_common.StatType][]interface{})
 
 	roundContext := matchContext.RoundContexts[roundIndex]
 
@@ -20,7 +22,7 @@ func NewGameEvent[T any](eventType common.EventIDKey, matchContext *state.CS2Mat
 		panic("nilroundcontext")
 	}
 
-	entities[common.ResourceTypePlayerMetadata] = roundContext.GetUntypedPlayingEntities()
+	entities[replay_common.ResourceTypePlayerMetadata] = roundContext.GetUntypedPlayingEntities()
 
 	battleContext := roundContext.BattleContext
 	battleStats, err := battleContext.GetStatistics()
@@ -30,18 +32,18 @@ func NewGameEvent[T any](eventType common.EventIDKey, matchContext *state.CS2Mat
 		return nil, err
 	}
 
-	stats[common.BattleStatTypeKey] = append(stats[common.BattleStatTypeKey], battleStats)
+	stats[replay_common.BattleStatTypeKey] = append(stats[replay_common.BattleStatTypeKey], battleStats)
 
-	// stats[common.BattleStatTypeKey] =  // todo: definir + criar ticket + doc + (trade logic tá aqui) (* principais stats) -> stats em serie atendem: graficos principalmente (progressão de cada stat, replay/highlights*)
-	// stats[common.UtilityStatTypeKey] =
+	// stats[shared.BattleStatTypeKey] =  // todo: definir + criar ticket + doc + (trade logic tá aqui) (* principais stats) -> stats em serie atendem: graficos principalmente (progressão de cada stat, replay/highlights*)
+	// stats[shared.UtilityStatTypeKey] =
 
 	// switch eventType {
-	// // case common.Event_MatchStartID:
-	// // case common.Event_Economy:
+	// // case fps_events.Event_MatchStartID:
+	// // case shared.Event_Economy:
 	// // 	// return NewEconomyGameEvent
-	// case common.Event_RoundEndID:
-	// case common.Event_FragOrScoreID:
-	// 	stats[common.BattleStatTypeKey] = battleContext.
+	// case shared.Event_RoundEndID:
+	// case shared.Event_FragOrScoreID:
+	// 	stats[shared.BattleStatTypeKey] = battleContext.
 
 	// // 	// default:
 	// // 	// 	entities
@@ -54,7 +56,7 @@ func NewGameEvent[T any](eventType common.EventIDKey, matchContext *state.CS2Mat
 // func NewEconomyGameEvent(matchID uuid.UUID, ) {
 // 	ID:            uuid.New(),
 // 	MatchID:       matchContext.MatchID,
-// 	Type:          common.Event_RoundEndID,
+// 	Type:          shared.Event_RoundEndID,
 // 	Time:          p.CurrentTime(),
 // 	Body:     event,
 // 	Entities:

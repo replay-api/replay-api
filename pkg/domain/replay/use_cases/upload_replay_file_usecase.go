@@ -6,7 +6,7 @@ import (
 	"io"
 	"log/slog"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 	replay_out "github.com/replay-api/replay-api/pkg/domain/replay/ports/out"
 )
@@ -41,10 +41,10 @@ func NewUploadReplayFileUseCase(metadataWriter replay_out.ReplayFileMetadataWrit
 //   - error: Returns ErrUnauthorized if not authenticated, or storage/DB errors
 func (usecase *UploadReplayFileUseCase) Exec(ctx context.Context, reader io.Reader) (*replay_entity.ReplayFile, error) {
 	// Authentication check - user must be logged in to upload replays
-	isAuthenticated := ctx.Value(common.AuthenticatedKey)
+	isAuthenticated := ctx.Value(shared.AuthenticatedKey)
 	if isAuthenticated == nil || !isAuthenticated.(bool) {
 		slog.WarnContext(ctx, "unauthorized replay upload attempt")
-		return nil, common.NewErrUnauthorized()
+		return nil, shared.NewErrUnauthorized()
 	}
 
 	file, err := io.ReadAll(reader)
@@ -56,7 +56,7 @@ func (usecase *UploadReplayFileUseCase) Exec(ctx context.Context, reader io.Read
 	slog.InfoContext(ctx, "uploading replay file", "size", len(file))
 
 	// create Metadata
-	entity := replay_entity.NewReplayFile("cs", "steam", len(file), "", common.GetResourceOwner(ctx))
+	entity := replay_entity.NewReplayFile("cs", "steam", len(file), "", shared.GetResourceOwner(ctx))
 	replayFile, err := usecase.MetadataWriter.Create(ctx, entity)
 
 	if err != nil {

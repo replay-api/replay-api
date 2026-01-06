@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	custody_entities "github.com/replay-api/replay-api/pkg/domain/custody/entities"
 	custody_vo "github.com/replay-api/replay-api/pkg/domain/custody/value-objects"
 )
@@ -52,7 +52,7 @@ type WalletService interface {
 
 // CreateWalletRequest for creating a new smart wallet
 type CreateWalletRequest struct {
-	ResourceOwner common.ResourceOwner
+	ResourceOwner shared.ResourceOwner
 	UserID        uuid.UUID
 	TenantID      uuid.UUID
 	WalletType    custody_entities.WalletType

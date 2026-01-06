@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type PayableType string
@@ -84,7 +84,7 @@ const (
 )
 
 type Payable struct {
-	common.BaseEntity
+	shared.BaseEntity
 	Amount         float64           `json:"amount" bson:"amount"`
 	Currency       string            `json:"currency" bson:"currency"`
 	ExpirationDate time.Time         `json:"expiration" bson:"expiration"`

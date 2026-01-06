@@ -10,7 +10,7 @@ import (
 	evt "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs/events"
 	"github.com/replay-api/replay-api/pkg/app/cs/builders"
 	"github.com/replay-api/replay-api/pkg/app/cs/state"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	fps_events "github.com/replay-api/replay-common/pkg/replay/events/game/fps"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 )
 
@@ -76,7 +76,7 @@ func ClutchStart(p dem.Parser, matchContext *state.CS2MatchContext, out chan *re
 		out <- &replay_entity.GameEvent{
 			ID:            uuid.New(),
 			MatchID:       matchContext.MatchID,
-			Type:          common.Event_ClutchStartID,
+			Type:          fps_events.Event_ClutchStartID,
 			Payload:       b.Build(),
 			GameTime:      p.CurrentTime(),
 			ResourceOwner: matchContext.ResourceOwner, // TODO: remover daqui ou do matchContext, esta redundante

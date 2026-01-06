@@ -9,7 +9,8 @@ import (
 	"github.com/replay-api/replay-api/pkg/app/cs/builders"
 	event_factory "github.com/replay-api/replay-api/pkg/app/cs/factories"
 	state "github.com/replay-api/replay-api/pkg/app/cs/state"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	fps_events "github.com/replay-api/replay-common/pkg/replay/events/game/fps"
 	cs_entity "github.com/replay-api/replay-api/pkg/domain/cs/entities"
 	"github.com/replay-api/replay-api/pkg/domain/replay/entities"
 )
@@ -30,11 +31,11 @@ func RoundMVP(p dem.Parser, matchContext *state.CS2MatchContext, out chan *entit
 
 		// stats := builders.NewCSMatchStatsBuilder(p, matchContext).WithRoundsStats(matchContext.RoundContexts).Build()
 
-		// ID            common.PlayerIDType `json:"id" bson:"_id"`
-		// GameID        common.GameIDKey    `json:"game_id" bson:"game_id"`
+		// ID            shared.PlayerIDType `json:"id" bson:"_id"`
+		// GameID        replay_common.GameIDKey    `json:"game_id" bson:"game_id"`
 		// UserID        *uuid.UUID          `json:"-" bson:"user_id"`
 		// NetworkUserID string              `json:"-" bson:"network_user_id"`
-		// NetworkID     common.NetworkIDKey `json:"network_id" bson:"network_id"`
+		// NetworkID     shared.NetworkIDKey `json:"network_id" bson:"network_id"`
 		// Name          string              `json:"name" bson:"name"`
 		// NameHistory   []string            `json:"-" bson:"name_history"`
 		// ClanName      string              `json:"clan_name" bson:"clan_name"`
@@ -43,7 +44,7 @@ func RoundMVP(p dem.Parser, matchContext *state.CS2MatchContext, out chan *entit
 		// NetworkClanID string     `json:"network_clan_id" bson:"network_clan_id"`
 		// VerifiedAt    *time.Time `json:"verified_at" bson:"verified_at"`
 
-		// ResourceOwner common.ResourceOwner `json:"-" bson:"resource_owner"`
+		// ResourceOwner shared.ResourceOwner `json:"-" bson:"resource_owner"`
 		// ShareTokens   []ShareToken         `json:"-" bson:"share_tokens"`
 		// CreatedAt     time.Time            `json:"-" bson:"created_at"`
 		// UpdatedAt     *time.Time           `json:"-" bson:"updated_at"`
@@ -67,10 +68,10 @@ func RoundMVP(p dem.Parser, matchContext *state.CS2MatchContext, out chan *entit
 
 		mvp.PlayerStats = stats
 
-		currentTick := common.TickIDType(gs.IngameTick())
+		currentTick := replay_common.TickIDType(gs.IngameTick())
 
 		gameEvent, err := event_factory.NewGameEvent(
-			common.Event_RoundMVPAnnouncementID,
+			fps_events.Event_RoundMVPAnnouncementID,
 			matchContext,
 			0,
 			currentTick,

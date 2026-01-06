@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
 	matchmaking_in "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/in"
 	matchmaking_usecases "github.com/replay-api/replay-api/pkg/domain/matchmaking/usecases"
@@ -25,10 +25,10 @@ func TestLeaveLobby_Success(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	lobbyID := uuid.New()
 	playerID := uuid.New()
@@ -38,7 +38,7 @@ func TestLeaveLobby_Success(t *testing.T) {
 	}
 
 	// create lobby with the player using proper entity structure
-	resourceOwner := common.ResourceOwner{
+	resourceOwner := shared.ResourceOwner{
 		TenantID: uuid.New(),
 		ClientID: uuid.New(),
 		GroupID:  uuid.New(),
@@ -111,10 +111,10 @@ func TestLeaveLobby_LobbyNotFound(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	lobbyID := uuid.New()
 	cmd := matchmaking_in.LeaveLobbyCommand{
@@ -142,10 +142,10 @@ func TestLeaveLobby_BillingValidationFails(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	lobbyID := uuid.New()
 	playerID := uuid.New()
@@ -155,7 +155,7 @@ func TestLeaveLobby_BillingValidationFails(t *testing.T) {
 	}
 
 	// create lobby with the player
-	resourceOwner := common.ResourceOwner{
+	resourceOwner := shared.ResourceOwner{
 		TenantID: uuid.New(),
 		ClientID: uuid.New(),
 		GroupID:  uuid.New(),
@@ -198,10 +198,10 @@ func TestLeaveLobby_PlayerNotInLobby(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	lobbyID := uuid.New()
 	playerID := uuid.New()
@@ -211,7 +211,7 @@ func TestLeaveLobby_PlayerNotInLobby(t *testing.T) {
 	}
 
 	// create lobby without the player (only creator is there)
-	resourceOwner := common.ResourceOwner{
+	resourceOwner := shared.ResourceOwner{
 		TenantID: uuid.New(),
 		ClientID: uuid.New(),
 		GroupID:  uuid.New(),

@@ -10,7 +10,8 @@ import (
 
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
 	iam_in "github.com/replay-api/replay-api/pkg/domain/iam/ports/in"
 )
@@ -90,7 +91,7 @@ func (c *AuthController) RefreshToken(apiContext context.Context) http.HandlerFu
 		setCORSHeaders(w)
 
 		// Check authentication
-		authenticated, ok := r.Context().Value(common.AuthenticatedKey).(bool)
+		authenticated, ok := r.Context().Value(shared.AuthenticatedKey).(bool)
 		if !ok || !authenticated {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
@@ -318,9 +319,9 @@ func (c *AuthController) CreateGuestToken(apiContext context.Context) http.Handl
 		guestGroupID := uuid.New()
 
 		// Create resource owner for the guest
-		resourceOwner := common.ResourceOwner{
-			TenantID: common.TeamPROTenantID,
-			ClientID: common.TeamPROAppClientID,
+		resourceOwner := shared.ResourceOwner{
+			TenantID: replay_common.TeamPROTenantID,
+			ClientID: replay_common.TeamPROAppClientID,
 			GroupID:  guestGroupID,
 			UserID:   guestUserID,
 		}
@@ -330,7 +331,7 @@ func (c *AuthController) CreateGuestToken(apiContext context.Context) http.Handl
 			r.Context(),
 			resourceOwner,
 			iam_entities.RIDSource_Guest,
-			common.UserAudienceIDKey,
+			shared.UserAudienceIDKey,
 		)
 
 		if err != nil {

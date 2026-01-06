@@ -1,7 +1,7 @@
 package squad_services
 
 import (
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
 	squad_out "github.com/replay-api/replay-api/pkg/domain/squad/ports/out"
@@ -24,7 +24,7 @@ import (
 // SECURITY:
 //   - ResourceOwner is DENY in ReadableFields (not exposed in API responses)
 type SquadQueryService struct {
-	common.BaseQueryService[squad_entities.Squad]
+	shared.BaseQueryService[squad_entities.Squad]
 }
 
 // NewSquadQueryService creates and registers a new SquadQueryService.
@@ -71,13 +71,13 @@ func NewSquadQueryService(eventReader squad_out.SquadReader) squad_in.SquadReade
 		"BannerURI":       true,
 		"VisibilityLevel": true,
 		"VisibilityType":  true,
-		"ResourceOwner":   common.DENY, // SECURITY: Hide resource ownership
+		"ResourceOwner":   shared.DENY, // SECURITY: Hide resource ownership
 		"CreatedAt":       true,
 		"UpdatedAt":       true,
 	}
 
-	service := &common.BaseQueryService[squad_entities.Squad]{
-		Reader:          eventReader.(common.Searchable[squad_entities.Squad]),
+	service := &shared.BaseQueryService[squad_entities.Squad]{
+		Reader:          eventReader.(shared.Searchable[squad_entities.Squad]),
 		QueryableFields: queryableFields,
 		ReadableFields:  readableFields,
 
@@ -92,14 +92,14 @@ func NewSquadQueryService(eventReader squad_out.SquadReader) squad_in.SquadReade
 		FilterableFields: []string{"GameID", "VisibilityLevel"},
 
 		MaxPageSize: 100,
-		Audience:    common.UserAudienceIDKey,
+		Audience:    shared.UserAudienceIDKey,
 
 		// EntityType: URL path segment - MUST match route (/teams)
 		EntityType: "teams",
 	}
 
 	// CRITICAL: Register with global registry for schema discovery
-	common.GetQueryServiceRegistry().Register("teams", service)
+	shared.GetQueryServiceRegistry().Register("teams", service)
 
 	return service
 }

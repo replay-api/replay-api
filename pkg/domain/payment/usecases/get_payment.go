@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	payment_in "github.com/replay-api/replay-api/pkg/domain/payment/ports/in"
 	payment_out "github.com/replay-api/replay-api/pkg/domain/payment/ports/out"
 )
@@ -26,13 +26,13 @@ func (uc *GetPaymentUseCase) GetPayment(ctx context.Context, query payment_in.Ge
 	// Validate query
 	if err := query.Validate(); err != nil {
 		slog.WarnContext(ctx, "GetPayment: invalid query", "error", err)
-		return nil, common.NewErrInvalidInput(err.Error())
+		return nil, shared.NewErrInvalidInput(err.Error())
 	}
 
 	// Auth check - user must be authenticated
-	isAuthenticated := ctx.Value(common.AuthenticatedKey)
+	isAuthenticated := ctx.Value(shared.AuthenticatedKey)
 	if isAuthenticated == nil || !isAuthenticated.(bool) {
-		return nil, common.NewErrUnauthorized()
+		return nil, shared.NewErrUnauthorized()
 	}
 
 	slog.InfoContext(ctx, "GetPayment: fetching payment",
@@ -47,7 +47,7 @@ func (uc *GetPaymentUseCase) GetPayment(ctx context.Context, query payment_in.Ge
 			"payment_id", query.PaymentID,
 			"error", err,
 		)
-		return nil, common.NewErrNotFound(common.ResourceTypePayment, "id", query.PaymentID)
+		return nil, shared.NewErrNotFound(shared.ResourceTypePayment, "id", query.PaymentID)
 	}
 
 	// Authorization check - user can only view their own payments
@@ -57,7 +57,7 @@ func (uc *GetPaymentUseCase) GetPayment(ctx context.Context, query payment_in.Ge
 			"payment_user_id", payment.UserID,
 			"requesting_user_id", query.UserID,
 		)
-		return nil, common.NewErrUnauthorized()
+		return nil, shared.NewErrUnauthorized()
 	}
 
 	dto := payment_in.PaymentToDTO(payment)

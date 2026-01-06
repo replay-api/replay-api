@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	payment_in "github.com/replay-api/replay-api/pkg/domain/payment/ports/in"
 	payment_out "github.com/replay-api/replay-api/pkg/domain/payment/ports/out"
 )
@@ -26,13 +26,13 @@ func (uc *GetUserPaymentsUseCase) GetUserPayments(ctx context.Context, query pay
 	// Validate query
 	if err := query.Validate(); err != nil {
 		slog.WarnContext(ctx, "GetUserPayments: invalid query", "error", err)
-		return nil, common.NewErrInvalidInput(err.Error())
+		return nil, shared.NewErrInvalidInput(err.Error())
 	}
 
 	// Auth check - user must be authenticated
-	isAuthenticated := ctx.Value(common.AuthenticatedKey)
+	isAuthenticated := ctx.Value(shared.AuthenticatedKey)
 	if isAuthenticated == nil || !isAuthenticated.(bool) {
-		return nil, common.NewErrUnauthorized()
+		return nil, shared.NewErrUnauthorized()
 	}
 
 	slog.InfoContext(ctx, "GetUserPayments: fetching payments",
@@ -58,7 +58,7 @@ func (uc *GetUserPaymentsUseCase) GetUserPayments(ctx context.Context, query pay
 			"user_id", query.UserID,
 			"error", err,
 		)
-		return nil, common.NewErrBadRequest("failed to fetch payments")
+		return nil, shared.NewErrBadRequest("failed to fetch payments")
 	}
 
 	// Convert to DTOs

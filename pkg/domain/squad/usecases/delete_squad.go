@@ -5,12 +5,13 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	squad "github.com/replay-api/replay-api/pkg/domain/squad"
 	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 	squad_out "github.com/replay-api/replay-api/pkg/domain/squad/ports/out"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type DeleteSquadUseCase struct {
@@ -36,33 +37,33 @@ func NewDeleteSquadUseCase(
 
 func (uc *DeleteSquadUseCase) Exec(ctx context.Context, squadID uuid.UUID) error {
 	// 1. Authentication check
-	isAuthenticated := ctx.Value(common.AuthenticatedKey)
+	isAuthenticated := ctx.Value(shared.AuthenticatedKey)
 	if isAuthenticated == nil || !isAuthenticated.(bool) {
-		return common.NewErrUnauthorized()
+		return shared.NewErrUnauthorized()
 	}
 
 	// 2. Check if squad exists
-	squads, err := uc.SquadReader.Search(ctx, common.NewSearchByID(ctx, squadID, common.ClientApplicationAudienceIDKey))
+	squads, err := uc.SquadReader.Search(ctx, shared.NewSearchByID(ctx, squadID, shared.ClientApplicationAudienceIDKey))
 	if err != nil {
 		return err
 	}
 
 	if len(squads) == 0 {
-		return common.NewErrNotFound(common.ResourceTypeSquad, "ID", squadID.String())
+		return shared.NewErrNotFound(replay_common.ResourceTypeSquad, "ID", squadID.String())
 	}
 
 	squadEntity := squads[0]
 
 	// 3. Authorization check - only owner or admin can delete squad
 	if err := squad.MustBeSquadOwnerOrAdmin(ctx, &squadEntity); err != nil {
-		slog.WarnContext(ctx, "Unauthorized squad delete attempt", "squad_id", squadID, "user_id", common.GetResourceOwner(ctx).UserID, "error", err)
+		slog.WarnContext(ctx, "Unauthorized squad delete attempt", "squad_id", squadID, "user_id", shared.GetResourceOwner(ctx).UserID, "error", err)
 		return err
 	}
 
 	// 4. Billing validation
 	billingCmd := billing_in.BillableOperationCommand{
 		OperationID: billing_entities.OperationTypeDeleteSquadProfile,
-		UserID:      common.GetResourceOwner(ctx).UserID,
+		UserID:      shared.GetResourceOwner(ctx).UserID,
 		Amount:      1,
 	}
 	err = uc.billableOperationHandler.Validate(ctx, billingCmd)
@@ -85,14 +86,14 @@ func (uc *DeleteSquadUseCase) Exec(ctx context.Context, squadID uuid.UUID) error
 	}
 
 	// 7. Record history
-	history := squad_entities.NewSquadHistory(squadID, common.GetResourceOwner(ctx).UserID, squad_entities.SquadDeleted, common.GetResourceOwner(ctx))
+	history := squad_entities.NewSquadHistory(squadID, shared.GetResourceOwner(ctx).UserID, squad_entities.SquadDeleted, shared.GetResourceOwner(ctx))
 	_, err = uc.SquadHistoryWriter.Create(ctx, history)
 	if err != nil {
 		slog.WarnContext(ctx, "Failed to create squad history for delete", "error", err, "squad_id", squadID)
 	}
 
 	// 8. Log success
-	slog.InfoContext(ctx, "squad deleted", "squad_id", squadID, "user_id", common.GetResourceOwner(ctx).UserID)
+	slog.InfoContext(ctx, "squad deleted", "squad_id", squadID, "user_id", shared.GetResourceOwner(ctx).UserID)
 
 	return nil
 }

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	iam_in "github.com/replay-api/replay-api/pkg/domain/iam/ports/in"
 	iam_out "github.com/replay-api/replay-api/pkg/domain/iam/ports/out"
 )
@@ -24,7 +24,7 @@ func NewVerifyRIDUseCase(rIDWriter iam_out.RIDTokenWriter, rIDReader iam_out.RID
 	}
 }
 
-func (usecase *VerifyRIDUseCase) Exec(ctx context.Context, key uuid.UUID) (common.ResourceOwner, common.IntendedAudienceKey, error) {
+func (usecase *VerifyRIDUseCase) Exec(ctx context.Context, key uuid.UUID) (shared.ResourceOwner, shared.IntendedAudienceKey, error) {
 	s := usecase.newSearchByValidKey(ctx, key)
 
 	tokenResult, err := usecase.RIDReader.Search(ctx, s)
@@ -33,14 +33,14 @@ func (usecase *VerifyRIDUseCase) Exec(ctx context.Context, key uuid.UUID) (commo
 		slog.ErrorContext(ctx, "error getting rid token by key", "err",
 			err)
 
-		return common.ResourceOwner{}, common.UserAudienceIDKey, err
+		return shared.ResourceOwner{}, shared.UserAudienceIDKey, err
 	}
 
 	if len(tokenResult) == 0 || tokenResult[0].ID == uuid.Nil {
 		err = fmt.Errorf("invalid rid key")
 		slog.ErrorContext(ctx, err.Error(), "key", key)
 
-		return common.ResourceOwner{}, common.UserAudienceIDKey, err
+		return shared.ResourceOwner{}, shared.UserAudienceIDKey, err
 	}
 
 	if len(tokenResult) > 1 {
@@ -48,19 +48,19 @@ func (usecase *VerifyRIDUseCase) Exec(ctx context.Context, key uuid.UUID) (commo
 
 		// TODO: recovery: notificar conta, temp lock?, desabilitar refresh
 
-		return common.ResourceOwner{}, common.UserAudienceIDKey, fmt.Errorf("invalid RID token")
+		return shared.ResourceOwner{}, shared.UserAudienceIDKey, fmt.Errorf("invalid RID token")
 	}
 
 	return tokenResult[0].ResourceOwner, tokenResult[0].IntendedAudience, nil
 }
 
-func (uc *VerifyRIDUseCase) newSearchByValidKey(ctx context.Context, key uuid.UUID) common.Search {
+func (uc *VerifyRIDUseCase) newSearchByValidKey(ctx context.Context, key uuid.UUID) shared.Search {
 	notBefore := time.Now()
-	params := []common.SearchAggregation{
+	params := []shared.SearchAggregation{
 		{
-			Params: []common.SearchParameter{
+			Params: []shared.SearchParameter{
 				{
-					ValueParams: []common.SearchableValue{
+					ValueParams: []shared.SearchableValue{
 						{
 							Field: "ID",
 							Values: []interface{}{
@@ -68,7 +68,7 @@ func (uc *VerifyRIDUseCase) newSearchByValidKey(ctx context.Context, key uuid.UU
 							},
 						},
 					},
-					DateParams: []common.SearchableDateRange{
+					DateParams: []shared.SearchableDateRange{
 						{
 							Field: "ExpiresAt",
 							Min:   &notBefore,
@@ -79,17 +79,17 @@ func (uc *VerifyRIDUseCase) newSearchByValidKey(ctx context.Context, key uuid.UU
 		},
 	}
 
-	visibility := common.SearchVisibilityOptions{
-		RequestSource:    common.GetResourceOwner(ctx),
-		IntendedAudience: common.ClientApplicationAudienceIDKey,
+	visibility := shared.SearchVisibilityOptions{
+		RequestSource:    shared.GetResourceOwner(ctx),
+		IntendedAudience: shared.ClientApplicationAudienceIDKey,
 	}
 
-	result := common.SearchResultOptions{
+	result := shared.SearchResultOptions{
 		Skip:  0,
 		Limit: 1,
 	}
 
-	return common.Search{
+	return shared.Search{
 		SearchParams:      params,
 		ResultOptions:     result,
 		VisibilityOptions: visibility,

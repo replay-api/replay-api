@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type SubscriptionStatus string
@@ -19,7 +19,7 @@ const (
 )
 
 type Subscription struct {
-	common.BaseEntity
+	shared.BaseEntity
 	PlanID        uuid.UUID              `json:"plan_id" bson:"plan_id"`
 	BillingPeriod BillingPeriodType      `json:"billing_period" bson:"billing_period"`
 	StartAt       time.Time              `json:"start_at" bson:"start_at"`

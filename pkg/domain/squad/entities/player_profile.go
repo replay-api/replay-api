@@ -4,7 +4,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type PlayerHistoryAction string
@@ -18,14 +19,14 @@ const (
 )
 
 type PlayerProfile struct {
-	common.BaseEntity
-	GameID      common.GameIDKey  `json:"game_id" bson:"game_id"`
-	Nickname    string            `json:"nickname" bson:"nickname"`
-	SlugURI     string            `json:"slug_uri" bson:"slug_uri"`
-	Avatar      string            `json:"avatar" bson:"avatar"`
-	Roles       []string          `json:"roles" bson:"roles"`
-	Description string            `json:"description" bson:"description"`
-	NetworkIDs  map[string]string `json:"-" bson:"network_ids"`
+	shared.BaseEntity
+	GameID      replay_common.GameIDKey `json:"game_id" bson:"game_id"`
+	Nickname    string                  `json:"nickname" bson:"nickname"`
+	SlugURI     string                  `json:"slug_uri" bson:"slug_uri"`
+	Avatar      string                  `json:"avatar" bson:"avatar"`
+	Roles       []string                `json:"roles" bson:"roles"`
+	Description string                  `json:"description" bson:"description"`
+	NetworkIDs  map[string]string       `json:"-" bson:"network_ids"`
 	// TODO: regions?
 	// TODO: country!
 	// TODO: languagues
@@ -37,20 +38,20 @@ func (e PlayerProfile) GetID() uuid.UUID {
 	return e.BaseEntity.ID
 }
 
-func NewPlayerProfile(gameID common.GameIDKey, nickname, avatar, slugURI, description string, roles []string, visbility common.VisibilityTypeKey, rxn common.ResourceOwner) *PlayerProfile {
-	var baseEntity common.BaseEntity
+func NewPlayerProfile(gameID replay_common.GameIDKey, nickname, avatar, slugURI, description string, roles []string, visbility shared.VisibilityTypeKey, rxn shared.ResourceOwner) *PlayerProfile {
+	var baseEntity shared.BaseEntity
 
 	switch visbility {
-	case common.PublicVisibilityTypeKey:
-		baseEntity = common.NewUnrestrictedEntity(rxn)
-	case common.RestrictedVisibilityTypeKey:
-		baseEntity = common.NewRestrictedEntity(rxn)
-	case common.PrivateVisibilityTypeKey:
-		baseEntity = common.NewPrivateEntity(rxn)
-	case common.CustomVisibilityTypeKey:
-		baseEntity = common.NewEntity(rxn)
+	case shared.PublicVisibilityTypeKey:
+		baseEntity = shared.NewUnrestrictedEntity(rxn)
+	case shared.RestrictedVisibilityTypeKey:
+		baseEntity = shared.NewRestrictedEntity(rxn)
+	case shared.PrivateVisibilityTypeKey:
+		baseEntity = shared.NewPrivateEntity(rxn)
+	case shared.CustomVisibilityTypeKey:
+		baseEntity = shared.NewEntity(rxn)
 	default:
-		baseEntity = common.NewEntity(rxn)
+		baseEntity = shared.NewEntity(rxn)
 	}
 
 	return &PlayerProfile{
@@ -64,12 +65,12 @@ func NewPlayerProfile(gameID common.GameIDKey, nickname, avatar, slugURI, descri
 	}
 }
 
-func NewSearchByNickname(ctx context.Context, nickname string) common.Search {
-	params := []common.SearchAggregation{
+func NewSearchByNickname(ctx context.Context, nickname string) shared.Search {
+	params := []shared.SearchAggregation{
 		{
-			Params: []common.SearchParameter{
+			Params: []shared.SearchParameter{
 				{
-					ValueParams: []common.SearchableValue{
+					ValueParams: []shared.SearchableValue{
 						{
 							Field: "Nickname",
 							Values: []interface{}{
@@ -82,29 +83,29 @@ func NewSearchByNickname(ctx context.Context, nickname string) common.Search {
 		},
 	}
 
-	visibility := common.SearchVisibilityOptions{
-		RequestSource:    common.GetResourceOwner(ctx),
-		IntendedAudience: common.ClientApplicationAudienceIDKey,
+	visibility := shared.SearchVisibilityOptions{
+		RequestSource:    shared.GetResourceOwner(ctx),
+		IntendedAudience: shared.ClientApplicationAudienceIDKey,
 	}
 
-	result := common.SearchResultOptions{
+	result := shared.SearchResultOptions{
 		Skip:  0,
 		Limit: 1,
 	}
 
-	return common.Search{
+	return shared.Search{
 		SearchParams:      params,
 		ResultOptions:     result,
 		VisibilityOptions: visibility,
 	}
 }
 
-func NewSearchByID(ctx context.Context, id uuid.UUID) common.Search {
-	params := []common.SearchAggregation{
+func NewSearchByID(ctx context.Context, id uuid.UUID) shared.Search {
+	params := []shared.SearchAggregation{
 		{
-			Params: []common.SearchParameter{
+			Params: []shared.SearchParameter{
 				{
-					ValueParams: []common.SearchableValue{
+					ValueParams: []shared.SearchableValue{
 						{
 							Field: "ID",
 							Values: []interface{}{
@@ -117,30 +118,30 @@ func NewSearchByID(ctx context.Context, id uuid.UUID) common.Search {
 		},
 	}
 
-	visibility := common.SearchVisibilityOptions{
-		RequestSource:    common.GetResourceOwner(ctx),
-		IntendedAudience: common.ClientApplicationAudienceIDKey,
+	visibility := shared.SearchVisibilityOptions{
+		RequestSource:    shared.GetResourceOwner(ctx),
+		IntendedAudience: shared.ClientApplicationAudienceIDKey,
 	}
 
-	result := common.SearchResultOptions{
+	result := shared.SearchResultOptions{
 		Skip:  0,
 		Limit: 1,
 	}
 
-	return common.Search{
+	return shared.Search{
 		SearchParams:      params,
 		ResultOptions:     result,
 		VisibilityOptions: visibility,
 	}
 }
 
-func NewNicknameAndSlugExistenceCheck(ctx context.Context, id uuid.UUID, nickname, sluguri string) common.Search {
-	params := []common.SearchAggregation{
+func NewNicknameAndSlugExistenceCheck(ctx context.Context, id uuid.UUID, nickname, sluguri string) shared.Search {
+	params := []shared.SearchAggregation{
 		{
-			Params: []common.SearchParameter{
+			Params: []shared.SearchParameter{
 				{
-					AggregationClause: common.OrAggregationClause,
-					ValueParams: []common.SearchableValue{
+					AggregationClause: shared.OrAggregationClause,
+					ValueParams: []shared.SearchableValue{
 						{
 							Field: "Nickname",
 							Values: []interface{}{
@@ -159,29 +160,29 @@ func NewNicknameAndSlugExistenceCheck(ctx context.Context, id uuid.UUID, nicknam
 		},
 	}
 
-	visibility := common.SearchVisibilityOptions{
-		RequestSource:    common.GetResourceOwner(ctx),
-		IntendedAudience: common.ClientApplicationAudienceIDKey,
+	visibility := shared.SearchVisibilityOptions{
+		RequestSource:    shared.GetResourceOwner(ctx),
+		IntendedAudience: shared.ClientApplicationAudienceIDKey,
 	}
 
-	result := common.SearchResultOptions{
+	result := shared.SearchResultOptions{
 		Skip:  0,
 		Limit: 2,
 	}
 
-	return common.Search{
+	return shared.Search{
 		SearchParams:      params,
 		ResultOptions:     result,
 		VisibilityOptions: visibility,
 	}
 }
 
-func NewSearchBySlugURI(ctx context.Context, slugURI string) common.Search {
-	params := []common.SearchAggregation{
+func NewSearchBySlugURI(ctx context.Context, slugURI string) shared.Search {
+	params := []shared.SearchAggregation{
 		{
-			Params: []common.SearchParameter{
+			Params: []shared.SearchParameter{
 				{
-					ValueParams: []common.SearchableValue{
+					ValueParams: []shared.SearchableValue{
 						{
 							Field: "SlugURI",
 							Values: []interface{}{
@@ -194,17 +195,17 @@ func NewSearchBySlugURI(ctx context.Context, slugURI string) common.Search {
 		},
 	}
 
-	visibility := common.SearchVisibilityOptions{
-		RequestSource:    common.GetResourceOwner(ctx),
-		IntendedAudience: common.ClientApplicationAudienceIDKey,
+	visibility := shared.SearchVisibilityOptions{
+		RequestSource:    shared.GetResourceOwner(ctx),
+		IntendedAudience: shared.ClientApplicationAudienceIDKey,
 	}
 
-	result := common.SearchResultOptions{
+	result := shared.SearchResultOptions{
 		Skip:  0,
 		Limit: 1,
 	}
 
-	return common.Search{
+	return shared.Search{
 		SearchParams:      params,
 		ResultOptions:     result,
 		VisibilityOptions: visibility,

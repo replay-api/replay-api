@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
 	iam_out "github.com/replay-api/replay-api/pkg/domain/iam/ports/out"
 )
@@ -48,7 +48,7 @@ type SearchProfileResult struct {
 // Returns:
 //   - *SearchProfileResult: Paginated list of matching profiles
 //   - error: Database or validation errors
-func (uc *SearchProfileUseCase) Exec(ctx context.Context, search common.Search) (*SearchProfileResult, error) {
+func (uc *SearchProfileUseCase) Exec(ctx context.Context, search shared.Search) (*SearchProfileResult, error) {
 	slog.InfoContext(ctx, "searching profiles",
 		"skip", search.ResultOptions.Skip,
 		"limit", search.ResultOptions.Limit,

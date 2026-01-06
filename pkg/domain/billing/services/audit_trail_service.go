@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	billing_out "github.com/replay-api/replay-api/pkg/domain/billing/ports/out"
@@ -33,7 +33,7 @@ func NewAuditTrailService(
 
 // RecordFinancialEvent creates an audit entry for a financial transaction
 func (s *AuditTrailService) RecordFinancialEvent(ctx context.Context, req billing_in.RecordFinancialEventRequest) error {
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 
 	// Determine severity based on amount thresholds
 	severity := s.determineFinancialSeverity(req.Amount, req.EventType)
@@ -96,7 +96,7 @@ func (s *AuditTrailService) RecordFinancialEvent(ctx context.Context, req billin
 
 // RecordSecurityEvent creates an audit entry for a security event
 func (s *AuditTrailService) RecordSecurityEvent(ctx context.Context, req billing_in.RecordSecurityEventRequest) error {
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 
 	entry := billing_entities.NewAuditTrailEntry(
 		req.EventType,
@@ -152,7 +152,7 @@ func (s *AuditTrailService) RecordSecurityEvent(ctx context.Context, req billing
 
 // RecordAdminAction creates an audit entry for an admin action
 func (s *AuditTrailService) RecordAdminAction(ctx context.Context, req billing_in.RecordAdminActionRequest) error {
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 
 	entry := billing_entities.NewAuditTrailEntry(
 		billing_entities.AuditEventAdminAction,
@@ -238,11 +238,11 @@ func (s *AuditTrailService) VerifyChainIntegrity(ctx context.Context, targetType
 
 // GetUserAuditHistory retrieves audit history for a user
 func (s *AuditTrailService) GetUserAuditHistory(ctx context.Context, userID uuid.UUID, filters billing_in.AuditFilters) (*billing_in.AuditHistoryResult, error) {
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 
 	// Authorization: users can only view their own audit history unless admin
-	if userID != resourceOwner.UserID && !common.IsAdmin(ctx) {
-		return nil, common.NewErrForbidden("cannot view another user's audit history")
+	if userID != resourceOwner.UserID && !shared.IsAdmin(ctx) {
+		return nil, shared.NewErrForbidden("cannot view another user's audit history")
 	}
 
 	limit := filters.Limit
@@ -274,11 +274,11 @@ func (s *AuditTrailService) GetTransactionAudit(ctx context.Context, transaction
 
 // GenerateComplianceReport generates a compliance report for a period
 func (s *AuditTrailService) GenerateComplianceReport(ctx context.Context, reportType string, from, to time.Time) (*billing_entities.ComplianceReport, error) {
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 
 	// Only admins can generate compliance reports
-	if !common.IsAdmin(ctx) {
-		return nil, common.NewErrForbidden("only administrators can generate compliance reports")
+	if !shared.IsAdmin(ctx) {
+		return nil, shared.NewErrForbidden("only administrators can generate compliance reports")
 	}
 
 	entries, err := s.repo.GetForComplianceReport(ctx, from, to)
@@ -348,10 +348,10 @@ func (s *AuditTrailService) GenerateComplianceReport(ctx context.Context, report
 
 // GetAuditSummary gets aggregated audit statistics
 func (s *AuditTrailService) GetAuditSummary(ctx context.Context, userID uuid.UUID, period string) (*billing_entities.AuditSummary, error) {
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 
-	if userID != resourceOwner.UserID && !common.IsAdmin(ctx) {
-		return nil, common.NewErrForbidden("cannot view another user's audit summary")
+	if userID != resourceOwner.UserID && !shared.IsAdmin(ctx) {
+		return nil, shared.NewErrForbidden("cannot view another user's audit summary")
 	}
 
 	now := time.Now().UTC()
@@ -377,8 +377,8 @@ func (s *AuditTrailService) GetAuditSummary(ctx context.Context, userID uuid.UUI
 
 // SearchAudit performs a filtered search across audit entries
 func (s *AuditTrailService) SearchAudit(ctx context.Context, query billing_in.AuditSearchQuery) (*billing_in.AuditSearchResult, error) {
-	if !common.IsAdmin(ctx) {
-		return nil, common.NewErrForbidden("only administrators can search audit logs")
+	if !shared.IsAdmin(ctx) {
+		return nil, shared.NewErrForbidden("only administrators can search audit logs")
 	}
 
 	startTime := time.Now()
@@ -423,8 +423,8 @@ func (s *AuditTrailService) SearchAudit(ctx context.Context, query billing_in.Au
 
 // ExportAudit exports audit entries for external compliance systems
 func (s *AuditTrailService) ExportAudit(ctx context.Context, from, to time.Time, format string) ([]byte, error) {
-	if !common.IsAdmin(ctx) {
-		return nil, common.NewErrForbidden("only administrators can export audit logs")
+	if !shared.IsAdmin(ctx) {
+		return nil, shared.NewErrForbidden("only administrators can export audit logs")
 	}
 
 	entries, err := s.repo.GetForComplianceReport(ctx, from, to)

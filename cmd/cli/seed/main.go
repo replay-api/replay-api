@@ -12,8 +12,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
-	db "github.com/replay-api/replay-api/pkg/infra/db/mongodb"
 	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
 	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
@@ -21,6 +19,9 @@ import (
 	tournament_entities "github.com/replay-api/replay-api/pkg/domain/tournament/entities"
 	wallet_entities "github.com/replay-api/replay-api/pkg/domain/wallet/entities"
 	wallet_vo "github.com/replay-api/replay-api/pkg/domain/wallet/value-objects"
+	db "github.com/replay-api/replay-api/pkg/infra/db/mongodb"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // ==========================================
@@ -44,7 +45,7 @@ var (
 var seedSquads = []struct {
 	Name        string
 	Symbol      string
-	GameID      common.GameIDKey
+	GameID      replay_common.GameIDKey
 	Description string
 	LogoURI     string
 	SlugURI     string
@@ -55,7 +56,7 @@ var seedSquads = []struct {
 	{
 		Name:        "Natus Victoria",
 		Symbol:      "NVIC",
-		GameID:      common.CS2_GAME_ID,
+		GameID:      replay_common.CS2_GAME_ID,
 		Description: "Born Victorious. Eastern European esports powerhouse. Champions with legendary players across multiple seasons.",
 		LogoURI:     "https://avatars.githubusercontent.com/u/168373383",
 		SlugURI:     "natus-victoria",
@@ -71,7 +72,7 @@ var seedSquads = []struct {
 	{
 		Name:        "N3 Gaming",
 		Symbol:      "N3",
-		GameID:      common.CS2_GAME_ID,
+		GameID:      replay_common.CS2_GAME_ID,
 		Description: "European esports giants. Known for entertainment value and competitive excellence across multiple titles.",
 		LogoURI:     "https://avatars.githubusercontent.com/u/168373383",
 		SlugURI:     "n3-gaming",
@@ -87,7 +88,7 @@ var seedSquads = []struct {
 	{
 		Name:        "Blaze Syndicate",
 		Symbol:      "BLZE",
-		GameID:      common.CS2_GAME_ID,
+		GameID:      replay_common.CS2_GAME_ID,
 		Description: "Lifestyle and esports brand with global recognition. Champions known for star-studded international roster.",
 		LogoURI:     "https://avatars.githubusercontent.com/u/168373383",
 		SlugURI:     "blaze-syndicate",
@@ -103,7 +104,7 @@ var seedSquads = []struct {
 	{
 		Name:        "Team Velocity",
 		Symbol:      "VLCT",
-		GameID:      common.CS2_GAME_ID,
+		GameID:      replay_common.CS2_GAME_ID,
 		Description: "European esports organization with world-class roster. Finals champions and consistent top-tier performers.",
 		LogoURI:     "https://avatars.githubusercontent.com/u/168373383",
 		SlugURI:     "team-velocity",
@@ -119,7 +120,7 @@ var seedSquads = []struct {
 	{
 		Name:        "Team Fluid",
 		Symbol:      "FLD",
-		GameID:      common.CS2_GAME_ID,
+		GameID:      replay_common.CS2_GAME_ID,
 		Description: "North American esports institution. Premier organization competing at the highest level with dedicated fanbase.",
 		LogoURI:     "https://avatars.githubusercontent.com/u/168373383",
 		SlugURI:     "team-fluid",
@@ -136,7 +137,7 @@ var seedSquads = []struct {
 	{
 		Name:        "Wardens",
 		Symbol:      "WRD",
-		GameID:      common.VLRNT_GAME_ID,
+		GameID:      replay_common.VLRNT_GAME_ID,
 		Description: "Iconic North American organization. Champions and home to legendary tactical shooter players.",
 		LogoURI:     "https://avatars.githubusercontent.com/u/168373383",
 		SlugURI:     "wardens",
@@ -152,7 +153,7 @@ var seedSquads = []struct {
 	{
 		Name:        "Cardboard Tiger",
 		Symbol:      "CTGR",
-		GameID:      common.VLRNT_GAME_ID,
+		GameID:      replay_common.VLRNT_GAME_ID,
 		Description: "Singapore-based APAC powerhouse. Famous for aggressive playstyle that revolutionized competitive gaming.",
 		LogoURI:     "https://avatars.githubusercontent.com/u/168373383",
 		SlugURI:     "cardboard-tiger",
@@ -168,7 +169,7 @@ var seedSquads = []struct {
 	{
 		Name:        "Fanatic Gaming",
 		Symbol:      "FNTC",
-		GameID:      common.VLRNT_GAME_ID,
+		GameID:      replay_common.VLRNT_GAME_ID,
 		Description: "Legendary EMEA organization with rich esports history. Champions and consistent top performers.",
 		LogoURI:     "https://avatars.githubusercontent.com/u/168373383",
 		SlugURI:     "fanatic-gaming",
@@ -184,7 +185,7 @@ var seedSquads = []struct {
 	{
 		Name:        "DRZ Gaming",
 		Symbol:      "DRZ",
-		GameID:      common.VLRNT_GAME_ID,
+		GameID:      replay_common.VLRNT_GAME_ID,
 		Description: "Korean esports dynasty. Champions known for precision gameplay and clutch performances.",
 		LogoURI:     "https://avatars.githubusercontent.com/u/168373383",
 		SlugURI:     "drz-gaming",
@@ -200,7 +201,7 @@ var seedSquads = []struct {
 	{
 		Name:        "ROAR Esports",
 		Symbol:      "ROAR",
-		GameID:      common.VLRNT_GAME_ID,
+		GameID:      replay_common.VLRNT_GAME_ID,
 		Description: "Brazilian powerhouse. Massive fanbase known for passionate gameplay and team synergy.",
 		LogoURI:     "https://avatars.githubusercontent.com/u/168373383",
 		SlugURI:     "roar-esports",
@@ -218,7 +219,7 @@ var seedSquads = []struct {
 // Individual player profile seed data (free agents / LFT players) - Fictional players
 var seedPlayers = []struct {
 	Nickname    string
-	GameID      common.GameIDKey
+	GameID      replay_common.GameIDKey
 	SlugURI     string
 	Avatar      string
 	Roles       []string
@@ -228,7 +229,7 @@ var seedPlayers = []struct {
 }{
 	{
 		Nickname:    "crystalX",
-		GameID:      common.CS2_GAME_ID,
+		GameID:      replay_common.CS2_GAME_ID,
 		SlugURI:     "crystalx",
 		Avatar:      "https://i.pravatar.cc/150?img=68",
 		Roles:       []string{"AWPer", "Rifler"},
@@ -238,7 +239,7 @@ var seedPlayers = []struct {
 	},
 	{
 		Nickname:    "blazeIGL",
-		GameID:      common.VLRNT_GAME_ID,
+		GameID:      replay_common.VLRNT_GAME_ID,
 		SlugURI:     "blazeigl",
 		Avatar:      "https://i.pravatar.cc/150?img=69",
 		Roles:       []string{"IGL", "Controller"},
@@ -248,7 +249,7 @@ var seedPlayers = []struct {
 	},
 	{
 		Nickname:    "magixK",
-		GameID:      common.CS2_GAME_ID,
+		GameID:      replay_common.CS2_GAME_ID,
 		SlugURI:     "magixk",
 		Avatar:      "https://i.pravatar.cc/150?img=60",
 		Roles:       []string{"AWPer"},
@@ -258,7 +259,7 @@ var seedPlayers = []struct {
 	},
 	{
 		Nickname:    "opshotX",
-		GameID:      common.VLRNT_GAME_ID,
+		GameID:      replay_common.VLRNT_GAME_ID,
 		SlugURI:     "opshotx",
 		Avatar:      "https://i.pravatar.cc/150?img=52",
 		Roles:       []string{"Duelist", "Op Specialist"},
@@ -268,7 +269,7 @@ var seedPlayers = []struct {
 	},
 	{
 		Nickname:    "mindgameX",
-		GameID:      common.CS2_GAME_ID,
+		GameID:      replay_common.CS2_GAME_ID,
 		SlugURI:     "mindgamex",
 		Avatar:      "https://i.pravatar.cc/150?img=57",
 		Roles:       []string{"IGL", "Support"},
@@ -278,7 +279,7 @@ var seedPlayers = []struct {
 	},
 	{
 		Nickname:    "furyBR",
-		GameID:      common.CS2_GAME_ID,
+		GameID:      replay_common.CS2_GAME_ID,
 		SlugURI:     "furybr",
 		Avatar:      "https://i.pravatar.cc/150?img=36",
 		Roles:       []string{"Entry Fragger", "Rifler"},
@@ -288,7 +289,7 @@ var seedPlayers = []struct {
 	},
 	{
 		Nickname:    "headshotK",
-		GameID:      common.VLRNT_GAME_ID,
+		GameID:      replay_common.VLRNT_GAME_ID,
 		SlugURI:     "headshotk",
 		Avatar:      "https://i.pravatar.cc/150?img=37",
 		Roles:       []string{"Duelist", "Entry"},
@@ -298,7 +299,7 @@ var seedPlayers = []struct {
 	},
 	{
 		Nickname:    "thunderCIS",
-		GameID:      common.CS2_GAME_ID,
+		GameID:      replay_common.CS2_GAME_ID,
 		SlugURI:     "thundercis",
 		Avatar:      "https://i.pravatar.cc/150?img=38",
 		Roles:       []string{"Rifler", "Entry Fragger"},
@@ -308,7 +309,7 @@ var seedPlayers = []struct {
 	},
 	{
 		Nickname:    "sentinelNA",
-		GameID:      common.VLRNT_GAME_ID,
+		GameID:      replay_common.VLRNT_GAME_ID,
 		SlugURI:     "sentinelna",
 		Avatar:      "https://i.pravatar.cc/150?img=39",
 		Roles:       []string{"Sentinel", "Operator"},
@@ -318,7 +319,7 @@ var seedPlayers = []struct {
 	},
 	{
 		Nickname:    "icebergBR",
-		GameID:      common.CS2_GAME_ID,
+		GameID:      replay_common.CS2_GAME_ID,
 		SlugURI:     "icebergbr",
 		Avatar:      "https://i.pravatar.cc/150?img=40",
 		Roles:       []string{"Lurker", "AWPer"},
@@ -328,7 +329,7 @@ var seedPlayers = []struct {
 	},
 	{
 		Nickname:    "flashEU",
-		GameID:      common.VLRNT_GAME_ID,
+		GameID:      replay_common.VLRNT_GAME_ID,
 		SlugURI:     "flasheu",
 		Avatar:      "https://i.pravatar.cc/150?img=46",
 		Roles:       []string{"Duelist", "Jett"},
@@ -338,7 +339,7 @@ var seedPlayers = []struct {
 	},
 	{
 		Nickname:    "smokeNA",
-		GameID:      common.CS2_GAME_ID,
+		GameID:      replay_common.CS2_GAME_ID,
 		SlugURI:     "smokena",
 		Avatar:      "https://i.pravatar.cc/150?img=47",
 		Roles:       []string{"Entry Fragger", "IGL"},
@@ -352,7 +353,7 @@ var seedPlayers = []struct {
 var seedTournaments = []struct {
 	Name            string
 	Description     string
-	GameID          common.GameIDKey
+	GameID          replay_common.GameIDKey
 	GameMode        string
 	Region          string
 	Format          tournament_entities.TournamentFormat
@@ -366,7 +367,7 @@ var seedTournaments = []struct {
 	{
 		Name:            "LeetGaming Spring Open Qualifier",
 		Description:     "Open qualifier for LeetGaming Spring Groups. Top 2 teams advance to the closed qualifier with $25,000 prize pool.",
-		GameID:          common.CS2_GAME_ID,
+		GameID:          replay_common.CS2_GAME_ID,
 		GameMode:        "5v5 Competitive",
 		Region:          "EU",
 		Format:          tournament_entities.TournamentFormatSingleElimination,
@@ -380,7 +381,7 @@ var seedTournaments = []struct {
 	{
 		Name:            "Tactical League Open Qualifier",
 		Description:     "Your path to the Tactical League starts here. Top 8 teams earn spots in the League main event.",
-		GameID:          common.VLRNT_GAME_ID,
+		GameID:          replay_common.VLRNT_GAME_ID,
 		GameMode:        "5v5 Competitive",
 		Region:          "Americas",
 		Format:          tournament_entities.TournamentFormatDoubleElimination,
@@ -394,7 +395,7 @@ var seedTournaments = []struct {
 	{
 		Name:            "Pro Circuit Season 20 - Open Qualifier",
 		Description:     "Compete for a spot in the Pro Circuit! Swiss format with $50,000 prize pool and 4 main event spots up for grabs.",
-		GameID:          common.CS2_GAME_ID,
+		GameID:          replay_common.CS2_GAME_ID,
 		GameMode:        "5v5 Competitive",
 		Region:          "Global",
 		Format:          tournament_entities.TournamentFormatSwiss,
@@ -408,7 +409,7 @@ var seedTournaments = []struct {
 	{
 		Name:            "APAC Premier Invitational",
 		Description:     "Elite APAC teams battle for regional supremacy. Live broadcast on all major platforms. $15,000 prize pool.",
-		GameID:          common.VLRNT_GAME_ID,
+		GameID:          replay_common.VLRNT_GAME_ID,
 		GameMode:        "5v5 Competitive",
 		Region:          "APAC",
 		Format:          tournament_entities.TournamentFormatDoubleElimination,
@@ -422,7 +423,7 @@ var seedTournaments = []struct {
 	{
 		Name:            "World Masters Championship 2025 - Play-In",
 		Description:     "The legendary World Masters returns! Play-in stage determines final main event bracket. $1,000,000 total prize pool.",
-		GameID:          common.CS2_GAME_ID,
+		GameID:          replay_common.CS2_GAME_ID,
 		GameMode:        "5v5 Competitive",
 		Region:          "Global",
 		Format:          tournament_entities.TournamentFormatDoubleElimination,
@@ -436,7 +437,7 @@ var seedTournaments = []struct {
 	{
 		Name:            "NA Ranked Cup - Weekly Series #12",
 		Description:     "Weekly grassroots tournament for NA players. Perfect for grinding ranking points and small prizes.",
-		GameID:          common.CS2_GAME_ID,
+		GameID:          replay_common.CS2_GAME_ID,
 		GameMode:        "5v5 Competitive",
 		Region:          "NA",
 		Format:          tournament_entities.TournamentFormatSingleElimination,
@@ -450,7 +451,7 @@ var seedTournaments = []struct {
 	{
 		Name:            "University Esports Championship - Regional Finals",
 		Description:     "University teams compete for national glory! Winners advance to the World Final.",
-		GameID:          common.VLRNT_GAME_ID,
+		GameID:          replay_common.VLRNT_GAME_ID,
 		GameMode:        "5v5 Competitive",
 		Region:          "EU",
 		Format:          tournament_entities.TournamentFormatSingleElimination,
@@ -464,7 +465,7 @@ var seedTournaments = []struct {
 	{
 		Name:            "Pro League Showmatch",
 		Description:     "Exhibition matches featuring top League players. $10,000 showmatch prize plus bragging rights.",
-		GameID:          common.CS2_GAME_ID,
+		GameID:          replay_common.CS2_GAME_ID,
 		GameMode:        "5v5 Competitive",
 		Region:          "EU",
 		Format:          tournament_entities.TournamentFormatSingleElimination,
@@ -716,13 +717,13 @@ func seedSquadsData(ctx context.Context, client *mongo.Client, dbName string) er
 
 		// Create squad
 		squad := &squad_entities.Squad{
-			BaseEntity: common.BaseEntity{
+			BaseEntity: shared.BaseEntity{
 				ID:              uuid.New(),
 				CreatedAt:       time.Now(),
 				UpdatedAt:       time.Now(),
-				VisibilityLevel: common.ClientApplicationAudienceIDKey,
-				VisibilityType:  common.PublicVisibilityTypeKey,
-				ResourceOwner: common.ResourceOwner{
+				VisibilityLevel: shared.ClientApplicationAudienceIDKey,
+				VisibilityType:  shared.PublicVisibilityTypeKey,
+				ResourceOwner: shared.ResourceOwner{
 					TenantID: SystemTenantID,
 					ClientID: SystemClientID,
 				},
@@ -764,13 +765,13 @@ func seedPlayerProfilesData(ctx context.Context, client *mongo.Client, dbName st
 
 		// Create player profile
 		profile := &squad_entities.PlayerProfile{
-			BaseEntity: common.BaseEntity{
+			BaseEntity: shared.BaseEntity{
 				ID:              uuid.New(),
 				CreatedAt:       time.Now(),
 				UpdatedAt:       time.Now(),
-				VisibilityLevel: common.ClientApplicationAudienceIDKey,
-				VisibilityType:  common.PublicVisibilityTypeKey,
-				ResourceOwner: common.ResourceOwner{
+				VisibilityLevel: shared.ClientApplicationAudienceIDKey,
+				VisibilityType:  shared.PublicVisibilityTypeKey,
+				ResourceOwner: shared.ResourceOwner{
 					TenantID: SystemTenantID,
 					ClientID: SystemClientID,
 				},
@@ -823,13 +824,13 @@ func seedTournamentsData(ctx context.Context, client *mongo.Client, dbName strin
 		}
 
 		tournament := &tournament_entities.Tournament{
-			BaseEntity: common.BaseEntity{
+			BaseEntity: shared.BaseEntity{
 				ID:              uuid.New(),
 				CreatedAt:       time.Now(),
 				UpdatedAt:       time.Now(),
-				VisibilityLevel: common.ClientApplicationAudienceIDKey,
-				VisibilityType:  common.PublicVisibilityTypeKey,
-				ResourceOwner: common.ResourceOwner{
+				VisibilityLevel: shared.ClientApplicationAudienceIDKey,
+				VisibilityType:  shared.PublicVisibilityTypeKey,
+				ResourceOwner: shared.ResourceOwner{
 					TenantID: SystemTenantID,
 					ClientID: SystemClientID,
 				},
@@ -967,13 +968,13 @@ func seedWalletsData(ctx context.Context, client *mongo.Client, dbName string) e
 		}
 
 		wallet := &wallet_entities.UserWallet{
-			BaseEntity: common.BaseEntity{
+			BaseEntity: shared.BaseEntity{
 				ID:              uuid.New(),
 				CreatedAt:       time.Now(),
 				UpdatedAt:       time.Now(),
-				VisibilityLevel: common.UserAudienceIDKey,
-				VisibilityType:  common.PrivateVisibilityTypeKey,
-				ResourceOwner: common.ResourceOwner{
+				VisibilityLevel: shared.UserAudienceIDKey,
+				VisibilityType:  shared.PrivateVisibilityTypeKey,
+				ResourceOwner: shared.ResourceOwner{
 					TenantID: SystemTenantID,
 					ClientID: SystemClientID,
 				},

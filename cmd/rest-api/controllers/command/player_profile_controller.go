@@ -10,7 +10,7 @@ import (
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
 	squad_out "github.com/replay-api/replay-api/pkg/domain/squad/ports/out"
 )
@@ -92,7 +92,7 @@ func (ctrl *PlayerProfileController) CreatePlayerProfileHandler(apiContext conte
 			"player_id", player.ID,
 			"nickname", player.Nickname,
 			"game_id", player.GameID,
-			"user_id", r.Context().Value(common.UserIDKey))
+			"user_id", r.Context().Value(shared.UserIDKey))
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
@@ -118,8 +118,8 @@ func (ctrl *PlayerProfileController) GetPlayerProfileHandler(apiContext context.
 			return
 		}
 
-		valueParams := []common.SearchableValue{{Field: "ID", Values: []interface{}{idUUID}, Operator: common.EqualsOperator}}
-		search := common.NewSearchByValues(r.Context(), valueParams, common.SearchResultOptions{Limit: 1}, common.UserAudienceIDKey)
+		valueParams := []shared.SearchableValue{{Field: "ID", Values: []interface{}{idUUID}, Operator: shared.EqualsOperator}}
+		search := shared.NewSearchByValues(r.Context(), valueParams, shared.SearchResultOptions{Limit: 1}, shared.UserAudienceIDKey)
 		results, err := ctrl.playerProfileReader.Search(r.Context(), search)
 		if err != nil {
 			slog.ErrorContext(r.Context(), "Error fetching player profile", "error", err, "profile_id", idUUID)
@@ -190,7 +190,7 @@ func (ctrl *PlayerProfileController) UpdatePlayerProfileHandler(apiContext conte
 			slog.ErrorContext(r.Context(), "Failed to update player profile",
 				"error", err,
 				"profile_id", idUUID,
-				"user_id", r.Context().Value(common.UserIDKey))
+				"user_id", r.Context().Value(shared.UserIDKey))
 			if err.Error() == "Unauthorized" {
 				w.WriteHeader(http.StatusUnauthorized)
 			} else if strings.Contains(err.Error(), "not found") {
@@ -206,7 +206,7 @@ func (ctrl *PlayerProfileController) UpdatePlayerProfileHandler(apiContext conte
 		slog.InfoContext(r.Context(), "Player profile updated successfully",
 			"profile_id", idUUID,
 			"nickname", updatedProfile.Nickname,
-			"user_id", r.Context().Value(common.UserIDKey))
+			"user_id", r.Context().Value(shared.UserIDKey))
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -237,7 +237,7 @@ func (ctrl *PlayerProfileController) DeletePlayerProfileHandler(apiContext conte
 			slog.ErrorContext(r.Context(), "Failed to delete player profile",
 				"error", err,
 				"profile_id", profileUUID,
-				"user_id", r.Context().Value(common.UserIDKey))
+				"user_id", r.Context().Value(shared.UserIDKey))
 			if err.Error() == "Unauthorized" {
 				w.WriteHeader(http.StatusUnauthorized)
 			} else if strings.Contains(err.Error(), "not found") {
@@ -250,7 +250,7 @@ func (ctrl *PlayerProfileController) DeletePlayerProfileHandler(apiContext conte
 
 		slog.InfoContext(r.Context(), "Player profile deleted successfully",
 			"profile_id", profileUUID,
-			"user_id", r.Context().Value(common.UserIDKey))
+			"user_id", r.Context().Value(shared.UserIDKey))
 
 		w.WriteHeader(http.StatusNoContent)
 	}

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	tournament_entities "github.com/replay-api/replay-api/pkg/domain/tournament/entities"
@@ -33,9 +33,9 @@ func NewCreateTournamentUseCase(
 // Exec creates a new tournament
 func (uc *CreateTournamentUseCase) Exec(ctx context.Context, cmd tournament_in.CreateTournamentCommand) (*tournament_entities.Tournament, error) {
 	// auth check
-	isAuthenticated := ctx.Value(common.AuthenticatedKey)
+	isAuthenticated := ctx.Value(shared.AuthenticatedKey)
 	if isAuthenticated == nil || !isAuthenticated.(bool) {
-		return nil, common.NewErrUnauthorized()
+		return nil, shared.NewErrUnauthorized()
 	}
 
 	// validate format
@@ -52,7 +52,7 @@ func (uc *CreateTournamentUseCase) Exec(ctx context.Context, cmd tournament_in.C
 	// billing validation BEFORE creating tournament
 	billingCmd := billing_in.BillableOperationCommand{
 		OperationID: billing_entities.OperationTypeCreateTournament,
-		UserID:      common.GetResourceOwner(ctx).UserID,
+		UserID:      shared.GetResourceOwner(ctx).UserID,
 		Amount:      1,
 		Args: map[string]interface{}{
 			"name":             cmd.Name,

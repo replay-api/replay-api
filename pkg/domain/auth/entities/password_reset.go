@@ -97,7 +97,7 @@ func (r *PasswordReset) SetRequestInfo(ipAddress, userAgent string) {
 	r.UpdatedAt = time.Now().UTC()
 }
 
-// GetID returns the reset request ID (implements common.Entity)
+// GetID returns the reset request ID (implements shared.Entity)
 func (r PasswordReset) GetID() uuid.UUID {
 	return r.ID
 }

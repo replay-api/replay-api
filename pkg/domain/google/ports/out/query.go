@@ -3,10 +3,10 @@ package google_out
 import (
 	"context"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	google_entity "github.com/replay-api/replay-api/pkg/domain/google/entities"
 )
 
 type GoogleUserReader interface {
-	Search(ctx context.Context, s common.Search) ([]google_entity.GoogleUser, error)
+	Search(ctx context.Context, s shared.Search) ([]google_entity.GoogleUser, error)
 }

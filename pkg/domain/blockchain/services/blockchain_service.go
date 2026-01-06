@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	blockchain_entities "github.com/replay-api/replay-api/pkg/domain/blockchain/entities"
 	blockchain_in "github.com/replay-api/replay-api/pkg/domain/blockchain/ports/in"
 	blockchain_out "github.com/replay-api/replay-api/pkg/domain/blockchain/ports/out"
@@ -90,7 +90,7 @@ func (s *BlockchainServiceImpl) CreatePrizePool(ctx context.Context, cmd blockch
 	}
 
 	// Get resource owner from context
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 
 	// Create pool entity
 	pool := blockchain_entities.NewOnChainPrizePool(
@@ -163,7 +163,7 @@ func (s *BlockchainServiceImpl) JoinPrizePool(ctx context.Context, cmd blockchai
 	}
 
 	// Record transaction
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 	tx := blockchain_entities.NewBlockchainTransaction(
 		resourceOwner,
 		pool.ChainID,
@@ -317,7 +317,7 @@ func (s *BlockchainServiceImpl) DepositToVault(ctx context.Context, cmd blockcha
 	}
 
 	// Create transaction record
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 	tx := blockchain_entities.NewBlockchainTransaction(
 		resourceOwner,
 		chainID,
@@ -357,7 +357,7 @@ func (s *BlockchainServiceImpl) WithdrawFromVault(ctx context.Context, cmd block
 	}
 
 	// Create transaction record
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 	tx := blockchain_entities.NewBlockchainTransaction(
 		resourceOwner,
 		chainID,
@@ -410,7 +410,7 @@ func (s *BlockchainServiceImpl) SyncPrizePool(ctx context.Context, matchID uuid.
 	cachedPool, err := s.prizePoolRepo.FindByMatchID(ctx, matchID)
 	if err != nil {
 		// Create new if not exists
-		resourceOwner := common.GetResourceOwner(ctx)
+		resourceOwner := shared.GetResourceOwner(ctx)
 		cachedPool = blockchain_entities.NewOnChainPrizePool(
 			resourceOwner,
 			matchID,

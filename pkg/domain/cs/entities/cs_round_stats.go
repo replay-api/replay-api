@@ -2,11 +2,12 @@ package entities
 
 import (
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type CSRoundStats struct {
-	TickID common.TickIDType
+	TickID replay_common.TickIDType
 
 	MatchID          uuid.UUID
 	RoundNumber      int
@@ -18,22 +19,22 @@ type CSRoundStats struct {
 
 // In Discovery
 type CSRoundStatSeries struct {
-	StartTick common.TickIDType
-	EndTick   common.TickIDType
-	TickIDs   []common.TickIDType
-	// PositioningStatsByTick map[common.TickIDType]*CSPositioningStats            // TODO: review, default: pegar o ultimo
-	PlayersStatsByTick map[common.TickIDType]map[common.PlayerIDType]CSPlayerStats // TODO: review, default: pegar o último
-	TeamStatsByTick    map[common.TickIDType]map[TeamIDType]CSTeamStats            // TODO: review, default: pegar o último
+	StartTick replay_common.TickIDType
+	EndTick   replay_common.TickIDType
+	TickIDs   []replay_common.TickIDType
+	// PositioningStatsByTick map[replay_common.TickIDType]*CSPositioningStats            // TODO: review, default: pegar o ultimo
+	PlayersStatsByTick map[replay_common.TickIDType]map[shared.PlayerIDType]CSPlayerStats // TODO: review, default: pegar o último
+	TeamStatsByTick    map[replay_common.TickIDType]map[TeamIDType]CSTeamStats            // TODO: review, default: pegar o último
 
-	AreaStatsByTick map[common.TickIDType]*CSMapRegionStats // default: pegar o último = resultado final
+	AreaStatsByTick map[replay_common.TickIDType]*CSMapRegionStats // default: pegar o último = resultado final
 
-	StrategyStatsByTick map[common.TickIDType]map[CSStrategyIDType]CSStrategyStats // geral=pegar o ultimo
-	UtilityStatsByTick  map[common.TickIDType]map[CSUtilityIDType]CSUtilityStats   // geral=pegar o ultimo?
+	StrategyStatsByTick map[replay_common.TickIDType]map[CSStrategyIDType]CSStrategyStats // geral=pegar o ultimo
+	UtilityStatsByTick  map[replay_common.TickIDType]map[CSUtilityIDType]CSUtilityStats   // geral=pegar o ultimo?
 
 	// Tick Ranges
-	TickRangesOfPlayerUtilityUsage map[common.PlayerIDType]map[CSUtilityIDType]CSTickRange
+	TickRangesOfPlayerUtilityUsage map[shared.PlayerIDType]map[CSUtilityIDType]CSTickRange
 	TickRangesOfTeamUtilityUsage   map[TeamIDType]map[CSUtilityIDType]CSTickRange
 
-	TickRangesOfPlayerStrategy map[common.PlayerIDType]map[CSStrategyIDType][]CSTickRange
+	TickRangesOfPlayerStrategy map[shared.PlayerIDType]map[CSStrategyIDType][]CSTickRange
 	TickRangesOfTeamStrategy   map[TeamIDType]map[CSStrategyIDType][]CSTickRange
 }

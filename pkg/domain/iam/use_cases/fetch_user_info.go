@@ -5,7 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
 	iam_out "github.com/replay-api/replay-api/pkg/domain/iam/ports/out"
 )
@@ -54,20 +54,20 @@ type UserInfo struct {
 //   - error: ErrUnauthorized if not authenticated, ErrNotFound if user doesn't exist
 func (uc *FetchUserInfoUseCase) Exec(ctx context.Context, userID uuid.UUID) (*UserInfo, error) {
 	// Authentication check
-	isAuthenticated := ctx.Value(common.AuthenticatedKey)
+	isAuthenticated := ctx.Value(shared.AuthenticatedKey)
 	if isAuthenticated == nil || !isAuthenticated.(bool) {
 		slog.WarnContext(ctx, "unauthorized fetch user info attempt", "target_user_id", userID)
-		return nil, common.NewErrUnauthorized()
+		return nil, shared.NewErrUnauthorized()
 	}
 
 	// Resource ownership check - users can only fetch their own info unless admin
-	resourceOwner := common.GetResourceOwner(ctx)
-	if resourceOwner.UserID != userID && !common.IsAdmin(ctx) {
+	resourceOwner := shared.GetResourceOwner(ctx)
+	if resourceOwner.UserID != userID && !shared.IsAdmin(ctx) {
 		slog.WarnContext(ctx, "forbidden fetch user info attempt",
 			"requesting_user", resourceOwner.UserID,
 			"target_user", userID,
 		)
-		return nil, common.NewErrForbidden("cannot fetch another user's information")
+		return nil, shared.NewErrForbidden("cannot fetch another user's information")
 	}
 
 	// Fetch user via search
@@ -79,7 +79,7 @@ func (uc *FetchUserInfoUseCase) Exec(ctx context.Context, userID uuid.UUID) (*Us
 	}
 
 	if len(users) == 0 {
-		return nil, common.NewErrNotFound(common.ResourceTypeUser, "id", userID.String())
+		return nil, shared.NewErrNotFound(shared.ResourceTypeUser, "id", userID.String())
 	}
 
 	user := &users[0]
@@ -106,12 +106,12 @@ func (uc *FetchUserInfoUseCase) Exec(ctx context.Context, userID uuid.UUID) (*Us
 }
 
 // newSearchByUserID creates a search query for finding by user ID.
-func (uc *FetchUserInfoUseCase) newSearchByUserID(ctx context.Context, userID uuid.UUID) common.Search {
-	params := []common.SearchAggregation{
+func (uc *FetchUserInfoUseCase) newSearchByUserID(ctx context.Context, userID uuid.UUID) shared.Search {
+	params := []shared.SearchAggregation{
 		{
-			Params: []common.SearchParameter{
+			Params: []shared.SearchParameter{
 				{
-					ValueParams: []common.SearchableValue{
+					ValueParams: []shared.SearchableValue{
 						{
 							Field: "ID",
 							Values: []interface{}{
@@ -124,17 +124,17 @@ func (uc *FetchUserInfoUseCase) newSearchByUserID(ctx context.Context, userID uu
 		},
 	}
 
-	visibility := common.SearchVisibilityOptions{
-		RequestSource:    common.GetResourceOwner(ctx),
-		IntendedAudience: common.ClientApplicationAudienceIDKey,
+	visibility := shared.SearchVisibilityOptions{
+		RequestSource:    shared.GetResourceOwner(ctx),
+		IntendedAudience: shared.ClientApplicationAudienceIDKey,
 	}
 
-	result := common.SearchResultOptions{
+	result := shared.SearchResultOptions{
 		Skip:  0,
 		Limit: 1,
 	}
 
-	return common.Search{
+	return shared.Search{
 		SearchParams:      params,
 		ResultOptions:     result,
 		VisibilityOptions: visibility,

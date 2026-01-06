@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
 )
 
@@ -81,7 +81,7 @@ func NewSmurfDetectionService(
 
 // AnalyzePlayer performs comprehensive smurf analysis on a player
 func (s *SmurfDetectionService) AnalyzePlayer(ctx context.Context, playerID uuid.UUID) (*matchmaking_entities.SmurfProfile, error) {
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 
 	// Get or create smurf profile
 	profile, err := s.smurfRepo.GetByPlayerID(ctx, playerID)

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -58,7 +58,7 @@ func NewShareTokenRepository(client *mongo.Client, dbName string, entityType rep
 	}
 }
 
-func (r *ShareTokenRepository) Search(ctx context.Context, s common.Search) ([]replay_entity.ShareToken, error) {
+func (r *ShareTokenRepository) Search(ctx context.Context, s shared.Search) ([]replay_entity.ShareToken, error) {
 	cursor, err := r.Query(ctx, s)
 	if cursor != nil {
 		defer cursor.Close(ctx)

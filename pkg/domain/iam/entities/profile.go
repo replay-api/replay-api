@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type ProfileLinkType string
@@ -38,15 +38,15 @@ type Profile struct {
 	SourceKey       string                     `json:"source_key" bson:"source_key"` // ie. steam id, google@, etc
 	Details         interface{}                `json:"details" bson:"details"`       // TODO: deprecate. GET /profile/:id/details => mux para steam,google,squad,player
 	Links           map[ProfileLinkType]string `json:"links" bson:"links"`
-	VisibilityLevel common.IntendedAudienceKey `json:"visibility_level" bson:"visibility_level"`
-	VisibilityType  common.VisibilityTypeKey   `json:"visibility_type" bson:"visibility_type"`
+	VisibilityLevel shared.IntendedAudienceKey `json:"visibility_level" bson:"visibility_level"`
+	VisibilityType  shared.VisibilityTypeKey   `json:"visibility_type" bson:"visibility_type"`
 	Type            ProfileType                `json:"type" bson:"type"` // ie. steam, google, team/squad, player
-	ResourceOwner   common.ResourceOwner       `json:"resource_owner" bson:"resource_owner"`
+	ResourceOwner   shared.ResourceOwner       `json:"resource_owner" bson:"resource_owner"`
 	CreatedAt       time.Time                  `json:"created_at" bson:"created_at"`
 	UpdatedAt       time.Time                  `json:"updated_at" bson:"updated_at"`
 }
 
-func NewProfile(userID uuid.UUID, groupID uuid.UUID, ridSource RIDSourceKey, sourceKey string, details interface{}, resourceOwner common.ResourceOwner) *Profile {
+func NewProfile(userID uuid.UUID, groupID uuid.UUID, ridSource RIDSourceKey, sourceKey string, details interface{}, resourceOwner shared.ResourceOwner) *Profile {
 	resourceOwner.UserID = userID
 	resourceOwner.GroupID = groupID
 
@@ -62,17 +62,17 @@ func NewProfile(userID uuid.UUID, groupID uuid.UUID, ridSource RIDSourceKey, sou
 }
 
 func (p *Profile) GetContext(ctx context.Context) context.Context {
-	ctx = context.WithValue(ctx, common.GroupIDKey, p.ResourceOwner.GroupID)
-	ctx = context.WithValue(ctx, common.UserIDKey, p.ResourceOwner.UserID)
+	ctx = context.WithValue(ctx, shared.GroupIDKey, p.ResourceOwner.GroupID)
+	ctx = context.WithValue(ctx, shared.UserIDKey, p.ResourceOwner.UserID)
 
 	return ctx
 }
 
-func (p *Profile) GetResourceOwner(ctx context.Context) common.ResourceOwner {
-	ctx = context.WithValue(ctx, common.GroupIDKey, p.ResourceOwner.GroupID)
-	ctx = context.WithValue(ctx, common.UserIDKey, p.ResourceOwner.UserID)
+func (p *Profile) GetResourceOwner(ctx context.Context) shared.ResourceOwner {
+	ctx = context.WithValue(ctx, shared.GroupIDKey, p.ResourceOwner.GroupID)
+	ctx = context.WithValue(ctx, shared.UserIDKey, p.ResourceOwner.UserID)
 
-	return common.GetResourceOwner(ctx)
+	return shared.GetResourceOwner(ctx)
 }
 
 // func (p *Profile) GetID() uuid.UUID {

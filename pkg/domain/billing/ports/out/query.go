@@ -4,16 +4,16 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 )
 
 type SubscriptionReader interface {
-	GetCurrentSubscription(ctx context.Context, rxn common.ResourceOwner) (*billing_entities.Subscription, error)
+	GetCurrentSubscription(ctx context.Context, rxn shared.ResourceOwner) (*billing_entities.Subscription, error)
 }
 
 type PlanReader interface {
-	common.Searchable[billing_entities.Plan]
+	shared.Searchable[billing_entities.Plan]
 	GetDefaultFreePlan(ctx context.Context) (*billing_entities.Plan, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*billing_entities.Plan, error)
 	GetAvailablePlans(ctx context.Context) ([]*billing_entities.Plan, error)

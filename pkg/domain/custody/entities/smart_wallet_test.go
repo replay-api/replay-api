@@ -5,13 +5,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	custody_vo "github.com/replay-api/replay-api/pkg/domain/custody/value-objects"
 )
 
 // Helper to create a test resource owner
-func testResourceOwner() common.ResourceOwner {
-	return common.ResourceOwner{
+func testResourceOwner() shared.ResourceOwner {
+	return shared.ResourceOwner{
 		TenantID: uuid.New(),
 		ClientID: uuid.New(),
 		GroupID:  uuid.New(),

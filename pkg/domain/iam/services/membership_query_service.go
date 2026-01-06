@@ -6,22 +6,22 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	iam_dtos "github.com/replay-api/replay-api/pkg/domain/iam/dtos"
 	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
 	iam_out "github.com/replay-api/replay-api/pkg/domain/iam/ports/out"
 )
 
 type MembershipQueryService struct {
-	common.BaseQueryService[iam_entities.Membership]
+	shared.BaseQueryService[iam_entities.Membership]
 	GroupReader iam_out.GroupReader
 }
 
-func NewMembershipQueryService(MembershipReader common.Searchable[iam_entities.Membership], groupReader iam_out.GroupReader) *MembershipQueryService {
+func NewMembershipQueryService(MembershipReader shared.Searchable[iam_entities.Membership], groupReader iam_out.GroupReader) *MembershipQueryService {
 	queryableFields := map[string]bool{
 		"ID":            true,
-		"Type":          common.ALLOW,
-		"ResourceOwner": common.ALLOW,
+		"Type":          shared.ALLOW,
+		"ResourceOwner": shared.ALLOW,
 		"CreatedAt":     true,
 		"UpdatedAt":     true,
 	}
@@ -35,31 +35,31 @@ func NewMembershipQueryService(MembershipReader common.Searchable[iam_entities.M
 	}
 
 	return &MembershipQueryService{
-		BaseQueryService: common.BaseQueryService[iam_entities.Membership]{
+		BaseQueryService: shared.BaseQueryService[iam_entities.Membership]{
 			Reader:          MembershipReader,
 			QueryableFields: queryableFields,
 			ReadableFields:  readableFields,
 			MaxPageSize:     100,
-			Audience:        common.UserAudienceIDKey,
+			Audience:        shared.UserAudienceIDKey,
 		},
 		GroupReader: groupReader,
 	}
 }
 
-func (s *MembershipQueryService) ListMemberGroups(ctx context.Context, search *common.Search) (map[uuid.UUID]iam_dtos.GroupMembershipDTO, error) {
-	userID, ok := ctx.Value(common.UserIDKey).(uuid.UUID)
+func (s *MembershipQueryService) ListMemberGroups(ctx context.Context, search *shared.Search) (map[uuid.UUID]iam_dtos.GroupMembershipDTO, error) {
+	userID, ok := ctx.Value(shared.UserIDKey).(uuid.UUID)
 	if !ok || userID == uuid.Nil {
 		return nil, fmt.Errorf("invalid (uuid.Nil) user ID in context")
 	}
 
-	searchAggregations := []common.SearchAggregation{
+	searchAggregations := []shared.SearchAggregation{
 		{
-			Params: []common.SearchParameter{
+			Params: []shared.SearchParameter{
 				{
-					ValueParams: []common.SearchableValue{
+					ValueParams: []shared.SearchableValue{
 						{
 							Field:    "ResourceOwner.UserID",
-							Operator: common.EqualsOperator,
+							Operator: shared.EqualsOperator,
 							Values:   []interface{}{userID},
 						},
 					},
@@ -68,7 +68,7 @@ func (s *MembershipQueryService) ListMemberGroups(ctx context.Context, search *c
 		},
 	}
 
-	resultOptions := common.SearchResultOptions{
+	resultOptions := shared.SearchResultOptions{
 		Limit: 100,
 	}
 
@@ -76,9 +76,9 @@ func (s *MembershipQueryService) ListMemberGroups(ctx context.Context, search *c
 	search.ResultOptions = resultOptions
 
 	if search.VisibilityOptions.IntendedAudience == 0 {
-		search.VisibilityOptions = common.SearchVisibilityOptions{
-			RequestSource:    common.GetResourceOwner(ctx),
-			IntendedAudience: common.UserAudienceIDKey,
+		search.VisibilityOptions = shared.SearchVisibilityOptions{
+			RequestSource:    shared.GetResourceOwner(ctx),
+			IntendedAudience: shared.UserAudienceIDKey,
 		}
 	}
 
@@ -90,15 +90,15 @@ func (s *MembershipQueryService) ListMemberGroups(ctx context.Context, search *c
 	groupMemberships := make(map[uuid.UUID]iam_dtos.GroupMembershipDTO)
 	for _, membership := range memberships {
 		groupID := membership.ResourceOwner.GroupID
-		getGroupByID := common.Search{
-			SearchParams: []common.SearchAggregation{
+		getGroupByID := shared.Search{
+			SearchParams: []shared.SearchAggregation{
 				{
-					Params: []common.SearchParameter{
+					Params: []shared.SearchParameter{
 						{
-							ValueParams: []common.SearchableValue{
+							ValueParams: []shared.SearchableValue{
 								{
 									Field:    "ID",
-									Operator: common.EqualsOperator,
+									Operator: shared.EqualsOperator,
 									Values:   []interface{}{groupID},
 								},
 							},
@@ -106,12 +106,12 @@ func (s *MembershipQueryService) ListMemberGroups(ctx context.Context, search *c
 					},
 				},
 			},
-			ResultOptions: common.SearchResultOptions{
+			ResultOptions: shared.SearchResultOptions{
 				Limit: 1,
 			},
-			VisibilityOptions: common.SearchVisibilityOptions{
-				RequestSource:    common.GetResourceOwner(ctx),
-				IntendedAudience: common.ClientApplicationAudienceIDKey,
+			VisibilityOptions: shared.SearchVisibilityOptions{
+				RequestSource:    shared.GetResourceOwner(ctx),
+				IntendedAudience: shared.ClientApplicationAudienceIDKey,
 			},
 		}
 

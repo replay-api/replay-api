@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/mux"
 	common "github.com/replay-api/replay-api/pkg/domain"
 	replay_entities "github.com/replay-api/replay-api/pkg/domain/replay/entities"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type ResourceType string
@@ -83,7 +84,7 @@ func (m *VisibilityMiddleware) CheckVisibility(config VisibilityConfig) func(htt
 
 			resource, err := reader.GetByID(ctx, resourceID)
 			if err != nil {
-				if _, ok := err.(*common.ErrNotFound); ok {
+				if _, ok := err.(*shared.ErrNotFound); ok {
 					common.WriteError(w, http.StatusNotFound, "NOT_FOUND", "Resource not found", "")
 				} else {
 					slog.ErrorContext(ctx, "Failed to fetch resource", "resource_type", config.ResourceType, "resource_id", resourceID, "error", err)
@@ -111,16 +112,16 @@ func (m *VisibilityMiddleware) canAccessResource(ctx context.Context, resource i
 
 	visibilityType := baseEntity.VisibilityType
 
-	if config.AllowPublic && visibilityType == common.PublicVisibilityTypeKey {
+	if config.AllowPublic && visibilityType == shared.PublicVisibilityTypeKey {
 		return true
 	}
 
-	isAuthenticated := ctx.Value(common.AuthenticatedKey)
+	isAuthenticated := ctx.Value(shared.AuthenticatedKey)
 	if isAuthenticated == nil || !isAuthenticated.(bool) {
 		return false
 	}
 
-	currentUser := common.GetResourceOwner(ctx)
+	currentUser := shared.GetResourceOwner(ctx)
 	resourceOwner := baseEntity.ResourceOwner
 
 	if resourceOwner.UserID == currentUser.UserID {
@@ -145,38 +146,38 @@ func (m *VisibilityMiddleware) canAccessResource(ctx context.Context, resource i
 	return false
 }
 
-func (m *VisibilityMiddleware) extractBaseEntity(resource interface{}) *common.BaseEntity {
+func (m *VisibilityMiddleware) extractBaseEntity(resource interface{}) *shared.BaseEntity {
 	switch r := resource.(type) {
 	case *replay_entities.ReplayFile:
-		return &common.BaseEntity{
+		return &shared.BaseEntity{
 			ID:            r.ID,
 			ResourceOwner: r.ResourceOwner,
 			CreatedAt:     r.CreatedAt,
 			UpdatedAt:     r.UpdatedAt,
 		}
 	case *replay_entities.Match:
-		return &common.BaseEntity{
+		return &shared.BaseEntity{
 			ID:            r.ID,
 			ResourceOwner: r.ResourceOwner,
 			CreatedAt:     r.CreatedAt,
 			UpdatedAt:     r.UpdatedAt,
 		}
 	case replay_entities.ReplayFile:
-		return &common.BaseEntity{
+		return &shared.BaseEntity{
 			ID:            r.ID,
 			ResourceOwner: r.ResourceOwner,
 			CreatedAt:     r.CreatedAt,
 			UpdatedAt:     r.UpdatedAt,
 		}
 	case replay_entities.Match:
-		return &common.BaseEntity{
+		return &shared.BaseEntity{
 			ID:            r.ID,
 			ResourceOwner: r.ResourceOwner,
 			CreatedAt:     r.CreatedAt,
 			UpdatedAt:     r.UpdatedAt,
 		}
 	default:
-		if hasBaseEntity, ok := resource.(interface{ GetBaseEntity() *common.BaseEntity }); ok {
+		if hasBaseEntity, ok := resource.(interface{ GetBaseEntity() *shared.BaseEntity }); ok {
 			return hasBaseEntity.GetBaseEntity()
 		}
 		return nil

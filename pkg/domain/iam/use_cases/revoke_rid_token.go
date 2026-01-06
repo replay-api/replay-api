@@ -5,7 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	iam_in "github.com/replay-api/replay-api/pkg/domain/iam/ports/in"
 	iam_out "github.com/replay-api/replay-api/pkg/domain/iam/ports/out"
 )
@@ -45,7 +45,7 @@ func (usecase *RevokeRIDTokenUseCase) Exec(ctx context.Context, tokenID uuid.UUI
 	}
 
 	// Verify the authenticated user owns this token
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 	if resourceOwner.UserID != uuid.Nil && resourceOwner.UserID != existingToken.ResourceOwner.UserID {
 		slog.WarnContext(ctx, "user attempted to revoke token they don't own",
 			"requestUserID", resourceOwner.UserID,

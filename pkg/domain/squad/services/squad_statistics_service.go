@@ -6,10 +6,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	replay_in "github.com/replay-api/replay-api/pkg/domain/replay/ports/in"
 	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // SquadStatisticsService aggregates statistics for squads
@@ -37,19 +38,19 @@ func (s *SquadStatisticsService) GetSquadStatistics(ctx context.Context, squadID
 	slog.InfoContext(ctx, "Fetching squad statistics", "squad_id", squadID, "game_id", gameID)
 
 	// Get squad to verify it exists and get member IDs
-	squadSearch := common.Search{
-		SearchParams: []common.SearchAggregation{
+	squadSearch := shared.Search{
+		SearchParams: []shared.SearchAggregation{
 			{
-				Params: []common.SearchParameter{
+				Params: []shared.SearchParameter{
 					{
-						ValueParams: []common.SearchableValue{
-							{Field: "ID", Values: []interface{}{squadID.String()}, Operator: common.EqualsOperator},
+						ValueParams: []shared.SearchableValue{
+							{Field: "ID", Values: []interface{}{squadID.String()}, Operator: shared.EqualsOperator},
 						},
 					},
 				},
 			},
 		},
-		ResultOptions: common.SearchResultOptions{Limit: 1},
+		ResultOptions: shared.SearchResultOptions{Limit: 1},
 	}
 
 	squads, err := s.squadReader.Search(ctx, squadSearch)
@@ -59,7 +60,7 @@ func (s *SquadStatisticsService) GetSquadStatistics(ctx context.Context, squadID
 	}
 
 	if len(squads) == 0 {
-		return nil, common.NewErrNotFound(common.ResourceTypeSquad, "ID", squadID.String())
+		return nil, shared.NewErrNotFound(replay_common.ResourceTypeSquad, "ID", squadID.String())
 	}
 
 	squad := squads[0]
@@ -77,23 +78,23 @@ func (s *SquadStatisticsService) GetSquadStatistics(ctx context.Context, squadID
 	}
 
 	// Get matches involving squad members
-	matchSearch := common.Search{
-		SearchParams: []common.SearchAggregation{
+	matchSearch := shared.Search{
+		SearchParams: []shared.SearchAggregation{
 			{
-				Params: []common.SearchParameter{
+				Params: []shared.SearchParameter{
 					{
-						ValueParams: []common.SearchableValue{
+						ValueParams: []shared.SearchableValue{
 							{
 								Field:    "scoreboard.team_scoreboards.players._id",
 								Values:   playerIDs,
-								Operator: common.InOperator,
+								Operator: shared.InOperator,
 							},
 						},
 					},
 				},
 			},
 		},
-		ResultOptions: common.SearchResultOptions{Limit: 100}, // Last 100 matches
+		ResultOptions: shared.SearchResultOptions{Limit: 100}, // Last 100 matches
 	}
 
 	matches, err := s.matchReader.Search(ctx, matchSearch)
@@ -163,19 +164,19 @@ func (s *SquadStatisticsService) GetSquadStatistics(ctx context.Context, squadID
 		}
 
 		// Get player profile for name
-		playerSearch := common.Search{
-			SearchParams: []common.SearchAggregation{
+		playerSearch := shared.Search{
+			SearchParams: []shared.SearchAggregation{
 				{
-					Params: []common.SearchParameter{
+					Params: []shared.SearchParameter{
 						{
-							ValueParams: []common.SearchableValue{
-								{Field: "ID", Values: []interface{}{member.PlayerProfileID.String()}, Operator: common.EqualsOperator},
+							ValueParams: []shared.SearchableValue{
+								{Field: "ID", Values: []interface{}{member.PlayerProfileID.String()}, Operator: shared.EqualsOperator},
 							},
 						},
 					},
 				},
 			},
-			ResultOptions: common.SearchResultOptions{Limit: 1},
+			ResultOptions: shared.SearchResultOptions{Limit: 1},
 		}
 
 		players, err := s.playerReader.Search(ctx, playerSearch)

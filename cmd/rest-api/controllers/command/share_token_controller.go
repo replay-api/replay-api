@@ -10,7 +10,7 @@ import (
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 	replay_in "github.com/replay-api/replay-api/pkg/domain/replay/ports/in"
 	replay_out "github.com/replay-api/replay-api/pkg/domain/replay/ports/out"
@@ -42,7 +42,7 @@ type CreateShareTokenRequest struct {
 	ResourceID    uuid.UUID                           `json:"resource_id"`
 	ResourceType  replay_entity.SharingResourceType   `json:"resource_type"`
 	ExpiresAt     *time.Time                          `json:"expires_at,omitempty"`
-	ResourceOwner common.ResourceOwner                `json:"resource_owner"`
+	ResourceOwner shared.ResourceOwner                `json:"resource_owner"`
 }
 
 type ShareTokenResponse struct {

@@ -8,21 +8,21 @@ import (
 	"strconv"
 	"strings"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type DefaultSearchController[T any] struct {
-	common.Searchable[T]
+	shared.Searchable[T]
 }
 
-func NewDefaultSearchController[T any](service common.Searchable[T]) *DefaultSearchController[T] {
+func NewDefaultSearchController[T any](service shared.Searchable[T]) *DefaultSearchController[T] {
 	return &DefaultSearchController[T]{
 		service,
 	}
 }
 
 func (c *DefaultSearchController[T]) DefaultSearchHandler(w http.ResponseWriter, r *http.Request) {
-	var s common.Search
+	var s shared.Search
 
 	// Try x-search header first (legacy method)
 	base64SearchHeader := r.Header.Get("x-search")
@@ -84,10 +84,10 @@ func (c *DefaultSearchController[T]) DefaultSearchHandler(w http.ResponseWriter,
 // the Go struct fields. The validation of which fields are queryable is handled
 // by the Compile method which checks against the queryableFields defined in each
 // entity's query service.
-func (c *DefaultSearchController[T]) buildSearchFromQueryParams(r *http.Request) common.Search {
+func (c *DefaultSearchController[T]) buildSearchFromQueryParams(r *http.Request) shared.Search {
 	query := r.URL.Query()
-	var exactFilters []common.SearchableValue
-	var textSearchParams []common.SearchableValue
+	var exactFilters []shared.SearchableValue
+	var textSearchParams []shared.SearchableValue
 
 	// Reserved params that are not filters
 	reservedParams := map[string]bool{
@@ -105,10 +105,10 @@ func (c *DefaultSearchController[T]) buildSearchFromQueryParams(r *http.Request)
 			for _, field := range strings.Split(searchFields, ",") {
 				field = strings.TrimSpace(field)
 				if field != "" {
-					textSearchParams = append(textSearchParams, common.SearchableValue{
+					textSearchParams = append(textSearchParams, shared.SearchableValue{
 						Field:    field,
 						Values:   []interface{}{q},
-						Operator: common.ContainsOperator,
+						Operator: shared.ContainsOperator,
 					})
 				}
 			}
@@ -123,15 +123,15 @@ func (c *DefaultSearchController[T]) buildSearchFromQueryParams(r *http.Request)
 		}
 
 		value := values[0]
-		operator := common.EqualsOperator
+		operator := shared.EqualsOperator
 
 		// Support wildcard search: value containing * uses ContainsOperator
 		if strings.Contains(value, "*") {
-			operator = common.ContainsOperator
+			operator = shared.ContainsOperator
 			value = strings.ReplaceAll(value, "*", "")
 		}
 
-		exactFilters = append(exactFilters, common.SearchableValue{
+		exactFilters = append(exactFilters, shared.SearchableValue{
 			Field:    key, // SDK sends PascalCase field names directly
 			Values:   []interface{}{value},
 			Operator: operator,
@@ -139,31 +139,31 @@ func (c *DefaultSearchController[T]) buildSearchFromQueryParams(r *http.Request)
 	}
 
 	// Build SearchAggregation - combine exact filters (AND) with text search (OR)
-	var searchParams []common.SearchAggregation
+	var searchParams []shared.SearchAggregation
 
 	// Add exact filter params (AND logic)
 	if len(exactFilters) > 0 {
-		searchParams = append(searchParams, common.SearchAggregation{
-			Params: []common.SearchParameter{
+		searchParams = append(searchParams, shared.SearchAggregation{
+			Params: []shared.SearchParameter{
 				{
 					ValueParams:       exactFilters,
-					AggregationClause: common.AndAggregationClause,
+					AggregationClause: shared.AndAggregationClause,
 				},
 			},
-			AggregationClause: common.AndAggregationClause,
+			AggregationClause: shared.AndAggregationClause,
 		})
 	}
 
 	// Add text search params (OR logic) - match ANY of the specified search fields
 	if len(textSearchParams) > 0 {
-		searchParams = append(searchParams, common.SearchAggregation{
-			Params: []common.SearchParameter{
+		searchParams = append(searchParams, shared.SearchAggregation{
+			Params: []shared.SearchParameter{
 				{
 					ValueParams:       textSearchParams,
-					AggregationClause: common.OrAggregationClause, // OR between text fields
+					AggregationClause: shared.OrAggregationClause, // OR between text fields
 				},
 			},
-			AggregationClause: common.AndAggregationClause, // AND with other filters
+			AggregationClause: shared.AndAggregationClause, // AND with other filters
 		})
 	}
 
@@ -189,25 +189,25 @@ func (c *DefaultSearchController[T]) buildSearchFromQueryParams(r *http.Request)
 		}
 	}
 
-	resultOptions := common.SearchResultOptions{
+	resultOptions := shared.SearchResultOptions{
 		Skip:  skip,
 		Limit: limit,
 	}
 
 	// Sort options
-	var sortOptions []common.SortableField
+	var sortOptions []shared.SortableField
 	if sort := query.Get("sort"); sort != "" {
-		direction := common.AscendingIDKey
+		direction := shared.AscendingIDKey
 		if order := query.Get("order"); order == "desc" {
-			direction = common.DescendingIDKey
+			direction = shared.DescendingIDKey
 		}
-		sortOptions = append(sortOptions, common.SortableField{
+		sortOptions = append(sortOptions, shared.SortableField{
 			Field:     sort,
 			Direction: direction,
 		})
 	}
 
-	return common.Search{
+	return shared.Search{
 		SearchParams:  searchParams,
 		ResultOptions: resultOptions,
 		SortOptions:   sortOptions,

@@ -1,9 +1,9 @@
 package billing_entities
 
-import common "github.com/replay-api/replay-api/pkg/domain"
+import shared "github.com/resource-ownership/go-common/pkg/common"
 
 type Payment struct {
-	common.BaseEntity
+	shared.BaseEntity
 	PayableID                string            `json:"payable_id" bson:"payable_id"`
 	Reference                string            `json:"reference" bson:"reference"`
 	Amount                   float64           `json:"amount" bson:"amount"`

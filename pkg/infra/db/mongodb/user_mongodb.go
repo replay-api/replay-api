@@ -7,7 +7,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/mongo"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
 )
 
@@ -50,7 +50,7 @@ func NewUserRepository(client *mongo.Client, dbName string, entityType *iam_enti
 	}
 }
 
-func (r *UserRepository) Search(ctx context.Context, s common.Search) ([]iam_entities.User, error) {
+func (r *UserRepository) Search(ctx context.Context, s shared.Search) ([]iam_entities.User, error) {
 	cursor, err := r.Query(ctx, s)
 	if cursor != nil {
 		defer cursor.Close(ctx)

@@ -10,7 +10,7 @@ import (
 	"github.com/golobby/container/v3"
 	"github.com/gorilla/mux"
 	controllers "github.com/replay-api/replay-api/cmd/rest-api/controllers"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 	replay_in "github.com/replay-api/replay-api/pkg/domain/replay/ports/in"
 )
@@ -79,50 +79,50 @@ func (c *ReplayFileQueryController) ListReplayFilesHandler(w http.ResponseWriter
 	slog.Info("ListReplayFilesHandler", "game_id", gameID, "q", searchTerm, "search_fields", searchFieldsParam, "limit", limit, "offset", offset)
 
 	// Build value parameters for search
-	var valueParams []common.SearchableValue
+	var valueParams []shared.SearchableValue
 
 	// Always filter by game_id if provided
 	if gameID != "" {
-		valueParams = append(valueParams, common.SearchableValue{
+		valueParams = append(valueParams, shared.SearchableValue{
 			Field:    "GameID",
 			Values:   []interface{}{gameID},
-			Operator: common.EqualsOperator,
+			Operator: shared.EqualsOperator,
 		})
 	}
 
 	// Filter by player_id if provided
 	if playerID != "" {
-		valueParams = append(valueParams, common.SearchableValue{
+		valueParams = append(valueParams, shared.SearchableValue{
 			Field:    "ResourceOwner",
 			Values:   []interface{}{playerID},
-			Operator: common.EqualsOperator,
+			Operator: shared.EqualsOperator,
 		})
 	}
 
 	// Filter by squad_id if provided
 	if squadID != "" {
-		valueParams = append(valueParams, common.SearchableValue{
+		valueParams = append(valueParams, shared.SearchableValue{
 			Field:    "ResourceOwner",
 			Values:   []interface{}{squadID},
-			Operator: common.EqualsOperator,
+			Operator: shared.EqualsOperator,
 		})
 	}
 
 	// Filter by status if provided
 	if status != "" {
-		valueParams = append(valueParams, common.SearchableValue{
+		valueParams = append(valueParams, shared.SearchableValue{
 			Field:    "Status",
 			Values:   []interface{}{status},
-			Operator: common.EqualsOperator,
+			Operator: shared.EqualsOperator,
 		})
 	}
 
 	// Filter by visibility if provided (maps to VisibilityLevel in schema)
 	if visibility != "" {
-		valueParams = append(valueParams, common.SearchableValue{
+		valueParams = append(valueParams, shared.SearchableValue{
 			Field:    "VisibilityLevel",
 			Values:   []interface{}{visibility},
-			Operator: common.EqualsOperator,
+			Operator: shared.EqualsOperator,
 		})
 	}
 
@@ -140,22 +140,22 @@ func (c *ReplayFileQueryController) ListReplayFilesHandler(w http.ResponseWriter
 		// Add text search for each specified field (OR logic handled by search engine)
 		for _, field := range searchFields {
 			if field != "" {
-				valueParams = append(valueParams, common.SearchableValue{
+				valueParams = append(valueParams, shared.SearchableValue{
 					Field:    field,
 					Values:   []interface{}{searchTerm},
-					Operator: common.ContainsOperator,
+					Operator: shared.ContainsOperator,
 				})
 			}
 		}
 	}
 
 	// Build the search using the helper function
-	resultOptions := common.SearchResultOptions{
+	resultOptions := shared.SearchResultOptions{
 		Skip:  uint(offset),
 		Limit: uint(limit),
 	}
 
-	search := common.NewSearchByValues(r.Context(), valueParams, resultOptions, common.UserAudienceIDKey)
+	search := shared.NewSearchByValues(r.Context(), valueParams, resultOptions, shared.UserAudienceIDKey)
 
 	// Execute search
 	results, err := c.replayFileReader.Search(r.Context(), search)

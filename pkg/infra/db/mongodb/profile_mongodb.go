@@ -7,7 +7,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/mongo"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
 )
 
@@ -56,7 +56,7 @@ func NewProfileRepository(client *mongo.Client, dbName string, entityType *iam_e
 	}
 }
 
-func (r *ProfileRepository) Search(ctx context.Context, s common.Search) ([]iam_entities.Profile, error) {
+func (r *ProfileRepository) Search(ctx context.Context, s shared.Search) ([]iam_entities.Profile, error) {
 	slog.InfoContext(ctx, "searching profile entity", "search", s)
 	cursor, err := r.Query(ctx, s)
 	if cursor != nil {

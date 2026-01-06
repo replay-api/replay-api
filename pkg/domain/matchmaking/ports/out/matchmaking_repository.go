@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
 )
 
 // MatchmakingSessionRepository handles persistence of matchmaking sessions
@@ -72,16 +72,16 @@ type PlayerRatingRepository interface {
 	Update(ctx context.Context, rating *matchmaking_entities.PlayerRating) error
 
 	// FindByPlayerAndGame finds a rating by player ID and game ID
-	FindByPlayerAndGame(ctx context.Context, playerID uuid.UUID, gameID common.GameIDKey) (*matchmaking_entities.PlayerRating, error)
+	FindByPlayerAndGame(ctx context.Context, playerID uuid.UUID, gameID replay_common.GameIDKey) (*matchmaking_entities.PlayerRating, error)
 
 	// GetByID retrieves a rating by ID
 	GetByID(ctx context.Context, id uuid.UUID) (*matchmaking_entities.PlayerRating, error)
 
 	// GetTopPlayers retrieves top players by rating for a game
-	GetTopPlayers(ctx context.Context, gameID common.GameIDKey, limit int) ([]*matchmaking_entities.PlayerRating, error)
+	GetTopPlayers(ctx context.Context, gameID replay_common.GameIDKey, limit int) ([]*matchmaking_entities.PlayerRating, error)
 
 	// GetRankDistribution returns the distribution of ranks for a game
-	GetRankDistribution(ctx context.Context, gameID common.GameIDKey) (map[matchmaking_entities.Rank]int, error)
+	GetRankDistribution(ctx context.Context, gameID replay_common.GameIDKey) (map[matchmaking_entities.Rank]int, error)
 
 	// Delete removes a player rating
 	Delete(ctx context.Context, id uuid.UUID) error

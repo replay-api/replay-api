@@ -15,7 +15,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
 	matchmaking_in "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/in"
 	matchmaking_services "github.com/replay-api/replay-api/pkg/domain/matchmaking/services"
@@ -51,12 +52,12 @@ func TestE2E_Glicko2RatingLifecycle(t *testing.T) {
 	// Create test context with resource owner
 	userID := uuid.New()
 	groupID := uuid.New()
-	tenantID := common.TeamPROTenantID
-	ctx = context.WithValue(ctx, common.TenantIDKey, tenantID)
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.GroupIDKey, groupID)
+	tenantID := replay_common.TeamPROTenantID
+	ctx = context.WithValue(ctx, shared.TenantIDKey, tenantID)
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.GroupIDKey, groupID)
 
-	gameID := common.CS2.ID
+	gameID := replay_common.CS2.ID
 
 	t.Run("NewPlayer_GetsDefaultRating", func(t *testing.T) {
 		playerID := uuid.New()
@@ -270,17 +271,17 @@ func TestE2E_Glicko2RatingLifecycle(t *testing.T) {
 		playerID := uuid.New()
 
 		// Get rating for CS2
-		cs2Rating, err := ratingService.GetPlayerRating(ctx, playerID, common.CS2.ID)
+		cs2Rating, err := ratingService.GetPlayerRating(ctx, playerID, replay_common.CS2.ID)
 		require.NoError(t, err)
 
 		// Get rating for CSGO (different game)
-		csgoRating, err := ratingService.GetPlayerRating(ctx, playerID, common.CSGO.ID)
+		csgoRating, err := ratingService.GetPlayerRating(ctx, playerID, replay_common.CSGO.ID)
 		require.NoError(t, err)
 
 		// Should be different rating records
 		assert.NotEqual(t, cs2Rating.ID, csgoRating.ID)
-		assert.Equal(t, common.CS2.ID, cs2Rating.GameID)
-		assert.Equal(t, common.CSGO.ID, csgoRating.GameID)
+		assert.Equal(t, replay_common.CS2.ID, cs2Rating.GameID)
+		assert.Equal(t, replay_common.CSGO.ID, csgoRating.GameID)
 
 		t.Log("✓ Player has separate ratings for different games")
 	})

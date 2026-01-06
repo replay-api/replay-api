@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	matchmaking_vo "github.com/replay-api/replay-api/pkg/domain/matchmaking/value-objects"
 )
 
@@ -32,7 +32,7 @@ const (
 // MatchmakingLobby is the aggregate root for custom matchmaking lobbies
 // It manages player slots, ready checks, and prize pool setup
 type MatchmakingLobby struct {
-	common.BaseEntity `bson:",inline"`
+	shared.BaseEntity `bson:",inline"`
 
 	// Lobby Configuration
 	CreatorID        uuid.UUID                        `json:"creator_id" bson:"creator_id"`
@@ -60,7 +60,7 @@ type MatchmakingLobby struct {
 
 // NewMatchmakingLobby creates a new lobby with the creator as the first player
 func NewMatchmakingLobby(
-	resourceOwner common.ResourceOwner,
+	resourceOwner shared.ResourceOwner,
 	creatorID uuid.UUID,
 	gameID string,
 	region string,
@@ -96,7 +96,7 @@ func NewMatchmakingLobby(
 	slots[0].JoinedAt = now
 
 	lobby := &MatchmakingLobby{
-		BaseEntity:       common.NewEntity(resourceOwner),
+		BaseEntity:       shared.NewEntity(resourceOwner),
 		CreatorID:        creatorID,
 		GameID:           gameID,
 		Region:           region,
@@ -113,7 +113,7 @@ func NewMatchmakingLobby(
 	return lobby, nil
 }
 
-// GetID implements common.Entity interface
+// GetID implements shared.Entity interface
 func (l *MatchmakingLobby) GetID() uuid.UUID {
 	return l.ID
 }

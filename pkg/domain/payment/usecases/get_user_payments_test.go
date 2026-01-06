@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	payment_entities "github.com/replay-api/replay-api/pkg/domain/payment/entities"
 	payment_in "github.com/replay-api/replay-api/pkg/domain/payment/ports/in"
 	payment_out "github.com/replay-api/replay-api/pkg/domain/payment/ports/out"
@@ -20,7 +20,7 @@ func TestGetUserPayments_Success(t *testing.T) {
 	usecase := payment_usecases.NewGetUserPaymentsUseCase(mockRepo)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
 	walletID := uuid.New()
 
@@ -73,7 +73,7 @@ func TestGetUserPayments_InvalidQuery_NoUserID(t *testing.T) {
 	usecase := payment_usecases.NewGetUserPaymentsUseCase(mockRepo)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 
 	query := payment_in.GetUserPaymentsQuery{
 		UserID: uuid.Nil,
@@ -90,7 +90,7 @@ func TestGetUserPayments_EmptyResult(t *testing.T) {
 	usecase := payment_usecases.NewGetUserPaymentsUseCase(mockRepo)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
 
 	mockRepo.On("FindByUserID", mock.Anything, userID, mock.AnythingOfType("payment_out.PaymentFilters")).Return([]*payment_entities.Payment{}, nil)
@@ -116,7 +116,7 @@ func TestGetUserPayments_WithFilters(t *testing.T) {
 	usecase := payment_usecases.NewGetUserPaymentsUseCase(mockRepo)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
 	walletID := uuid.New()
 
@@ -155,7 +155,7 @@ func TestGetUserPayments_RepositoryError(t *testing.T) {
 	usecase := payment_usecases.NewGetUserPaymentsUseCase(mockRepo)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
 
 	mockRepo.On("FindByUserID", mock.Anything, userID, mock.AnythingOfType("payment_out.PaymentFilters")).Return(nil, errors.New("database error"))
@@ -180,7 +180,7 @@ func TestGetUserPayments_DefaultLimit(t *testing.T) {
 	usecase := payment_usecases.NewGetUserPaymentsUseCase(mockRepo)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
 
 	mockRepo.On("FindByUserID", mock.Anything, userID, mock.MatchedBy(func(f payment_out.PaymentFilters) bool {
@@ -206,7 +206,7 @@ func TestGetUserPayments_MaxLimit(t *testing.T) {
 	usecase := payment_usecases.NewGetUserPaymentsUseCase(mockRepo)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
 
 	mockRepo.On("FindByUserID", mock.Anything, userID, mock.MatchedBy(func(f payment_out.PaymentFilters) bool {

@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type AuthMiddleware struct {
@@ -101,7 +101,7 @@ func (am *AuthMiddleware) Handler(next http.Handler) http.Handler {
 		}
 
 		// Check if user is authenticated via ResourceContextMiddleware
-		authenticated, ok := ctx.Value(common.AuthenticatedKey).(bool)
+		authenticated, ok := ctx.Value(shared.AuthenticatedKey).(bool)
 		if !ok || !authenticated {
 			// Protected endpoints require authentication
 			protectedPrefixes := []string{
@@ -152,7 +152,7 @@ func RequireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
-		authenticated, ok := ctx.Value(common.AuthenticatedKey).(bool)
+		authenticated, ok := ctx.Value(shared.AuthenticatedKey).(bool)
 		if !ok || !authenticated {
 			slog.WarnContext(ctx, "unauthorized access to protected endpoint",
 				"path", r.URL.Path,

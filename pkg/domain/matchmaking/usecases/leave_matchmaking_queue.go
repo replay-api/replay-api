@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
@@ -37,9 +37,9 @@ func NewLeaveMatchmakingQueueUseCase(
 // Exec executes the leave matchmaking queue command
 func (uc *LeaveMatchmakingQueueUseCase) Exec(ctx context.Context, cmd matchmaking_in.LeaveMatchmakingQueueCommand) error {
 	// auth check
-	isAuthenticated := ctx.Value(common.AuthenticatedKey)
+	isAuthenticated := ctx.Value(shared.AuthenticatedKey)
 	if isAuthenticated == nil || !isAuthenticated.(bool) {
-		return common.NewErrUnauthorized()
+		return shared.NewErrUnauthorized()
 	}
 
 	// get session
@@ -51,7 +51,7 @@ func (uc *LeaveMatchmakingQueueUseCase) Exec(ctx context.Context, cmd matchmakin
 
 	// verify player owns session
 	if session.PlayerID != cmd.PlayerID {
-		return common.NewErrForbidden("player does not own this session")
+		return shared.NewErrForbidden("player does not own this session")
 	}
 
 	// check if session can be left
@@ -62,7 +62,7 @@ func (uc *LeaveMatchmakingQueueUseCase) Exec(ctx context.Context, cmd matchmakin
 	// billing validation BEFORE leaving queue
 	billingCmd := billing_in.BillableOperationCommand{
 		OperationID: billing_entities.OperationTypeLeaveMatchmakingQueue,
-		UserID:      common.GetResourceOwner(ctx).UserID,
+		UserID:      shared.GetResourceOwner(ctx).UserID,
 		Amount:      1,
 		Args: map[string]interface{}{
 			"session_id": cmd.SessionID.String(),

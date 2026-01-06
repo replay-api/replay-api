@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // ResourceOwnershipConfig defines configuration for resource ownership validation
@@ -22,11 +22,11 @@ type ResourceOwnershipConfig struct {
 	// ResourceIDParam is the URL parameter name for the resource ID (default: "id")
 	ResourceIDParam string
 	// ResourceType for logging and error messages
-	ResourceType common.ResourceType
+	ResourceType shared.ResourceType
 }
 
 // DefaultOwnershipConfig returns a standard ownership configuration
-func DefaultOwnershipConfig(resourceType common.ResourceType) ResourceOwnershipConfig {
+func DefaultOwnershipConfig(resourceType shared.ResourceType) ResourceOwnershipConfig {
 	return ResourceOwnershipConfig{
 		RequireAuthentication: true,
 		RequireOwnership:      true,
@@ -44,7 +44,7 @@ func ResourceOwnershipMiddleware(config ResourceOwnershipConfig) mux.MiddlewareF
 
 			// 1. Authentication check
 			if config.RequireAuthentication {
-				isAuthenticated := ctx.Value(common.AuthenticatedKey)
+				isAuthenticated := ctx.Value(shared.AuthenticatedKey)
 				if isAuthenticated == nil || !isAuthenticated.(bool) {
 					slog.WarnContext(ctx, "Unauthorized access attempt",
 						"resource_type", config.ResourceType,
@@ -75,13 +75,13 @@ func ResourceOwnershipMiddleware(config ResourceOwnershipConfig) mux.MiddlewareF
 						slog.WarnContext(ctx, "Forbidden: user not authorized for resource",
 							"resource_type", config.ResourceType,
 							"resource_id", resourceID,
-							"user_id", ctx.Value(common.UserIDKey))
+							"user_id", ctx.Value(shared.UserIDKey))
 						http.Error(w, "Forbidden", http.StatusForbidden)
 						return
 					}
 
 					// Store resource ID in context for handler use
-					ctx = context.WithValue(ctx, common.ResourceIDKey, resourceID)
+					ctx = context.WithValue(ctx, shared.ResourceIDKey, resourceID)
 					r = r.WithContext(ctx)
 				}
 			}
@@ -93,12 +93,12 @@ func ResourceOwnershipMiddleware(config ResourceOwnershipConfig) mux.MiddlewareF
 
 // isUserAuthorizedForResource checks if the user has access to the resource
 func isUserAuthorizedForResource(ctx context.Context, _ uuid.UUID, _ ResourceOwnershipConfig) bool {
-	userID, ok := ctx.Value(common.UserIDKey).(uuid.UUID)
+	userID, ok := ctx.Value(shared.UserIDKey).(uuid.UUID)
 	if !ok {
 		return false
 	}
 
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 
 	// Check if user is the resource owner
 	if resourceOwner.UserID == userID {
@@ -106,7 +106,7 @@ func isUserAuthorizedForResource(ctx context.Context, _ uuid.UUID, _ ResourceOwn
 	}
 
 	// Check if user's group matches resource owner's group
-	groupID, ok := ctx.Value(common.GroupIDKey).(uuid.UUID)
+	groupID, ok := ctx.Value(shared.GroupIDKey).(uuid.UUID)
 	if ok && resourceOwner.GroupID == groupID {
 		return true
 	}
@@ -122,7 +122,7 @@ func RequireAuthentication() mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
-			isAuthenticated := ctx.Value(common.AuthenticatedKey)
+			isAuthenticated := ctx.Value(shared.AuthenticatedKey)
 
 			if isAuthenticated == nil || !isAuthenticated.(bool) {
 				slog.WarnContext(ctx, "Authentication required",
@@ -139,13 +139,13 @@ func RequireAuthentication() mux.MiddlewareFunc {
 
 // RequireOwnerOrAdmin creates middleware that requires user to be owner or have admin role
 // This is used for squad updates where members with admin role can also modify
-func RequireOwnerOrAdminRole(resourceType common.ResourceType, roleChecker func(ctx context.Context, resourceID uuid.UUID, userID uuid.UUID) (bool, error)) mux.MiddlewareFunc {
+func RequireOwnerOrAdminRole(resourceType shared.ResourceType, roleChecker func(ctx context.Context, resourceID uuid.UUID, userID uuid.UUID) (bool, error)) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
 
 			// Check authentication first
-			isAuthenticated := ctx.Value(common.AuthenticatedKey)
+			isAuthenticated := ctx.Value(shared.AuthenticatedKey)
 			if isAuthenticated == nil || !isAuthenticated.(bool) {
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
 				return
@@ -166,17 +166,17 @@ func RequireOwnerOrAdminRole(resourceType common.ResourceType, roleChecker func(
 				return
 			}
 
-			userID, ok := ctx.Value(common.UserIDKey).(uuid.UUID)
+			userID, ok := ctx.Value(shared.UserIDKey).(uuid.UUID)
 			if !ok {
 				http.Error(w, "User ID not found", http.StatusUnauthorized)
 				return
 			}
 
 			// Check if user is owner via resource owner
-			resourceOwner := common.GetResourceOwner(ctx)
+			resourceOwner := shared.GetResourceOwner(ctx)
 			if resourceOwner.UserID == userID {
 				// User is owner
-				ctx = context.WithValue(ctx, common.ResourceIDKey, resourceID)
+				ctx = context.WithValue(ctx, shared.ResourceIDKey, resourceID)
 				r = r.WithContext(ctx)
 				next.ServeHTTP(w, r)
 				return
@@ -197,7 +197,7 @@ func RequireOwnerOrAdminRole(resourceType common.ResourceType, roleChecker func(
 
 				if hasAdminRole {
 					// User has admin role
-					ctx = context.WithValue(ctx, common.ResourceIDKey, resourceID)
+					ctx = context.WithValue(ctx, shared.ResourceIDKey, resourceID)
 					r = r.WithContext(ctx)
 					next.ServeHTTP(w, r)
 					return
@@ -215,16 +215,16 @@ func RequireOwnerOrAdminRole(resourceType common.ResourceType, roleChecker func(
 }
 
 // ResourceVisibilityMiddleware validates that the user can access resources based on visibility rules
-func ResourceVisibilityMiddleware(resourceType common.ResourceType) mux.MiddlewareFunc {
+func ResourceVisibilityMiddleware(resourceType shared.ResourceType) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
 
 			// Get intended audience from context (set by search middleware)
-			intendedAudience := ctx.Value(common.IntendedAudienceCtxKey)
+			intendedAudience := ctx.Value(shared.IntendedAudienceCtxKey)
 			if intendedAudience == nil {
 				// Default to user-level audience
-				intendedAudience = common.UserAudienceIDKey
+				intendedAudience = shared.UserAudienceIDKey
 			}
 
 			slog.DebugContext(ctx, "Visibility check",

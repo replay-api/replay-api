@@ -1,10 +1,10 @@
 package entities
 
-import common "github.com/replay-api/replay-api/pkg/domain"
+import shared "github.com/resource-ownership/go-common/pkg/common"
 
 type CSUtilityIDType = int
 type CSUtilityStats struct {
-	PlayerUtilityStats map[common.PlayerIDType]CSUtilityStats // utilities positions etc
+	PlayerUtilityStats map[shared.PlayerIDType]CSUtilityStats // utilities positions etc
 	TeamUtilityStats   map[TeamIDType]CSUtilityStats          // utilities positions etc
 
 	// TotalUtilityDamage      int            // Total damage dealt by utility (if tracking)

@@ -1,44 +1,32 @@
 package common
 
-import "github.com/google/uuid"
+import (
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+)
 
-var (
-	// Default TenantID for TeamPRO (random and valid UUID)
-	TeamPROTenantID = uuid.MustParse("a3a80810-f91c-4391-9eff-6d47a13bebde")
-
-	// Default ClientID for TeamPRO (random and valid UUID)
-	TeamPROAppClientID = uuid.MustParse("ff96c01f-a741-4429-a0cd-2868d408c42f")
-
-	ServerClientID = uuid.MustParse("ff96c01f-a741-4429-a0cd-2868d408c42f")
+// Gaming-specific constants
+const (
+	CS2_GAME_ID   = replay_common.CS2_GAME_ID
+	CSGO_GAME_ID  = replay_common.CSGO_GAME_ID
+	VLRNT_GAME_ID = replay_common.VLRNT_GAME_ID
 )
 
 const (
-	// semantic aliases
-	ALLOW = true
-	DENY  = false
+	ClutchStatTypeKey      replay_common.StatType = "Clutch"
+	EconomyStatTypeKey     replay_common.StatType = "Economy"
+	StrategyStatTypeKey    replay_common.StatType = "Strategy"
+	PlayerStatTypeKey      replay_common.StatType = "Player"
+	PositioningStatTypeKey replay_common.StatType = "Positioning"
+	UtilityStatTypeKey     replay_common.StatType = "Utility"
+	BattleStatTypeKey      replay_common.StatType = "Battle"
+	GameSenseStatTypeKey   replay_common.StatType = "Game Sense"
+	HighlightStatTypeKey   replay_common.StatType = "Highlight"
+	AreaStatTypeKey        replay_common.StatType = "Area"
 )
 
-type StatType = string
-
 const (
-	ClutchStatTypeKey      StatType = "Clutch"
-	EconomyStatTypeKey     StatType = "Economy"
-	StrategyStatTypeKey    StatType = "Strategy"
-	PlayerStatTypeKey      StatType = "Player"
-	PositioningStatTypeKey StatType = "Positioning"
-	UtilityStatTypeKey     StatType = "Utility"
-	BattleStatTypeKey      StatType = "Battle"
-	GameSenseStatTypeKey   StatType = "Game Sense"
-	HighlightStatTypeKey   StatType = "Highlight"
-	AreaStatTypeKey        StatType = "Area" // TODO: redundancia com MapRegion?
-)
-
-type RegionIDKey = string
-
-const (
-	SouthAmerica_RegionIDKey RegionIDKey = "SA"
-	NorthAmerica_RegionIDKey RegionIDKey = "NA"
-	Asia_RegionIDKey         RegionIDKey = "AS"
-	Global_RegionIDKey       RegionIDKey = "GL"
-	// TODO: espelhar do cs2 ou usar mais granular como por server msm?
+	SouthAmerica_RegionIDKey replay_common.RegionIDKey = "SA"
+	NorthAmerica_RegionIDKey replay_common.RegionIDKey = "NA"
+	Asia_RegionIDKey         replay_common.RegionIDKey = "AS"
+	Global_RegionIDKey       replay_common.RegionIDKey = "GL"
 )

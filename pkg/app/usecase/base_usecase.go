@@ -6,7 +6,7 @@ import (
 
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type BaseUseCase struct {
@@ -20,17 +20,17 @@ func NewBaseUseCase(billableOperationHandler billing_in.BillableOperationCommand
 }
 
 func (uc *BaseUseCase) RequireAuthentication(ctx context.Context) error {
-	isAuthenticated := ctx.Value(common.AuthenticatedKey)
+	isAuthenticated := ctx.Value(shared.AuthenticatedKey)
 	if isAuthenticated == nil || !isAuthenticated.(bool) {
-		return common.NewErrUnauthorized()
+		return shared.NewErrUnauthorized()
 	}
 	return nil
 }
 
-func (uc *BaseUseCase) RequireOwnership(ctx context.Context, resourceOwner common.ResourceOwner) error {
-	currentUser := common.GetResourceOwner(ctx)
+func (uc *BaseUseCase) RequireOwnership(ctx context.Context, resourceOwner shared.ResourceOwner) error {
+	currentUser := shared.GetResourceOwner(ctx)
 	if resourceOwner.UserID != currentUser.UserID {
-		return common.NewErrUnauthorized()
+		return shared.NewErrUnauthorized()
 	}
 	return nil
 }
@@ -38,7 +38,7 @@ func (uc *BaseUseCase) RequireOwnership(ctx context.Context, resourceOwner commo
 func (uc *BaseUseCase) ValidateBilling(ctx context.Context, operationType billing_entities.BillableOperationKey, amount int) error {
 	billingCmd := billing_in.BillableOperationCommand{
 		OperationID: operationType,
-		UserID:      common.GetResourceOwner(ctx).UserID,
+		UserID:      shared.GetResourceOwner(ctx).UserID,
 		Amount:      float64(amount),
 	}
 	err := uc.billableOperationHandler.Validate(ctx, billingCmd)
@@ -52,7 +52,7 @@ func (uc *BaseUseCase) ValidateBilling(ctx context.Context, operationType billin
 func (uc *BaseUseCase) ExecuteBilling(ctx context.Context, operationType billing_entities.BillableOperationKey, amount int) {
 	billingCmd := billing_in.BillableOperationCommand{
 		OperationID: operationType,
-		UserID:      common.GetResourceOwner(ctx).UserID,
+		UserID:      shared.GetResourceOwner(ctx).UserID,
 		Amount:      float64(amount),
 	}
 	_, _, err := uc.billableOperationHandler.Exec(ctx, billingCmd)

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	tournament_in "github.com/replay-api/replay-api/pkg/domain/tournament/ports/in"
@@ -27,7 +27,7 @@ import (
 //  7. Billing execution - charges entry fee
 //
 // Security:
-//   - Requires authenticated context (common.AuthenticatedKey)
+//   - Requires authenticated context (shared.AuthenticatedKey)
 //   - Validates PlayerID ownership against authenticated user
 //   - Logs impersonation attempts with attacker details for security monitoring
 //
@@ -62,9 +62,9 @@ func NewRegisterForTournamentUseCase(
 // Exec registers a player for a tournament
 func (uc *RegisterForTournamentUseCase) Exec(ctx context.Context, cmd tournament_in.RegisterPlayerCommand) error {
 	// 1. Authentication check
-	isAuthenticated := ctx.Value(common.AuthenticatedKey)
+	isAuthenticated := ctx.Value(shared.AuthenticatedKey)
 	if isAuthenticated == nil || !isAuthenticated.(bool) {
-		return common.NewErrUnauthorized()
+		return shared.NewErrUnauthorized()
 	}
 
 	// 2. CRITICAL: Ownership validation - prevent impersonation
@@ -77,11 +77,11 @@ func (uc *RegisterForTournamentUseCase) Exec(ctx context.Context, cmd tournament
 	// 	return fmt.Errorf("player not found")
 	// }
 	// if len(players) == 0 {
-	// 	return common.NewErrNotFound(common.ResourceTypePlayerProfile, "ID", cmd.PlayerID.String())
+	// 	return shared.NewErrNotFound(replay_common.ResourceTypePlayerProfile, "ID", cmd.PlayerID.String())
 	// }
 
 	// // Verify ownership - player must belong to authenticated user
-	// currentUserID := common.GetResourceOwner(ctx).UserID
+	// currentUserID := shared.GetResourceOwner(ctx).UserID
 	// if players[0].ResourceOwner.UserID != currentUserID {
 	// 	slog.WarnContext(ctx, "Tournament registration impersonation attempt blocked",
 	// 		"attempted_player_id", cmd.PlayerID,
@@ -89,7 +89,7 @@ func (uc *RegisterForTournamentUseCase) Exec(ctx context.Context, cmd tournament
 	// 		"attacker_user_id", currentUserID,
 	// 		"tournament_id", cmd.TournamentID,
 	// 	)
-	// 	return common.NewErrUnauthorized()
+	// 	return shared.NewErrUnauthorized()
 	// }
 
 	// 3. Get tournament
@@ -107,7 +107,7 @@ func (uc *RegisterForTournamentUseCase) Exec(ctx context.Context, cmd tournament
 
 	billingCmd := billing_in.BillableOperationCommand{
 		OperationID: billing_entities.OperationTypeRegisterForTournament,
-		UserID:      common.GetResourceOwner(ctx).UserID,
+		UserID:      shared.GetResourceOwner(ctx).UserID,
 		Amount:      amount,
 		Args: map[string]interface{}{
 			"tournament_id": cmd.TournamentID.String(),

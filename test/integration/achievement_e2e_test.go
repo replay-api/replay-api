@@ -14,7 +14,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	achievement_entities "github.com/replay-api/replay-api/pkg/domain/achievement/entities"
 	achievement_usecases "github.com/replay-api/replay-api/pkg/domain/achievement/usecases"
 	db "github.com/replay-api/replay-api/pkg/infra/db/mongodb"
@@ -130,7 +130,7 @@ func TestE2E_AchievementLifecycle(t *testing.T) {
 
 	// Test player achievements
 	playerID := uuid.New()
-	resourceOwner := common.ResourceOwner{
+	resourceOwner := shared.ResourceOwner{
 		UserID:   playerID,
 		TenantID: uuid.New(),
 		ClientID: uuid.New(),

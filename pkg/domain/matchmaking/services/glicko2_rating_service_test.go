@@ -6,10 +6,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
 	matchmaking_in "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/in"
 	matchmaking_services "github.com/replay-api/replay-api/pkg/domain/matchmaking/services"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -40,7 +41,7 @@ func (m *MockPlayerRatingRepository) Update(ctx context.Context, rating *matchma
 	return args.Error(0)
 }
 
-func (m *MockPlayerRatingRepository) FindByPlayerAndGame(ctx context.Context, playerID uuid.UUID, gameID common.GameIDKey) (*matchmaking_entities.PlayerRating, error) {
+func (m *MockPlayerRatingRepository) FindByPlayerAndGame(ctx context.Context, playerID uuid.UUID, gameID replay_common.GameIDKey) (*matchmaking_entities.PlayerRating, error) {
 	args := m.Called(ctx, playerID, gameID)
 	key := playerID.String() + ":" + string(gameID)
 	if rating, ok := m.ratings[key]; ok {
@@ -60,7 +61,7 @@ func (m *MockPlayerRatingRepository) GetByID(ctx context.Context, id uuid.UUID) 
 	return nil, args.Error(1)
 }
 
-func (m *MockPlayerRatingRepository) GetTopPlayers(ctx context.Context, gameID common.GameIDKey, limit int) ([]*matchmaking_entities.PlayerRating, error) {
+func (m *MockPlayerRatingRepository) GetTopPlayers(ctx context.Context, gameID replay_common.GameIDKey, limit int) ([]*matchmaking_entities.PlayerRating, error) {
 	args := m.Called(ctx, gameID, limit)
 	if args.Get(0) != nil {
 		return args.Get(0).([]*matchmaking_entities.PlayerRating), args.Error(1)
@@ -68,7 +69,7 @@ func (m *MockPlayerRatingRepository) GetTopPlayers(ctx context.Context, gameID c
 	return nil, args.Error(1)
 }
 
-func (m *MockPlayerRatingRepository) GetRankDistribution(ctx context.Context, gameID common.GameIDKey) (map[matchmaking_entities.Rank]int, error) {
+func (m *MockPlayerRatingRepository) GetRankDistribution(ctx context.Context, gameID replay_common.GameIDKey) (map[matchmaking_entities.Rank]int, error) {
 	args := m.Called(ctx, gameID)
 	if args.Get(0) != nil {
 		return args.Get(0).(map[matchmaking_entities.Rank]int), args.Error(1)
@@ -86,9 +87,9 @@ func setupTestContext() context.Context {
 	tenantID := uuid.New()
 	userID := uuid.New()
 	groupID := uuid.New()
-	ctx = context.WithValue(ctx, common.TenantIDKey, tenantID)
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.GroupIDKey, groupID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, tenantID)
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.GroupIDKey, groupID)
 	return ctx
 }
 
@@ -98,7 +99,7 @@ func TestGlicko2RatingService_GetPlayerRating_NewPlayer(t *testing.T) {
 	ctx := setupTestContext()
 
 	playerID := uuid.New()
-	gameID := common.CS2.ID
+	gameID := replay_common.CS2.ID
 
 	// Return nil = player not found
 	mockRepo.On("FindByPlayerAndGame", ctx, playerID, gameID).Return(nil, nil)
@@ -123,7 +124,7 @@ func TestGlicko2RatingService_GetPlayerRating_ExistingPlayer(t *testing.T) {
 	ctx := setupTestContext()
 
 	playerID := uuid.New()
-	gameID := common.CS2.ID
+	gameID := replay_common.CS2.ID
 	
 	existingRating := &matchmaking_entities.PlayerRating{
 		ID:              uuid.New(),
@@ -158,11 +159,11 @@ func TestGlicko2RatingService_UpdateRatingsAfterMatch(t *testing.T) {
 	winner2 := uuid.New()
 	loser1 := uuid.New()
 	loser2 := uuid.New()
-	gameID := common.CS2.ID
+	gameID := replay_common.CS2.ID
 
 	// Create equal ratings for all players
 	for _, playerID := range []uuid.UUID{winner1, winner2, loser1, loser2} {
-		rating := matchmaking_entities.NewPlayerRating(playerID, gameID, common.GetResourceOwner(ctx))
+		rating := matchmaking_entities.NewPlayerRating(playerID, gameID, shared.GetResourceOwner(ctx))
 		rating.Rating = 1500.0
 		rating.RatingDeviation = 100.0
 		mockRepo.ratings[playerID.String()+":"+string(gameID)] = rating
@@ -280,7 +281,7 @@ func TestGlicko2RatingService_GetLeaderboard(t *testing.T) {
 	service := matchmaking_services.NewGlicko2RatingService(mockRepo)
 	ctx := context.Background()
 
-	gameID := common.CS2.ID
+	gameID := replay_common.CS2.ID
 	topPlayers := []*matchmaking_entities.PlayerRating{
 		{PlayerID: uuid.New(), Rating: 2800, MatchesPlayed: 100},
 		{PlayerID: uuid.New(), Rating: 2600, MatchesPlayed: 80},
@@ -301,9 +302,9 @@ func TestGlicko2RatingService_GetLeaderboard(t *testing.T) {
 func TestPlayerRating_PeakRating(t *testing.T) {
 	ctx := setupTestContext()
 	playerID := uuid.New()
-	gameID := common.CS2.ID
+	gameID := replay_common.CS2.ID
 
-	rating := matchmaking_entities.NewPlayerRating(playerID, gameID, common.GetResourceOwner(ctx))
+	rating := matchmaking_entities.NewPlayerRating(playerID, gameID, shared.GetResourceOwner(ctx))
 	assert.Equal(t, matchmaking_entities.DefaultRating, rating.PeakRating)
 
 	// Simulate rating increase
@@ -321,9 +322,9 @@ func TestPlayerRating_PeakRating(t *testing.T) {
 func TestPlayerRating_RatingHistory(t *testing.T) {
 	ctx := setupTestContext()
 	playerID := uuid.New()
-	gameID := common.CS2.ID
+	gameID := replay_common.CS2.ID
 
-	rating := matchmaking_entities.NewPlayerRating(playerID, gameID, common.GetResourceOwner(ctx))
+	rating := matchmaking_entities.NewPlayerRating(playerID, gameID, shared.GetResourceOwner(ctx))
 	assert.Empty(t, rating.RatingHistory)
 
 	// Add rating changes

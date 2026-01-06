@@ -5,13 +5,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	wallet_vo "github.com/replay-api/replay-api/pkg/domain/wallet/value-objects"
 )
 
 // UserWallet is an aggregate root representing a user's blockchain wallet
 type UserWallet struct {
-	common.BaseEntity
+	shared.BaseEntity
 	EVMAddress          wallet_vo.EVMAddress                    `json:"evm_address" bson:"evm_address"`
 	Balances            map[wallet_vo.Currency]wallet_vo.Amount `json:"balances" bson:"balances"`
 	PendingTransactions []uuid.UUID                             `json:"pending_transactions" bson:"pending_transactions"`
@@ -25,12 +25,12 @@ type UserWallet struct {
 }
 
 // NewUserWallet creates a new wallet with the given EVM address
-func NewUserWallet(resourceOwner common.ResourceOwner, evmAddress wallet_vo.EVMAddress) (*UserWallet, error) {
+func NewUserWallet(resourceOwner shared.ResourceOwner, evmAddress wallet_vo.EVMAddress) (*UserWallet, error) {
 	if !evmAddress.IsValid() {
 		return nil, fmt.Errorf("invalid EVM address: %s", evmAddress.String())
 	}
 
-	baseEntity := common.NewPrivateEntity(resourceOwner) // Wallets are private to user
+	baseEntity := shared.NewPrivateEntity(resourceOwner) // Wallets are private to user
 
 	wallet := &UserWallet{
 		BaseEntity:          baseEntity,

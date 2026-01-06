@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	auth_entities "github.com/replay-api/replay-api/pkg/domain/auth/entities"
 	auth_in "github.com/replay-api/replay-api/pkg/domain/auth/ports/in"
 	auth_out "github.com/replay-api/replay-api/pkg/domain/auth/ports/out"
@@ -78,7 +78,7 @@ func (s *MFAService) SetupTOTP(ctx context.Context, userID uuid.UUID, email stri
 	}
 	
 	// Create or update MFA record
-	rxn := common.GetResourceOwner(ctx)
+	rxn := shared.GetResourceOwner(ctx)
 	mfa := auth_entities.NewUserMFA(userID, auth_entities.MFAMethodTOTP, rxn)
 	mfa.SetupTOTP(secret, totpIssuer, email)
 	mfa.BackupCodes = hashedCodes

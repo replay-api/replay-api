@@ -9,9 +9,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	controllers "github.com/replay-api/replay-api/cmd/rest-api/controllers"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
 )
 
 type PlayerProfileQueryController struct {
@@ -64,9 +64,9 @@ func (c *PlayerProfileQueryController) GetPlayerStatsHandler(w http.ResponseWrit
 	}
 
 	// Parse optional game_id filter
-	var gameID *common.GameIDKey
+	var gameID *replay_common.GameIDKey
 	if gameIDStr := r.URL.Query().Get("game_id"); gameIDStr != "" {
-		gid := common.GameIDKey(gameIDStr)
+		gid := replay_common.GameIDKey(gameIDStr)
 		gameID = &gid
 	}
 

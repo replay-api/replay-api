@@ -10,7 +10,6 @@ import (
 
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
@@ -19,6 +18,8 @@ import (
 	replay_in "github.com/replay-api/replay-api/pkg/domain/replay/ports/in"
 	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type SearchableHandler interface {
@@ -26,34 +27,34 @@ type SearchableHandler interface {
 }
 
 type SearchController[T any] struct {
-	common.Searchable[T]
+	shared.Searchable[T]
 }
 
 type SearchableResourceMultiplexer struct {
-	Handlers      map[common.ResourceType]interface{}
-	ResourceTypes []common.ResourceType
+	Handlers      map[shared.ResourceType]interface{}
+	ResourceTypes []shared.ResourceType
 }
 
 func NewSearchMux(c *container.Container) *SearchableResourceMultiplexer {
 	smux := SearchableResourceMultiplexer{
-		Handlers: make(map[common.ResourceType]interface{}),
+		Handlers: make(map[shared.ResourceType]interface{}),
 	}
 
-	// smux.Handlers[common.ResourceTypeBadge] = NewBadgeSearchController(c)
-	// smux.Handlers[common.ResourceTypeRound] = NewMatchSearchController(c)
-	smux.Handlers[common.ResourceTypeReplayFile] = NewReplayFileSearchController(c)
-	smux.Handlers[common.ResourceTypeMatch] = NewMatchSearchController(c)
-	smux.Handlers[common.ResourceTypePlayerMetadata] = NewPlayerSearchController(c)
-	smux.Handlers[common.ResourceTypePlayerProfile] = NewPlayerProfileSearchController(c)
+	// smux.Handlers[shared.ResourceTypeBadge] = NewBadgeSearchController(c)
+	// smux.Handlers[shared.ResourceTypeRound] = NewMatchSearchController(c)
+	smux.Handlers[replay_common.ResourceTypeReplayFile] = NewReplayFileSearchController(c)
+	smux.Handlers[replay_common.ResourceTypeMatch] = NewMatchSearchController(c)
+	smux.Handlers[replay_common.ResourceTypePlayerMetadata] = NewPlayerSearchController(c)
+	smux.Handlers[replay_common.ResourceTypePlayerProfile] = NewPlayerProfileSearchController(c)
 
-	smux.Handlers[common.ResourceTypeGameEvent] = NewEventSearchController(c)
-	smux.Handlers[common.ResourceTypeProfile] = NewProfileSearchController(c)
-	smux.Handlers[common.ResourceTypeMembership] = NewMembershipSearchController(c)
-	smux.Handlers[common.ResourceTypeSquad] = NewSquadSearchController(c)
-	smux.Handlers[common.ResourceTypePlan] = NewPlanSearchController(c)
-	smux.Handlers[common.ResourceTypeSubscription] = NewSubscriptionSearchController(c)
-	// smux.Handlers[common.ResourceTypeTeam] = NewTeamSearchController(c)
-	smux.ResourceTypes = make([]common.ResourceType, len(smux.Handlers))
+	smux.Handlers[replay_common.ResourceTypeGameEvent] = NewEventSearchController(c)
+	smux.Handlers[replay_common.ResourceTypeProfile] = NewProfileSearchController(c)
+	smux.Handlers[replay_common.ResourceTypeMembership] = NewMembershipSearchController(c)
+	smux.Handlers[replay_common.ResourceTypeSquad] = NewSquadSearchController(c)
+	smux.Handlers[shared.ResourceTypePlan] = NewPlanSearchController(c)
+	smux.Handlers[shared.ResourceTypeSubscription] = NewSubscriptionSearchController(c)
+	// smux.Handlers[shared.ResourceTypeTeam] = NewTeamSearchController(c)
+	smux.ResourceTypes = make([]shared.ResourceType, len(smux.Handlers))
 
 	i := 0
 	for k := range smux.Handlers {
@@ -64,7 +65,7 @@ func NewSearchMux(c *container.Container) *SearchableResourceMultiplexer {
 	return &smux
 }
 
-func GetResourceStringFromPath(types []common.ResourceType, path string) string {
+func GetResourceStringFromPath(types []shared.ResourceType, path string) string {
 	parts := strings.Split(strings.ToLower(path), "/")
 
 	if len(parts) <= 1 {
@@ -90,7 +91,7 @@ func GetResourceStringFromPath(types []common.ResourceType, path string) string 
 func (smux *SearchableResourceMultiplexer) Dispatch(w http.ResponseWriter, r *http.Request) {
 	resString := GetResourceStringFromPath(smux.ResourceTypes, r.URL.Path)
 
-	res := common.ResourceType(resString)
+	res := shared.ResourceType(resString)
 
 	for _, resource := range smux.ResourceTypes {
 		if strings.EqualFold(string(res), string(resource)) {
@@ -274,7 +275,7 @@ func NewPlanSearchController(c *container.Container) *SearchController[billing_e
 	}
 }
 
-func GetPathParams(r *http.Request, s *common.Search) (*common.Search, error) {
+func GetPathParams(r *http.Request, s *shared.Search) (*shared.Search, error) {
 	sanitizedPath := strings.Join(strings.Split(strings.ToLower(r.URL.Path), "/search/"), "")
 	parts := strings.Split(sanitizedPath, "/")
 
@@ -283,10 +284,12 @@ func GetPathParams(r *http.Request, s *common.Search) (*common.Search, error) {
 			continue
 		}
 
-		fieldID, err := common.GetResourceFieldID(parts[i-2])
-
+		fieldID, err := shared.GetResourceFieldID(parts[i-2])
 		if err != nil {
-			return nil, err
+			fieldID, err = replay_common.GetGamingResourceFieldID(parts[i-2])
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		parsedUUID, err := uuid.Parse(parts[i-1])
@@ -296,21 +299,21 @@ func GetPathParams(r *http.Request, s *common.Search) (*common.Search, error) {
 			continue
 		}
 
-		value := common.SearchableValue{
+		value := shared.SearchableValue{
 			Field:    fieldID,
 			Values:   []interface{}{parsedUUID},
-			Operator: common.EqualsOperator,
+			Operator: shared.EqualsOperator,
 		}
 
-		params := []common.SearchParameter{
+		params := []shared.SearchParameter{
 			{
-				ValueParams: []common.SearchableValue{
+				ValueParams: []shared.SearchableValue{
 					value,
 				},
 			},
 		}
 
-		s.SearchParams = append(s.SearchParams, common.SearchAggregation{
+		s.SearchParams = append(s.SearchParams, shared.SearchAggregation{
 			Params: params,
 		})
 	}
@@ -318,36 +321,36 @@ func GetPathParams(r *http.Request, s *common.Search) (*common.Search, error) {
 	return s, nil
 }
 
-func InitializeSearch(r *http.Request) *common.Search {
+func InitializeSearch(r *http.Request) *shared.Search {
 	requestContext := r.Context()
 
-	requestedAudience := common.GetIntendedAudience(requestContext)
+	requestedAudience := shared.GetIntendedAudience(requestContext)
 
-	var intendedAudience common.IntendedAudienceKey
+	var intendedAudience shared.IntendedAudienceKey
 
 	if requestedAudience == nil {
 		slog.WarnContext(requestContext, "Missing Requested Audience on r.Context, using Intented Audience on User level", "request", r)
-		intendedAudience = common.UserAudienceIDKey
+		intendedAudience = shared.UserAudienceIDKey
 	} else {
 		intendedAudience = *requestedAudience
 	}
 
-	s := common.Search{
-		SearchParams: make([]common.SearchAggregation, 0),
-		VisibilityOptions: common.SearchVisibilityOptions{
-			RequestSource:    common.GetResourceOwner(requestContext),
+	s := shared.Search{
+		SearchParams: make([]shared.SearchAggregation, 0),
+		VisibilityOptions: shared.SearchVisibilityOptions{
+			RequestSource:    shared.GetResourceOwner(requestContext),
 			IntendedAudience: intendedAudience,
 		},
 	}
 	return &s
 }
 
-func GetSearchParams(r *http.Request) (*common.Search, error) {
+func GetSearchParams(r *http.Request) (*shared.Search, error) {
 	s := InitializeSearch(r)
 
 	if s.VisibilityOptions.IntendedAudience == 0 {
 		slog.ErrorContext(r.Context(), "Unauthorized: missing audience", "request", r)
-		s.VisibilityOptions.IntendedAudience = common.GroupAudienceIDKey
+		s.VisibilityOptions.IntendedAudience = shared.GroupAudienceIDKey
 	}
 
 	s, err := GetPathParams(r, s)
@@ -361,24 +364,24 @@ func GetSearchParams(r *http.Request) (*common.Search, error) {
 	return s, nil
 }
 
-func GetQueryParams(r *http.Request, s *common.Search) *common.Search {
+func GetQueryParams(r *http.Request, s *shared.Search) *shared.Search {
 	queryParams := r.URL.Query()
-	aggregation := common.SearchAggregation{
-		Params: []common.SearchParameter{},
+	aggregation := shared.SearchAggregation{
+		Params: []shared.SearchParameter{},
 	}
 
 	joinParam := queryParams["filter"]
 
-	var operator common.SearchOperator
+	var operator shared.SearchOperator
 
 	if len(joinParam) > 0 {
 		switch joinParam[0] {
 		case "out":
-			aggregation.AggregationClause = common.AndAggregationClause
-			operator = common.EqualsOperator
+			aggregation.AggregationClause = shared.AndAggregationClause
+			operator = shared.EqualsOperator
 		case "in":
-			aggregation.AggregationClause = common.OrAggregationClause
-			operator = common.ContainsOperator
+			aggregation.AggregationClause = shared.OrAggregationClause
+			operator = shared.ContainsOperator
 		}
 	}
 
@@ -395,7 +398,7 @@ func GetQueryParams(r *http.Request, s *common.Search) *common.Search {
 			continue
 		}
 
-		value := common.SearchableValue{
+		value := shared.SearchableValue{
 			Field:    key,
 			Values:   make([]interface{}, len(values)),
 			Operator: operator,
@@ -405,8 +408,8 @@ func GetQueryParams(r *http.Request, s *common.Search) *common.Search {
 			value.Values[i] = v
 		}
 
-		param := common.SearchParameter{
-			ValueParams: []common.SearchableValue{
+		param := shared.SearchParameter{
+			ValueParams: []shared.SearchableValue{
 				value,
 			},
 			AggregationClause: aggregation.AggregationClause,
@@ -424,12 +427,12 @@ func GetQueryParams(r *http.Request, s *common.Search) *common.Search {
 	s.ResultOptions = getResultOptions(limitParam, skipParam)
 
 	for _, includeParam := range includeParams {
-		resString := common.ResourceType(includeParam)
+		resString := shared.ResourceType(includeParam)
 
-		s.IncludeParams = append(s.IncludeParams, common.IncludeParam{
+		s.IncludeParams = append(s.IncludeParams, shared.IncludeParam{
 			From:         resString,
 			LocalField:   "ID",                             // expects to parse to baseentity._id or _id
-			ForeignField: common.ResourceKeyMap[resString], // TODO: currently using snake case, needs to map to camel case in the repos (ie: subscription_id)
+			ForeignField: shared.ResourceKeyMap[resString], // TODO: currently using snake case, needs to map to camel case in the repos (ie: subscription_id)
 			IsArray:      true,
 		})
 	}
@@ -437,7 +440,7 @@ func GetQueryParams(r *http.Request, s *common.Search) *common.Search {
 	return s
 }
 
-func getResultOptions(limitParam []string, skipParam []string) common.SearchResultOptions {
+func getResultOptions(limitParam []string, skipParam []string) shared.SearchResultOptions {
 	var limit uint
 	var offset uint
 
@@ -455,7 +458,7 @@ func getResultOptions(limitParam []string, skipParam []string) common.SearchResu
 		}
 	}
 
-	return common.SearchResultOptions{
+	return shared.SearchResultOptions{
 		Limit: limit,
 		Skip:  offset,
 	}
@@ -465,7 +468,7 @@ func (c *SearchController[T]) HandleSearchRequest(w http.ResponseWriter, r *http
 	s, err := GetSearchParams(r)
 
 	if err != nil {
-		slog.ErrorContext(r.Context(), "BadRequest: unable to serialize URL parameters into common.Search", "request", r, "error", err)
+		slog.ErrorContext(r.Context(), "BadRequest: unable to serialize URL parameters into shared.Search", "request", r, "error", err)
 		http.Error(w, "BadRequest", http.StatusBadRequest)
 		return
 	}

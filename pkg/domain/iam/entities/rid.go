@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type RIDSourceKey string
@@ -17,15 +17,15 @@ const (
 )
 
 const (
-	DefaultTokenAudience = common.UserAudienceIDKey
+	DefaultTokenAudience = shared.UserAudienceIDKey
 )
 
 type RIDToken struct {
 	ID               uuid.UUID                  `json:"-" bson:"_id"`
 	Key              uuid.UUID                  `json:"-" bson:"key"` // deprecated TODO: delete
 	Source           RIDSourceKey               `json:"-" bson:"source"`
-	ResourceOwner    common.ResourceOwner       `json:"-" bson:"resource_owner"`
-	IntendedAudience common.IntendedAudienceKey `json:"-" bson:"intended_audience"`
+	ResourceOwner    shared.ResourceOwner       `json:"-" bson:"resource_owner"`
+	IntendedAudience shared.IntendedAudienceKey `json:"-" bson:"intended_audience"`
 	GrantType        string                     `json:"-" bson:"grant_type"`
 	ExpiresAt        time.Time                  `json:"-" bson:"expires_at"`
 	RevokedAt        *time.Time                 `json:"-" bson:"revoked_at,omitempty"`

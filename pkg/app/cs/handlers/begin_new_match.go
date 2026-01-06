@@ -8,7 +8,8 @@ import (
 	"github.com/replay-api/replay-api/pkg/app/cs/builders"
 	event_factory "github.com/replay-api/replay-api/pkg/app/cs/factories"
 	state "github.com/replay-api/replay-api/pkg/app/cs/state"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	fps_events "github.com/replay-api/replay-common/pkg/replay/events/game/fps"
 	cs_entity "github.com/replay-api/replay-api/pkg/domain/cs/entities"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 )
@@ -37,10 +38,10 @@ func BeginNewMatch(p dem.Parser, matchContext *state.CS2MatchContext, out chan *
 
 		payload := b.Build()
 
-		currentTick := common.TickIDType(gs.IngameTick())
+		currentTick := replay_common.TickIDType(gs.IngameTick())
 
 		gameEvent, err := event_factory.NewGameEvent(
-			common.Event_MatchStartID,
+			fps_events.Event_MatchStartID,
 			matchContext,
 			0,
 			currentTick,
@@ -48,7 +49,7 @@ func BeginNewMatch(p dem.Parser, matchContext *state.CS2MatchContext, out chan *
 			payload,
 		)
 
-		slog.Info("MatchStart:", "gameEvent", common.Event_MatchStartID)
+		slog.Info("MatchStart:", "gameEvent", fps_events.Event_MatchStartID)
 
 		if err != nil {
 			slog.Error("unable to create new match event")

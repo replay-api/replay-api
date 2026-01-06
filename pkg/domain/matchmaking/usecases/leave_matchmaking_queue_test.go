@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
 	matchmaking_in "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/in"
 	matchmaking_usecases "github.com/replay-api/replay-api/pkg/domain/matchmaking/usecases"
@@ -24,10 +24,10 @@ func TestLeaveMatchmakingQueue_Success(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	sessionID := uuid.New()
 	playerID := uuid.New()
@@ -38,7 +38,7 @@ func TestLeaveMatchmakingQueue_Success(t *testing.T) {
 
 	// mock session retrieval
 	session := &matchmaking_entities.MatchmakingSession{
-		BaseEntity: common.BaseEntity{ID: sessionID},
+		BaseEntity: shared.BaseEntity{ID: sessionID},
 		PlayerID:   playerID,
 		Status:     matchmaking_entities.StatusQueued,
 	}
@@ -93,10 +93,10 @@ func TestLeaveMatchmakingQueue_SessionNotFound(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	sessionID := uuid.New()
 	cmd := matchmaking_in.LeaveMatchmakingQueueCommand{
@@ -125,10 +125,10 @@ func TestLeaveMatchmakingQueue_PlayerDoesNotOwnSession(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	sessionID := uuid.New()
 	ownerID := uuid.New()
@@ -141,7 +141,7 @@ func TestLeaveMatchmakingQueue_PlayerDoesNotOwnSession(t *testing.T) {
 
 	// mock session owned by different player
 	session := &matchmaking_entities.MatchmakingSession{
-		BaseEntity: common.BaseEntity{ID: sessionID},
+		BaseEntity: shared.BaseEntity{ID: sessionID},
 		PlayerID:   ownerID, // different player
 		Status:     matchmaking_entities.StatusQueued,
 	}
@@ -165,10 +165,10 @@ func TestLeaveMatchmakingQueue_CannotLeaveFromStatus(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	sessionID := uuid.New()
 	playerID := uuid.New()
@@ -180,7 +180,7 @@ func TestLeaveMatchmakingQueue_CannotLeaveFromStatus(t *testing.T) {
 
 	// mock session already matched (can't leave)
 	session := &matchmaking_entities.MatchmakingSession{
-		BaseEntity: common.BaseEntity{ID: sessionID},
+		BaseEntity: shared.BaseEntity{ID: sessionID},
 		PlayerID:   playerID,
 		Status:     matchmaking_entities.StatusMatched,
 	}
@@ -204,10 +204,10 @@ func TestLeaveMatchmakingQueue_BillingValidationFails(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	sessionID := uuid.New()
 	playerID := uuid.New()
@@ -219,7 +219,7 @@ func TestLeaveMatchmakingQueue_BillingValidationFails(t *testing.T) {
 
 	// mock session retrieval
 	session := &matchmaking_entities.MatchmakingSession{
-		BaseEntity: common.BaseEntity{ID: sessionID},
+		BaseEntity: shared.BaseEntity{ID: sessionID},
 		PlayerID:   playerID,
 		Status:     matchmaking_entities.StatusQueued,
 	}

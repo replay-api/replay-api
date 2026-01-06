@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	wallet_entities "github.com/replay-api/replay-api/pkg/domain/wallet/entities"
@@ -249,8 +249,8 @@ func (m *mockAuditTrail) VerifyChainIntegrity(ctx context.Context, targetType st
 
 // Test helpers
 
-func testResourceOwner() common.ResourceOwner {
-	return common.ResourceOwner{
+func testResourceOwner() shared.ResourceOwner {
+	return shared.ResourceOwner{
 		TenantID: uuid.New(),
 		ClientID: uuid.New(),
 		UserID:   uuid.New(),
@@ -260,19 +260,19 @@ func testResourceOwner() common.ResourceOwner {
 func testContext() context.Context {
 	ctx := context.Background()
 	ro := testResourceOwner()
-	ctx = context.WithValue(ctx, common.TenantIDKey, ro.TenantID)
-	ctx = context.WithValue(ctx, common.ClientIDKey, ro.ClientID)
-	ctx = context.WithValue(ctx, common.UserIDKey, ro.UserID)
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, ro.TenantID)
+	ctx = context.WithValue(ctx, shared.ClientIDKey, ro.ClientID)
+	ctx = context.WithValue(ctx, shared.UserIDKey, ro.UserID)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	return ctx
 }
 
-func testContextWithResourceOwner(ro common.ResourceOwner) context.Context {
+func testContextWithResourceOwner(ro shared.ResourceOwner) context.Context {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.TenantIDKey, ro.TenantID)
-	ctx = context.WithValue(ctx, common.ClientIDKey, ro.ClientID)
-	ctx = context.WithValue(ctx, common.UserIDKey, ro.UserID)
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, ro.TenantID)
+	ctx = context.WithValue(ctx, shared.ClientIDKey, ro.ClientID)
+	ctx = context.WithValue(ctx, shared.UserIDKey, ro.UserID)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	return ctx
 }
 

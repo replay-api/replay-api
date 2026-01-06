@@ -12,8 +12,8 @@ require (
 	github.com/markus-wa/demoinfocs-golang/v4 v4.1.3
 	github.com/markus-wa/godispatch v1.4.1
 	github.com/prometheus/client_golang v1.19.0
-	github.com/replay-api/replay-common v0.0.0-20260105112215-8b0482eb32de
-	github.com/resource-ownership/go-common v0.0.0-20260105112203-d0ca3b914188
+	github.com/replay-api/replay-common v0.0.0-20260105132037-5c54623d9838
+	github.com/resource-ownership/go-common v0.0.0-20260105131913-f0c9a53e9a6d
 	github.com/segmentio/kafka-go v0.4.49
 	github.com/streadway/amqp v1.1.0
 	github.com/stretchr/testify v1.11.1

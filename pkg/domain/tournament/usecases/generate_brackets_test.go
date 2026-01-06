@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	tournament_entities "github.com/replay-api/replay-api/pkg/domain/tournament/entities"
 	tournament_usecases "github.com/replay-api/replay-api/pkg/domain/tournament/usecases"
 	wallet_vo "github.com/replay-api/replay-api/pkg/domain/wallet/value-objects"
@@ -27,13 +27,13 @@ func createTournamentWithParticipants(count int, format tournament_entities.Tour
 	}
 
 	startTime := time.Now().UTC().Add(1 * time.Hour)
-	resourceOwner := common.ResourceOwner{
+	resourceOwner := shared.ResourceOwner{
 		UserID:   uuid.New(),
 		TenantID: uuid.New(),
 	}
 
 	return &tournament_entities.Tournament{
-		BaseEntity:        common.NewUnrestrictedEntity(resourceOwner),
+		BaseEntity:        shared.NewUnrestrictedEntity(resourceOwner),
 		Name:              "Test Tournament",
 		Format:            format,
 		MaxParticipants:   16,
@@ -60,10 +60,10 @@ func TestGenerateBrackets_Success_SingleElimination(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	tournament := createTournamentWithParticipants(8, tournament_entities.TournamentFormatSingleElimination, tournament_entities.TournamentStatusReady)
 	tournamentID := tournament.ID
@@ -97,10 +97,10 @@ func TestGenerateBrackets_Success_DoubleElimination(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	tournament := createTournamentWithParticipants(8, tournament_entities.TournamentFormatDoubleElimination, tournament_entities.TournamentStatusReady)
 	tournamentID := tournament.ID
@@ -134,10 +134,10 @@ func TestGenerateBrackets_Success_RoundRobin(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	tournament := createTournamentWithParticipants(6, tournament_entities.TournamentFormatRoundRobin, tournament_entities.TournamentStatusReady)
 	tournament.MinParticipants = 4
@@ -172,10 +172,10 @@ func TestGenerateBrackets_Success_Swiss(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	tournament := createTournamentWithParticipants(8, tournament_entities.TournamentFormatSwiss, tournament_entities.TournamentStatusReady)
 	tournamentID := tournament.ID
@@ -225,10 +225,10 @@ func TestGenerateBrackets_TournamentNotFound(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	tournamentID := uuid.New()
 
@@ -252,10 +252,10 @@ func TestGenerateBrackets_WrongStatus(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	// create tournament in wrong status (registration instead of ready)
 	tournament := createTournamentWithParticipants(8, tournament_entities.TournamentFormatSingleElimination, tournament_entities.TournamentStatusRegistration)
@@ -281,10 +281,10 @@ func TestGenerateBrackets_NotEnoughParticipants(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	// create tournament with only 2 participants but needs 8
 	tournament := createTournamentWithParticipants(2, tournament_entities.TournamentFormatSingleElimination, tournament_entities.TournamentStatusReady)
@@ -311,10 +311,10 @@ func TestGenerateBrackets_BillingValidationFails(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	tournament := createTournamentWithParticipants(8, tournament_entities.TournamentFormatSingleElimination, tournament_entities.TournamentStatusReady)
 	tournamentID := tournament.ID

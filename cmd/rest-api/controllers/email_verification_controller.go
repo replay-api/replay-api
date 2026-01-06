@@ -9,7 +9,7 @@ import (
 
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	auth_entities "github.com/replay-api/replay-api/pkg/domain/auth/entities"
 	auth_in "github.com/replay-api/replay-api/pkg/domain/auth/ports/in"
 	email_out "github.com/replay-api/replay-api/pkg/domain/email/ports/out"
@@ -59,7 +59,7 @@ type ResendVerificationRequest struct {
 // SendVerificationEmail handles POST /auth/verification/send
 func (ctrl *EmailVerificationController) SendVerificationEmail(ctx context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		resourceOwner := common.GetResourceOwner(r.Context())
+		resourceOwner := shared.GetResourceOwner(r.Context())
 		if resourceOwner.UserID == uuid.Nil {
 			writeJSONError(w, http.StatusUnauthorized, "authentication required")
 			return
@@ -184,7 +184,7 @@ func (ctrl *EmailVerificationController) VerifyEmailByToken(ctx context.Context)
 // ResendVerification handles POST /auth/verification/resend
 func (ctrl *EmailVerificationController) ResendVerification(ctx context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		resourceOwner := common.GetResourceOwner(r.Context())
+		resourceOwner := shared.GetResourceOwner(r.Context())
 		if resourceOwner.UserID == uuid.Nil {
 			writeJSONError(w, http.StatusUnauthorized, "authentication required")
 			return
@@ -228,7 +228,7 @@ func (ctrl *EmailVerificationController) ResendVerification(ctx context.Context)
 // GetVerificationStatus handles GET /auth/verification/status
 func (ctrl *EmailVerificationController) GetVerificationStatus(ctx context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		resourceOwner := common.GetResourceOwner(r.Context())
+		resourceOwner := shared.GetResourceOwner(r.Context())
 		if resourceOwner.UserID == uuid.Nil {
 			writeJSONError(w, http.StatusUnauthorized, "authentication required")
 			return

@@ -8,22 +8,23 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 	replay_out "github.com/replay-api/replay-api/pkg/domain/replay/ports/out"
 	replay_services_metadata "github.com/replay-api/replay-api/pkg/domain/replay/services/metadata"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type mockReplayFileMetadataReader struct {
 	replayFiles []replay_entity.ReplayFile
 }
 
-func (m *mockReplayFileMetadataReader) Search(ctx context.Context, s common.Search) ([]replay_entity.ReplayFile, error) {
+func (m *mockReplayFileMetadataReader) Search(ctx context.Context, s shared.Search) ([]replay_entity.ReplayFile, error) {
 	return m.replayFiles, nil
 }
 
-func (m *mockReplayFileMetadataReader) Compile(ctx context.Context, searchParams []common.SearchAggregation, resultOptions common.SearchResultOptions) (*common.Search, error) {
-	return &common.Search{
+func (m *mockReplayFileMetadataReader) Compile(ctx context.Context, searchParams []shared.SearchAggregation, resultOptions shared.SearchResultOptions) (*shared.Search, error) {
+	return &shared.Search{
 		SearchParams:  searchParams,
 		ResultOptions: resultOptions,
 	}, nil
@@ -43,13 +44,13 @@ func TestReplayFileQueryService_Filter(t *testing.T) {
 	clientID := uuid.New()
 	userID := uuid.New()
 
-	entity := common.NewEntity(common.ResourceOwner{TenantID: tenantID, ClientID: clientID, UserID: userID})
+	entity := shared.NewEntity(shared.ResourceOwner{TenantID: tenantID, ClientID: clientID, UserID: userID})
 
 	sampleReplayFiles := []replay_entity.ReplayFile{
 		{
 			ID:            entity.ID,
-			GameID:        common.CS2_GAME_ID,
-			NetworkID:     common.SteamNetworkIDKey,
+			GameID:        replay_common.CS2_GAME_ID,
+			NetworkID:     replay_common.SteamNetworkIDKey,
 			Header:        struct{ Filestamp string }{Filestamp: "HLTV-1.0.0"},
 			ResourceOwner: entity.ResourceOwner,
 			CreatedAt:     entity.CreatedAt,
@@ -59,8 +60,8 @@ func TestReplayFileQueryService_Filter(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		searchParams   []common.SearchAggregation
-		resultOptions  common.SearchResultOptions
+		searchParams   []shared.SearchAggregation
+		resultOptions  shared.SearchResultOptions
 		mockReader     replay_out.ReplayFileMetadataReader
 		expectedOutput []replay_entity.ReplayFile
 		expectedError  error
@@ -68,32 +69,32 @@ func TestReplayFileQueryService_Filter(t *testing.T) {
 	}{
 		{
 			name: "Valid Query - GameID",
-			searchParams: []common.SearchAggregation{
+			searchParams: []shared.SearchAggregation{
 				{
-					Params: []common.SearchParameter{
+					Params: []shared.SearchParameter{
 						{
-							ValueParams: []common.SearchableValue{
-								{Field: "GameID", Values: []interface{}{common.CS2_GAME_ID}},
+							ValueParams: []shared.SearchableValue{
+								{Field: "GameID", Values: []interface{}{replay_common.CS2_GAME_ID}},
 							},
 						},
 					},
 				},
 			},
-			resultOptions: common.SearchResultOptions{Limit: 10},
+			resultOptions: shared.SearchResultOptions{Limit: 10},
 			mockReader:    &mockReplayFileMetadataReader{replayFiles: sampleReplayFiles},
 			expectedOutput: []replay_entity.ReplayFile{
 				sampleReplayFiles[0],
 			},
 			contextValues: map[interface{}]interface{}{
-				common.TenantIDKey: tenantID,
-				common.ClientIDKey: clientID,
-				common.UserIDKey:   userID,
+				shared.TenantIDKey: tenantID,
+				shared.ClientIDKey: clientID,
+				shared.UserIDKey:   userID,
 			},
 		},
 		{
 			name:           "Invalid Query - Missing TenantID in Context",
-			searchParams:   []common.SearchAggregation{}, // Empty search params
-			resultOptions:  common.SearchResultOptions{Limit: 10},
+			searchParams:   []shared.SearchAggregation{}, // Empty search params
+			resultOptions:  shared.SearchResultOptions{Limit: 10},
 			mockReader:     &mockReplayFileMetadataReader{replayFiles: sampleReplayFiles},
 			expectedOutput: nil,
 			expectedError:  fmt.Errorf("GetResourceOwner.IsMissingTenant: tenant_id missing in context context.Background"),
@@ -101,12 +102,12 @@ func TestReplayFileQueryService_Filter(t *testing.T) {
 		},
 		{
 			name:           "Invalid Query - Mismatched TenantID in Context",
-			searchParams:   []common.SearchAggregation{}, // Empty search params
-			resultOptions:  common.SearchResultOptions{Limit: 10},
+			searchParams:   []shared.SearchAggregation{}, // Empty search params
+			resultOptions:  shared.SearchResultOptions{Limit: 10},
 			mockReader:     &mockReplayFileMetadataReader{replayFiles: sampleReplayFiles},
 			expectedOutput: nil,
-			expectedError:  fmt.Errorf("GetResourceOwner.IsMissingTenant: tenant_id missing in context context.Background.WithValue(common.ContextKey, 00000000-0000-0000-0000-000000000000)"),
-			contextValues:  map[interface{}]interface{}{common.TenantIDKey: uuid.Nil},
+			expectedError:  fmt.Errorf("GetResourceOwner.IsMissingTenant: tenant_id missing in context context.Background.WithValue(shared.ContextKey, 00000000-0000-0000-0000-000000000000)"),
+			contextValues:  map[interface{}]interface{}{shared.TenantIDKey: uuid.Nil},
 		},
 	}
 	for _, tt := range tests {

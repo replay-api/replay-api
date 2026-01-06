@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // AccountType defines the type of ledger account
@@ -234,7 +234,7 @@ type JournalEntry struct {
 	PostedAt        *time.Time          `json:"posted_at,omitempty" bson:"posted_at,omitempty"`
 	Hash            string              `json:"hash" bson:"hash"`
 	PreviousHash    string              `json:"previous_hash" bson:"previous_hash"`
-	ResourceOwner   common.ResourceOwner `json:"-" bson:"resource_owner"`
+	ResourceOwner   shared.ResourceOwner `json:"-" bson:"resource_owner"`
 }
 
 // JournalStatus defines the status of a journal entry
@@ -272,7 +272,7 @@ func NewJournalEntry(
 	description string,
 	currency string,
 	createdBy uuid.UUID,
-	rxn common.ResourceOwner,
+	rxn shared.ResourceOwner,
 ) *JournalEntry {
 	return &JournalEntry{
 		ID:              uuid.New(),
@@ -432,7 +432,7 @@ func (j *JournalEntry) MarkPosted() error {
 }
 
 // CreateReversal creates a reversal journal entry
-func (j *JournalEntry) CreateReversal(reason string, createdBy uuid.UUID, rxn common.ResourceOwner) (*JournalEntry, error) {
+func (j *JournalEntry) CreateReversal(reason string, createdBy uuid.UUID, rxn shared.ResourceOwner) (*JournalEntry, error) {
 	if j.Status != JournalStatusPosted {
 		return nil, errors.New("can only reverse posted journals")
 	}
@@ -564,7 +564,7 @@ func NewTransactionBuilder(
 	description string,
 	currency string,
 	createdBy uuid.UUID,
-	rxn common.ResourceOwner,
+	rxn shared.ResourceOwner,
 ) *TransactionBuilder {
 	return &TransactionBuilder{
 		journal:     NewJournalEntry(txType, reference, description, currency, createdBy, rxn),

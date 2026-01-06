@@ -9,8 +9,10 @@ import (
 
 	"github.com/google/uuid"
 	cs2 "github.com/replay-api/replay-api/pkg/app/cs"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	e "github.com/replay-api/replay-api/pkg/domain/replay/entities"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	fps_events "github.com/replay-api/replay-common/pkg/replay/events/game/fps"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 func TestCS2ReplayAdapter_GetEvents(t *testing.T) {
@@ -27,9 +29,9 @@ func TestCS2ReplayAdapter_GetEvents(t *testing.T) {
 	adapter := cs2.NewCS2ReplayAdapter()
 
 	results := make([]*e.GameEvent, 0)
-	types := make(map[common.EventIDKey]int)
+	types := make(map[fps_events.EventIDKey]int)
 
-	clutchEventCountPerPlayerAndEvent := make(map[common.PlayerIDType]map[common.EventIDKey]int)
+	clutchEventCountPerPlayerAndEvent := make(map[shared.PlayerIDType]map[fps_events.EventIDKey]int)
 
 	eventsChan := make(chan *e.GameEvent)
 	mutex := &sync.Mutex{}
@@ -43,7 +45,7 @@ func TestCS2ReplayAdapter_GetEvents(t *testing.T) {
 			results = append(results, ge)
 			types[ge.Type]++
 
-			if ge.Type == common.Event_ClutchProgressID || ge.Type == common.Event_ClutchStartID || ge.Type == common.Event_ClutchEndID {
+			if ge.Type == fps_events.Event_ClutchProgressID || ge.Type == fps_events.Event_ClutchStartID || ge.Type == fps_events.Event_ClutchEndID {
 				playerIDs, err := ge.GetPlayerIDs()
 
 				if err != nil {
@@ -51,11 +53,12 @@ func TestCS2ReplayAdapter_GetEvents(t *testing.T) {
 				}
 
 				if len(playerIDs) != 0 {
-					if clutchEventCountPerPlayerAndEvent[playerIDs[0]] == nil {
-						clutchEventCountPerPlayerAndEvent[playerIDs[0]] = make(map[common.EventIDKey]int)
+					playerID := shared.PlayerIDType(playerIDs[0])
+					if clutchEventCountPerPlayerAndEvent[playerID] == nil {
+						clutchEventCountPerPlayerAndEvent[playerID] = make(map[fps_events.EventIDKey]int)
 					}
 
-					clutchEventCountPerPlayerAndEvent[playerIDs[0]][ge.Type]++
+					clutchEventCountPerPlayerAndEvent[playerID][ge.Type]++
 				}
 			}
 
@@ -63,14 +66,14 @@ func TestCS2ReplayAdapter_GetEvents(t *testing.T) {
 		}
 	}()
 
-	ctx := context.WithValue(context.Background(), common.TenantIDKey, common.TeamPROTenantID)
-	ctx = context.WithValue(ctx, common.ClientIDKey, common.TeamPROAppClientID)
-	ctx = context.WithValue(ctx, common.UserIDKey, uuid.New())
+	ctx := context.WithValue(context.Background(), shared.TenantIDKey, replay_common.TeamPROTenantID)
+	ctx = context.WithValue(ctx, shared.ClientIDKey, replay_common.TeamPROAppClientID)
+	ctx = context.WithValue(ctx, shared.UserIDKey, uuid.New())
 
 	match := &e.Match{
 		ID:            uuid.New(),
 		ReplayFileID:  uuid.New(),
-		ResourceOwner: common.GetResourceOwner(ctx),
+		ResourceOwner: shared.GetResourceOwner(ctx),
 	}
 
 	err = adapter.Parse(ctx, match.ID, file, eventsChan)
@@ -88,17 +91,17 @@ func TestCS2ReplayAdapter_GetEvents(t *testing.T) {
 	for playerID, events := range clutchEventCountPerPlayerAndEvent {
 		slog.InfoContext(ctx, "Player: %v", "playerID", playerID)
 
-		eventCountMap := make(map[common.EventIDKey]int)
+		eventCountMap := make(map[fps_events.EventIDKey]int)
 		for k, v := range events {
 			eventCountMap[k] = v
 			slog.InfoContext(ctx, "Event type: %s, count: %d", string(k), v)
 		}
 
-		clutchStartEventCount := eventCountMap[common.Event_ClutchStartID]
-		clutchEndEventCount := eventCountMap[common.Event_ClutchEndID]
+		clutchStartEventCount := eventCountMap[fps_events.Event_ClutchStartID]
+		clutchEndEventCount := eventCountMap[fps_events.Event_ClutchEndID]
 
 		if clutchStartEventCount != clutchEndEventCount {
-			t.Errorf("Expected %d events of %s, got %d", clutchStartEventCount, common.Event_ClutchEndID, clutchEndEventCount)
+			t.Errorf("Expected %d events of %s, got %d", clutchStartEventCount, fps_events.Event_ClutchEndID, clutchEndEventCount)
 		}
 	}
 

@@ -1,14 +1,14 @@
 package billing_services
 
 import (
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	billing_out "github.com/replay-api/replay-api/pkg/domain/billing/ports/out"
 )
 
 type PlanQueryService struct {
-	common.BaseQueryService[billing_entities.Plan]
+	shared.BaseQueryService[billing_entities.Plan]
 }
 
 func NewPlanQueryService(eventReader billing_out.PlanReader) billing_in.PlanReader {
@@ -54,11 +54,11 @@ func NewPlanQueryService(eventReader billing_out.PlanReader) billing_in.PlanRead
 		"UpdatedAt":            true,
 	}
 
-	return &common.BaseQueryService[billing_entities.Plan]{
-		Reader:          eventReader, // PlanReader embeds common.Searchable[billing_entities.Plan]
+	return &shared.BaseQueryService[billing_entities.Plan]{
+		Reader:          eventReader, // PlanReader embeds shared.Searchable[billing_entities.Plan]
 		QueryableFields: queryableFields,
 		ReadableFields:  readableFields,
 		MaxPageSize:     100,
-		Audience:        common.UserAudienceIDKey,
+		Audience:        shared.UserAudienceIDKey,
 	}
 }

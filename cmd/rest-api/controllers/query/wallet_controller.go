@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	common "github.com/replay-api/replay-api/pkg/domain"
 	wallet_in "github.com/replay-api/replay-api/pkg/domain/wallet/ports/in"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type WalletQueryController struct {
@@ -31,11 +32,11 @@ func NewWalletQueryController(c container.Container) *WalletQueryController {
 
 // requireAuthentication checks if the user is authenticated and returns their resource owner
 // Returns nil and writes an error response if not authenticated
-func requireAuthentication(w http.ResponseWriter, r *http.Request) *common.ResourceOwner {
+func requireAuthentication(w http.ResponseWriter, r *http.Request) *shared.ResourceOwner {
 	ctx := r.Context()
 	
 	// Check if authenticated
-	authenticated, ok := ctx.Value(common.AuthenticatedKey).(bool)
+	authenticated, ok := ctx.Value(shared.AuthenticatedKey).(bool)
 	if !ok || !authenticated {
 		slog.WarnContext(ctx, "Wallet access attempted without authentication")
 		w.Header().Set("Content-Type", "application/json")
@@ -45,7 +46,7 @@ func requireAuthentication(w http.ResponseWriter, r *http.Request) *common.Resou
 	}
 	
 	// Get resource owner
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 	if resourceOwner.UserID == uuid.Nil {
 		slog.WarnContext(ctx, "Wallet access attempted without valid user ID")
 		w.Header().Set("Content-Type", "application/json")

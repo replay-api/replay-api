@@ -5,7 +5,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type MatchVisibility string
@@ -19,16 +20,16 @@ const (
 
 // AggregteRoot
 type Match struct {
-	ID            uuid.UUID            `json:"id" bson:"_id"`
-	RegionID      common.RegionIDKey   `json:"region_id" bson:"region_id"`
-	ReplayFileID  uuid.UUID            `json:"replay_file_id" bson:"replay_file_id"`
-	GameID        common.GameIDKey     `json:"game_id" bson:"game_id"`
-	Scoreboard    Scoreboard           `json:"scoreboard" bson:"scoreboard"`
-	Teams         []Team               `json:"teams" bson:"teams"`
-	Events        []*GameEvent         `json:"game_events" bson:"game_events"`
-	Visibility    MatchVisibility      `json:"visibility" bson:"visibility"`
-	ShareTokens   []ShareToken         `json:"share_tokens" bson:"share_tokens"`
-	ResourceOwner common.ResourceOwner `json:"resource_owner" bson:"resource_owner"`
+	ID            uuid.UUID               `json:"id" bson:"_id"`
+	RegionID      replay_common.RegionIDKey `json:"region_id" bson:"region_id"`
+	ReplayFileID  uuid.UUID               `json:"replay_file_id" bson:"replay_file_id"`
+	GameID        replay_common.GameIDKey `json:"game_id" bson:"game_id"`
+	Scoreboard    Scoreboard              `json:"scoreboard" bson:"scoreboard"`
+	Teams         []Team                  `json:"teams" bson:"teams"`
+	Events        []*GameEvent            `json:"game_events" bson:"game_events"`
+	Visibility    MatchVisibility         `json:"visibility" bson:"visibility"`
+	ShareTokens   []ShareToken            `json:"share_tokens" bson:"share_tokens"`
+	ResourceOwner shared.ResourceOwner `json:"resource_owner" bson:"resource_owner"`
 	CreatedAt     time.Time            `json:"created_at" bson:"created_at"`
 	UpdatedAt     time.Time            `json:"updated_at" bson:"updated_at"`
 }
@@ -64,8 +65,8 @@ func NewCS2Match(userContext context.Context, replayFileID uuid.UUID) *Match {
 	return &Match{
 		ID:            uuid.New(),
 		ReplayFileID:  replayFileID,
-		GameID:        common.CS2.ID,
-		ResourceOwner: common.GetResourceOwner(userContext),
+		GameID:        replay_common.CS2.ID,
+		ResourceOwner: shared.GetResourceOwner(userContext),
 		CreatedAt:     time.Now(),
 		UpdatedAt:     time.Now(),
 	}

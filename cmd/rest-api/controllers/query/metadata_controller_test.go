@@ -1,4 +1,4 @@
-//go:build !smoke
+//go:build integration
 
 package query_controllers_test
 
@@ -11,23 +11,38 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	query_controllers "github.com/replay-api/replay-api/cmd/rest-api/controllers/query"
 	"github.com/replay-api/replay-api/cmd/rest-api/routing"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	"github.com/replay-api/replay-api/pkg/infra/ioc"
+	shared "github.com/resource-ownership/go-common/pkg/common"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func GetDefaultTestContext(reqContext context.Context, tenantID, clientID, groupID, userID uuid.UUID) context.Context {
-	reqContext = context.WithValue(reqContext, common.TenantIDKey, tenantID)
-	reqContext = context.WithValue(reqContext, common.ClientIDKey, clientID)
-	reqContext = context.WithValue(reqContext, common.GroupIDKey, groupID)
-	reqContext = context.WithValue(reqContext, common.UserIDKey, userID)
+	reqContext = context.WithValue(reqContext, shared.TenantIDKey, tenantID)
+	reqContext = context.WithValue(reqContext, shared.ClientIDKey, clientID)
+	reqContext = context.WithValue(reqContext, shared.GroupIDKey, groupID)
+	reqContext = context.WithValue(reqContext, shared.UserIDKey, userID)
 	return reqContext
 }
 
 func TestReplaySearchHandler(t *testing.T) {
+	// Skip test if MongoDB is not available
+	if os.Getenv("MONGO_URI") == "" || os.Getenv("MONGO_URI") == "mongodb://host.docker.internal:37019" {
+		// Try to connect to MongoDB to see if it's available
+		client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI("mongodb://host.docker.internal:37019").SetServerSelectionTimeout(2*time.Second))
+		if err != nil || client.Ping(context.TODO(), nil) != nil {
+			t.Skip("MongoDB not available, skipping integration test")
+		}
+		if client != nil {
+			client.Disconnect(context.TODO())
+		}
+	}
+
 	controller := setup()
 
 	req, err := http.NewRequest(http.MethodGet, routing.Match, nil)
@@ -37,10 +52,10 @@ func TestReplaySearchHandler(t *testing.T) {
 
 	setContextWithValues := func(tenantID, clientID, groupID, userID uuid.UUID) context.Context {
 		newCtx := context.TODO()
-		newCtx = context.WithValue(newCtx, common.TenantIDKey, tenantID)
-		newCtx = context.WithValue(newCtx, common.ClientIDKey, clientID)
-		newCtx = context.WithValue(newCtx, common.GroupIDKey, groupID)
-		newCtx = context.WithValue(newCtx, common.UserIDKey, userID)
+		newCtx = context.WithValue(newCtx, shared.TenantIDKey, tenantID)
+		newCtx = context.WithValue(newCtx, shared.ClientIDKey, clientID)
+		newCtx = context.WithValue(newCtx, shared.GroupIDKey, groupID)
+		newCtx = context.WithValue(newCtx, shared.UserIDKey, userID)
 		return newCtx
 	}
 
@@ -49,11 +64,11 @@ func TestReplaySearchHandler(t *testing.T) {
 	groupID := uuid.New()
 	userID := uuid.New()
 
-	s := common.NewSearchByValues(
+	s := shared.NewSearchByValues(
 		setContextWithValues(tenantID, clientID, groupID, userID),
-		[]common.SearchableValue{{Field: "GameID", Values: []interface{}{common.CS2_GAME_ID}}},
-		common.SearchResultOptions{Limit: 10},
-		common.UserAudienceIDKey,
+		[]shared.SearchableValue{{Field: "GameID", Values: []interface{}{replay_common.CS2_GAME_ID}}},
+		shared.SearchResultOptions{Limit: 10},
+		shared.UserAudienceIDKey,
 	)
 
 	var searchJSON []byte
@@ -93,10 +108,10 @@ func TestPlayerSearchHandler(t *testing.T) {
 
 	setContextWithValues := func(tenantID, clientID, groupID, userID uuid.UUID) context.Context {
 		newCtx := context.TODO()
-		newCtx = context.WithValue(newCtx, common.TenantIDKey, tenantID)
-		newCtx = context.WithValue(newCtx, common.ClientIDKey, clientID)
-		newCtx = context.WithValue(newCtx, common.GroupIDKey, groupID)
-		newCtx = context.WithValue(newCtx, common.UserIDKey, userID)
+		newCtx = context.WithValue(newCtx, shared.TenantIDKey, tenantID)
+		newCtx = context.WithValue(newCtx, shared.ClientIDKey, clientID)
+		newCtx = context.WithValue(newCtx, shared.GroupIDKey, groupID)
+		newCtx = context.WithValue(newCtx, shared.UserIDKey, userID)
 		return newCtx
 	}
 
@@ -105,11 +120,11 @@ func TestPlayerSearchHandler(t *testing.T) {
 	groupID := uuid.New()
 	userID := uuid.New()
 
-	s := common.NewSearchByValues(
+	s := shared.NewSearchByValues(
 		setContextWithValues(tenantID, clientID, groupID, userID),
-		[]common.SearchableValue{},
-		common.SearchResultOptions{Limit: 10},
-		common.UserAudienceIDKey,
+		[]shared.SearchableValue{},
+		shared.SearchResultOptions{Limit: 10},
+		shared.UserAudienceIDKey,
 	)
 
 	var searchJSON []byte

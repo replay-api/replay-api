@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	auth_entities "github.com/replay-api/replay-api/pkg/domain/auth/entities"
 )
 
@@ -26,8 +26,8 @@ func TestE2E_MFAEntities(t *testing.T) {
 
 	// Test user setup
 	userID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 
 	t.Run("MFAMethod_Constants", func(t *testing.T) {
 		assert.Equal(t, auth_entities.MFAMethod("email"), auth_entities.MFAMethodEmail)

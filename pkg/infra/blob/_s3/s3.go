@@ -12,17 +12,17 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type S3Adapter struct {
-	Config     common.S3Config
+	Config     shared.S3Config
 	S3Endpoint string
 	BucketName string
 	Session    *session.Session
 }
 
-func NewS3Adapter(config common.S3Config) *S3Adapter {
+func NewS3Adapter(config shared.S3Config) *S3Adapter {
 	session := session.Must(session.NewSession(&aws.Config{
 		Credentials:      credentials.NewEnvCredentials(),
 		S3ForcePathStyle: aws.Bool(true),

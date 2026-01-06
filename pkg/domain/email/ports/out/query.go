@@ -3,10 +3,10 @@ package email_out
 import (
 	"context"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	email_entities "github.com/replay-api/replay-api/pkg/domain/email/entities"
 )
 
 type EmailUserReader interface {
-	Search(ctx context.Context, s common.Search) ([]email_entities.EmailUser, error)
+	Search(ctx context.Context, s shared.Search) ([]email_entities.EmailUser, error)
 }

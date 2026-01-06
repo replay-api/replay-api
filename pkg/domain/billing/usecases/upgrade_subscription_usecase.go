@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	billing_out "github.com/replay-api/replay-api/pkg/domain/billing/ports/out"
@@ -70,9 +70,9 @@ func NewUpgradeSubscriptionUseCase(
 // Exec executes the subscription upgrade
 func (uc *UpgradeSubscriptionUseCase) Exec(ctx context.Context, cmd billing_in.UpgradeSubscriptionCommand) error {
 	// 1. Authentication check
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 	if resourceOwner.UserID == uuid.Nil {
-		return common.NewErrUnauthorized()
+		return shared.NewErrUnauthorized()
 	}
 
 	slog.InfoContext(ctx, "Processing subscription upgrade",

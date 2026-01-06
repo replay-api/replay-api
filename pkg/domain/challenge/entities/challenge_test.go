@@ -5,13 +5,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func createTestResourceOwner() common.ResourceOwner {
-	return common.ResourceOwner{
+func createTestResourceOwner() shared.ResourceOwner {
+	return shared.ResourceOwner{
 		TenantID: uuid.New(),
 		ClientID: uuid.New(),
 		GroupID:  uuid.New(),

@@ -6,7 +6,8 @@ import (
 	evt "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs/events"
 	"github.com/replay-api/replay-api/pkg/app/cs/builders"
 	state "github.com/replay-api/replay-api/pkg/app/cs/state"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	fps_events "github.com/replay-api/replay-common/pkg/replay/events/game/fps"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 )
 
@@ -18,7 +19,7 @@ func EconomyEvent(p dem.Parser, matchContext *state.CS2MatchContext, out chan *r
 
 		matchContext = matchContext.WithRound(roundIndex, gs)
 
-		currentTick := common.TickIDType(gs.IngameTick())
+		currentTick := replay_common.TickIDType(gs.IngameTick())
 
 		// roundContext := matchContext.RoundContexts[roundIndex]
 
@@ -27,7 +28,7 @@ func EconomyEvent(p dem.Parser, matchContext *state.CS2MatchContext, out chan *r
 		out <- &replay_entity.GameEvent{
 			ID:            uuid.New(),
 			MatchID:       matchContext.MatchID,
-			Type:          common.Event_Economy,
+			Type:          fps_events.Event_Economy,
 			TickID:        currentTick,
 			GameTime:      p.CurrentTime(),
 			Payload:       b.Build(),

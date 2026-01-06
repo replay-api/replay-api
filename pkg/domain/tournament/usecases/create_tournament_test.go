@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	tournament_entities "github.com/replay-api/replay-api/pkg/domain/tournament/entities"
@@ -116,10 +116,10 @@ func TestCreateTournament_Success(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	organizerID := uuid.New()
 	startTime := time.Now().UTC().Add(24 * time.Hour)
@@ -127,7 +127,7 @@ func TestCreateTournament_Success(t *testing.T) {
 	registrationClose := startTime.Add(-1 * time.Hour)
 
 	cmd := tournament_in.CreateTournamentCommand{
-		ResourceOwner: common.ResourceOwner{
+		ResourceOwner: shared.ResourceOwner{
 			UserID:   userID,
 			TenantID: uuid.New(),
 		},
@@ -205,10 +205,10 @@ func TestCreateTournament_InvalidFormat(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	cmd := tournament_in.CreateTournamentCommand{
 		Name:            "Test Tournament",
@@ -233,10 +233,10 @@ func TestCreateTournament_BillingValidationFails(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	cmd := tournament_in.CreateTournamentCommand{
 		Name:            "Test Tournament",
@@ -265,17 +265,17 @@ func TestCreateTournament_SaveFails(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	startTime := time.Now().UTC().Add(24 * time.Hour)
 	registrationOpen := time.Now().UTC()
 	registrationClose := startTime.Add(-1 * time.Hour)
 
 	cmd := tournament_in.CreateTournamentCommand{
-		ResourceOwner: common.ResourceOwner{
+		ResourceOwner: shared.ResourceOwner{
 			UserID:   userID,
 			TenantID: uuid.New(),
 		},

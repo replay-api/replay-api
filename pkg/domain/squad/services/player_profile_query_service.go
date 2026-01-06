@@ -6,7 +6,7 @@
 package squad_services
 
 import (
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
 	squad_out "github.com/replay-api/replay-api/pkg/domain/squad/ports/out"
@@ -30,7 +30,7 @@ import (
 //   - ResourceOwner is DENY in ReadableFields (not exposed in API responses)
 //   - All queryable fields are safe for external exposure
 type PlayerProfileQueryService struct {
-	common.BaseQueryService[squad_entities.PlayerProfile]
+	shared.BaseQueryService[squad_entities.PlayerProfile]
 }
 
 // NewPlayerProfileQueryService creates and registers a new PlayerProfileQueryService.
@@ -85,13 +85,13 @@ func NewPlayerProfileQueryService(eventReader squad_out.PlayerProfileReader) squ
 		"Description":     true,
 		"VisibilityLevel": true,
 		"VisibilityType":  true,
-		"ResourceOwner":   common.DENY, // SECURITY: Hide resource ownership from responses
+		"ResourceOwner":   shared.DENY, // SECURITY: Hide resource ownership from responses
 		"CreatedAt":       true,
 		"UpdatedAt":       true,
 	}
 
-	service := &common.BaseQueryService[squad_entities.PlayerProfile]{
-		Reader:          eventReader.(common.Searchable[squad_entities.PlayerProfile]),
+	service := &shared.BaseQueryService[squad_entities.PlayerProfile]{
+		Reader:          eventReader.(shared.Searchable[squad_entities.PlayerProfile]),
 		QueryableFields: queryableFields,
 		ReadableFields:  readableFields,
 
@@ -108,7 +108,7 @@ func NewPlayerProfileQueryService(eventReader squad_out.PlayerProfileReader) squ
 		FilterableFields: []string{"GameID", "VisibilityLevel", "VisibilityType"},
 
 		MaxPageSize: 100,
-		Audience:    common.UserAudienceIDKey,
+		Audience:    shared.UserAudienceIDKey,
 
 		// EntityType: URL path segment - MUST match route (e.g., /players)
 		EntityType: "players",
@@ -117,7 +117,7 @@ func NewPlayerProfileQueryService(eventReader squad_out.PlayerProfileReader) squ
 	// CRITICAL: Register with global registry for schema discovery.
 	// This enables GET /api/search/schema to return this service's schema.
 	// Without this, the frontend SDK won't know what fields are available.
-	common.GetQueryServiceRegistry().Register("players", service)
+	shared.GetQueryServiceRegistry().Register("players", service)
 
 	return service
 }

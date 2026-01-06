@@ -2,7 +2,7 @@ package entities
 
 import (
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type CSMatchStats struct {
@@ -10,11 +10,11 @@ type CSMatchStats struct {
 	GameState   CSGameState    `json:"game_state" bson:"game_state"`
 	Rules       CSGameRules    `json:"rules" bson:"rules"`
 	RoundsStats []CSRoundStats `json:"rounds_stats"`
-	// ResourceOwner common.ResourceOwner `json:"resource_owner"`
+	// ResourceOwner shared.ResourceOwner `json:"resource_owner"`
 	Header *CSReplayFileHeader `json:"replay_file_header" bson:"replay_file_header"`
 }
 
-func NewCSMatchStats(matchID uuid.UUID, resourceOwner common.ResourceOwner, roundCount int) CSMatchStats {
+func NewCSMatchStats(matchID uuid.UUID, resourceOwner shared.ResourceOwner, roundCount int) CSMatchStats {
 	return CSMatchStats{
 		MatchID:     matchID,
 		RoundsStats: make([]CSRoundStats, roundCount),

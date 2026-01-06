@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	billing_usecases "github.com/replay-api/replay-api/pkg/domain/billing/usecases"
@@ -20,7 +20,7 @@ type MockSubscriptionReader struct {
 	mock.Mock
 }
 
-func (m *MockSubscriptionReader) GetCurrentSubscription(ctx context.Context, owner common.ResourceOwner) (*billing_entities.Subscription, error) {
+func (m *MockSubscriptionReader) GetCurrentSubscription(ctx context.Context, owner shared.ResourceOwner) (*billing_entities.Subscription, error) {
 	args := m.Called(ctx, owner)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -86,7 +86,7 @@ func (m *MockPlanReader) GetAvailablePlans(ctx context.Context) ([]*billing_enti
 	return args.Get(0).([]*billing_entities.Plan), args.Error(1)
 }
 
-func (m *MockPlanReader) Search(ctx context.Context, s common.Search) ([]billing_entities.Plan, error) {
+func (m *MockPlanReader) Search(ctx context.Context, s shared.Search) ([]billing_entities.Plan, error) {
 	args := m.Called(ctx, s)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -94,20 +94,20 @@ func (m *MockPlanReader) Search(ctx context.Context, s common.Search) ([]billing
 	return args.Get(0).([]billing_entities.Plan), args.Error(1)
 }
 
-func (m *MockPlanReader) Compile(ctx context.Context, searchParams []common.SearchAggregation, resultOptions common.SearchResultOptions) (*common.Search, error) {
+func (m *MockPlanReader) Compile(ctx context.Context, searchParams []shared.SearchAggregation, resultOptions shared.SearchResultOptions) (*shared.Search, error) {
 	args := m.Called(ctx, searchParams, resultOptions)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*common.Search), args.Error(1)
+	return args.Get(0).(*shared.Search), args.Error(1)
 }
 
 // Helper function to create authenticated context with user
 func createAuthenticatedContext(userID uuid.UUID) context.Context {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
 	return ctx
 }
 
@@ -120,13 +120,13 @@ func TestUpgradeSubscriptionUseCase_Exec_Success(t *testing.T) {
 
 	userID := uuid.New()
 	ctx := createAuthenticatedContext(userID)
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 
 	currentPlanID := uuid.New()
 	targetPlanID := uuid.New()
 
 	currentSub := &billing_entities.Subscription{
-		BaseEntity:    common.NewEntity(resourceOwner),
+		BaseEntity:    shared.NewEntity(resourceOwner),
 		PlanID:        currentPlanID,
 		BillingPeriod: billing_entities.BillingPeriodMonthly,
 		Status:        billing_entities.SubscriptionStatusActive,
@@ -135,11 +135,11 @@ func TestUpgradeSubscriptionUseCase_Exec_Success(t *testing.T) {
 	}
 
 	currentPlan := &billing_entities.Plan{
-		BaseEntity: common.NewEntity(resourceOwner),
+		BaseEntity: shared.NewEntity(resourceOwner),
 		Kind:       billing_entities.PlanKindTypeStarter,
 	}
 	targetPlan := &billing_entities.Plan{
-		BaseEntity:  common.NewEntity(resourceOwner),
+		BaseEntity:  shared.NewEntity(resourceOwner),
 		Kind:        billing_entities.PlanKindTypePro,
 		IsAvailable: true,
 		IsActive:    true,
@@ -180,7 +180,7 @@ func TestUpgradeSubscriptionUseCase_Exec_Unauthenticated(t *testing.T) {
 
 	// Context has tenant but no authenticated user
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 	err := usecase.Exec(ctx, cmd)
 
 	assert.Error(t, err)
@@ -221,13 +221,13 @@ func TestUpgradeSubscriptionUseCase_Exec_InvalidUpgradePath(t *testing.T) {
 
 	userID := uuid.New()
 	ctx := createAuthenticatedContext(userID)
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 
 	currentPlanID := uuid.New()
 	targetPlanID := uuid.New()
 
 	currentSub := &billing_entities.Subscription{
-		BaseEntity:    common.NewEntity(resourceOwner),
+		BaseEntity:    shared.NewEntity(resourceOwner),
 		PlanID:        currentPlanID,
 		BillingPeriod: billing_entities.BillingPeriodMonthly,
 		Status:        billing_entities.SubscriptionStatusActive,
@@ -237,11 +237,11 @@ func TestUpgradeSubscriptionUseCase_Exec_InvalidUpgradePath(t *testing.T) {
 
 	// Attempting to "upgrade" to a lower or same tier
 	currentPlan := &billing_entities.Plan{
-		BaseEntity: common.NewEntity(resourceOwner),
+		BaseEntity: shared.NewEntity(resourceOwner),
 		Kind:       billing_entities.PlanKindTypePro,
 	}
 	targetPlan := &billing_entities.Plan{
-		BaseEntity:  common.NewEntity(resourceOwner),
+		BaseEntity:  shared.NewEntity(resourceOwner),
 		Kind:        billing_entities.PlanKindTypeStarter,
 		IsAvailable: true,
 		IsActive:    true,
@@ -274,13 +274,13 @@ func TestUpgradeSubscriptionUseCase_Exec_TargetPlanNotAvailable(t *testing.T) {
 
 	userID := uuid.New()
 	ctx := createAuthenticatedContext(userID)
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 
 	currentPlanID := uuid.New()
 	targetPlanID := uuid.New()
 
 	currentSub := &billing_entities.Subscription{
-		BaseEntity:    common.NewEntity(resourceOwner),
+		BaseEntity:    shared.NewEntity(resourceOwner),
 		PlanID:        currentPlanID,
 		BillingPeriod: billing_entities.BillingPeriodMonthly,
 		Status:        billing_entities.SubscriptionStatusActive,
@@ -289,11 +289,11 @@ func TestUpgradeSubscriptionUseCase_Exec_TargetPlanNotAvailable(t *testing.T) {
 	}
 
 	currentPlan := &billing_entities.Plan{
-		BaseEntity: common.NewEntity(resourceOwner),
+		BaseEntity: shared.NewEntity(resourceOwner),
 		Kind:       billing_entities.PlanKindTypeStarter,
 	}
 	targetPlan := &billing_entities.Plan{
-		BaseEntity:  common.NewEntity(resourceOwner),
+		BaseEntity:  shared.NewEntity(resourceOwner),
 		Kind:        billing_entities.PlanKindTypePro,
 		IsAvailable: false, // Not available
 		IsActive:    true,
@@ -350,13 +350,13 @@ func TestUpgradeSubscriptionUseCase_Exec_UpdateError(t *testing.T) {
 
 	userID := uuid.New()
 	ctx := createAuthenticatedContext(userID)
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 
 	currentPlanID := uuid.New()
 	targetPlanID := uuid.New()
 
 	currentSub := &billing_entities.Subscription{
-		BaseEntity:    common.NewEntity(resourceOwner),
+		BaseEntity:    shared.NewEntity(resourceOwner),
 		PlanID:        currentPlanID,
 		BillingPeriod: billing_entities.BillingPeriodMonthly,
 		Status:        billing_entities.SubscriptionStatusActive,
@@ -365,11 +365,11 @@ func TestUpgradeSubscriptionUseCase_Exec_UpdateError(t *testing.T) {
 	}
 
 	currentPlan := &billing_entities.Plan{
-		BaseEntity: common.NewEntity(resourceOwner),
+		BaseEntity: shared.NewEntity(resourceOwner),
 		Kind:       billing_entities.PlanKindTypeStarter,
 	}
 	targetPlan := &billing_entities.Plan{
-		BaseEntity:  common.NewEntity(resourceOwner),
+		BaseEntity:  shared.NewEntity(resourceOwner),
 		Kind:        billing_entities.PlanKindTypePro,
 		IsAvailable: true,
 		IsActive:    true,
@@ -420,13 +420,13 @@ func TestIsUpgrade_PlanOrdering(t *testing.T) {
 
 		userID := uuid.New()
 		ctx := createAuthenticatedContext(userID)
-		resourceOwner := common.GetResourceOwner(ctx)
+		resourceOwner := shared.GetResourceOwner(ctx)
 
 		currentPlanID := uuid.New()
 		targetPlanID := uuid.New()
 
 		currentSub := &billing_entities.Subscription{
-			BaseEntity:    common.NewEntity(resourceOwner),
+			BaseEntity:    shared.NewEntity(resourceOwner),
 			PlanID:        currentPlanID,
 			BillingPeriod: billing_entities.BillingPeriodMonthly,
 			Status:        billing_entities.SubscriptionStatusActive,
@@ -434,11 +434,11 @@ func TestIsUpgrade_PlanOrdering(t *testing.T) {
 		}
 
 		currentPlan := &billing_entities.Plan{
-			BaseEntity: common.NewEntity(resourceOwner),
+			BaseEntity: shared.NewEntity(resourceOwner),
 			Kind:       tc.current,
 		}
 		targetPlan := &billing_entities.Plan{
-			BaseEntity:  common.NewEntity(resourceOwner),
+			BaseEntity:  shared.NewEntity(resourceOwner),
 			Kind:        tc.target,
 			IsAvailable: true,
 			IsActive:    true,
@@ -477,13 +477,13 @@ func TestUpgradeSubscriptionUseCase_Exec_FreeToProUpgrade(t *testing.T) {
 
 	userID := uuid.New()
 	ctx := createAuthenticatedContext(userID)
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 
 	currentPlanID := uuid.New()
 	targetPlanID := uuid.New()
 
 	currentSub := &billing_entities.Subscription{
-		BaseEntity:    common.NewEntity(resourceOwner),
+		BaseEntity:    shared.NewEntity(resourceOwner),
 		PlanID:        currentPlanID,
 		BillingPeriod: billing_entities.BillingPeriodMonthly,
 		Status:        billing_entities.SubscriptionStatusActive,
@@ -492,12 +492,12 @@ func TestUpgradeSubscriptionUseCase_Exec_FreeToProUpgrade(t *testing.T) {
 	}
 
 	currentPlan := &billing_entities.Plan{
-		BaseEntity: common.NewEntity(resourceOwner),
+		BaseEntity: shared.NewEntity(resourceOwner),
 		Kind:       billing_entities.PlanKindTypeFree,
 		IsFree:     true,
 	}
 	targetPlan := &billing_entities.Plan{
-		BaseEntity:  common.NewEntity(resourceOwner),
+		BaseEntity:  shared.NewEntity(resourceOwner),
 		Kind:        billing_entities.PlanKindTypePro,
 		IsFree:      false,
 		IsAvailable: true,

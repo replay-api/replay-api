@@ -8,11 +8,12 @@ import (
 	"github.com/google/uuid"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	media_out "github.com/replay-api/replay-api/pkg/domain/media/ports/out"
 	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
 	squad_out "github.com/replay-api/replay-api/pkg/domain/squad/ports/out"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type UpdatePlayerUseCase struct {
@@ -40,9 +41,9 @@ func NewUpdatePlayerUseCase(
 }
 
 func (uc *UpdatePlayerUseCase) Exec(ctx context.Context, cmd squad_in.UpdatePlayerCommand) (*squad_entities.PlayerProfile, error) {
-	isAuthenticated := ctx.Value(common.AuthenticatedKey)
+	isAuthenticated := ctx.Value(shared.AuthenticatedKey)
 	if isAuthenticated == nil || !isAuthenticated.(bool) {
-		return nil, common.NewErrUnauthorized()
+		return nil, shared.NewErrUnauthorized()
 	}
 
 	getByIdSearch := squad_entities.NewSearchByID(ctx, cmd.PlayerID)
@@ -53,17 +54,17 @@ func (uc *UpdatePlayerUseCase) Exec(ctx context.Context, cmd squad_in.UpdatePlay
 	}
 
 	if len(playerProfile) == 0 {
-		return nil, common.NewErrNotFound(common.ResourceTypePlayerProfile, "ID", cmd.PlayerID.String())
+		return nil, shared.NewErrNotFound(replay_common.ResourceTypePlayerProfile, "ID", cmd.PlayerID.String())
 	}
 
-	if playerProfile[0].ResourceOwner.UserID != common.GetResourceOwner(ctx).UserID {
-		return nil, common.NewErrUnauthorized()
+	if playerProfile[0].ResourceOwner.UserID != shared.GetResourceOwner(ctx).UserID {
+		return nil, shared.NewErrUnauthorized()
 	}
 
 	// Billing validation
 	billingCmd := billing_in.BillableOperationCommand{
 		OperationID: billing_entities.OperationTypeUpdatePlayerProfile,
-		UserID:      common.GetResourceOwner(ctx).UserID,
+		UserID:      shared.GetResourceOwner(ctx).UserID,
 		Amount:      1,
 	}
 	err = uc.billableOperationHandler.Validate(ctx, billingCmd)
@@ -82,7 +83,7 @@ func (uc *UpdatePlayerUseCase) Exec(ctx context.Context, cmd squad_in.UpdatePlay
 	if len(exists) > 0 {
 		for _, player := range exists {
 			if player.ID != cmd.PlayerID {
-				return nil, common.NewErrAlreadyExists(common.ResourceTypePlayerProfile, "Nickname or SlugURI", cmd.Nickname)
+				return nil, shared.NewErrAlreadyExists(replay_common.ResourceTypePlayerProfile, "Nickname or SlugURI", cmd.Nickname)
 			}
 		}
 	}
@@ -117,7 +118,7 @@ func (uc *UpdatePlayerUseCase) Exec(ctx context.Context, cmd squad_in.UpdatePlay
 		slog.WarnContext(ctx, "Failed to execute billing for update player profile", "error", err, "player_id", cmd.PlayerID)
 	}
 
-	history := squad_entities.NewPlayerProfileHistory(updatedPlayer.ID, squad_entities.PlayerHistoryActionUpdate, common.GetResourceOwner(ctx))
+	history := squad_entities.NewPlayerProfileHistory(updatedPlayer.ID, squad_entities.PlayerHistoryActionUpdate, shared.GetResourceOwner(ctx))
 
 	_, err = uc.PlayerHistoryWriter.Create(ctx, history)
 

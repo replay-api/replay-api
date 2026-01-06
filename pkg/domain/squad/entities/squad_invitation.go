@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // InvitationStatus represents the state of an invitation
@@ -43,7 +43,7 @@ type SquadInvitation struct {
 	Message         string               `json:"message,omitempty" bson:"message,omitempty"`
 	ExpiresAt       time.Time            `json:"expires_at" bson:"expires_at"`
 	RespondedAt     *time.Time           `json:"responded_at,omitempty" bson:"responded_at,omitempty"`
-	ResourceOwner   common.ResourceOwner `json:"resource_owner" bson:"resource_owner"`
+	ResourceOwner   shared.ResourceOwner `json:"resource_owner" bson:"resource_owner"`
 	CreatedAt       time.Time            `json:"created_at" bson:"created_at"`
 	UpdatedAt       time.Time            `json:"updated_at" bson:"updated_at"`
 }
@@ -60,7 +60,7 @@ func NewSquadInvitation(
 	role string,
 	message string,
 	expirationDays int,
-	rxn common.ResourceOwner,
+	rxn shared.ResourceOwner,
 ) *SquadInvitation {
 	now := time.Now()
 	return &SquadInvitation{

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // ChallengeType represents the type of challenge/dispute
@@ -95,7 +95,7 @@ type AdminAction struct {
 
 // Challenge is the aggregate root for game challenges/disputes
 type Challenge struct {
-	common.BaseEntity `bson:",inline"`
+	shared.BaseEntity `bson:",inline"`
 
 	// Match Context
 	MatchID     uuid.UUID  `json:"match_id" bson:"match_id"`
@@ -140,7 +140,7 @@ type Challenge struct {
 
 // NewChallenge creates a new challenge
 func NewChallenge(
-	resourceOwner common.ResourceOwner,
+	resourceOwner shared.ResourceOwner,
 	matchID uuid.UUID,
 	challengerID uuid.UUID,
 	gameID string,
@@ -170,7 +170,7 @@ func NewChallenge(
 	}
 
 	challenge := &Challenge{
-		BaseEntity:   common.NewEntity(resourceOwner),
+		BaseEntity:   shared.NewEntity(resourceOwner),
 		MatchID:      matchID,
 		ChallengerID: challengerID,
 		GameID:       gameID,
@@ -189,7 +189,7 @@ func NewChallenge(
 	return challenge, nil
 }
 
-// GetID implements common.Entity interface
+// GetID implements shared.Entity interface
 func (c *Challenge) GetID() uuid.UUID {
 	return c.ID
 }

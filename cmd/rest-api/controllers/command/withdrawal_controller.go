@@ -10,7 +10,7 @@ import (
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 )
@@ -52,13 +52,13 @@ func (ctrl *WithdrawalController) CreateWithdrawalHandler(apiContext context.Con
 		}
 
 		// Check authentication
-		authenticated, ok := ctx.Value(common.AuthenticatedKey).(bool)
+		authenticated, ok := ctx.Value(shared.AuthenticatedKey).(bool)
 		if !ok || !authenticated {
 			http.Error(w, `{"error":"authentication required"}`, http.StatusUnauthorized)
 			return
 		}
 
-		resourceOwner := common.GetResourceOwner(ctx)
+		resourceOwner := shared.GetResourceOwner(ctx)
 		if resourceOwner.UserID == uuid.Nil {
 			http.Error(w, `{"error":"valid user required"}`, http.StatusUnauthorized)
 			return
@@ -109,7 +109,7 @@ func (ctrl *WithdrawalController) CancelWithdrawalHandler(apiContext context.Con
 		}
 
 		// Check authentication
-		authenticated, ok := ctx.Value(common.AuthenticatedKey).(bool)
+		authenticated, ok := ctx.Value(shared.AuthenticatedKey).(bool)
 		if !ok || !authenticated {
 			http.Error(w, `{"error":"authentication required"}`, http.StatusUnauthorized)
 			return
@@ -147,7 +147,7 @@ func (ctrl *WithdrawalController) GetWithdrawalHandler(apiContext context.Contex
 		}
 
 		// Check authentication
-		authenticated, ok := ctx.Value(common.AuthenticatedKey).(bool)
+		authenticated, ok := ctx.Value(shared.AuthenticatedKey).(bool)
 		if !ok || !authenticated {
 			http.Error(w, `{"error":"authentication required"}`, http.StatusUnauthorized)
 			return
@@ -185,13 +185,13 @@ func (ctrl *WithdrawalController) ListWithdrawalsHandler(apiContext context.Cont
 		}
 
 		// Check authentication
-		authenticated, ok := ctx.Value(common.AuthenticatedKey).(bool)
+		authenticated, ok := ctx.Value(shared.AuthenticatedKey).(bool)
 		if !ok || !authenticated {
 			http.Error(w, `{"error":"authentication required"}`, http.StatusUnauthorized)
 			return
 		}
 
-		resourceOwner := common.GetResourceOwner(ctx)
+		resourceOwner := shared.GetResourceOwner(ctx)
 		if resourceOwner.UserID == uuid.Nil {
 			http.Error(w, `{"error":"valid user required"}`, http.StatusUnauthorized)
 			return

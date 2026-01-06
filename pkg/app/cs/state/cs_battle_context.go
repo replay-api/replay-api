@@ -1,8 +1,8 @@
 package state
 
 import (
-	common "github.com/replay-api/replay-api/pkg/domain"
 	cs_entity "github.com/replay-api/replay-api/pkg/domain/cs/entities"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
 )
 
 // out: series p/ plot do heatmap (2d), battlelog (sumarizado),
@@ -15,7 +15,7 @@ type StatsReader[T any] interface {
 
 type CS2BattleContext struct {
 	StatsReader[cs_entity.CSBattleStats]
-	Hits map[common.TickIDType]cs_entity.CSHitStats
+	Hits map[replay_common.TickIDType]cs_entity.CSHitStats
 }
 
 // func (ctx *CS2BattleContext) GetStatsEntity()

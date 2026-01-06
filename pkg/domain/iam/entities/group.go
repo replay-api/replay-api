@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type GroupType string
@@ -24,12 +24,12 @@ type Group struct {
 	ID            uuid.UUID            `json:"id" bson:"_id"`
 	Name          string               `json:"name" bson:"name"`
 	Type          GroupType            `json:"type" bson:"type"`
-	ResourceOwner common.ResourceOwner `json:"resource_owner" bson:"resource_owner"`
+	ResourceOwner shared.ResourceOwner `json:"resource_owner" bson:"resource_owner"`
 	CreatedAt     time.Time            `json:"created_at" bson:"created_at"`
 	UpdatedAt     time.Time            `json:"updated_at" bson:"updated_at"`
 }
 
-func NewGroup(groupID uuid.UUID, name string, groupType GroupType, resourceOwner common.ResourceOwner) *Group {
+func NewGroup(groupID uuid.UUID, name string, groupType GroupType, resourceOwner shared.ResourceOwner) *Group {
 	resourceOwner.GroupID = groupID
 
 	return &Group{
@@ -42,7 +42,7 @@ func NewGroup(groupID uuid.UUID, name string, groupType GroupType, resourceOwner
 	}
 }
 
-func NewAccountGroup(groupID uuid.UUID, resourceOwner common.ResourceOwner) *Group {
+func NewAccountGroup(groupID uuid.UUID, resourceOwner shared.ResourceOwner) *Group {
 	return NewGroup(groupID, DefaultUserGroupName, GroupTypeAccount, resourceOwner)
 }
 
@@ -50,16 +50,16 @@ func (e Group) GetID() uuid.UUID {
 	return e.ID
 }
 
-func NewGroupAccountSearchByUser(ctx context.Context) common.Search {
-	return common.Search{
-		SearchParams: []common.SearchAggregation{
+func NewGroupAccountSearchByUser(ctx context.Context) shared.Search {
+	return shared.Search{
+		SearchParams: []shared.SearchAggregation{
 			{
-				Params: []common.SearchParameter{
+				Params: []shared.SearchParameter{
 					{
-						ValueParams: []common.SearchableValue{
+						ValueParams: []shared.SearchableValue{
 							{
 								Field:    "Type",
-								Operator: common.EqualsOperator,
+								Operator: shared.EqualsOperator,
 								Values:   []interface{}{GroupTypeAccount},
 							},
 						},
@@ -67,12 +67,12 @@ func NewGroupAccountSearchByUser(ctx context.Context) common.Search {
 				},
 			},
 		},
-		ResultOptions: common.SearchResultOptions{
+		ResultOptions: shared.SearchResultOptions{
 			Limit: 1,
 		},
-		VisibilityOptions: common.SearchVisibilityOptions{
-			RequestSource:    common.GetResourceOwner(ctx),
-			IntendedAudience: common.UserAudienceIDKey,
+		VisibilityOptions: shared.SearchVisibilityOptions{
+			RequestSource:    shared.GetResourceOwner(ctx),
+			IntendedAudience: shared.UserAudienceIDKey,
 		},
 	}
 }

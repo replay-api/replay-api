@@ -5,10 +5,10 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	achievement_entities "github.com/replay-api/replay-api/pkg/domain/achievement/entities"
 	achievement_in "github.com/replay-api/replay-api/pkg/domain/achievement/ports/in"
 	achievement_out "github.com/replay-api/replay-api/pkg/domain/achievement/ports/out"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // AchievementQueryService implements AchievementQuery
@@ -133,7 +133,7 @@ func (s *AchievementQueryService) GetRecentUnlocks(ctx context.Context, playerID
 	// Check if caller can view these achievements (own or admin)
 	// TODO: Implement permission checking for private achievements
 	// Currently allows public viewing - may filter sensitive data in future
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 	_ = resourceOwner // Avoid unused variable warning
 
 	return s.repo.GetRecentUnlocks(ctx, playerID, limit)

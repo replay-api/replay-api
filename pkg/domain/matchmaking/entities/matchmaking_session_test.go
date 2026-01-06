@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
 	"github.com/stretchr/testify/assert"
 )
@@ -144,13 +144,13 @@ func TestMatchmakingSession_GetTierPriority(t *testing.T) {
 
 func TestMatchmakingSession_GetID(t *testing.T) {
 	expectedID := uuid.New()
-	resourceOwner := common.ResourceOwner{
+	resourceOwner := shared.ResourceOwner{
 		TenantID: uuid.New(),
 		ClientID: uuid.New(),
 		UserID:   uuid.New(),
 	}
 	session := &matchmaking_entities.MatchmakingSession{
-		BaseEntity: common.NewEntity(resourceOwner),
+		BaseEntity: shared.NewEntity(resourceOwner),
 	}
 	session.ID = expectedID // Override the generated ID
 
@@ -172,13 +172,13 @@ func TestMatchmakingSession_FullSession(t *testing.T) {
 	squadID := uuid.New()
 	now := time.Now()
 
-	resourceOwner := common.ResourceOwner{
+	resourceOwner := shared.ResourceOwner{
 		TenantID: uuid.New(),
 		ClientID: uuid.New(),
 		UserID:   playerID,
 	}
 	session := &matchmaking_entities.MatchmakingSession{
-		BaseEntity: common.NewEntity(resourceOwner),
+		BaseEntity: shared.NewEntity(resourceOwner),
 		PlayerID:   playerID,
 		SquadID:    &squadID,
 		Preferences: matchmaking_entities.MatchPreferences{

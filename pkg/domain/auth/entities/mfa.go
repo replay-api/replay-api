@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // MFAMethod represents the type of MFA method
@@ -58,7 +58,7 @@ type UserMFA struct {
 	BackupCodesLeft int                  `json:"backup_codes_left" bson:"backup_codes_left"`
 	VerifiedAt      *time.Time           `json:"verified_at,omitempty" bson:"verified_at,omitempty"`
 	LastUsedAt      *time.Time           `json:"last_used_at,omitempty" bson:"last_used_at,omitempty"`
-	ResourceOwner   common.ResourceOwner `json:"resource_owner" bson:"resource_owner"`
+	ResourceOwner   shared.ResourceOwner `json:"resource_owner" bson:"resource_owner"`
 	CreatedAt       time.Time            `json:"created_at" bson:"created_at"`
 	UpdatedAt       time.Time            `json:"updated_at" bson:"updated_at"`
 }
@@ -80,7 +80,7 @@ type MFAVerifyRequest struct {
 }
 
 // NewUserMFA creates a new MFA configuration for a user
-func NewUserMFA(userID uuid.UUID, method MFAMethod, rxn common.ResourceOwner) *UserMFA {
+func NewUserMFA(userID uuid.UUID, method MFAMethod, rxn shared.ResourceOwner) *UserMFA {
 	now := time.Now()
 	return &UserMFA{
 		ID:            uuid.New(),

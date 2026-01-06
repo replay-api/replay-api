@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -22,9 +22,9 @@ const (
 
 type CacheItem map[string]string
 
-var Repositories = make(map[common.ResourceType]interface{})
+var Repositories = make(map[shared.ResourceType]interface{})
 
-type MongoDBRepository[T common.Entity] struct {
+type MongoDBRepository[T shared.Entity] struct {
 	mongoClient       *mongo.Client
 	dbName            string
 	mappingCache      map[string]CacheItem
@@ -44,9 +44,9 @@ func (r *MongoDBRepository[T]) EntityName() string {
 	return r.entityName
 }
 
-func (r *MongoDBRepository[T]) addLookup(pipe []bson.M, s common.Search) ([]bson.M, error) {
+func (r *MongoDBRepository[T]) addLookup(pipe []bson.M, s shared.Search) ([]bson.M, error) {
 	for _, includeParam := range s.IncludeParams {
-		foreignRepo, ok := Repositories[includeParam.From].(*MongoDBRepository[common.Entity])
+		foreignRepo, ok := Repositories[includeParam.From].(*MongoDBRepository[shared.Entity])
 		if !ok {
 			err := fmt.Errorf("repository for %s not found or invalid type", includeParam.From)
 			slog.Error("addLookup:foreignRepo", "err", err)
@@ -89,7 +89,7 @@ func (r *MongoDBRepository[T]) addLookup(pipe []bson.M, s common.Search) ([]bson
 	return pipe, nil
 }
 
-type MongoDBRepositoryBuilder[T common.BaseEntity] struct {
+type MongoDBRepositoryBuilder[T shared.BaseEntity] struct {
 }
 
 func (r *MongoDBRepository[T]) InitQueryableFields(queryableFields map[string]bool, bsonFieldMappings map[string]string) {
@@ -116,7 +116,7 @@ func (r *MongoDBRepository[T]) InitQueryableFields(queryableFields map[string]bo
 		}
 	}
 
-	Repositories[common.ResourceType(r.entityName)] = r
+	Repositories[shared.ResourceType(r.entityName)] = r
 }
 
 // GetQueryableFields returns the map of queryable fields for this repository
@@ -173,8 +173,8 @@ func (r *MongoDBRepository[T]) GetBSONFieldName(fieldName string) (string, error
 	return bsonFieldName, nil
 }
 
-func (repo *MongoDBRepository[T]) Compile(ctx context.Context, searchParams []common.SearchAggregation, resultOptions common.SearchResultOptions) (*common.Search, error) {
-	err := common.ValidateSearchParameters(searchParams, repo.QueryableFields)
+func (repo *MongoDBRepository[T]) Compile(ctx context.Context, searchParams []shared.SearchAggregation, resultOptions shared.SearchResultOptions) (*shared.Search, error) {
+	err := shared.ValidateSearchParameters(searchParams, repo.QueryableFields)
 	if err != nil {
 		return nil, fmt.Errorf("error validating search parameters: %v", err)
 	}
@@ -184,12 +184,12 @@ func (repo *MongoDBRepository[T]) Compile(ctx context.Context, searchParams []co
 		return nil, fmt.Errorf("error validating result options: %v", err)
 	}
 
-	s := common.NewSearchByAggregation(ctx, searchParams, resultOptions, common.UserAudienceIDKey)
+	s := shared.NewSearchByAggregation(ctx, searchParams, resultOptions, shared.UserAudienceIDKey)
 
 	return &s, nil
 }
 
-func (repo *MongoDBRepository[T]) ValidateBSONSetup(resultOptions common.SearchResultOptions, bsonFieldMappings map[string]string) error {
+func (repo *MongoDBRepository[T]) ValidateBSONSetup(resultOptions shared.SearchResultOptions, bsonFieldMappings map[string]string) error {
 	if len(resultOptions.PickFields) > 0 && len(resultOptions.OmitFields) > 0 {
 		return fmt.Errorf("cannot specify both pick and omit fields")
 	}
@@ -209,7 +209,7 @@ func (repo *MongoDBRepository[T]) ValidateBSONSetup(resultOptions common.SearchR
 	return nil
 }
 
-func (r *MongoDBRepository[T]) Query(queryCtx context.Context, s common.Search) (*mongo.Cursor, error) {
+func (r *MongoDBRepository[T]) Query(queryCtx context.Context, s shared.Search) (*mongo.Cursor, error) {
 	collection := r.mongoClient.Database(r.dbName).Collection(r.collectionName)
 
 	pipe, err := r.GetPipeline(queryCtx, s)
@@ -230,7 +230,7 @@ func (r *MongoDBRepository[T]) Query(queryCtx context.Context, s common.Search) 
 	return cursor, nil
 }
 
-func (r *MongoDBRepository[T]) GetPipeline(queryCtx context.Context, s common.Search) ([]bson.M, error) {
+func (r *MongoDBRepository[T]) GetPipeline(queryCtx context.Context, s shared.Search) ([]bson.M, error) {
 	var pipe []bson.M
 
 	pipe, err := r.addMatch(queryCtx, pipe, s)
@@ -268,7 +268,7 @@ func (r *MongoDBRepository[T]) GetPipeline(queryCtx context.Context, s common.Se
 	return pipe, nil
 }
 
-func (r *MongoDBRepository[T]) addLimit(pipe []bson.M, s common.Search) ([]bson.M, error) {
+func (r *MongoDBRepository[T]) addLimit(pipe []bson.M, s shared.Search) ([]bson.M, error) {
 	limit := s.ResultOptions.Limit
 
 	if limit <= 0 {
@@ -285,7 +285,7 @@ func (r *MongoDBRepository[T]) addLimit(pipe []bson.M, s common.Search) ([]bson.
 	return pipe, nil
 }
 
-func (r *MongoDBRepository[T]) addSkip(pipe []bson.M, s common.Search) []bson.M {
+func (r *MongoDBRepository[T]) addSkip(pipe []bson.M, s shared.Search) []bson.M {
 	if s.ResultOptions.Skip == 0 {
 		return pipe
 	}
@@ -294,7 +294,7 @@ func (r *MongoDBRepository[T]) addSkip(pipe []bson.M, s common.Search) []bson.M 
 	return pipe
 }
 
-func (r *MongoDBRepository[T]) addSort(pipe []bson.M, s common.Search) []bson.M {
+func (r *MongoDBRepository[T]) addSort(pipe []bson.M, s shared.Search) []bson.M {
 	sortFields := []bson.D{}
 	for _, sortOption := range s.SortOptions {
 		sortFields = append(sortFields, bson.D{{Key: sortOption.Field, Value: sortOption.Direction}})
@@ -324,7 +324,7 @@ func (r *MongoDBRepository[T]) addSort(pipe []bson.M, s common.Search) []bson.M 
 	return pipe
 }
 
-func (r *MongoDBRepository[T]) addMatch(queryCtx context.Context, pipe []bson.M, s common.Search) ([]bson.M, error) {
+func (r *MongoDBRepository[T]) addMatch(queryCtx context.Context, pipe []bson.M, s shared.Search) ([]bson.M, error) {
 	aggregate := bson.M{}
 	for _, aggregator := range s.SearchParams {
 		r.setMatchValues(queryCtx, aggregator.Params, &aggregate, aggregator.AggregationClause)
@@ -342,7 +342,7 @@ func (r *MongoDBRepository[T]) addMatch(queryCtx context.Context, pipe []bson.M,
 }
 
 // TODO: return error instead of panic
-func (r *MongoDBRepository[T]) setMatchValues(queryCtx context.Context, params []common.SearchParameter, aggregate *bson.M, clause common.SearchAggregationClause) {
+func (r *MongoDBRepository[T]) setMatchValues(queryCtx context.Context, params []shared.SearchParameter, aggregate *bson.M, clause shared.SearchAggregationClause) {
 	if r.QueryableFields == nil {
 		panic(fmt.Errorf("queryableFields not initialized in MongoDBRepository of %s", r.entityName))
 	}
@@ -444,13 +444,13 @@ func (r *MongoDBRepository[T]) setMatchValues(queryCtx context.Context, params [
 		if len(innerClauses) > 0 {
 			paramClause := p.AggregationClause
 			if paramClause == "" {
-				paramClause = common.AndAggregationClause // default
+				paramClause = shared.AndAggregationClause // default
 			}
 
 			if len(innerClauses) == 1 {
 				// Single clause doesn't need $and/$or wrapper
 				outerClauses = append(outerClauses, innerClauses[0])
-			} else if paramClause == common.OrAggregationClause {
+			} else if paramClause == shared.OrAggregationClause {
 				outerClauses = append(outerClauses, bson.M{"$or": innerClauses})
 			} else {
 				outerClauses = append(outerClauses, bson.M{"$and": innerClauses})
@@ -465,7 +465,7 @@ func (r *MongoDBRepository[T]) setMatchValues(queryCtx context.Context, params [
 			for k, v := range outerClauses[0].(bson.M) {
 				(*aggregate)[k] = v
 			}
-		} else if clause == common.OrAggregationClause {
+		} else if clause == shared.OrAggregationClause {
 			(*aggregate)["$or"] = outerClauses
 		} else {
 			(*aggregate)["$and"] = outerClauses
@@ -474,29 +474,29 @@ func (r *MongoDBRepository[T]) setMatchValues(queryCtx context.Context, params [
 }
 
 // Helper function to build the filter based on the operator
-func buildFilterForOperator(operator common.SearchOperator, values []interface{}) bson.M {
+func buildFilterForOperator(operator shared.SearchOperator, values []interface{}) bson.M {
 	switch operator {
-	case common.EqualsOperator:
+	case shared.EqualsOperator:
 		return bson.M{"$eq": values[0]}
-	case common.NotEqualsOperator:
+	case shared.NotEqualsOperator:
 		return bson.M{"$ne": values[0]}
-	case common.GreaterThanOperator:
+	case shared.GreaterThanOperator:
 		return bson.M{"$gt": values[0]}
-	case common.LessThanOperator:
+	case shared.LessThanOperator:
 		return bson.M{"$lt": values[0]}
-	case common.GreaterThanOrEqualOperator:
+	case shared.GreaterThanOrEqualOperator:
 		return bson.M{"$gte": values[0]}
-	case common.LessThanOrEqualOperator:
+	case shared.LessThanOrEqualOperator:
 		return bson.M{"$lte": values[0]}
-	case common.ContainsOperator:
+	case shared.ContainsOperator:
 		return bson.M{"$regex": values[0], "$options": "i"}
-	case common.StartsWithOperator:
+	case shared.StartsWithOperator:
 		return bson.M{"$regex": "^" + fmt.Sprintf("%v", values[0]), "$options": "i"}
-	case common.EndsWithOperator:
+	case shared.EndsWithOperator:
 		return bson.M{"$regex": fmt.Sprintf("%v", values[0]) + "$", "$options": "i"}
-	case common.InOperator:
+	case shared.InOperator:
 		return bson.M{"$in": values}
-	case common.NotInOperator:
+	case shared.NotInOperator:
 		return bson.M{"$nin": values}
 	default:
 		return bson.M{"$in": values}
@@ -513,7 +513,7 @@ func isPrefixAllowed(prefix string, queryableFields map[string]bool) bool {
 	return false
 }
 
-func (r *MongoDBRepository[T]) GetBSONFieldNameFromSearchableValue(v common.SearchableValue) (string, error) {
+func (r *MongoDBRepository[T]) GetBSONFieldNameFromSearchableValue(v shared.SearchableValue) (string, error) {
 	// Check for wildcard and handle directly
 	if strings.HasSuffix(v.Field, ".*") {
 		return r.GetBSONFieldName(v.Field[:len(v.Field)-2])
@@ -561,7 +561,7 @@ func (r *MongoDBRepository[T]) CreateMany(ctx context.Context, entities []*T) er
 	return nil
 }
 
-func (r *MongoDBRepository[T]) AddProjection(pipe []bson.M, s common.Search) []bson.M {
+func (r *MongoDBRepository[T]) AddProjection(pipe []bson.M, s shared.Search) []bson.M {
 	projection := &bson.M{}
 	for field := range r.QueryableFields {
 		if bsonFieldName, ok := r.BsonFieldMappings[field]; ok {
@@ -605,7 +605,7 @@ func (r *MongoDBRepository[T]) AddProjection(pipe []bson.M, s common.Search) []b
 		for _, includeParam := range s.IncludeParams {
 			if len(includeParam.PickFields) > 0 {
 				for _, field := range includeParam.PickFields {
-					foreignRepo, ok := Repositories[includeParam.From].(*MongoDBRepository[common.Entity])
+					foreignRepo, ok := Repositories[includeParam.From].(*MongoDBRepository[shared.Entity])
 					if !ok {
 						slog.Warn("addProjection:foreignRepo", "err", fmt.Errorf("repository for %s not found or invalid type", includeParam.From))
 						continue
@@ -635,52 +635,52 @@ func (r *MongoDBRepository[T]) AddProjection(pipe []bson.M, s common.Search) []b
 	return pipe
 }
 
-func (r *MongoDBRepository[T]) EnsureTenancy(queryCtx context.Context, agg bson.M, s common.Search) (bson.M, error) {
-	tenantID, ok := queryCtx.Value(common.TenantIDKey).(uuid.UUID)
+func (r *MongoDBRepository[T]) EnsureTenancy(queryCtx context.Context, agg bson.M, s shared.Search) (bson.M, error) {
+	tenantID, ok := queryCtx.Value(shared.TenantIDKey).(uuid.UUID)
 	if !ok || tenantID == uuid.Nil {
 		return agg, fmt.Errorf("TENANCY.RequestSource: valid tenant_id is required in queryCtx: %#v", queryCtx)
 	}
 
 	if s.VisibilityOptions.RequestSource.TenantID == uuid.Nil {
-		return agg, fmt.Errorf("TENANCY.RequestSource: `tenant_id` is required but not provided in `common.Search`: %#v", s)
+		return agg, fmt.Errorf("TENANCY.RequestSource: `tenant_id` is required but not provided in `shared.Search`: %#v", s)
 	} else if tenantID != s.VisibilityOptions.RequestSource.TenantID {
-		return agg, fmt.Errorf("TENANCY.RequestSource: `tenant_id` in queryCtx does not match `tenant_id` in `common.Search`: %v vs %v", tenantID, s.VisibilityOptions.RequestSource.TenantID)
+		return agg, fmt.Errorf("TENANCY.RequestSource: `tenant_id` in queryCtx does not match `tenant_id` in `shared.Search`: %v vs %v", tenantID, s.VisibilityOptions.RequestSource.TenantID)
 	}
 
 	slog.InfoContext(queryCtx, "TENANCY.RequestSource: tenant_id", "tenant_id", tenantID)
 
 	switch s.VisibilityOptions.IntendedAudience {
-	case common.ClientApplicationAudienceIDKey:
+	case shared.ClientApplicationAudienceIDKey:
 		return ensureClientID(queryCtx, agg, s)
 
-	case common.GroupAudienceIDKey:
+	case shared.GroupAudienceIDKey:
 		return ensureUserOrGroupID(queryCtx, agg, s, s.VisibilityOptions.IntendedAudience)
 
-	case common.UserAudienceIDKey:
+	case shared.UserAudienceIDKey:
 		return ensureUserOrGroupID(queryCtx, agg, s, s.VisibilityOptions.IntendedAudience)
 
-	case common.TenantAudienceIDKey:
+	case shared.TenantAudienceIDKey:
 		slog.WarnContext(queryCtx, "TENANCY.Admin: tenant audience is not allowed", "intendedAudience", s.VisibilityOptions.IntendedAudience)
 		return agg, fmt.Errorf("TENANCY.Admin: tenant audience is not allowed")
 
 	default:
 		slog.WarnContext(queryCtx, "TENANCY.Unknown: intended audience is invalid", "intendedAudience", s.VisibilityOptions.IntendedAudience)
-		return agg, fmt.Errorf("TENANCY.Unknown: intended audience %s is invalid in `common.Search`: %#v", string(s.VisibilityOptions.IntendedAudience), s)
+		return agg, fmt.Errorf("TENANCY.Unknown: intended audience %s is invalid in `shared.Search`: %#v", string(s.VisibilityOptions.IntendedAudience), s)
 	}
 }
 
-func ensureClientID(ctx context.Context, agg bson.M, s common.Search) (bson.M, error) {
-	clientID, ok := ctx.Value(common.ClientIDKey).(uuid.UUID)
+func ensureClientID(ctx context.Context, agg bson.M, s shared.Search) (bson.M, error) {
+	clientID, ok := ctx.Value(shared.ClientIDKey).(uuid.UUID)
 	if !ok || clientID == uuid.Nil {
 		return agg, fmt.Errorf("TENANCY.ApplicationLevel: valid client_id is required in queryCtx: %#v", ctx)
 	}
 
 	if s.VisibilityOptions.RequestSource.ClientID == uuid.Nil {
-		return agg, fmt.Errorf("TENANCY.ApplicationLevel: `client_id` is required in `common.Search`: %#v", s)
+		return agg, fmt.Errorf("TENANCY.ApplicationLevel: `client_id` is required in `shared.Search`: %#v", s)
 	}
 
 	if clientID != s.VisibilityOptions.RequestSource.ClientID {
-		return agg, fmt.Errorf("TENANCY.ApplicationLevel: `client_id` in queryCtx does not match `client_id` in `common.Search`: %v vs %v", clientID, s.VisibilityOptions.RequestSource.ClientID)
+		return agg, fmt.Errorf("TENANCY.ApplicationLevel: `client_id` in queryCtx does not match `client_id` in `shared.Search`: %v vs %v", clientID, s.VisibilityOptions.RequestSource.ClientID)
 	}
 
 	tenancyOr := bson.A{
@@ -718,14 +718,14 @@ func mergeTenancyCondition(agg bson.M, tenancyOr bson.A) bson.M {
 	return result
 }
 
-func ensureUserOrGroupID(ctx context.Context, agg bson.M, s common.Search, aud common.IntendedAudienceKey) (bson.M, error) {
+func ensureUserOrGroupID(ctx context.Context, agg bson.M, s shared.Search, aud shared.IntendedAudienceKey) (bson.M, error) {
 	groupID := s.VisibilityOptions.RequestSource.GroupID
 	userID := s.VisibilityOptions.RequestSource.UserID
 
 	if groupID == uuid.Nil && userID == uuid.Nil {
-		slog.WarnContext(ctx, "TENANCY.GroupLevel: valid user_id or group_id is required in `common.Search`: %#v. Overwriting from context", "search", s)
-		groupID = common.GetResourceOwner(ctx).GroupID
-		userID = common.GetResourceOwner(ctx).UserID
+		slog.WarnContext(ctx, "TENANCY.GroupLevel: valid user_id or group_id is required in `shared.Search`: %#v. Overwriting from context", "search", s)
+		groupID = shared.GetResourceOwner(ctx).GroupID
+		userID = shared.GetResourceOwner(ctx).UserID
 	}
 
 	userOK := userID != uuid.Nil
@@ -736,11 +736,11 @@ func ensureUserOrGroupID(ctx context.Context, agg bson.M, s common.Search, aud c
 		return agg, fmt.Errorf("TENANCY.GroupLevel: valid user_id or group_id is required in search parameters: %#v", s)
 	}
 
-	if aud == common.GroupAudienceIDKey && !groupOK {
+	if aud == shared.GroupAudienceIDKey && !groupOK {
 		return agg, fmt.Errorf("TENANCY.GroupLevel: group_id is required in search parameters for intended audience: %s", string(aud))
 	}
 
-	if aud == common.UserAudienceIDKey && !userOK {
+	if aud == shared.UserAudienceIDKey && !userOK {
 		return agg, fmt.Errorf("TENANCY.UserLevel: user_id is required in search parameters for intended audience: %s", string(aud))
 	}
 
@@ -753,9 +753,9 @@ func ensureUserOrGroupID(ctx context.Context, agg bson.M, s common.Search, aud c
 			bson.M{"baseentity.resource_owner.user_id": userID},
 			bson.M{
 				"$or": bson.A{
-					bson.M{"visibility_type": common.PublicVisibilityTypeKey},
-					bson.M{"baseentity.visibility_type": common.PublicVisibilityTypeKey},
-					bson.M{"resource_owner.client_id": common.GetResourceOwner(ctx).ClientID},
+					bson.M{"visibility_type": shared.PublicVisibilityTypeKey},
+					bson.M{"baseentity.visibility_type": shared.PublicVisibilityTypeKey},
+					bson.M{"resource_owner.client_id": shared.GetResourceOwner(ctx).ClientID},
 				},
 			},
 		}
@@ -764,9 +764,9 @@ func ensureUserOrGroupID(ctx context.Context, agg bson.M, s common.Search, aud c
 		tenancyOr = bson.A{
 			bson.M{
 				"$or": bson.A{
-					bson.M{"visibility_type": common.PublicVisibilityTypeKey},
-					bson.M{"baseentity.visibility_type": common.PublicVisibilityTypeKey},
-					bson.M{"resource_owner.client_id": common.GetResourceOwner(ctx).ClientID},
+					bson.M{"visibility_type": shared.PublicVisibilityTypeKey},
+					bson.M{"baseentity.visibility_type": shared.PublicVisibilityTypeKey},
+					bson.M{"resource_owner.client_id": shared.GetResourceOwner(ctx).ClientID},
 				},
 			},
 			bson.M{"resource_owner.group_id": groupID},
@@ -777,9 +777,9 @@ func ensureUserOrGroupID(ctx context.Context, agg bson.M, s common.Search, aud c
 		tenancyOr = bson.A{
 			bson.M{
 				"$or": bson.A{
-					bson.M{"visibility_type": common.PublicVisibilityTypeKey},
-					bson.M{"baseentity.visibility_type": common.PublicVisibilityTypeKey},
-					bson.M{"resource_owner.client_id": common.GetResourceOwner(ctx).ClientID},
+					bson.M{"visibility_type": shared.PublicVisibilityTypeKey},
+					bson.M{"baseentity.visibility_type": shared.PublicVisibilityTypeKey},
+					bson.M{"resource_owner.client_id": shared.GetResourceOwner(ctx).ClientID},
 				},
 			},
 			bson.M{"resource_owner.user_id": userID},
@@ -791,7 +791,7 @@ func ensureUserOrGroupID(ctx context.Context, agg bson.M, s common.Search, aud c
 	return mergeTenancyCondition(agg, tenancyOr), nil
 }
 
-func (r *MongoDBRepository[T]) Search(ctx context.Context, s common.Search) ([]T, error) {
+func (r *MongoDBRepository[T]) Search(ctx context.Context, s shared.Search) ([]T, error) {
 	cursor, err := r.Query(ctx, s)
 	if cursor != nil {
 		defer cursor.Close(ctx)
@@ -922,7 +922,7 @@ func (r *MongoDBRepository[T]) UpdateUnsafe(createCtx context.Context, entity *T
 // buildRLSFilter creates a MongoDB filter based on the current user's context
 // This enforces Row Level Security by filtering based on tenant, client, group, and user IDs
 func (r *MongoDBRepository[T]) buildRLSFilter(ctx context.Context) (bson.M, error) {
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 
 	// Require at least tenant ID for RLS
 	if resourceOwner.TenantID == uuid.Nil {
@@ -930,18 +930,18 @@ func (r *MongoDBRepository[T]) buildRLSFilter(ctx context.Context) (bson.M, erro
 	}
 
 	// Check if user is authenticated
-	isAuthenticated, _ := ctx.Value(common.AuthenticatedKey).(bool)
+	isAuthenticated, _ := ctx.Value(shared.AuthenticatedKey).(bool)
 	if !isAuthenticated {
 		// For unauthenticated users, only allow public visibility
 		return bson.M{
 			"$or": bson.A{
 				bson.M{
 					"resource_owner.tenant_id": resourceOwner.TenantID,
-					"visibility_type":          common.PublicVisibilityTypeKey,
+					"visibility_type":          shared.PublicVisibilityTypeKey,
 				},
 				bson.M{
 					"baseentity.resource_owner.tenant_id": resourceOwner.TenantID,
-					"baseentity.visibility_type":          common.PublicVisibilityTypeKey,
+					"baseentity.visibility_type":          shared.PublicVisibilityTypeKey,
 				},
 			},
 		}, nil
@@ -976,11 +976,11 @@ func (r *MongoDBRepository[T]) buildRLSFilter(ctx context.Context) (bson.M, erro
 	orConditions = append(orConditions,
 		bson.M{
 			"resource_owner.tenant_id": tenantID,
-			"visibility_type":          common.PublicVisibilityTypeKey,
+			"visibility_type":          shared.PublicVisibilityTypeKey,
 		},
 		bson.M{
 			"baseentity.resource_owner.tenant_id": tenantID,
-			"baseentity.visibility_type":          common.PublicVisibilityTypeKey,
+			"baseentity.visibility_type":          shared.PublicVisibilityTypeKey,
 		},
 	)
 
@@ -989,11 +989,11 @@ func (r *MongoDBRepository[T]) buildRLSFilter(ctx context.Context) (bson.M, erro
 		orConditions = append(orConditions,
 			bson.M{
 				"resource_owner.client_id": clientID,
-				"visibility_type":          common.RestrictedVisibilityTypeKey,
+				"visibility_type":          shared.RestrictedVisibilityTypeKey,
 			},
 			bson.M{
 				"baseentity.resource_owner.client_id": clientID,
-				"baseentity.visibility_type":          common.RestrictedVisibilityTypeKey,
+				"baseentity.visibility_type":          shared.RestrictedVisibilityTypeKey,
 			},
 		)
 	}

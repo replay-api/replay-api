@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	challenge_entities "github.com/replay-api/replay-api/pkg/domain/challenge/entities"
 )
 
@@ -17,10 +17,10 @@ type ChallengeRepository interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*challenge_entities.Challenge, error)
 
 	// GetByMatchID retrieves all challenges for a match
-	GetByMatchID(ctx context.Context, matchID uuid.UUID, search *common.Search) ([]*challenge_entities.Challenge, error)
+	GetByMatchID(ctx context.Context, matchID uuid.UUID, search *shared.Search) ([]*challenge_entities.Challenge, error)
 
 	// GetByChallengerID retrieves challenges submitted by a player
-	GetByChallengerID(ctx context.Context, challengerID uuid.UUID, search *common.Search) ([]*challenge_entities.Challenge, error)
+	GetByChallengerID(ctx context.Context, challengerID uuid.UUID, search *shared.Search) ([]*challenge_entities.Challenge, error)
 
 	// Search searches challenges based on criteria
 	Search(ctx context.Context, criteria ChallengeCriteria) ([]*challenge_entities.Challenge, int64, error)
@@ -52,7 +52,7 @@ type ChallengeCriteria struct {
 	Statuses       []challenge_entities.ChallengeStatus
 	Priorities     []challenge_entities.ChallengePriority
 	IncludeExpired bool
-	ResourceOwner  *common.ResourceOwner
-	Search         *common.Search
+	ResourceOwner  *shared.ResourceOwner
+	Search         *shared.Search
 }
 

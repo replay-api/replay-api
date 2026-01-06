@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // WithdrawalStatus represents the processing state of a withdrawal
@@ -70,7 +70,7 @@ type Withdrawal struct {
 	ProcessedAt          *time.Time           `json:"processed_at,omitempty" bson:"processed_at,omitempty"`
 	CompletedAt          *time.Time           `json:"completed_at,omitempty" bson:"completed_at,omitempty"`
 	History              []WithdrawalHistory  `json:"history" bson:"history"`
-	ResourceOwner        common.ResourceOwner `json:"resource_owner" bson:"resource_owner"`
+	ResourceOwner        shared.ResourceOwner `json:"resource_owner" bson:"resource_owner"`
 	CreatedAt            time.Time            `json:"created_at" bson:"created_at"`
 	UpdatedAt            time.Time            `json:"updated_at" bson:"updated_at"`
 }
@@ -92,7 +92,7 @@ func NewWithdrawal(
 	method WithdrawalMethod,
 	bankDetails BankDetails,
 	fee float64,
-	rxn common.ResourceOwner,
+	rxn shared.ResourceOwner,
 ) *Withdrawal {
 	now := time.Now()
 	return &Withdrawal{

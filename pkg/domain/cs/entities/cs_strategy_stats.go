@@ -1,6 +1,9 @@
 package entities
 
-import common "github.com/replay-api/replay-api/pkg/domain"
+import (
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
+)
 
 type CSStrategyIDType = int
 
@@ -86,8 +89,8 @@ const (
 )
 
 type CSStrategyStats struct {
-	TickID              common.TickIDType
-	PlayerStrategyStats map[common.PlayerIDType]CSPlayerStrategyStats
+	TickID              replay_common.TickIDType
+	PlayerStrategyStats map[shared.PlayerIDType]CSPlayerStrategyStats
 }
 
 type CSPlayerStrategyStats struct {

@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // PrizePoolType defines the type of prize pool
@@ -47,7 +47,7 @@ const (
 
 // PrizePool represents a tournament's prize pool with blockchain verification
 type PrizePool struct {
-	common.BaseEntity
+	shared.BaseEntity
 	TournamentID   uuid.UUID         `json:"tournament_id" bson:"tournament_id"`
 	Type           PrizePoolType     `json:"type" bson:"type"`
 	Status         PrizePoolStatus   `json:"status" bson:"status"`
@@ -155,9 +155,9 @@ type BlockchainVerification struct {
 }
 
 // NewPrizePool creates a new prize pool
-func NewPrizePool(tournamentID uuid.UUID, poolType PrizePoolType, currency string, platformFeePercent float64, rxn common.ResourceOwner) *PrizePool {
+func NewPrizePool(tournamentID uuid.UUID, poolType PrizePoolType, currency string, platformFeePercent float64, rxn shared.ResourceOwner) *PrizePool {
 	return &PrizePool{
-		BaseEntity:         common.NewEntity(rxn),
+		BaseEntity:         shared.NewEntity(rxn),
 		TournamentID:       tournamentID,
 		Type:               poolType,
 		Status:             PrizePoolStatusPending,

@@ -6,7 +6,8 @@ import (
 	dem "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs"
 	evt "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs/events"
 	state "github.com/replay-api/replay-api/pkg/app/cs/state"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	fps_events "github.com/replay-api/replay-common/pkg/replay/events/game/fps"
 	"github.com/replay-api/replay-api/pkg/domain/replay/entities"
 
 	// replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
@@ -17,7 +18,7 @@ import (
 
 func WeaponFire(p dem.Parser, matchContext *state.CS2MatchContext, out chan *entities.GameEvent) func(e evt.WeaponFire) {
 	return func(event evt.WeaponFire) {
-		// slog.Info(fmt.Sprintf("%s event", common.Event_WeaponFireID), "event", event)
+		// slog.Info(fmt.Sprintf("%s event", fps_events.Event_WeaponFireID), "event", event)
 
 		gs := p.GameState()
 
@@ -34,7 +35,7 @@ func WeaponFire(p dem.Parser, matchContext *state.CS2MatchContext, out chan *ent
 
 		battleContext := matchContext.RoundContexts[roundIndex].BattleContext
 
-		currentTick := common.TickIDType(gs.IngameTick())
+		currentTick := replay_common.TickIDType(gs.IngameTick())
 
 		// sourcePlayerID := fmt.Sprintf("%d", event.Shooter.SteamID64) // TODO: ticket + spec (angles data, values etc)
 
@@ -48,7 +49,7 @@ func WeaponFire(p dem.Parser, matchContext *state.CS2MatchContext, out chan *ent
 		battleContext.Hits[currentTick] = payload
 
 		gameEvent, err := event_factory.NewGameEvent(
-			common.Event_WeaponFireID,
+			fps_events.Event_WeaponFireID,
 			matchContext,
 			roundIndex,
 			currentTick,

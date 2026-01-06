@@ -6,7 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	"github.com/replay-api/replay-api/pkg/domain/email"
 	email_entities "github.com/replay-api/replay-api/pkg/domain/email/entities"
 	email_in "github.com/replay-api/replay-api/pkg/domain/email/ports/in"
@@ -106,10 +106,10 @@ func (usecase *OnboardEmailUserUseCase) Exec(ctx context.Context, emailUser *ema
 		return nil, nil, email.NewEmailUserCreationError(fmt.Sprintf("error creating rid token: %v", emailUser.Email))
 	}
 
-	ctx = context.WithValue(ctx, common.UserIDKey, profile.ResourceOwner.UserID)
-	ctx = context.WithValue(ctx, common.GroupIDKey, profile.ResourceOwner.GroupID)
+	ctx = context.WithValue(ctx, shared.UserIDKey, profile.ResourceOwner.UserID)
+	ctx = context.WithValue(ctx, shared.GroupIDKey, profile.ResourceOwner.GroupID)
 
-	emailUser.ResourceOwner = common.GetResourceOwner(ctx)
+	emailUser.ResourceOwner = shared.GetResourceOwner(ctx)
 
 	if emailUser.ID == uuid.Nil {
 		emailUser.ID = profile.ResourceOwner.UserID
@@ -148,12 +148,12 @@ func NewOnboardEmailUserUseCase(
 	}
 }
 
-func (uc *OnboardEmailUserUseCase) newSearchByEmail(ctx context.Context, emailString string) common.Search {
-	params := []common.SearchAggregation{
+func (uc *OnboardEmailUserUseCase) newSearchByEmail(ctx context.Context, emailString string) shared.Search {
+	params := []shared.SearchAggregation{
 		{
-			Params: []common.SearchParameter{
+			Params: []shared.SearchParameter{
 				{
-					ValueParams: []common.SearchableValue{
+					ValueParams: []shared.SearchableValue{
 						{
 							Field: "Email",
 							Values: []interface{}{
@@ -166,17 +166,17 @@ func (uc *OnboardEmailUserUseCase) newSearchByEmail(ctx context.Context, emailSt
 		},
 	}
 
-	visibility := common.SearchVisibilityOptions{
-		RequestSource:    common.GetResourceOwner(ctx),
-		IntendedAudience: common.ClientApplicationAudienceIDKey,
+	visibility := shared.SearchVisibilityOptions{
+		RequestSource:    shared.GetResourceOwner(ctx),
+		IntendedAudience: shared.ClientApplicationAudienceIDKey,
 	}
 
-	result := common.SearchResultOptions{
+	result := shared.SearchResultOptions{
 		Skip:  0,
 		Limit: 1,
 	}
 
-	return common.Search{
+	return shared.Search{
 		SearchParams:      params,
 		ResultOptions:     result,
 		VisibilityOptions: visibility,

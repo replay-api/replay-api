@@ -17,7 +17,7 @@ import (
 	steam_out "github.com/replay-api/replay-api/pkg/domain/steam/ports/out"
 	ioc "github.com/replay-api/replay-api/pkg/infra/ioc"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 var (
@@ -49,17 +49,17 @@ func TestResolveOnboardSteamUserCommand(t *testing.T) {
 	groupID := uuid.New()
 	userID := uuid.New()
 
-	ctx := context.WithValue(context.Background(), common.TenantIDKey, common.TeamPROTenantID)
-	ctx = context.WithValue(ctx, common.ClientIDKey, common.TeamPROAppClientID)
-	ctx = context.WithValue(ctx, common.GroupIDKey, groupID)
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
+	ctx := context.WithValue(context.Background(), shared.TenantIDKey, replay_common.TeamPROTenantID)
+	ctx = context.WithValue(ctx, shared.ClientIDKey, replay_common.TeamPROAppClientID)
+	ctx = context.WithValue(ctx, shared.GroupIDKey, groupID)
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
 
 	steamUser := &steam_entity.SteamUser{ID: userID,
 		VHash: "4ef1c47e874ec4425c5786cddadd9adfc908a530ada95a602742f49c32430185",
 		Steam: steam_entity.Steam{
 			ID: "76561198169377459",
 		},
-		ResourceOwner: common.GetResourceOwner(ctx),
+		ResourceOwner: shared.GetResourceOwner(ctx),
 	}
 	err = command.Validate(ctx, steamUser)
 
@@ -101,7 +101,7 @@ func TestResolveOnboardSteamUserCommand(t *testing.T) {
 		t.Fatalf("failed to execute OnboardSteamUserCommand: token CreatedAt is zero")
 	}
 
-	if token.IntendedAudience == common.UserAudienceIDKey && token.ResourceOwner.UserID != steamUser.ResourceOwner.UserID {
+	if token.IntendedAudience == shared.UserAudienceIDKey && token.ResourceOwner.UserID != steamUser.ResourceOwner.UserID {
 		t.Fatalf("failed to execute OnboardSteamUserCommand: token ResourceOwner UserID does not match steamUser ResourceOwner UserID")
 	}
 
@@ -116,16 +116,16 @@ func TestResolverSteamUserReader(t *testing.T) {
 		t.Fatalf("failed to resolve SteamUserWriter: %v", err)
 	}
 
-	ctx := context.WithValue(context.Background(), common.TenantIDKey, common.TeamPROTenantID)
-	ctx = context.WithValue(ctx, common.ClientIDKey, common.TeamPROAppClientID)
-	ctx = context.WithValue(ctx, common.GroupIDKey, uuid.New())
-	ctx = context.WithValue(ctx, common.UserIDKey, uuid.New())
+	ctx := context.WithValue(context.Background(), shared.TenantIDKey, replay_common.TeamPROTenantID)
+	ctx = context.WithValue(ctx, shared.ClientIDKey, replay_common.TeamPROAppClientID)
+	ctx = context.WithValue(ctx, shared.GroupIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.UserIDKey, uuid.New())
 
 	steamCommunityDetails := steam_entity.Steam{
 		ID: "1",
 	}
 
-	reso := common.GetResourceOwner(ctx)
+	reso := shared.GetResourceOwner(ctx)
 
 	user := &steam_entity.SteamUser{
 		ID:            reso.UserID,
@@ -145,7 +145,7 @@ func TestResolverSteamUserReader(t *testing.T) {
 		t.Fatalf("failed to resolve SteamUserReader: %v", err)
 	}
 
-	s := common.NewSearchByID(ctx, user.ID, common.ClientApplicationAudienceIDKey)
+	s := shared.NewSearchByID(ctx, user.ID, shared.ClientApplicationAudienceIDKey)
 
 	steamUser, err := reader.Search(ctx, s)
 
@@ -170,12 +170,12 @@ func TestResolverSteamUserWriter(t *testing.T) {
 		t.Fatalf("failed to resolve SteamUserWriter: %v", err)
 	}
 
-	ctx := context.WithValue(context.Background(), common.TenantIDKey, common.TeamPROTenantID)
-	ctx = context.WithValue(ctx, common.ClientIDKey, common.TeamPROAppClientID)
-	ctx = context.WithValue(ctx, common.UserIDKey, uuid.New())
+	ctx := context.WithValue(context.Background(), shared.TenantIDKey, replay_common.TeamPROTenantID)
+	ctx = context.WithValue(ctx, shared.ClientIDKey, replay_common.TeamPROAppClientID)
+	ctx = context.WithValue(ctx, shared.UserIDKey, uuid.New())
 
 	user := &steam_entity.SteamUser{
-		ID:    common.GetResourceOwner(ctx).UserID,
+		ID:    shared.GetResourceOwner(ctx).UserID,
 		Steam: steam_entity.Steam{ID: "1"},
 	}
 

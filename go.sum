@@ -64,10 +64,10 @@ github.com/prometheus/common v0.48.0 h1:QO8U2CdOzSn1BBsmXJXduaaW+dY/5QLjfB8svtSz
 github.com/prometheus/common v0.48.0/go.mod h1:0/KsvlIEfPQCQ5I2iNSAWKPZziNCvRs5EC6ILDTlAPc=
 github.com/prometheus/procfs v0.12.0 h1:jluTpSng7V9hY0O2R9DzzJHYb2xULk9VTR1V1R/k6Bo=
 github.com/prometheus/procfs v0.12.0/go.mod h1:pcuDEFsWDnvcgNzo4EEweacyhjeA9Zk3cnaOZAZEfOo=
-github.com/replay-api/replay-common v0.0.0-20260105112215-8b0482eb32de h1:qB4LNfd6iZaMfI+A+S7bPXb8J5H3EieeSnMD03ln1O8=
-github.com/replay-api/replay-common v0.0.0-20260105112215-8b0482eb32de/go.mod h1:bCwzE9+KuvHbwfWfcKPLq6pnzDlBrqznywIUKYNnD/I=
-github.com/resource-ownership/go-common v0.0.0-20260105112203-d0ca3b914188 h1:jmJ+C9tpuKVn9G124L0No4RQHCu70XgERbL2EnyidZY=
-github.com/resource-ownership/go-common v0.0.0-20260105112203-d0ca3b914188/go.mod h1:xSxzKhs1opQHiLnfGKc7KYP51S4iYIy62k7jKw0mezE=
+github.com/replay-api/replay-common v0.0.0-20260105132037-5c54623d9838 h1:FSY5lx7lMhPtS+5eTfXbvqio4/xa8P1Xn1Bk541QcZM=
+github.com/replay-api/replay-common v0.0.0-20260105132037-5c54623d9838/go.mod h1:YUuQSHWT5f2V2sx4zkrt/3S8iyUWmiL6kCZJ4YSdjdc=
+github.com/resource-ownership/go-common v0.0.0-20260105131913-f0c9a53e9a6d h1:1SI2zL7HX/QbXsxy4CcdQiSOAkaBgIGWtkg2WUnSqZg=
+github.com/resource-ownership/go-common v0.0.0-20260105131913-f0c9a53e9a6d/go.mod h1:fCeWSBylE327BwlGH7NV7Y9c/jTXg5W5nQ1LA89Dv1I=
 github.com/rogpeppe/go-internal v1.12.0 h1:exVL4IDcn6na9z1rAb56Vxr+CgyK3nn3O+epU5NdKM8=
 github.com/rogpeppe/go-internal v1.12.0/go.mod h1:E+RYuTGaKKdloAfM02xzb0FW3Paa99yedzYV+kq4uf4=
 github.com/samber/lo v1.38.1 h1:j2XEAqXKb09Am4ebOg31SpvzUTTs6EN3VfgeLUhPdXM=

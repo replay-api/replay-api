@@ -9,7 +9,8 @@ import (
 
 	"github.com/google/uuid"
 	query_controllers "github.com/replay-api/replay-api/cmd/rest-api/controllers/query"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type RoutingTestCase struct {
@@ -21,7 +22,7 @@ type RoutingTestCase struct {
 type ParamsTestCase struct {
 	Path           string
 	Name           string
-	ExpectedSearch common.Search
+	ExpectedSearch shared.Search
 }
 
 var basePath = "http://localhost:4991"
@@ -100,22 +101,22 @@ func TestVectorGetResourceStringFromPath(t *testing.T) {
 		},
 	}
 
-	types := []common.ResourceType{
-		common.ResourceTypeBadge,
-		common.ResourceTypeChannel,
-		common.ResourceTypeGame,
-		common.ResourceTypeGameEvent,
-		common.ResourceTypeGroup,
-		common.ResourceTypeLeague,
-		common.ResourceTypeMatch,
-		common.ResourceTypeRound,
-		common.ResourceTypePlayerMetadata,
-		common.ResourceTypePlayerProfile,
-		common.ResourceTypeReplayFile,
-		common.ResourceTypeTeam,
-		common.ResourceTypeTournament,
-		common.ResourceTypeUser,
-		common.ResourceTypeProfile,
+	types := []shared.ResourceType{
+		replay_common.ResourceTypeBadge,
+		replay_common.ResourceTypeChannel,
+		replay_common.ResourceTypeGame,
+		replay_common.ResourceTypeGameEvent,
+		shared.ResourceTypeGroup,
+		replay_common.ResourceTypeLeague,
+		replay_common.ResourceTypeMatch,
+		replay_common.ResourceTypeRound,
+		replay_common.ResourceTypePlayerMetadata,
+		replay_common.ResourceTypePlayerProfile,
+		replay_common.ResourceTypeReplayFile,
+		replay_common.ResourceTypeTeam,
+		replay_common.ResourceTypeTournament,
+		shared.ResourceTypeUser,
+		replay_common.ResourceTypeProfile,
 	}
 
 	for _, tc := range tcs {
@@ -125,10 +126,10 @@ func TestVectorGetResourceStringFromPath(t *testing.T) {
 			t.Errorf("Test Case %s failed: expected %s, but received %s. (Path: %s)", tc.Name, tc.ExpectedResource, res, tc.Path)
 		}
 
-		ctx := context.WithValue(context.TODO(), common.TenantIDKey, common.TeamPROTenantID)
-		ctx = context.WithValue(ctx, common.ClientIDKey, common.TeamPROAppClientID)
-		ctx = context.WithValue(ctx, common.GroupIDKey, uuid.New())
-		ctx = context.WithValue(ctx, common.UserIDKey, uuid.New())
+		ctx := context.WithValue(context.TODO(), shared.TenantIDKey, replay_common.TeamPROTenantID)
+		ctx = context.WithValue(ctx, shared.ClientIDKey, replay_common.TeamPROAppClientID)
+		ctx = context.WithValue(ctx, shared.GroupIDKey, uuid.New())
+		ctx = context.WithValue(ctx, shared.UserIDKey, uuid.New())
 
 		req, _ := http.NewRequestWithContext(ctx, "GET", tc.Path, &io.PipeReader{})
 

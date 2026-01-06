@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	wallet_entities "github.com/replay-api/replay-api/pkg/domain/wallet/entities"
 	wallet_in "github.com/replay-api/replay-api/pkg/domain/wallet/ports/in"
 	wallet_out "github.com/replay-api/replay-api/pkg/domain/wallet/ports/out"
@@ -38,7 +38,7 @@ func (s *WalletService) CreateWallet(ctx context.Context, cmd wallet_in.CreateWa
 		return nil, fmt.Errorf("invalid EVM address: %w", err)
 	}
 
-	resourceOwner := common.GetResourceOwner(ctx)
+	resourceOwner := shared.GetResourceOwner(ctx)
 	wallet, err := wallet_entities.NewUserWallet(resourceOwner, evmAddress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create wallet: %w", err)

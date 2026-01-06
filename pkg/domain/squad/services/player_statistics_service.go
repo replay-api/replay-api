@@ -6,11 +6,12 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 	replay_out "github.com/replay-api/replay-api/pkg/domain/replay/ports/out"
 	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // PlayerStatisticsService aggregates player statistics from match history
@@ -26,11 +27,11 @@ func NewPlayerStatisticsService(matchReader replay_out.MatchMetadataReader) squa
 }
 
 // GetPlayerStatistics retrieves aggregated statistics for a player
-func (s *PlayerStatisticsService) GetPlayerStatistics(ctx context.Context, playerID uuid.UUID, gameID *common.GameIDKey) (*squad_entities.PlayerStatistics, error) {
+func (s *PlayerStatisticsService) GetPlayerStatistics(ctx context.Context, playerID uuid.UUID, gameID *replay_common.GameIDKey) (*squad_entities.PlayerStatistics, error) {
 	slog.InfoContext(ctx, "Getting player statistics", "player_id", playerID, "game_id", gameID)
 
 	// Default to CS2 if no game specified
-	defaultGameID := common.CS2.ID
+	defaultGameID := replay_common.CS2.ID
 	if gameID != nil {
 		defaultGameID = *gameID
 	}
@@ -89,24 +90,24 @@ func (s *PlayerStatisticsService) GetPlayerStatistics(ctx context.Context, playe
 // getPlayerMatches retrieves matches for a player using the match reader
 func (s *PlayerStatisticsService) getPlayerMatches(ctx context.Context, playerID uuid.UUID, limit int) ([]replay_entity.Match, error) {
 	// Search for matches containing this player in the scoreboard
-	searchParams := []common.SearchAggregation{
+	searchParams := []shared.SearchAggregation{
 		{
-			Params: []common.SearchParameter{
+			Params: []shared.SearchParameter{
 				{
-					ValueParams: []common.SearchableValue{
+					ValueParams: []shared.SearchableValue{
 						{
 							Field:    "scoreboard.team_scoreboards.players._id",
 							Values:   []interface{}{playerID.String()},
-							Operator: common.EqualsOperator,
+							Operator: shared.EqualsOperator,
 						},
 					},
 				},
 			},
-			AggregationClause: common.AndAggregationClause,
+			AggregationClause: shared.AndAggregationClause,
 		},
 	}
 
-	resultOptions := common.SearchResultOptions{
+	resultOptions := shared.SearchResultOptions{
 		Limit: uint(limit), // #nosec G115 - limit is validated to be non-negative
 		Skip:  0,
 	}

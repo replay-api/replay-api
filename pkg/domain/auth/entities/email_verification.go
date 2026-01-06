@@ -138,7 +138,7 @@ func (v *EmailVerification) SetRequestInfo(ipAddress, userAgent string) {
 	v.UpdatedAt = time.Now().UTC()
 }
 
-// GetID returns the verification ID (implements common.Entity)
+// GetID returns the verification ID (implements shared.Entity)
 func (v EmailVerification) GetID() uuid.UUID {
 	return v.ID
 }

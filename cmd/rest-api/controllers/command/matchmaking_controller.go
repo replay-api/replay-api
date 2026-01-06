@@ -10,7 +10,7 @@ import (
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
 	matchmaking_in "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/in"
 	matchmaking_out "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/out"
@@ -145,7 +145,7 @@ func (ctrl *MatchmakingController) JoinQueueHandler(apiContext context.Context) 
 		if ctrl.joinQueueHandler != nil {
 			// Get resource owner from context for proper authentication
 			ctx := r.Context()
-			resourceOwner := common.GetResourceOwner(ctx)
+			resourceOwner := shared.GetResourceOwner(ctx)
 			if resourceOwner.UserID != uuid.Nil {
 				cmd.PlayerID = resourceOwner.UserID
 			}
@@ -176,9 +176,9 @@ func (ctrl *MatchmakingController) JoinQueueHandler(apiContext context.Context) 
 
 		// Fallback: direct repository access (deprecated - for backwards compatibility)
 		slog.Warn("JoinQueueHandler using deprecated direct repository access")
-		resourceOwner := common.GetResourceOwner(r.Context())
+		resourceOwner := shared.GetResourceOwner(r.Context())
 		session := &matchmaking_entities.MatchmakingSession{
-			BaseEntity: common.NewEntity(resourceOwner),
+			BaseEntity: shared.NewEntity(resourceOwner),
 			PlayerID:   playerID,
 			Preferences: matchmaking_entities.MatchPreferences{
 				GameID:   cmd.GameID,
@@ -264,7 +264,7 @@ func (ctrl *MatchmakingController) LeaveQueueHandler(apiContext context.Context)
 		// Execute via use case handler
 		if ctrl.leaveQueueHandler != nil {
 			// Get player ID from resource owner
-			resourceOwner := common.GetResourceOwner(ctx)
+			resourceOwner := shared.GetResourceOwner(ctx)
 			playerID := resourceOwner.UserID
 
 			cmd := matchmaking_in.LeaveMatchmakingQueueCommand{

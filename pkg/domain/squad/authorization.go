@@ -5,9 +5,10 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 	squad_value_objects "github.com/replay-api/replay-api/pkg/domain/squad/value-objects"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // SquadPermission represents the different permission levels for squad operations
@@ -57,7 +58,7 @@ func NewErrForbidden(userID, squadID uuid.UUID, required SquadPermission, messag
 
 // CheckSquadAuthorization checks if the current user has the required permission on a squad
 func CheckSquadAuthorization(ctx context.Context, squad *squad_entities.Squad, requiredPermission SquadPermission, targetPlayerID ...uuid.UUID) AuthorizationResult {
-	currentOwner := common.GetResourceOwner(ctx)
+	currentOwner := shared.GetResourceOwner(ctx)
 	userID := currentOwner.UserID
 
 	result := AuthorizationResult{
@@ -217,7 +218,7 @@ func CanUpdateMemberRole(ctx context.Context, squad *squad_entities.Squad, targe
 	}
 
 	if targetMembership == nil {
-		return common.NewErrNotFound(common.ResourceTypeSquad, "MemberID", targetPlayerID.String())
+		return shared.NewErrNotFound(replay_common.ResourceTypeSquad, "MemberID", targetPlayerID.String())
 	}
 
 	// Prevent admin from modifying owner's role

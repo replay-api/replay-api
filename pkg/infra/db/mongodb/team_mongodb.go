@@ -7,7 +7,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/mongo"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 )
 
@@ -59,7 +59,7 @@ func NewTeamRepository(client *mongo.Client, dbName string, entityType replay_en
 	}
 }
 
-func (r *TeamRepository) Search(ctx context.Context, s common.Search) ([]replay_entity.Team, error) {
+func (r *TeamRepository) Search(ctx context.Context, s shared.Search) ([]replay_entity.Team, error) {
 	cursor, err := r.Query(ctx, s)
 	if cursor != nil {
 		defer cursor.Close(ctx)

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	iam_entity "github.com/replay-api/replay-api/pkg/domain/iam/entities"
 	iam_in "github.com/replay-api/replay-api/pkg/domain/iam/ports/in"
 	iam_out "github.com/replay-api/replay-api/pkg/domain/iam/ports/out"
@@ -52,7 +52,7 @@ func NewCreateRIDTokenUseCase(rIDWriter iam_out.RIDTokenWriter, rIDReader iam_ou
 // Returns:
 //   - *RIDToken: Created token with ID, Key, and expiration
 //   - error: Database errors or validation failures
-func (usecase *CreateRIDTokenUseCase) Exec(ctx context.Context, reso common.ResourceOwner, source iam_entity.RIDSourceKey, aud common.IntendedAudienceKey) (*iam_entity.RIDToken, error) {
+func (usecase *CreateRIDTokenUseCase) Exec(ctx context.Context, reso shared.ResourceOwner, source iam_entity.RIDSourceKey, aud shared.IntendedAudienceKey) (*iam_entity.RIDToken, error) {
 	duration, _ := time.ParseDuration("1h")
 	expiresAt := time.Now().Add(duration)
 
@@ -60,9 +60,9 @@ func (usecase *CreateRIDTokenUseCase) Exec(ctx context.Context, reso common.Reso
 
 	var grantType string
 	switch aud {
-	case common.UserAudienceIDKey:
+	case shared.UserAudienceIDKey:
 		grantType = "authorization_code"
-	case common.ClientApplicationAudienceIDKey:
+	case shared.ClientApplicationAudienceIDKey:
 		grantType = "client_credentials"
 	}
 

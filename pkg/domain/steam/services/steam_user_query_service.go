@@ -1,19 +1,19 @@
 package steam_query_services
 
 import (
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	steam_entities "github.com/replay-api/replay-api/pkg/domain/steam/entities"
 	steam_in "github.com/replay-api/replay-api/pkg/domain/steam/ports/in"
 )
 
 type SteamUserQueryService struct {
-	common.BaseQueryService[steam_entities.SteamUser]
+	shared.BaseQueryService[steam_entities.SteamUser]
 }
 
-func NewSteamUserQueryService(eventReader common.Searchable[steam_entities.SteamUser]) steam_in.SteamUserReader {
+func NewSteamUserQueryService(eventReader shared.Searchable[steam_entities.SteamUser]) steam_in.SteamUserReader {
 	queryableFields := map[string]bool{
 		"ID":                true,
-		"VHash":             common.DENY,
+		"VHash":             shared.DENY,
 		"Steam.*":           true,
 		"Steam.realname":    true,
 		"Steam.personaname": true,
@@ -21,17 +21,17 @@ func NewSteamUserQueryService(eventReader common.Searchable[steam_entities.Steam
 
 	readableFields := map[string]bool{
 		"ID":                true,
-		"VHash":             common.DENY,
+		"VHash":             shared.DENY,
 		"Steam.*":           true,
 		"Steam.realname":    true,
 		"Steam.personaname": true,
 	}
 
-	return &common.BaseQueryService[steam_entities.SteamUser]{
+	return &shared.BaseQueryService[steam_entities.SteamUser]{
 		Reader:          eventReader,
 		QueryableFields: queryableFields,
 		ReadableFields:  readableFields,
 		MaxPageSize:     100,
-		Audience:        common.UserAudienceIDKey,
+		Audience:        shared.UserAudienceIDKey,
 	}
 }

@@ -13,7 +13,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	common "github.com/replay-api/replay-api/pkg/domain"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	payment_entities "github.com/replay-api/replay-api/pkg/domain/payment/entities"
 	payment_in "github.com/replay-api/replay-api/pkg/domain/payment/ports/in"
 	payment_out "github.com/replay-api/replay-api/pkg/domain/payment/ports/out"
@@ -114,7 +115,7 @@ func TestE2E_PaymentLifecycle(t *testing.T) {
 	dbName := "replay_payment_test_" + uuid.New().String()
 
 	// Initialize payment repository
-	paymentRepo := db.NewPaymentMongoDBRepository(client, dbName)
+	paymentRepo := db.NewPaymentRepository(client, dbName)
 
 	// Create mock Stripe adapter
 	mockStripe := &MockStripeAdapter{}
@@ -125,12 +126,12 @@ func TestE2E_PaymentLifecycle(t *testing.T) {
 	// Create test user context
 	userID := uuid.New()
 	walletID := uuid.New()
-	tenantID := common.TeamPROTenantID
-	clientID := common.TeamPROAppClientID
+	tenantID := replay_common.TeamPROTenantID
+	clientID := replay_common.TeamPROAppClientID
 
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, tenantID)
-	ctx = context.WithValue(ctx, common.ClientIDKey, clientID)
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, tenantID)
+	ctx = context.WithValue(ctx, shared.ClientIDKey, clientID)
 
 	// Cleanup after tests
 	defer func() {
@@ -404,7 +405,7 @@ func TestPaymentRepository_UniqueConstraints(t *testing.T) {
 	dbName := "replay_payment_unique_test_" + uuid.New().String()
 	defer client.Database(dbName).Drop(ctx)
 
-	paymentRepo := db.NewPaymentMongoDBRepository(client, dbName)
+	paymentRepo := db.NewPaymentRepository(client, dbName)
 
 	userID := uuid.New()
 	walletID := uuid.New()
@@ -451,18 +452,18 @@ func BenchmarkPaymentCreation(b *testing.B) {
 	dbName := "replay_payment_bench_" + uuid.New().String()
 	defer client.Database(dbName).Drop(ctx)
 
-	paymentRepo := db.NewPaymentMongoDBRepository(client, dbName)
+	paymentRepo := db.NewPaymentRepository(client, dbName)
 	mockStripe := &MockStripeAdapter{}
 	paymentService := payment_services.NewPaymentService(paymentRepo, nil, mockStripe)
 
 	userID := uuid.New()
 	walletID := uuid.New()
-	tenantID := common.TeamPROTenantID
-	clientID := common.TeamPROAppClientID
+	tenantID := replay_common.TeamPROTenantID
+	clientID := replay_common.TeamPROAppClientID
 
-	ctx = context.WithValue(ctx, common.UserIDKey, userID)
-	ctx = context.WithValue(ctx, common.TenantIDKey, tenantID)
-	ctx = context.WithValue(ctx, common.ClientIDKey, clientID)
+	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, tenantID)
+	ctx = context.WithValue(ctx, shared.ClientIDKey, clientID)
 
 	b.ResetTimer()
 

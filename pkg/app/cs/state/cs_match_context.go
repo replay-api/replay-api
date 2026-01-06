@@ -7,22 +7,23 @@ import (
 	"github.com/google/uuid"
 	dem "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs"
 	infocs "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs/common"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	cs_entity "github.com/replay-api/replay-api/pkg/domain/cs/entities"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type CS2MatchContext struct {
 	MatchID       uuid.UUID `json:"match_id"`
 	Header        cs_entity.CSReplayFileHeader
 	RoundContexts map[int]*CS2RoundContext `json:"round_contexts"`
-	ResourceOwner common.ResourceOwner     `json:"resource_owner"`
+	ResourceOwner shared.ResourceOwner     `json:"resource_owner"`
 }
 
 func NewCS2MatchContext(userContext context.Context, matchID uuid.UUID) *CS2MatchContext {
 	return &CS2MatchContext{
 		MatchID:       matchID,
 		RoundContexts: make(map[int]*CS2RoundContext),
-		ResourceOwner: common.GetResourceOwner(userContext),
+		ResourceOwner: shared.GetResourceOwner(userContext),
 	}
 }
 
@@ -68,7 +69,7 @@ func (m *CS2MatchContext) WithRound(roundIndex int, gs dem.GameState) *CS2MatchC
 		},
 		TeamContext: make(map[cs_entity.TeamHashIDType]*CSTeamContext),
 		BattleContext: &CS2BattleContext{
-			Hits: make(map[common.TickIDType]cs_entity.CSHitStats),
+			Hits: make(map[replay_common.TickIDType]cs_entity.CSHitStats),
 		},
 		TeamT:  tID,
 		TeamCT: ctID,

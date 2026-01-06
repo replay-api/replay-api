@@ -9,7 +9,7 @@ import (
 
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	auth_in "github.com/replay-api/replay-api/pkg/domain/auth/ports/in"
 )
 
@@ -47,13 +47,13 @@ func (c *MFAController) SetupMFAHandler(apiContext context.Context) http.Handler
 		}
 		
 		// Check authentication
-		authenticated, ok := r.Context().Value(common.AuthenticatedKey).(bool)
+		authenticated, ok := r.Context().Value(shared.AuthenticatedKey).(bool)
 		if !ok || !authenticated {
 			http.Error(w, `{"error":"authentication required"}`, http.StatusUnauthorized)
 			return
 		}
 		
-		resourceOwner := common.GetResourceOwner(r.Context())
+		resourceOwner := shared.GetResourceOwner(r.Context())
 		if resourceOwner.UserID == uuid.Nil {
 			http.Error(w, `{"error":"valid user authentication required"}`, http.StatusUnauthorized)
 			return
@@ -97,13 +97,13 @@ func (c *MFAController) VerifyMFAHandler(apiContext context.Context) http.Handle
 		}
 		
 		// Check authentication
-		authenticated, ok := r.Context().Value(common.AuthenticatedKey).(bool)
+		authenticated, ok := r.Context().Value(shared.AuthenticatedKey).(bool)
 		if !ok || !authenticated {
 			http.Error(w, `{"error":"authentication required"}`, http.StatusUnauthorized)
 			return
 		}
 		
-		resourceOwner := common.GetResourceOwner(r.Context())
+		resourceOwner := shared.GetResourceOwner(r.Context())
 		if resourceOwner.UserID == uuid.Nil {
 			http.Error(w, `{"error":"valid user authentication required"}`, http.StatusUnauthorized)
 			return
@@ -197,13 +197,13 @@ func (c *MFAController) DisableMFAHandler(apiContext context.Context) http.Handl
 		}
 		
 		// Check authentication
-		authenticated, ok := r.Context().Value(common.AuthenticatedKey).(bool)
+		authenticated, ok := r.Context().Value(shared.AuthenticatedKey).(bool)
 		if !ok || !authenticated {
 			http.Error(w, `{"error":"authentication required"}`, http.StatusUnauthorized)
 			return
 		}
 		
-		resourceOwner := common.GetResourceOwner(r.Context())
+		resourceOwner := shared.GetResourceOwner(r.Context())
 		if resourceOwner.UserID == uuid.Nil {
 			http.Error(w, `{"error":"valid user authentication required"}`, http.StatusUnauthorized)
 			return
@@ -254,13 +254,13 @@ func (c *MFAController) GetMFAStatusHandler(apiContext context.Context) http.Han
 		}
 		
 		// Check authentication
-		authenticated, ok := r.Context().Value(common.AuthenticatedKey).(bool)
+		authenticated, ok := r.Context().Value(shared.AuthenticatedKey).(bool)
 		if !ok || !authenticated {
 			http.Error(w, `{"error":"authentication required"}`, http.StatusUnauthorized)
 			return
 		}
 		
-		resourceOwner := common.GetResourceOwner(r.Context())
+		resourceOwner := shared.GetResourceOwner(r.Context())
 		if resourceOwner.UserID == uuid.Nil {
 			http.Error(w, `{"error":"valid user authentication required"}`, http.StatusUnauthorized)
 			return
@@ -310,13 +310,13 @@ func (c *MFAController) RegenerateBackupCodesHandler(apiContext context.Context)
 		}
 		
 		// Check authentication
-		authenticated, ok := r.Context().Value(common.AuthenticatedKey).(bool)
+		authenticated, ok := r.Context().Value(shared.AuthenticatedKey).(bool)
 		if !ok || !authenticated {
 			http.Error(w, `{"error":"authentication required"}`, http.StatusUnauthorized)
 			return
 		}
 		
-		resourceOwner := common.GetResourceOwner(r.Context())
+		resourceOwner := shared.GetResourceOwner(r.Context())
 		if resourceOwner.UserID == uuid.Nil {
 			http.Error(w, `{"error":"valid user authentication required"}`, http.StatusUnauthorized)
 			return

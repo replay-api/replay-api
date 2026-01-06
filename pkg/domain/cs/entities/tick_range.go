@@ -1,8 +1,10 @@
 package entities
 
-import common "github.com/replay-api/replay-api/pkg/domain"
+import (
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+)
 
 type CSTickRange struct {
-	StartTick common.TickIDType
-	EndTick   common.TickIDType
+	StartTick replay_common.TickIDType
+	EndTick   replay_common.TickIDType
 }

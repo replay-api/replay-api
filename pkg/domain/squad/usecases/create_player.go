@@ -6,7 +6,6 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
@@ -16,6 +15,8 @@ import (
 	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
 	squad_out "github.com/replay-api/replay-api/pkg/domain/squad/ports/out"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type CreatePlayerUseCase struct {
@@ -49,9 +50,9 @@ func NewCreatePlayerProfileUseCase(
 }
 
 func (uc *CreatePlayerUseCase) Exec(c context.Context, cmd squad_in.CreatePlayerProfileCommand) (*squad_entities.PlayerProfile, error) {
-	isAuthenticated := c.Value(common.AuthenticatedKey)
+	isAuthenticated := c.Value(shared.AuthenticatedKey)
 	if isAuthenticated == nil || !isAuthenticated.(bool) {
-		return nil, common.NewErrUnauthorized()
+		return nil, shared.NewErrUnauthorized()
 	}
 
 	groupSearch := iam_entities.NewGroupAccountSearchByUser(c)
@@ -65,7 +66,7 @@ func (uc *CreatePlayerUseCase) Exec(c context.Context, cmd squad_in.CreatePlayer
 	var group *iam_entities.Group
 
 	if len(groups) == 0 {
-		group = iam_entities.NewAccountGroup(uuid.New(), common.GetResourceOwner(c))
+		group = iam_entities.NewAccountGroup(uuid.New(), shared.GetResourceOwner(c))
 		group, err = uc.GroupWriter.Create(c, group)
 
 		if err != nil {
@@ -75,11 +76,11 @@ func (uc *CreatePlayerUseCase) Exec(c context.Context, cmd squad_in.CreatePlayer
 		group = &groups[0]
 	}
 
-	c = context.WithValue(c, common.GroupIDKey, group.GetID())
+	c = context.WithValue(c, shared.GroupIDKey, group.GetID())
 
 	billingCmd := billing_in.BillableOperationCommand{
 		OperationID: billing_entities.OperationTypeCreatePlayerProfile,
-		UserID:      common.GetResourceOwner(c).UserID,
+		UserID:      shared.GetResourceOwner(c).UserID,
 		Amount:      1,
 		Args: map[string]interface{}{
 			"Nickname": cmd.Nickname,
@@ -111,7 +112,7 @@ func (uc *CreatePlayerUseCase) Exec(c context.Context, cmd squad_in.CreatePlayer
 	}
 
 	if len(existingPlayers) > 0 {
-		return nil, common.NewErrAlreadyExists(common.ResourceTypePlayerProfile, "Nickname", cmd.Nickname)
+		return nil, shared.NewErrAlreadyExists(replay_common.ResourceTypePlayerProfile, "Nickname", cmd.Nickname)
 	}
 
 	existingPlayers, err = uc.PlayerReader.Search(c, squad_entities.NewSearchBySlugURI(c, cmd.SlugURI))
@@ -121,7 +122,7 @@ func (uc *CreatePlayerUseCase) Exec(c context.Context, cmd squad_in.CreatePlayer
 	}
 
 	if len(existingPlayers) > 0 {
-		return nil, common.NewErrAlreadyExists(common.ResourceTypePlayerProfile, "SlugURI", cmd.SlugURI)
+		return nil, shared.NewErrAlreadyExists(replay_common.ResourceTypePlayerProfile, "SlugURI", cmd.SlugURI)
 	}
 
 	player := squad_entities.NewPlayerProfile(
@@ -132,7 +133,7 @@ func (uc *CreatePlayerUseCase) Exec(c context.Context, cmd squad_in.CreatePlayer
 		cmd.Description,
 		roles,
 		cmd.VisibilityType,
-		common.GetResourceOwner(c),
+		shared.GetResourceOwner(c),
 	)
 
 	// TODO: Verified Badge if connected with Steam (set networkIDs)
@@ -150,7 +151,7 @@ func (uc *CreatePlayerUseCase) Exec(c context.Context, cmd squad_in.CreatePlayer
 		return nil, err
 	}
 
-	history := squad_entities.NewPlayerProfileHistory(player.ID, squad_entities.PlayerHistoryActionCreate, common.GetResourceOwner(c))
+	history := squad_entities.NewPlayerProfileHistory(player.ID, squad_entities.PlayerHistoryActionCreate, shared.GetResourceOwner(c))
 
 	_, _ = uc.PlayerProfileHistoryWriter.Create(c, history)
 

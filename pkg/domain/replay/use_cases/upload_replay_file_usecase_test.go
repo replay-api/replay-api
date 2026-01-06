@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 	use_cases "github.com/replay-api/replay-api/pkg/domain/replay/use_cases"
 	"github.com/stretchr/testify/assert"
@@ -56,10 +56,10 @@ func (m *MockReplayFileContentWriter) Put(ctx context.Context, replayFileID uuid
 
 func createAuthenticatedContext() context.Context {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
-	ctx = context.WithValue(ctx, common.TenantIDKey, uuid.New())
-	ctx = context.WithValue(ctx, common.UserIDKey, uuid.New())
-	ctx = context.WithValue(ctx, common.GroupIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.UserIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.GroupIDKey, uuid.New())
 	return ctx
 }
 
@@ -276,7 +276,7 @@ func TestUploadReplayFile_MetadataUpdateFails(t *testing.T) {
 func TestUploadReplayFile_AuthenticatedKeyFalse(t *testing.T) {
 	// Given: A context with AuthenticatedKey explicitly set to false
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, common.AuthenticatedKey, false)
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, false)
 
 	replayContent := []byte("demo content")
 	reader := bytes.NewReader(replayContent)

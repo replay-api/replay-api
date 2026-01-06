@@ -1,10 +1,10 @@
 package steam_out
 
 import (
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	e "github.com/replay-api/replay-api/pkg/domain/steam/entities"
 )
 
 type SteamUserReader interface {
-	common.Searchable[e.SteamUser]
+	shared.Searchable[e.SteamUser]
 }

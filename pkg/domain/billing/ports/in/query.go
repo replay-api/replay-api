@@ -1,14 +1,14 @@
 package billing_in
 
 import (
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 )
 
 type PlanReader interface {
-	common.Searchable[billing_entities.Plan]
+	shared.Searchable[billing_entities.Plan]
 }
 
 type SubscriptionReader interface {
-	common.Searchable[billing_entities.Subscription]
+	shared.Searchable[billing_entities.Subscription]
 }

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // AuditEventType categorizes audit events for compliance reporting
@@ -124,7 +124,7 @@ func NewAuditTrailEntry(
 	targetType string,
 	targetID uuid.UUID,
 	description string,
-	rxn common.ResourceOwner,
+	rxn shared.ResourceOwner,
 ) *AuditTrailEntry {
 	now := time.Now().UTC()
 	

@@ -7,7 +7,7 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	auth_entities "github.com/replay-api/replay-api/pkg/domain/auth/entities"
 	auth_in "github.com/replay-api/replay-api/pkg/domain/auth/ports/in"
 	auth_out "github.com/replay-api/replay-api/pkg/domain/auth/ports/out"
@@ -249,12 +249,12 @@ func (s *PasswordResetService) CancelPasswordReset(ctx context.Context, resetID 
 }
 
 // newSearchByEmail creates a search query for email users
-func (s *PasswordResetService) newSearchByEmail(ctx context.Context, emailString string) common.Search {
-	params := []common.SearchAggregation{
+func (s *PasswordResetService) newSearchByEmail(ctx context.Context, emailString string) shared.Search {
+	params := []shared.SearchAggregation{
 		{
-			Params: []common.SearchParameter{
+			Params: []shared.SearchParameter{
 				{
-					ValueParams: []common.SearchableValue{
+					ValueParams: []shared.SearchableValue{
 						{
 							Field: "Email",
 							Values: []interface{}{
@@ -267,17 +267,17 @@ func (s *PasswordResetService) newSearchByEmail(ctx context.Context, emailString
 		},
 	}
 
-	visibility := common.SearchVisibilityOptions{
-		RequestSource:    common.GetResourceOwner(ctx),
-		IntendedAudience: common.ClientApplicationAudienceIDKey,
+	visibility := shared.SearchVisibilityOptions{
+		RequestSource:    shared.GetResourceOwner(ctx),
+		IntendedAudience: shared.ClientApplicationAudienceIDKey,
 	}
 
-	result := common.SearchResultOptions{
+	result := shared.SearchResultOptions{
 		Skip:  0,
 		Limit: 1,
 	}
 
-	return common.Search{
+	return shared.Search{
 		SearchParams:      params,
 		ResultOptions:     result,
 		VisibilityOptions: visibility,

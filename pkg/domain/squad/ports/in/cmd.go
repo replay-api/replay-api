@@ -6,16 +6,17 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 	squad_value_objects "github.com/replay-api/replay-api/pkg/domain/squad/value-objects"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type CreateOrUpdatedSquadCommand struct {
 	Name          string                                `json:"name"`
 	Symbol        string                                `json:"symbol"`
 	Description   string                                `json:"description"`
-	GameID        common.GameIDKey                      `json:"game_id"`
+	GameID        replay_common.GameIDKey               `json:"game_id"`
 	SlugURI       string                                `json:"slug_uri"`
 	Members       map[string]CreateSquadMembershipInput `json:"members"`
 	Base64Logo    string                                `json:"base64_logo"`
@@ -126,14 +127,14 @@ type UpdateSquadMemberRoleCommandHandler interface {
 }
 
 type CreatePlayerProfileCommand struct {
-	GameID          common.GameIDKey         `json:"game_id"`
+	GameID          replay_common.GameIDKey  `json:"game_id"`
 	Nickname        string                   `json:"nickname"`
 	Base64Avatar    string                   `json:"base64_avatar"`
 	AvatarExtension string                   `json:"avatar_extension"`
 	SlugURI         string                   `json:"slug_uri"`
 	Roles           []string                 `json:"roles"`
 	Description     string                   `json:"description"`
-	VisibilityType  common.VisibilityTypeKey `json:"visibility_type"`
+	VisibilityType  shared.VisibilityTypeKey `json:"visibility_type"`
 }
 
 // Validate validates the CreatePlayerProfileCommand

@@ -7,8 +7,9 @@ import (
 
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
 	"github.com/replay-api/replay-api/cmd/rest-api/controllers"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	iam_in "github.com/replay-api/replay-api/pkg/domain/iam/ports/in"
 )
 
@@ -32,11 +33,11 @@ func NewResourceContextMiddleware(container *container.Container) *ResourceConte
 func (m *ResourceContextMiddleware) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		slog.InfoContext(r.Context(), "resource context middleware", "path", r.URL.Path, "method", r.Method, "rid", r.Header.Get(controllers.ResourceOwnerIDHeaderKey))
-		ctx := context.WithValue(r.Context(), common.TenantIDKey, common.TeamPROTenantID)
-		ctx = context.WithValue(ctx, common.ClientIDKey, common.TeamPROAppClientID)
-		ctx = context.WithValue(ctx, common.GroupIDKey, uuid.New())
-		ctx = context.WithValue(ctx, common.UserIDKey, uuid.New())
-		ctx = context.WithValue(ctx, common.AuthenticatedKey, false)
+		ctx := context.WithValue(r.Context(), shared.TenantIDKey, replay_common.TeamPROTenantID)
+		ctx = context.WithValue(ctx, shared.ClientIDKey, replay_common.TeamPROAppClientID)
+		ctx = context.WithValue(ctx, shared.GroupIDKey, uuid.New())
+		ctx = context.WithValue(ctx, shared.UserIDKey, uuid.New())
+		ctx = context.WithValue(ctx, shared.AuthenticatedKey, false)
 
 		rid := r.Header.Get(controllers.ResourceOwnerIDHeaderKey)
 		if rid == "" {
@@ -72,10 +73,10 @@ func (m *ResourceContextMiddleware) Handler(next http.Handler) http.Handler {
 			slog.WarnContext(ctx, "non end user resource owner", "reso", reso)
 		}
 
-		ctx = context.WithValue(ctx, common.GroupIDKey, reso.GroupID)
-		ctx = context.WithValue(ctx, common.UserIDKey, reso.UserID)
-		ctx = context.WithValue(ctx, common.AudienceKey, aud)
-		ctx = context.WithValue(ctx, common.AuthenticatedKey, true)
+		ctx = context.WithValue(ctx, shared.GroupIDKey, reso.GroupID)
+		ctx = context.WithValue(ctx, shared.UserIDKey, reso.UserID)
+		ctx = context.WithValue(ctx, shared.AudienceKey, aud)
+		ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})

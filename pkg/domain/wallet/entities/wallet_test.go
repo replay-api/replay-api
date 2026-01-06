@@ -5,14 +5,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	wallet_vo "github.com/replay-api/replay-api/pkg/domain/wallet/value-objects"
 	"github.com/stretchr/testify/assert"
 )
 
 // testWalletResourceOwner creates a test resource owner for wallet tests
-func testWalletResourceOwner() common.ResourceOwner {
-	return common.ResourceOwner{
+func testWalletResourceOwner() shared.ResourceOwner {
+	return shared.ResourceOwner{
 		TenantID: uuid.New(),
 		ClientID: uuid.New(),
 		UserID:   uuid.New(),

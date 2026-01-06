@@ -9,9 +9,9 @@ import (
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	common "github.com/replay-api/replay-api/pkg/domain"
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
 	matchmaking_in "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/in"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
 )
 
 // RatingController handles player rating and leaderboard queries
@@ -49,9 +49,9 @@ func (c *RatingController) GetPlayerRatingHandler(w http.ResponseWriter, r *http
 	}
 
 	// Parse optional game_id (default to CS2)
-	gameID := common.CS2.ID
+	gameID := replay_common.CS2.ID
 	if gameIDStr := r.URL.Query().Get("game_id"); gameIDStr != "" {
-		gameID = common.GameIDKey(gameIDStr)
+		gameID = replay_common.GameIDKey(gameIDStr)
 	}
 
 	rating, err := c.ratingService.GetPlayerRating(r.Context(), playerID, gameID)
@@ -95,9 +95,9 @@ func (c *RatingController) GetLeaderboardHandler(w http.ResponseWriter, r *http.
 	}
 
 	// Parse query parameters
-	gameID := common.CS2.ID
+	gameID := replay_common.CS2.ID
 	if gameIDStr := r.URL.Query().Get("game_id"); gameIDStr != "" {
-		gameID = common.GameIDKey(gameIDStr)
+		gameID = replay_common.GameIDKey(gameIDStr)
 	}
 
 	limit := 100
@@ -147,9 +147,9 @@ func (c *RatingController) GetRankDistributionHandler(w http.ResponseWriter, r *
 		return
 	}
 
-	gameID := common.CS2.ID
+	gameID := replay_common.CS2.ID
 	if gameIDStr := r.URL.Query().Get("game_id"); gameIDStr != "" {
-		gameID = common.GameIDKey(gameIDStr)
+		gameID = replay_common.GameIDKey(gameIDStr)
 	}
 
 	distribution, err := c.ratingService.GetRankDistribution(r.Context(), gameID)

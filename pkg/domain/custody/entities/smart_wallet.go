@@ -5,14 +5,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	custody_vo "github.com/replay-api/replay-api/pkg/domain/custody/value-objects"
 )
 
 // SmartWallet represents a custodial smart wallet with MPC key management
 // This is the core entity for banking-grade wallet infrastructure
 type SmartWallet struct {
-	common.BaseEntity
+	shared.BaseEntity
 
 	// Identity
 	UserID        uuid.UUID  `json:"user_id" bson:"user_id"`               // Platform user ID
@@ -293,13 +293,13 @@ const (
 
 // NewSmartWallet creates a new smart wallet
 func NewSmartWallet(
-	resourceOwner common.ResourceOwner,
+	resourceOwner shared.ResourceOwner,
 	ownerID uuid.UUID,
 	walletName string,
 	walletType WalletType,
 	primaryChain custody_vo.ChainID,
 ) *SmartWallet {
-	baseEntity := common.NewPrivateEntity(resourceOwner)
+	baseEntity := shared.NewPrivateEntity(resourceOwner)
 
 	return &SmartWallet{
 		BaseEntity:    baseEntity,

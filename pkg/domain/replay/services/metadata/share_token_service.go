@@ -5,14 +5,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	common "github.com/replay-api/replay-api/pkg/domain"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 	replay_in "github.com/replay-api/replay-api/pkg/domain/replay/ports/in"
 	replay_out "github.com/replay-api/replay-api/pkg/domain/replay/ports/out"
 )
 
 type ShareTokenQueryService struct {
-	common.BaseQueryService[replay_entity.ShareToken]
+	shared.BaseQueryService[replay_entity.ShareToken]
 	tokenReader replay_out.ShareTokenReader
 }
 
@@ -43,12 +43,12 @@ func NewShareTokenQueryService(shareTokenReader replay_out.ShareTokenReader) rep
 	}
 
 	return &ShareTokenQueryService{
-		BaseQueryService: common.BaseQueryService[replay_entity.ShareToken]{
-			Reader:          shareTokenReader.(common.Searchable[replay_entity.ShareToken]),
+		BaseQueryService: shared.BaseQueryService[replay_entity.ShareToken]{
+			Reader:          shareTokenReader.(shared.Searchable[replay_entity.ShareToken]),
 			QueryableFields: queryableFields,
 			ReadableFields:  readableFields,
 			MaxPageSize:     100,
-			Audience:        common.UserAudienceIDKey,
+			Audience:        shared.UserAudienceIDKey,
 		},
 		tokenReader: shareTokenReader,
 	}

@@ -59,7 +59,7 @@ func NewEventsRepository(client *mongo.Client, dbName string, entityType *replay
 	}
 }
 
-// func (r *EventsRepository) Search(ctx context.Context, s common.Search) ([]replay_entity.GameEvent, error) {
+// func (r *EventsRepository) Search(ctx context.Context, s shared.Search) ([]replay_entity.GameEvent, error) {
 // 	cursor, err := r.Query(ctx, s)
 // 	if cursor != nil {
 // 		defer cursor.Close(ctx)
