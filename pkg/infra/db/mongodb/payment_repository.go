@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"reflect"
 	"time"
 
 	"github.com/google/uuid"
 	payment_entities "github.com/replay-api/replay-api/pkg/domain/payment/entities"
 	payment_out "github.com/replay-api/replay-api/pkg/domain/payment/ports/out"
+	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -17,72 +17,50 @@ import (
 
 // MongoPaymentRepository implements PaymentRepository for MongoDB
 type MongoPaymentRepository struct {
-	*MongoDBRepository[*payment_entities.Payment]
+	mongodb.MongoDBRepository[*payment_entities.Payment]
 }
 
 // NewPaymentRepository creates a new MongoDB payment repository
 func NewPaymentRepository(mongoClient *mongo.Client, dbName string) payment_out.PaymentRepository {
-	mappingCache := make(map[string]CacheItem)
-	entityModel := reflect.TypeOf(payment_entities.Payment{})
-	repo := &MongoPaymentRepository{
-		MongoDBRepository: &MongoDBRepository[*payment_entities.Payment]{
-			mongoClient:       mongoClient,
-			dbName:            dbName,
-			mappingCache:      mappingCache,
-			entityModel:       entityModel,
-			collectionName:    "payments",
-			entityName:        "Payment",
-			BsonFieldMappings: make(map[string]string),
-			QueryableFields:   make(map[string]bool),
-		},
-	}
+	entityType := &payment_entities.Payment{}
+	repo := mongodb.NewMongoDBRepository[*payment_entities.Payment](mongoClient, dbName, entityType, "payments", "Payment")
 
-	// Define BSON field mappings
-	bsonFieldMappings := map[string]string{
-		"ID":                 "_id",
-		"UserID":             "user_id",
-		"WalletID":           "wallet_id",
-		"Type":               "type",
-		"Provider":           "provider",
-		"Status":             "status",
-		"Amount":             "amount",
-		"Currency":           "currency",
-		"Fee":                "fee",
-		"ProviderFee":        "provider_fee",
-		"NetAmount":          "net_amount",
-		"ProviderPaymentID":  "provider_payment_id",
-		"ProviderCustomerID": "provider_customer_id",
-		"PaymentMethodID":    "payment_method_id",
-		"Description":        "description",
-		"Metadata":           "metadata",
-		"FailureReason":      "failure_reason",
-		"CreatedAt":          "created_at",
-		"UpdatedAt":          "updated_at",
-		"CompletedAt":        "completed_at",
-		"IdempotencyKey":     "idempotency_key",
-	}
+	repo.InitQueryableFields(map[string]bool{
+		"ID":                       true,
+		"PayableID":                true,
+		"Reference":                true,
+		"Amount":                   true,
+		"Currency":                 true,
+		"Option":                   true,
+		"Status":                   true,
+		"Provider":                 true,
+		"PaymentProviderReference": true,
+		"Description":              true,
+		"CreatedAt":                true,
+		"UpdatedAt":                true,
+	}, map[string]string{
+		"ID":                       "_id",
+		"PayableID":                "payable_id",
+		"Reference":                "reference",
+		"Amount":                   "amount",
+		"Currency":                 "currency",
+		"Option":                   "option",
+		"Status":                   "status",
+		"Provider":                 "provider",
+		"PaymentProviderReference": "payment_provider_reference",
+		"Description":              "description",
+		"CreatedAt":                "created_at",
+		"UpdatedAt":                "updated_at",
+	})
 
-	// Define queryable fields for search operations
-	queryableFields := map[string]bool{
-		"UserID":            true,
-		"WalletID":          true,
-		"Type":              true,
-		"Provider":          true,
-		"Status":            true,
-		"Amount":            true,
-		"Currency":          true,
-		"CreatedAt":         true,
-		"UpdatedAt":         true,
-		"ProviderPaymentID": true,
-		"IdempotencyKey":    true,
+	mongoPaymentRepo := &MongoPaymentRepository{
+		MongoDBRepository: *repo,
 	}
-
-	repo.InitQueryableFields(queryableFields, bsonFieldMappings)
 
 	// Create indexes on startup
-	go repo.createIndexes()
+	go mongoPaymentRepo.createIndexes()
 
-	return repo
+	return mongoPaymentRepo
 }
 
 func (r *MongoPaymentRepository) createIndexes() {
@@ -112,7 +90,7 @@ func (r *MongoPaymentRepository) createIndexes() {
 		},
 	}
 
-	_, err := r.collection.Indexes().CreateMany(ctx, indexes)
+	_, err := r.MongoDBRepository.Collection().Indexes().CreateMany(ctx, indexes)
 	if err != nil {
 		slog.Error("failed to create payment indexes", "error", err)
 	} else {
@@ -128,7 +106,7 @@ func (r *MongoPaymentRepository) Save(ctx context.Context, payment *payment_enti
 
 	payment.UpdatedAt = time.Now().UTC()
 
-	_, err := r.collection.InsertOne(ctx, payment)
+	_, err := r.MongoDBRepository.Collection().InsertOne(ctx, payment)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to save payment", "payment_id", payment.ID, "error", err)
 		return fmt.Errorf("failed to save payment: %w", err)
@@ -143,7 +121,7 @@ func (r *MongoPaymentRepository) FindByID(ctx context.Context, id uuid.UUID) (*p
 	var payment payment_entities.Payment
 
 	filter := bson.M{"_id": id}
-	err := r.collection.FindOne(ctx, filter).Decode(&payment)
+	err := r.MongoDBRepository.Collection().FindOne(ctx, filter).Decode(&payment)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, fmt.Errorf("payment not found: %s", id)
@@ -160,7 +138,7 @@ func (r *MongoPaymentRepository) FindByProviderPaymentID(ctx context.Context, pr
 	var payment payment_entities.Payment
 
 	filter := bson.M{"provider_payment_id": providerPaymentID}
-	err := r.collection.FindOne(ctx, filter).Decode(&payment)
+	err := r.MongoDBRepository.Collection().FindOne(ctx, filter).Decode(&payment)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, fmt.Errorf("payment not found for provider payment ID: %s", providerPaymentID)
@@ -177,7 +155,7 @@ func (r *MongoPaymentRepository) FindByIdempotencyKey(ctx context.Context, key s
 	var payment payment_entities.Payment
 
 	filter := bson.M{"idempotency_key": key}
-	err := r.collection.FindOne(ctx, filter).Decode(&payment)
+	err := r.MongoDBRepository.Collection().FindOne(ctx, filter).Decode(&payment)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, fmt.Errorf("payment not found for idempotency key: %s", key)
@@ -214,7 +192,7 @@ func (r *MongoPaymentRepository) FindByUserID(ctx context.Context, userID uuid.U
 		findOptions.SetSkip(int64(filters.Offset))
 	}
 
-	cursor, err := r.collection.Find(ctx, filter, findOptions)
+	cursor, err := r.MongoDBRepository.Collection().Find(ctx, filter, findOptions)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to find payments by user ID", "user_id", userID, "error", err)
 		return nil, fmt.Errorf("failed to find payments: %w", err)
@@ -255,7 +233,7 @@ func (r *MongoPaymentRepository) FindByWalletID(ctx context.Context, walletID uu
 		findOptions.SetSkip(int64(filters.Offset))
 	}
 
-	cursor, err := r.collection.Find(ctx, filter, findOptions)
+	cursor, err := r.MongoDBRepository.Collection().Find(ctx, filter, findOptions)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to find payments by wallet ID", "wallet_id", walletID, "error", err)
 		return nil, fmt.Errorf("failed to find payments: %w", err)
@@ -276,7 +254,7 @@ func (r *MongoPaymentRepository) Update(ctx context.Context, payment *payment_en
 	payment.UpdatedAt = time.Now().UTC()
 
 	filter := bson.M{"_id": payment.ID}
-	result, err := r.collection.ReplaceOne(ctx, filter, payment)
+	result, err := r.MongoDBRepository.Collection().ReplaceOne(ctx, filter, payment)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update payment", "payment_id", payment.ID, "error", err)
 		return fmt.Errorf("failed to update payment: %w", err)
@@ -304,7 +282,7 @@ func (r *MongoPaymentRepository) GetPendingPayments(ctx context.Context, olderTh
 		"created_at": bson.M{"$lt": cutoff},
 	}
 
-	cursor, err := r.collection.Find(ctx, filter, options.Find().SetLimit(100))
+	cursor, err := r.MongoDBRepository.Collection().Find(ctx, filter, options.Find().SetLimit(100))
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to find pending payments", "older_than_seconds", olderThanSeconds, "error", err)
 		return nil, fmt.Errorf("failed to find pending payments: %w", err)

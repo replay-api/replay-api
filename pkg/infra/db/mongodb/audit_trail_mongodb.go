@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -15,12 +16,68 @@ import (
 
 // AuditTrailMongoDBRepository implements bank-grade audit trail persistence
 type AuditTrailMongoDBRepository struct {
-	collection *mongo.Collection
+	mongodb.MongoDBRepository[*billing_entities.AuditTrailEntry]
 }
 
 // NewAuditTrailMongoDBRepository creates a new audit trail repository
 func NewAuditTrailMongoDBRepository(client *mongo.Client, dbName string) *AuditTrailMongoDBRepository {
-	collection := client.Database(dbName).Collection("audit_trail")
+	repo := mongodb.NewMongoDBRepository[*billing_entities.AuditTrailEntry](client, dbName, &billing_entities.AuditTrailEntry{}, "audit_trail", "AuditTrailEntry")
+
+	repo.InitQueryableFields(map[string]bool{
+		"ID":             true,
+		"EventType":      true,
+		"Severity":       true,
+		"Timestamp":      true,
+		"ActorUserID":    true,
+		"ActorType":      true,
+		"ActorIP":        true,
+		"ActorUserAgent": true,
+		"ActorSessionID": true,
+		"TargetUserID":   true,
+		"TargetType":     true,
+		"TargetID":       true,
+		"Amount":         true,
+		"Currency":       true,
+		"BalanceBefore":  true,
+		"BalanceAfter":   true,
+		"TransactionID":  true,
+		"ExternalRef":    true,
+		"ProviderRef":    true,
+		"Description":    true,
+		"PreviousEntryID": true,
+		"Hash":           true,
+		"RetentionUntil": true,
+		"Exportable":     true,
+	}, map[string]string{
+		"ID":             "_id",
+		"EventType":      "event_type",
+		"Severity":       "severity",
+		"Timestamp":      "timestamp",
+		"ActorUserID":    "actor_user_id",
+		"ActorType":      "actor_type",
+		"ActorIP":        "actor_ip",
+		"ActorUserAgent": "actor_user_agent",
+		"ActorSessionID": "actor_session_id",
+		"TargetUserID":   "target_user_id",
+		"TargetType":     "target_type",
+		"TargetID":       "target_id",
+		"Amount":         "amount",
+		"Currency":       "currency",
+		"BalanceBefore":  "balance_before",
+		"BalanceAfter":   "balance_after",
+		"TransactionID":  "transaction_id",
+		"ExternalRef":    "external_ref",
+		"ProviderRef":    "provider_ref",
+		"Description":    "description",
+		"PreviousEntryID": "previous_entry_id",
+		"Hash":           "hash",
+		"RetentionUntil": "retention_until",
+		"Exportable":     "exportable",
+	})
+
+	auditRepo := &AuditTrailMongoDBRepository{
+		MongoDBRepository: *repo,
+	}
 
 	// Create indexes for compliance queries
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -79,17 +136,17 @@ func NewAuditTrailMongoDBRepository(client *mongo.Client, dbName string) *AuditT
 		},
 	}
 
-	_, err := collection.Indexes().CreateMany(ctx, indexes)
+	_, err := auditRepo.MongoDBRepository.Collection().Indexes().CreateMany(ctx, indexes)
 	if err != nil {
 		slog.Warn("Failed to create audit trail indexes", "error", err)
 	}
 
-	return &AuditTrailMongoDBRepository{collection: collection}
+	return auditRepo
 }
 
 // Create persists a new audit entry (append-only)
 func (r *AuditTrailMongoDBRepository) Create(ctx context.Context, entry *billing_entities.AuditTrailEntry) error {
-	_, err := r.collection.InsertOne(ctx, entry)
+	_, err := r.MongoDBRepository.Collection().InsertOne(ctx, entry)
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to create audit entry",
 			"error", err,
@@ -112,7 +169,7 @@ func (r *AuditTrailMongoDBRepository) GetByID(ctx context.Context, id uuid.UUID)
 	filter := bson.M{"_id": id}
 	var entry billing_entities.AuditTrailEntry
 
-	err := r.collection.FindOne(ctx, filter).Decode(&entry)
+	err := r.MongoDBRepository.Collection().FindOne(ctx, filter).Decode(&entry)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, nil
@@ -133,7 +190,7 @@ func (r *AuditTrailMongoDBRepository) GetLatestForTarget(ctx context.Context, ta
 	opts := options.FindOne().SetSort(bson.D{{Key: "timestamp", Value: -1}})
 
 	var entry billing_entities.AuditTrailEntry
-	err := r.collection.FindOne(ctx, filter, opts).Decode(&entry)
+	err := r.MongoDBRepository.Collection().FindOne(ctx, filter, opts).Decode(&entry)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, nil
@@ -266,7 +323,7 @@ func (r *AuditTrailMongoDBRepository) CountByType(ctx context.Context, eventType
 		},
 	}
 
-	return r.collection.CountDocuments(ctx, filter)
+	return r.MongoDBRepository.Collection().CountDocuments(ctx, filter)
 }
 
 // GetFinancialSummary retrieves aggregated financial audit data
@@ -310,7 +367,7 @@ func (r *AuditTrailMongoDBRepository) GetFinancialSummary(ctx context.Context, u
 		}}},
 	}
 
-	cursor, err := r.collection.Aggregate(ctx, pipeline)
+	cursor, err := r.MongoDBRepository.Collection().Aggregate(ctx, pipeline)
 	if err != nil {
 		return nil, err
 	}
@@ -393,7 +450,7 @@ func (r *AuditTrailMongoDBRepository) ArchiveOldEntries(ctx context.Context, bef
 		},
 	}
 
-	result, err := r.collection.UpdateMany(ctx, filter, update)
+	result, err := r.MongoDBRepository.Collection().UpdateMany(ctx, filter, update)
 	if err != nil {
 		return 0, err
 	}
@@ -408,7 +465,7 @@ func (r *AuditTrailMongoDBRepository) ArchiveOldEntries(ctx context.Context, bef
 
 // findMany is a helper for finding multiple entries
 func (r *AuditTrailMongoDBRepository) findMany(ctx context.Context, filter bson.M, opts *options.FindOptions) ([]billing_entities.AuditTrailEntry, error) {
-	cursor, err := r.collection.Find(ctx, filter, opts)
+	cursor, err := r.MongoDBRepository.Collection().Find(ctx, filter, opts)
 	if err != nil {
 		return nil, err
 	}

@@ -4,12 +4,12 @@ package db
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"time"
 
 	"github.com/google/uuid"
 	auth_entities "github.com/replay-api/replay-api/pkg/domain/auth/entities"
 	auth_out "github.com/replay-api/replay-api/pkg/domain/auth/ports/out"
+	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -17,7 +17,7 @@ import (
 
 // EmailVerificationRepository implements auth_out.EmailVerificationRepository
 type EmailVerificationRepository struct {
-	MongoDBRepository[auth_entities.EmailVerification]
+	mongodb.MongoDBRepository[auth_entities.EmailVerification]
 }
 
 // NewEmailVerificationMongoDBRepository creates a new email verification repository
@@ -25,16 +25,7 @@ func NewEmailVerificationMongoDBRepository(client *mongo.Client, dbName string) 
 	entityType := auth_entities.EmailVerification{}
 	collectionName := "email_verifications"
 
-	repo := MongoDBRepository[auth_entities.EmailVerification]{
-		mongoClient:       client,
-		dbName:            dbName,
-		mappingCache:      make(map[string]CacheItem),
-		entityModel:       reflect.TypeOf(entityType),
-		BsonFieldMappings: make(map[string]string),
-		collectionName:    collectionName,
-		entityName:        reflect.TypeOf(entityType).Name(),
-		QueryableFields:   make(map[string]bool),
-	}
+	repo := mongodb.NewMongoDBRepository[auth_entities.EmailVerification](client, dbName, entityType, collectionName, "EmailVerification")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":        true,
@@ -64,17 +55,19 @@ func NewEmailVerificationMongoDBRepository(client *mongo.Client, dbName string) 
 		"UserAgent":   "user_agent",
 	})
 
-	return &EmailVerificationRepository{repo}
+	return &EmailVerificationRepository{
+		MongoDBRepository: *repo,
+	}
 }
 
 // collection returns the MongoDB collection for email verifications
 func (r *EmailVerificationRepository) collection() *mongo.Collection {
-	return r.mongoClient.Database(r.dbName).Collection(r.collectionName)
+	return r.MongoDBRepository.Collection()
 }
 
 // Save creates a new email verification record
 func (r *EmailVerificationRepository) Save(ctx context.Context, verification *auth_entities.EmailVerification) error {
-	_, err := r.collection().InsertOne(ctx, verification)
+	_, err := r.MongoDBRepository.Create(ctx, verification)
 	if err != nil {
 		return fmt.Errorf("failed to save email verification: %w", err)
 	}
@@ -83,21 +76,13 @@ func (r *EmailVerificationRepository) Save(ctx context.Context, verification *au
 
 // FindByID retrieves a verification by its ID
 func (r *EmailVerificationRepository) FindByID(ctx context.Context, id uuid.UUID) (*auth_entities.EmailVerification, error) {
-	var verification auth_entities.EmailVerification
-	err := r.collection().FindOne(ctx, bson.M{"_id": id}).Decode(&verification)
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, fmt.Errorf("verification not found")
-		}
-		return nil, fmt.Errorf("failed to find verification: %w", err)
-	}
-	return &verification, nil
+	return r.MongoDBRepository.GetByID(ctx, id)
 }
 
 // FindByToken retrieves a verification by its token
 func (r *EmailVerificationRepository) FindByToken(ctx context.Context, token string) (*auth_entities.EmailVerification, error) {
 	var verification auth_entities.EmailVerification
-	err := r.collection().FindOne(ctx, bson.M{
+	err := r.MongoDBRepository.FindOneWithRLS(ctx, bson.M{
 		"token":  token,
 		"status": auth_entities.VerificationStatusPending,
 	}).Decode(&verification)
@@ -115,7 +100,7 @@ func (r *EmailVerificationRepository) FindByUserID(ctx context.Context, userID u
 	var verification auth_entities.EmailVerification
 
 	opts := options.FindOne().SetSort(bson.D{{Key: "created_at", Value: -1}})
-	err := r.collection().FindOne(ctx, bson.M{"user_id": userID}, opts).Decode(&verification)
+	err := r.MongoDBRepository.FindOneWithRLS(ctx, bson.M{"user_id": userID}, opts).Decode(&verification)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, fmt.Errorf("no verification found for user")
@@ -150,15 +135,9 @@ func (r *EmailVerificationRepository) FindPendingByEmail(ctx context.Context, em
 func (r *EmailVerificationRepository) Update(ctx context.Context, verification *auth_entities.EmailVerification) error {
 	verification.UpdatedAt = time.Now().UTC()
 
-	filter := bson.M{"_id": verification.ID}
-	update := bson.M{"$set": verification}
-
-	result, err := r.collection().UpdateOne(ctx, filter, update)
+	_, err := r.MongoDBRepository.Update(ctx, verification)
 	if err != nil {
 		return fmt.Errorf("failed to update verification: %w", err)
-	}
-	if result.MatchedCount == 0 {
-		return fmt.Errorf("verification not found")
 	}
 	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
@@ -127,6 +128,22 @@ func (m *MockMatchmakingSessionRepository) DeleteExpired(ctx context.Context) (i
 	return args.Get(0).(int64), args.Error(1)
 }
 
+func (m *MockMatchmakingSessionRepository) Search(ctx context.Context, s shared.Search) ([]matchmaking_entities.MatchmakingSession, error) {
+	args := m.Called(ctx, s)
+	if args.Get(0) == nil {
+		return []matchmaking_entities.MatchmakingSession{}, args.Error(1)
+	}
+	return args.Get(0).([]matchmaking_entities.MatchmakingSession), args.Error(1)
+}
+
+func (m *MockMatchmakingSessionRepository) Compile(ctx context.Context, searchParams []shared.SearchAggregation, resultOptions shared.SearchResultOptions) (*shared.Search, error) {
+	args := m.Called(ctx, searchParams, resultOptions)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*shared.Search), args.Error(1)
+}
+
 // MockMatchmakingPoolRepository implements matchmaking_out.MatchmakingPoolRepository
 type MockMatchmakingPoolRepository struct {
 	mock.Mock
@@ -164,4 +181,20 @@ func (m *MockMatchmakingPoolRepository) GetAllActive(ctx context.Context) ([]*ma
 		return []*matchmaking_entities.MatchmakingPool{}, args.Error(1)
 	}
 	return args.Get(0).([]*matchmaking_entities.MatchmakingPool), args.Error(1)
+}
+
+func (m *MockMatchmakingPoolRepository) Search(ctx context.Context, s shared.Search) ([]matchmaking_entities.MatchmakingPool, error) {
+	args := m.Called(ctx, s)
+	if args.Get(0) == nil {
+		return []matchmaking_entities.MatchmakingPool{}, args.Error(1)
+	}
+	return args.Get(0).([]matchmaking_entities.MatchmakingPool), args.Error(1)
+}
+
+func (m *MockMatchmakingPoolRepository) Compile(ctx context.Context, searchParams []shared.SearchAggregation, resultOptions shared.SearchResultOptions) (*shared.Search, error) {
+	args := m.Called(ctx, searchParams, resultOptions)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*shared.Search), args.Error(1)
 }

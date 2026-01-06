@@ -5,6 +5,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
 ) // LobbyRepository defines persistence operations for lobbies
 type LobbyRepository interface {
@@ -21,7 +22,9 @@ type PrizePoolRepository interface {
 	Save(ctx context.Context, pool *matchmaking_entities.PrizePool) error
 	FindByID(ctx context.Context, id uuid.UUID) (*matchmaking_entities.PrizePool, error)
 	FindByMatchID(ctx context.Context, matchID uuid.UUID) (*matchmaking_entities.PrizePool, error)
-	FindPendingDistributions(ctx context.Context, limit int) ([]*matchmaking_entities.PrizePool, error)
 	Update(ctx context.Context, pool *matchmaking_entities.PrizePool) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	UpdateUnsafe(ctx context.Context, pool *matchmaking_entities.PrizePool) error
+	GetByID(ctx context.Context, id uuid.UUID) (*matchmaking_entities.PrizePool, error)
+	Search(ctx context.Context, s shared.Search) ([]matchmaking_entities.PrizePool, error)
+	Compile(ctx context.Context, searchParams []shared.SearchAggregation, resultOptions shared.SearchResultOptions) (*shared.Search, error)
 }

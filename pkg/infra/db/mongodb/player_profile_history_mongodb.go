@@ -3,30 +3,20 @@ package db
 import (
 	"context"
 	"log/slog"
-	"reflect"
 
+	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 	"go.mongodb.org/mongo-driver/mongo"
 
-	shared "github.com/resource-ownership/go-common/pkg/common"
 	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type PlayerProfileHistoryRepository struct {
-	MongoDBRepository[squad_entities.PlayerProfileHistory]
+	mongodb.MongoDBRepository[squad_entities.PlayerProfileHistory]
 }
 
 func NewPlayerProfileHistoryRepository(client *mongo.Client, dbName string, entityType squad_entities.PlayerProfileHistory, collectionName string) *PlayerProfileHistoryRepository {
-	repo := MongoDBRepository[squad_entities.PlayerProfileHistory]{
-		mongoClient:       client,
-		dbName:            dbName,
-		mappingCache:      make(map[string]CacheItem),
-		entityModel:       reflect.TypeOf(entityType),
-		BsonFieldMappings: make(map[string]string),
-		collectionName:    collectionName,
-		entityName:        reflect.TypeOf(entityType).Name(),
-		QueryableFields:   make(map[string]bool),
-		collection:        client.Database(dbName).Collection(collectionName),
-	}
+	repo := mongodb.NewMongoDBRepository[squad_entities.PlayerProfileHistory](client, dbName, entityType, collectionName, "PlayerProfileHistory")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":        true,
@@ -49,7 +39,7 @@ func NewPlayerProfileHistoryRepository(client *mongo.Client, dbName string, enti
 	})
 
 	return &PlayerProfileHistoryRepository{
-		repo,
+		MongoDBRepository: *repo,
 	}
 }
 

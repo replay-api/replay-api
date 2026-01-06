@@ -127,6 +127,11 @@ type LedgerEntry struct {
 	IdempotencyKey  string         `json:"idempotency_key,omitempty" bson:"idempotency_key,omitempty"`
 }
 
+// GetID returns the ledger entry ID
+func (le LedgerEntry) GetID() uuid.UUID {
+	return le.ID
+}
+
 // NewLedgerEntry creates a new ledger entry with the given parameters
 func NewLedgerEntry(
 	transactionID uuid.UUID,

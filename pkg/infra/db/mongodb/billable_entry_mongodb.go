@@ -2,22 +2,21 @@ package db
 
 import (
 	"context"
-	"reflect"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 
 	"github.com/google/uuid"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
+	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 )
 
 type BillableEntryRepository struct {
-	MongoDBRepository[billing_entities.BillableEntry]
+	mongodb.MongoDBRepository[billing_entities.BillableEntry]
 }
 
 func (repo *BillableEntryRepository) Find(ctx context.Context, filter interface{}, result interface{}) error {
-	collection := repo.collection
-	cursor, err := collection.Find(ctx, filter)
+	cursor, err := repo.MongoDBRepository.FindWithRLS(ctx, filter)
 	if err != nil {
 		return err
 	}
@@ -26,17 +25,7 @@ func (repo *BillableEntryRepository) Find(ctx context.Context, filter interface{
 }
 
 func NewBillableEntryRepository(client *mongo.Client, dbName string, entityType billing_entities.BillableEntry, collectionName string) *BillableEntryRepository {
-	repo := MongoDBRepository[billing_entities.BillableEntry]{
-		mongoClient:       client,
-		dbName:            dbName,
-		mappingCache:      make(map[string]CacheItem),
-		entityModel:       reflect.TypeOf(entityType),
-		BsonFieldMappings: make(map[string]string),
-		collectionName:    collectionName,
-		entityName:        reflect.TypeOf(entityType).Name(),
-		QueryableFields:   make(map[string]bool),
-		collection:        client.Database(dbName).Collection(collectionName),
-	}
+	repo := mongodb.NewMongoDBRepository[billing_entities.BillableEntry](client, dbName, entityType, collectionName, "BillableEntry")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":             true,
@@ -67,7 +56,7 @@ func NewBillableEntryRepository(client *mongo.Client, dbName string, entityType 
 	})
 
 	return &BillableEntryRepository{
-		repo,
+		MongoDBRepository: *repo,
 	}
 }
 

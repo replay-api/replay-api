@@ -3,31 +3,21 @@ package db
 import (
 	"context"
 	"log/slog"
-	"reflect"
 
 	"github.com/google/uuid"
+	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 	"go.mongodb.org/mongo-driver/mongo"
 
-	shared "github.com/resource-ownership/go-common/pkg/common"
 	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type SquadRepository struct {
-	MongoDBRepository[squad_entities.Squad]
+	mongodb.MongoDBRepository[squad_entities.Squad]
 }
 
 func NewSquadRepository(client *mongo.Client, dbName string, entityType squad_entities.Squad, collectionName string) *SquadRepository {
-	repo := MongoDBRepository[squad_entities.Squad]{
-		mongoClient:       client,
-		dbName:            dbName,
-		mappingCache:      make(map[string]CacheItem),
-		entityModel:       reflect.TypeOf(entityType),
-		BsonFieldMappings: make(map[string]string),
-		collectionName:    collectionName,
-		entityName:        reflect.TypeOf(entityType).Name(),
-		QueryableFields:   make(map[string]bool),
-		collection:        client.Database(dbName).Collection(collectionName),
-	}
+	repo := mongodb.NewMongoDBRepository[squad_entities.Squad](client, dbName, entityType, collectionName, "Squad")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":              true,
@@ -70,7 +60,7 @@ func NewSquadRepository(client *mongo.Client, dbName string, entityType squad_en
 	})
 
 	return &SquadRepository{
-		repo,
+		MongoDBRepository: *repo,
 	}
 }
 
@@ -106,7 +96,7 @@ func (r *SquadRepository) Update(ctx context.Context, squad *squad_entities.Squa
 	filter := map[string]interface{}{"_id": squad.ID}
 	update := map[string]interface{}{"$set": squad}
 
-	_, err := r.collection.UpdateOne(ctx, filter, update)
+	_, err := r.MongoDBRepository.Collection().UpdateOne(ctx, filter, update)
 	if err != nil {
 		slog.ErrorContext(ctx, "error updating squad", "err", err, "squad_id", squad.ID)
 		return nil, err
@@ -118,7 +108,7 @@ func (r *SquadRepository) Update(ctx context.Context, squad *squad_entities.Squa
 func (r *SquadRepository) Delete(ctx context.Context, squadID uuid.UUID) error {
 	filter := map[string]interface{}{"_id": squadID}
 
-	result, err := r.collection.DeleteOne(ctx, filter)
+	result, err := r.MongoDBRepository.Collection().DeleteOne(ctx, filter)
 	if err != nil {
 		slog.ErrorContext(ctx, "error deleting squad", "err", err, "squad_id", squadID)
 		return err

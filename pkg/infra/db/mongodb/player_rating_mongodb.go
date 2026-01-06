@@ -10,6 +10,7 @@ import (
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
 	matchmaking_out "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/out"
 	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -17,12 +18,54 @@ import (
 
 // PlayerRatingMongoDBRepository implements PlayerRatingRepository for MongoDB
 type PlayerRatingMongoDBRepository struct {
-	collection *mongo.Collection
+	mongodb.MongoDBRepository[*matchmaking_entities.PlayerRating]
 }
 
 // NewPlayerRatingMongoDBRepository creates a new PlayerRatingMongoDBRepository
-func NewPlayerRatingMongoDBRepository(db *mongo.Database) matchmaking_out.PlayerRatingRepository {
-	collection := db.Collection("player_ratings")
+func NewPlayerRatingMongoDBRepository(client *mongo.Client, dbName string) matchmaking_out.PlayerRatingRepository {
+	repo := mongodb.NewMongoDBRepository[*matchmaking_entities.PlayerRating](client, dbName, &matchmaking_entities.PlayerRating{}, "player_ratings", "PlayerRating")
+
+	repo.InitQueryableFields(map[string]bool{
+		"ID":              true,
+		"PlayerID":        true,
+		"GameID":          true,
+		"Rating":          true,
+		"RatingDeviation": true,
+		"Volatility":      true,
+		"MatchesPlayed":   true,
+		"Wins":            true,
+		"Losses":          true,
+		"Draws":           true,
+		"WinStreak":       true,
+		"PeakRating":      true,
+		"LastMatchAt":     true,
+		"RatingHistory":   true,
+		"ResourceOwner":   true,
+		"CreatedAt":       true,
+		"UpdatedAt":       true,
+	}, map[string]string{
+		"ID":              "_id",
+		"PlayerID":        "player_id",
+		"GameID":          "game_id",
+		"Rating":          "rating",
+		"RatingDeviation": "rating_deviation",
+		"Volatility":      "volatility",
+		"MatchesPlayed":   "matches_played",
+		"Wins":            "wins",
+		"Losses":          "losses",
+		"Draws":           "draws",
+		"WinStreak":       "win_streak",
+		"PeakRating":      "peak_rating",
+		"LastMatchAt":     "last_match_at",
+		"RatingHistory":   "rating_history",
+		"ResourceOwner":   "resource_owner",
+		"CreatedAt":       "created_at",
+		"UpdatedAt":       "updated_at",
+	})
+
+	playerRatingRepo := &PlayerRatingMongoDBRepository{
+		MongoDBRepository: *repo,
+	}
 
 	// Create indexes
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -41,14 +84,12 @@ func NewPlayerRatingMongoDBRepository(db *mongo.Database) matchmaking_out.Player
 		},
 	}
 
-	_, err := collection.Indexes().CreateMany(ctx, indexes)
+	_, err := playerRatingRepo.MongoDBRepository.Collection().Indexes().CreateMany(ctx, indexes)
 	if err != nil {
 		slog.Warn("Failed to create player_ratings indexes", "error", err)
 	}
 
-	return &PlayerRatingMongoDBRepository{
-		collection: collection,
-	}
+	return playerRatingRepo
 }
 
 // Save creates a new player rating
@@ -56,7 +97,7 @@ func (r *PlayerRatingMongoDBRepository) Save(ctx context.Context, rating *matchm
 	rating.CreatedAt = time.Now()
 	rating.UpdatedAt = time.Now()
 
-	_, err := r.collection.InsertOne(ctx, rating)
+	_, err := r.MongoDBRepository.Collection().InsertOne(ctx, rating)
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to save player rating", "player_id", rating.PlayerID, "error", err)
 		return fmt.Errorf("failed to save player rating: %w", err)
@@ -72,7 +113,7 @@ func (r *PlayerRatingMongoDBRepository) Update(ctx context.Context, rating *matc
 	filter := bson.M{"_id": rating.ID}
 	update := bson.M{"$set": rating}
 
-	result, err := r.collection.UpdateOne(ctx, filter, update)
+	result, err := r.MongoDBRepository.Collection().UpdateOne(ctx, filter, update)
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to update player rating", "id", rating.ID, "error", err)
 		return fmt.Errorf("failed to update player rating: %w", err)
@@ -93,7 +134,7 @@ func (r *PlayerRatingMongoDBRepository) FindByPlayerAndGame(ctx context.Context,
 	}
 
 	var rating matchmaking_entities.PlayerRating
-	err := r.collection.FindOne(ctx, filter).Decode(&rating)
+	err := r.MongoDBRepository.Collection().FindOne(ctx, filter).Decode(&rating)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, nil // Not found, return nil without error
@@ -110,7 +151,7 @@ func (r *PlayerRatingMongoDBRepository) GetByID(ctx context.Context, id uuid.UUI
 	filter := bson.M{"_id": id}
 
 	var rating matchmaking_entities.PlayerRating
-	err := r.collection.FindOne(ctx, filter).Decode(&rating)
+	err := r.MongoDBRepository.Collection().FindOne(ctx, filter).Decode(&rating)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, nil
@@ -133,7 +174,7 @@ func (r *PlayerRatingMongoDBRepository) GetTopPlayers(ctx context.Context, gameI
 		SetSort(bson.D{{Key: "rating", Value: -1}}).
 		SetLimit(int64(limit))
 
-	cursor, err := r.collection.Find(ctx, filter, opts)
+	cursor, err := r.MongoDBRepository.Collection().Find(ctx, filter, opts)
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to get top players", "game_id", gameID, "error", err)
 		return nil, fmt.Errorf("failed to get top players: %w", err)
@@ -175,7 +216,7 @@ func (r *PlayerRatingMongoDBRepository) GetRankDistribution(ctx context.Context,
 		}}},
 	}
 
-	cursor, err := r.collection.Aggregate(ctx, pipeline)
+	cursor, err := r.MongoDBRepository.Collection().Aggregate(ctx, pipeline)
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to get rank distribution", "game_id", gameID, "error", err)
 		return nil, fmt.Errorf("failed to get rank distribution: %w", err)
@@ -201,7 +242,7 @@ func (r *PlayerRatingMongoDBRepository) GetRankDistribution(ctx context.Context,
 func (r *PlayerRatingMongoDBRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	filter := bson.M{"_id": id}
 
-	result, err := r.collection.DeleteOne(ctx, filter)
+	result, err := r.MongoDBRepository.Collection().DeleteOne(ctx, filter)
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to delete player rating", "id", id, "error", err)
 		return fmt.Errorf("failed to delete player rating: %w", err)

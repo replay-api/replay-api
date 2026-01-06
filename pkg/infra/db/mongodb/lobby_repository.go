@@ -4,36 +4,24 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"reflect"
 	"time"
 
 	"github.com/google/uuid"
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
 	matchmaking_out "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/out"
+	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type MongoLobbyRepository struct {
-	*MongoDBRepository[*matchmaking_entities.MatchmakingLobby]
+	mongodb.MongoDBRepository[matchmaking_entities.MatchmakingLobby]
 }
 
 func NewMongoLobbyRepository(mongoClient *mongo.Client, dbName string) matchmaking_out.LobbyRepository {
-	mappingCache := make(map[string]CacheItem)
-	entityModel := reflect.TypeOf(matchmaking_entities.MatchmakingLobby{})
-	repo := &MongoLobbyRepository{
-		MongoDBRepository: &MongoDBRepository[*matchmaking_entities.MatchmakingLobby]{
-			mongoClient:       mongoClient,
-			dbName:            dbName,
-			mappingCache:      mappingCache,
-			entityModel:       entityModel,
-			collectionName:    "lobbies",
-			entityName:        "MatchmakingLobby",
-			BsonFieldMappings: make(map[string]string),
-			QueryableFields:   make(map[string]bool),
-		},
-	}
+	entityType := matchmaking_entities.MatchmakingLobby{}
+	repo := mongodb.NewMongoDBRepository[matchmaking_entities.MatchmakingLobby](mongoClient, dbName, entityType, "lobbies", "MatchmakingLobby")
 
 	// Define BSON field mappings
 	bsonFieldMappings := map[string]string{
@@ -75,7 +63,9 @@ func NewMongoLobbyRepository(mongoClient *mongo.Client, dbName string) matchmaki
 
 	repo.InitQueryableFields(queryableFields, bsonFieldMappings)
 
-	return repo
+	return &MongoLobbyRepository{
+		MongoDBRepository: *repo,
+	}
 }
 
 func (r *MongoLobbyRepository) Save(ctx context.Context, lobby *matchmaking_entities.MatchmakingLobby) error {
@@ -85,7 +75,7 @@ func (r *MongoLobbyRepository) Save(ctx context.Context, lobby *matchmaking_enti
 
 	lobby.UpdatedAt = time.Now().UTC()
 
-	_, err := r.collection.InsertOne(ctx, lobby)
+	_, err := r.MongoDBRepository.Create(ctx, lobby)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to save lobby", "lobby_id", lobby.ID, "error", err)
 		return fmt.Errorf("failed to save lobby: %w", err)
@@ -96,25 +86,13 @@ func (r *MongoLobbyRepository) Save(ctx context.Context, lobby *matchmaking_enti
 }
 
 func (r *MongoLobbyRepository) FindByID(ctx context.Context, id uuid.UUID) (*matchmaking_entities.MatchmakingLobby, error) {
-	var lobby matchmaking_entities.MatchmakingLobby
-
-	filter := bson.M{"_id": id}
-	err := r.collection.FindOne(ctx, filter).Decode(&lobby)
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, fmt.Errorf("lobby not found: %s", id)
-		}
-		slog.ErrorContext(ctx, "failed to find lobby by ID", "id", id, "error", err)
-		return nil, fmt.Errorf("failed to find lobby: %w", err)
-	}
-
-	return &lobby, nil
+	return r.MongoDBRepository.GetByID(ctx, id)
 }
 
 func (r *MongoLobbyRepository) FindByCreatorID(ctx context.Context, creatorID uuid.UUID) ([]*matchmaking_entities.MatchmakingLobby, error) {
 	filter := bson.M{"creator_id": creatorID}
 
-	cursor, err := r.collection.Find(ctx, filter)
+	cursor, err := r.MongoDBRepository.Collection().Find(ctx, filter)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to find lobbies by creator ID", "creator_id", creatorID, "error", err)
 		return nil, fmt.Errorf("failed to find lobbies: %w", err)
@@ -147,7 +125,7 @@ func (r *MongoLobbyRepository) FindOpenLobbies(ctx context.Context, gameID, regi
 		findOptions.SetLimit(int64(limit))
 	}
 
-	cursor, err := r.collection.Find(ctx, filter, findOptions)
+	cursor, err := r.MongoDBRepository.FindWithRLS(ctx, filter, findOptions)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to find open lobbies", "error", err)
 		return nil, fmt.Errorf("failed to find open lobbies: %w", err)
@@ -179,17 +157,10 @@ func (r *MongoLobbyRepository) Update(ctx context.Context, lobby *matchmaking_en
 
 	lobby.UpdatedAt = time.Now().UTC()
 
-	filter := bson.M{"_id": lobby.ID}
-	update := bson.M{"$set": lobby}
-
-	result, err := r.collection.UpdateOne(ctx, filter, update)
+	_, err := r.MongoDBRepository.Update(ctx, lobby)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update lobby", "lobby_id", lobby.ID, "error", err)
 		return fmt.Errorf("failed to update lobby: %w", err)
-	}
-
-	if result.MatchedCount == 0 {
-		return fmt.Errorf("lobby not found for update: %s", lobby.ID)
 	}
 
 	slog.InfoContext(ctx, "lobby updated successfully", "lobby_id", lobby.ID)
@@ -199,7 +170,7 @@ func (r *MongoLobbyRepository) Update(ctx context.Context, lobby *matchmaking_en
 func (r *MongoLobbyRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	filter := bson.M{"_id": id}
 
-	result, err := r.collection.DeleteOne(ctx, filter)
+	result, err := r.MongoDBRepository.DeleteOne(ctx, filter)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete lobby", "id", id, "error", err)
 		return fmt.Errorf("failed to delete lobby: %w", err)

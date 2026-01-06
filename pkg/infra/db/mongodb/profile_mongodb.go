@@ -3,29 +3,20 @@ package db
 import (
 	"context"
 	"log/slog"
-	"reflect"
 
+	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 	"go.mongodb.org/mongo-driver/mongo"
 
-	shared "github.com/resource-ownership/go-common/pkg/common"
 	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type ProfileRepository struct {
-	MongoDBRepository[iam_entities.Profile]
+	mongodb.MongoDBRepository[iam_entities.Profile]
 }
 
-func NewProfileRepository(client *mongo.Client, dbName string, entityType *iam_entities.Profile, collectionName string) *ProfileRepository {
-	repo := MongoDBRepository[iam_entities.Profile]{
-		mongoClient:       client,
-		dbName:            dbName,
-		mappingCache:      make(map[string]CacheItem),
-		entityModel:       reflect.TypeOf(entityType),
-		BsonFieldMappings: make(map[string]string),
-		collectionName:    collectionName,
-		entityName:        reflect.TypeOf(entityType).Name(),
-		QueryableFields:   make(map[string]bool),
-	}
+func NewProfileRepository(client *mongo.Client, dbName string, entityType iam_entities.Profile, collectionName string) *ProfileRepository {
+	repo := mongodb.NewMongoDBRepository[iam_entities.Profile](client, dbName, entityType, collectionName, "Profile")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":            true,
@@ -52,7 +43,7 @@ func NewProfileRepository(client *mongo.Client, dbName string, entityType *iam_e
 	})
 
 	return &ProfileRepository{
-		repo,
+		MongoDBRepository: *repo,
 	}
 }
 

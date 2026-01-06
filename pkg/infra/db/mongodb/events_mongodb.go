@@ -4,29 +4,20 @@ import (
 	"context"
 	"log"
 	"log/slog"
-	"reflect"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
+	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 )
 
 type EventsRepository struct {
-	MongoDBRepository[replay_entity.GameEvent]
+	mongodb.MongoDBRepository[replay_entity.GameEvent]
 }
 
 func NewEventsRepository(client *mongo.Client, dbName string, entityType *replay_entity.GameEvent, collectionName string) *EventsRepository {
-	repo := MongoDBRepository[replay_entity.GameEvent]{
-		mongoClient:       client,
-		dbName:            dbName,
-		mappingCache:      make(map[string]CacheItem),
-		entityModel:       reflect.TypeOf(entityType),
-		BsonFieldMappings: make(map[string]string),
-		collectionName:    collectionName,
-		entityName:        reflect.TypeOf(entityType).Name(),
-		QueryableFields:   make(map[string]bool),
-	}
+	repo := mongodb.NewMongoDBRepository[replay_entity.GameEvent](client, dbName, *entityType, collectionName, "GameEvent")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":              true,
@@ -55,7 +46,7 @@ func NewEventsRepository(client *mongo.Client, dbName string, entityType *replay
 	})
 
 	return &EventsRepository{
-		repo,
+		MongoDBRepository: *repo,
 	}
 }
 
@@ -106,7 +97,7 @@ func NewEventsRepository(client *mongo.Client, dbName string, entityType *replay
 // }
 
 func (r *EventsRepository) GetByGameIDAndMatchID(queryCtx context.Context, gameID string, matchID string) ([]replay_entity.GameEvent, error) {
-	collection := r.mongoClient.Database(r.dbName).Collection(r.collectionName)
+	collection := r.MongoDBRepository.Collection()
 
 	query := bson.D{
 		{Key: "game_id", Value: gameID},

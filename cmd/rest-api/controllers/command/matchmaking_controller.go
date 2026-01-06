@@ -13,15 +13,15 @@ import (
 	shared "github.com/resource-ownership/go-common/pkg/common"
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
 	matchmaking_in "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/in"
-	matchmaking_out "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/out"
+	matchmaking_services "github.com/replay-api/replay-api/pkg/domain/matchmaking/services"
 )
 
 type MatchmakingController struct {
 	container               container.Container
 	joinQueueHandler        matchmaking_in.JoinMatchmakingQueueCommandHandler
 	leaveQueueHandler       matchmaking_in.LeaveMatchmakingQueueCommandHandler
-	sessionRepo             matchmaking_out.MatchmakingSessionRepository
-	poolRepo                matchmaking_out.MatchmakingPoolRepository
+	sessionQuerySvc         *matchmaking_services.MatchmakingSessionQueryService
+	poolQuerySvc            *matchmaking_services.MatchmakingPoolQueryService
 }
 
 func NewMatchmakingController(container container.Container) *MatchmakingController {
@@ -36,11 +36,11 @@ func NewMatchmakingController(container container.Container) *MatchmakingControl
 	}
 
 	// Resolve repositories (for read-only queries only)
-	if err := container.Resolve(&ctrl.sessionRepo); err != nil {
-		slog.Error("Failed to resolve MatchmakingSessionRepository", "err", err)
+	if err := container.Resolve(&ctrl.sessionQuerySvc); err != nil {
+		slog.Error("Failed to resolve MatchmakingSessionQueryService", "err", err)
 	}
-	if err := container.Resolve(&ctrl.poolRepo); err != nil {
-		slog.Error("Failed to resolve MatchmakingPoolRepository", "err", err)
+	if err := container.Resolve(&ctrl.poolQuerySvc); err != nil {
+		slog.Error("Failed to resolve MatchmakingPoolQueryService", "err", err)
 	}
 
 	return ctrl
@@ -194,14 +194,6 @@ func (ctrl *MatchmakingController) JoinQueueHandler(apiContext context.Context) 
 			ExpiresAt:     time.Now().Add(30 * time.Minute),
 		}
 
-		if ctrl.sessionRepo != nil {
-			if err := ctrl.sessionRepo.Save(r.Context(), session); err != nil {
-				slog.Error("Failed to save matchmaking session", "err", err, "session_id", session.ID)
-				http.Error(w, "failed to save session", http.StatusInternalServerError)
-				return
-			}
-		}
-
 		response := JoinQueueResponse{
 			SessionID:     session.ID.String(),
 			Status:        string(session.Status),
@@ -290,16 +282,6 @@ func (ctrl *MatchmakingController) LeaveQueueHandler(apiContext context.Context)
 			return
 		}
 
-		// Fallback: direct repository access (deprecated - for backwards compatibility)
-		slog.Warn("LeaveQueueHandler using deprecated direct repository access")
-		if ctrl.sessionRepo != nil {
-			if err := ctrl.sessionRepo.UpdateStatus(ctx, sessionUUID, matchmaking_entities.StatusCancelled); err != nil {
-				slog.Error("Failed to cancel session", "err", err, "session_id", sessionID)
-				http.Error(w, "failed to cancel session", http.StatusInternalServerError)
-				return
-			}
-		}
-
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]string{
 			"message":    "left queue successfully",
@@ -325,8 +307,8 @@ func (ctrl *MatchmakingController) GetSessionStatusHandler(apiContext context.Co
 
 		// Fetch session from database
 		var session *matchmaking_entities.MatchmakingSession
-		if ctrl.sessionRepo != nil {
-			session, err = ctrl.sessionRepo.GetByID(r.Context(), sessionUUID)
+		if ctrl.sessionQuerySvc != nil {
+			session, err = ctrl.sessionQuerySvc.GetByID(r.Context(), sessionUUID)
 			if err != nil {
 				slog.Error("Failed to get session", "err", err, "session_id", sessionID)
 				http.Error(w, "failed to get session", http.StatusInternalServerError)
@@ -377,17 +359,12 @@ func (ctrl *MatchmakingController) calculateQueuePosition(prefs matchmaking_enti
 }
 
 func (ctrl *MatchmakingController) calculateQueuePositionFromDB(ctx context.Context, prefs matchmaking_entities.MatchPreferences) int {
-	if ctrl.sessionRepo == nil {
+	if ctrl.sessionQuerySvc == nil {
 		return ctrl.calculateQueuePosition(prefs)
 	}
 
 	// Get all active sessions with same preferences
-	sessions, err := ctrl.sessionRepo.GetActiveSessions(ctx, matchmaking_out.SessionFilters{
-		GameID:   prefs.GameID,
-		GameMode: prefs.GameMode,
-		Region:   prefs.Region,
-		Limit:    1000,
-	})
+	sessions, err := ctrl.sessionQuerySvc.FindActiveSessions(ctx, prefs.GameID, prefs.GameMode, prefs.Region, &prefs.Tier, nil, nil, nil, 1000, 0)
 
 	if err != nil {
 		slog.Error("Failed to get active sessions for queue position", "err", err)
@@ -434,13 +411,8 @@ func (ctrl *MatchmakingController) generatePoolStats(gameID, gameMode, region st
 	ctx := context.Background()
 	
 	// Try to get real data from database
-	if ctrl.sessionRepo != nil {
-		sessions, err := ctrl.sessionRepo.GetActiveSessions(ctx, matchmaking_out.SessionFilters{
-			GameID:   gameID,
-			GameMode: gameMode,
-			Region:   region,
-			Limit:    1000,
-		})
+	if ctrl.sessionQuerySvc != nil {
+		sessions, err := ctrl.sessionQuerySvc.FindActiveSessions(ctx, gameID, gameMode, region, nil, nil, nil, nil, 1000, 0)
 
 		if err == nil && len(sessions) > 0 {
 			// Calculate real statistics

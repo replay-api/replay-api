@@ -4,38 +4,39 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"reflect"
 	"time"
 
 	"github.com/google/uuid"
 	wallet_entities "github.com/replay-api/replay-api/pkg/domain/wallet/entities"
 	wallet_out "github.com/replay-api/replay-api/pkg/domain/wallet/ports/out"
+	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type MongoWalletRepository struct {
-	*MongoDBRepository[*wallet_entities.UserWallet]
+	mongodb.MongoDBRepository[wallet_entities.UserWallet]
 }
 
 func NewMongoWalletRepository(mongoClient *mongo.Client, dbName string) wallet_out.WalletRepository {
-	mappingCache := make(map[string]CacheItem)
-	entityModel := reflect.TypeOf(wallet_entities.UserWallet{})
-	repo := &MongoWalletRepository{
-		MongoDBRepository: &MongoDBRepository[*wallet_entities.UserWallet]{
-			mongoClient:       mongoClient,
-			dbName:            dbName,
-			mappingCache:      mappingCache,
-			entityModel:       entityModel,
-			collectionName:    "wallets",
-			entityName:        "UserWallet",
-			BsonFieldMappings: make(map[string]string),
-			QueryableFields:   make(map[string]bool),
-		},
-	}
+	entityType := wallet_entities.UserWallet{}
+	repo := mongodb.NewMongoDBRepository[wallet_entities.UserWallet](mongoClient, dbName, entityType, "wallets", "UserWallet")
 
-	// Define BSON field mappings
-	bsonFieldMappings := map[string]string{
+	repo.InitQueryableFields(map[string]bool{
+		"ID":                  true,
+		"EVMAddress":          true,
+		"Balances":            true,
+		"PendingTransactions": true,
+		"TotalDeposited":      true,
+		"TotalWithdrawn":      true,
+		"TotalPrizesWon":      true,
+		"DailyPrizeWinnings":  true,
+		"LastPrizeWinDate":    true,
+		"IsLocked":            true,
+		"LockReason":          true,
+		"CreatedAt":           true,
+		"UpdatedAt":           true,
+	}, map[string]string{
 		"ID":                  "_id",
 		"EVMAddress":          "evm_address",
 		"Balances":            "balances",
@@ -49,25 +50,11 @@ func NewMongoWalletRepository(mongoClient *mongo.Client, dbName string) wallet_o
 		"LockReason":          "lock_reason",
 		"CreatedAt":           "created_at",
 		"UpdatedAt":           "updated_at",
-		"ResourceOwner":       "resource_owner",
+	})
+
+	return &MongoWalletRepository{
+		MongoDBRepository: *repo,
 	}
-
-	// Define queryable fields for search operations
-	queryableFields := map[string]bool{
-		"EVMAddress":         true,
-		"TotalDeposited":     true,
-		"TotalWithdrawn":     true,
-		"TotalPrizesWon":     true,
-		"DailyPrizeWinnings": true,
-		"LastPrizeWinDate":   true,
-		"IsLocked":           true,
-		"CreatedAt":          true,
-		"UpdatedAt":          true,
-	}
-
-	repo.InitQueryableFields(queryableFields, bsonFieldMappings)
-
-	return repo
 }
 
 func (r *MongoWalletRepository) Save(ctx context.Context, wallet *wallet_entities.UserWallet) error {
@@ -77,7 +64,7 @@ func (r *MongoWalletRepository) Save(ctx context.Context, wallet *wallet_entitie
 
 	wallet.UpdatedAt = time.Now().UTC()
 
-	_, err := r.collection.InsertOne(ctx, wallet)
+	_, err := r.MongoDBRepository.Update(ctx, wallet)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to save wallet", "wallet_id", wallet.ID, "error", err)
 		return fmt.Errorf("failed to save wallet: %w", err)
@@ -88,26 +75,14 @@ func (r *MongoWalletRepository) Save(ctx context.Context, wallet *wallet_entitie
 }
 
 func (r *MongoWalletRepository) FindByID(ctx context.Context, id uuid.UUID) (*wallet_entities.UserWallet, error) {
-	var wallet wallet_entities.UserWallet
-
-	filter := bson.M{"_id": id}
-	err := r.collection.FindOne(ctx, filter).Decode(&wallet)
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, fmt.Errorf("wallet not found: %s", id)
-		}
-		slog.ErrorContext(ctx, "failed to find wallet by ID", "id", id, "error", err)
-		return nil, fmt.Errorf("failed to find wallet: %w", err)
-	}
-
-	return &wallet, nil
+	return r.MongoDBRepository.GetByID(ctx, id)
 }
 
 func (r *MongoWalletRepository) FindByUserID(ctx context.Context, userID uuid.UUID) (*wallet_entities.UserWallet, error) {
 	var wallet wallet_entities.UserWallet
 
 	filter := bson.M{"resource_owner.user_id": userID}
-	err := r.collection.FindOne(ctx, filter).Decode(&wallet)
+	err := r.MongoDBRepository.FindOneWithRLS(ctx, filter).Decode(&wallet)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, fmt.Errorf("wallet not found for user: %s", userID)
@@ -123,7 +98,7 @@ func (r *MongoWalletRepository) FindByEVMAddress(ctx context.Context, evmAddress
 	var wallet wallet_entities.UserWallet
 
 	filter := bson.M{"evm_address": evmAddress}
-	err := r.collection.FindOne(ctx, filter).Decode(&wallet)
+	err := r.MongoDBRepository.FindOneWithRLS(ctx, filter).Decode(&wallet)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, fmt.Errorf("wallet not found for EVM address: %s", evmAddress)
@@ -142,17 +117,10 @@ func (r *MongoWalletRepository) Update(ctx context.Context, wallet *wallet_entit
 
 	wallet.UpdatedAt = time.Now().UTC()
 
-	filter := bson.M{"_id": wallet.ID}
-	update := bson.M{"$set": wallet}
-
-	result, err := r.collection.UpdateOne(ctx, filter, update)
+	_, err := r.MongoDBRepository.Update(ctx, wallet)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update wallet", "wallet_id", wallet.ID, "error", err)
 		return fmt.Errorf("failed to update wallet: %w", err)
-	}
-
-	if result.MatchedCount == 0 {
-		return fmt.Errorf("wallet not found for update: %s", wallet.ID)
 	}
 
 	slog.InfoContext(ctx, "wallet updated successfully", "wallet_id", wallet.ID, "evm_address", wallet.EVMAddress.String())
@@ -162,7 +130,7 @@ func (r *MongoWalletRepository) Update(ctx context.Context, wallet *wallet_entit
 func (r *MongoWalletRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	filter := bson.M{"_id": id}
 
-	result, err := r.collection.DeleteOne(ctx, filter)
+	result, err := r.MongoDBRepository.DeleteOneWithRLS(ctx, filter)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete wallet", "id", id, "error", err)
 		return fmt.Errorf("failed to delete wallet: %w", err)

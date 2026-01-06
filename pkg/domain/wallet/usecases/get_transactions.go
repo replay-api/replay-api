@@ -7,22 +7,26 @@ import (
 	shared "github.com/resource-ownership/go-common/pkg/common"
 	wallet_in "github.com/replay-api/replay-api/pkg/domain/wallet/ports/in"
 	wallet_out "github.com/replay-api/replay-api/pkg/domain/wallet/ports/out"
+	wallet_services "github.com/replay-api/replay-api/pkg/domain/wallet/services"
 )
 
 // GetTransactionsUseCase handles fetching wallet transactions
 type GetTransactionsUseCase struct {
-	walletRepo wallet_out.WalletRepository
-	ledgerRepo wallet_out.LedgerRepository
+	walletRepo     wallet_out.WalletRepository
+	walletQuerySvc *wallet_services.WalletQueryService
+	ledgerRepo     wallet_out.LedgerRepository
 }
 
 // NewGetTransactionsUseCase creates a new get transactions use case
 func NewGetTransactionsUseCase(
 	walletRepo wallet_out.WalletRepository,
+	walletQuerySvc *wallet_services.WalletQueryService,
 	ledgerRepo wallet_out.LedgerRepository,
 ) *GetTransactionsUseCase {
 	return &GetTransactionsUseCase{
-		walletRepo: walletRepo,
-		ledgerRepo: ledgerRepo,
+		walletRepo:     walletRepo,
+		walletQuerySvc: walletQuerySvc,
+		ledgerRepo:     ledgerRepo,
 	}
 }
 
@@ -47,8 +51,8 @@ func (uc *GetTransactionsUseCase) GetTransactions(ctx context.Context, query wal
 	)
 
 	// Try to find user's wallet first
-	wallet, err := uc.walletRepo.FindByUserID(ctx, query.UserID)
-	if err != nil {
+	wallet, err := uc.walletQuerySvc.FindByUserID(ctx, query.UserID)
+	if err != nil || wallet == nil {
 		slog.InfoContext(ctx, "GetTransactions: wallet not found, returning empty",
 			"user_id", query.UserID,
 			"error", err,

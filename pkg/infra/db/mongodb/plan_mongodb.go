@@ -3,10 +3,10 @@ package db
 import (
 	"context"
 	"log/slog"
-	"reflect"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -15,21 +15,12 @@ import (
 )
 
 type PlanRepository struct {
-	MongoDBRepository[billing_entities.Plan]
+	mongodb.MongoDBRepository[billing_entities.Plan]
 }
 
 func NewPlanRepository(client *mongo.Client, dbName string, entityType billing_entities.Plan, collectionName string) *PlanRepository {
-	repo := MongoDBRepository[billing_entities.Plan]{
-		mongoClient:       client,
-		dbName:            dbName,
-		mappingCache:      make(map[string]CacheItem),
-		entityModel:       reflect.TypeOf(entityType),
-		BsonFieldMappings: make(map[string]string),
-		collectionName:    collectionName,
-		entityName:        reflect.TypeOf(entityType).Name(),
-		QueryableFields:   make(map[string]bool),
-		collection:        client.Database(dbName).Collection(collectionName),
-	}
+	repo := mongodb.NewMongoDBRepository[billing_entities.Plan](client, dbName, entityType, collectionName, "Plan")
+
 	repo.InitQueryableFields(map[string]bool{
 		"ID":                   true,
 		"Name":                 true,
@@ -79,12 +70,12 @@ func NewPlanRepository(client *mongo.Client, dbName string, entityType billing_e
 	})
 
 	return &PlanRepository{
-		repo,
+		MongoDBRepository: *repo,
 	}
 }
 
 func (repo *PlanRepository) FindOne(ctx context.Context, filter interface{}, result interface{}) error {
-	return repo.collection.FindOne(ctx, filter).Decode(result)
+	return repo.MongoDBRepository.FindOneWithRLS(ctx, filter).Decode(result)
 }
 
 func (repo *PlanRepository) GetDefaultFreePlan(ctx context.Context) (*billing_entities.Plan, error) {
@@ -93,7 +84,7 @@ func (repo *PlanRepository) GetDefaultFreePlan(ctx context.Context) (*billing_en
 		{Key: "display_priority_score", Value: -1},
 		{Key: "baseentity.created_at", Value: -1},
 	})
-	err := repo.collection.FindOne(ctx, bson.M{
+	err := repo.MongoDBRepository.FindOneWithRLS(ctx, bson.M{
 		"is_free":      true,
 		"is_active":    true,
 		"is_legacy":    false,
@@ -119,20 +110,7 @@ func (repo *PlanRepository) GetDefaultFreePlan(ctx context.Context) (*billing_en
 
 // GetByID retrieves a plan by its ID
 func (repo *PlanRepository) GetByID(ctx context.Context, id uuid.UUID) (*billing_entities.Plan, error) {
-	var plan billing_entities.Plan
-	err := repo.collection.FindOne(ctx, bson.M{
-		"baseentity._id": id,
-	}).Decode(&plan)
-
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, nil
-		}
-		slog.ErrorContext(ctx, "Failed to retrieve plan by ID", "id", id, "err", err)
-		return nil, err
-	}
-
-	return &plan, nil
+	return repo.MongoDBRepository.GetByID(ctx, id)
 }
 
 // GetAvailablePlans retrieves all available plans
@@ -142,7 +120,7 @@ func (repo *PlanRepository) GetAvailablePlans(ctx context.Context) ([]*billing_e
 		{Key: "kind", Value: 1},
 	})
 
-	cursor, err := repo.collection.Find(ctx, bson.M{
+	cursor, err := repo.MongoDBRepository.FindWithRLS(ctx, bson.M{
 		"is_active":    true,
 		"is_legacy":    false,
 		"is_available": true,

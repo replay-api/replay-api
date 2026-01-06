@@ -1,27 +1,17 @@
 package db
 
 import (
-	"reflect"
-
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
+	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type ReplayFileMetadataRepository struct {
-	MongoDBRepository[replay_entity.ReplayFile]
+	mongodb.MongoDBRepository[replay_entity.ReplayFile]
 }
 
 func NewReplayFileMetadataRepository(client *mongo.Client, dbName string, entityType replay_entity.ReplayFile, collectionName string) *ReplayFileMetadataRepository {
-	repo := MongoDBRepository[replay_entity.ReplayFile]{
-		mongoClient:       client,
-		dbName:            dbName,
-		mappingCache:      make(map[string]CacheItem),
-		entityModel:       reflect.TypeOf(entityType),
-		BsonFieldMappings: make(map[string]string),
-		collectionName:    collectionName,
-		entityName:        reflect.TypeOf(entityType).Name(),
-		QueryableFields:   make(map[string]bool),
-	}
+	repo := mongodb.NewMongoDBRepository[replay_entity.ReplayFile](client, dbName, entityType, collectionName, "ReplayFile")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":            true,
@@ -55,6 +45,6 @@ func NewReplayFileMetadataRepository(client *mongo.Client, dbName string, entity
 	})
 
 	return &ReplayFileMetadataRepository{
-		repo,
+		MongoDBRepository: *repo,
 	}
 }

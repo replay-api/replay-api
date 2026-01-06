@@ -4,12 +4,12 @@ package db
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"time"
 
 	"github.com/google/uuid"
 	auth_entities "github.com/replay-api/replay-api/pkg/domain/auth/entities"
 	auth_out "github.com/replay-api/replay-api/pkg/domain/auth/ports/out"
+	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -17,7 +17,7 @@ import (
 
 // PasswordResetRepository implements auth_out.PasswordResetRepository
 type PasswordResetRepository struct {
-	MongoDBRepository[auth_entities.PasswordReset]
+	mongodb.MongoDBRepository[auth_entities.PasswordReset]
 }
 
 // NewPasswordResetMongoDBRepository creates a new password reset repository
@@ -25,16 +25,7 @@ func NewPasswordResetMongoDBRepository(client *mongo.Client, dbName string) *Pas
 	entityType := auth_entities.PasswordReset{}
 	collectionName := "password_resets"
 
-	repo := MongoDBRepository[auth_entities.PasswordReset]{
-		mongoClient:       client,
-		dbName:            dbName,
-		mappingCache:      make(map[string]CacheItem),
-		entityModel:       reflect.TypeOf(entityType),
-		BsonFieldMappings: make(map[string]string),
-		collectionName:    collectionName,
-		entityName:        reflect.TypeOf(entityType).Name(),
-		QueryableFields:   make(map[string]bool),
-	}
+	repo := mongodb.NewMongoDBRepository[auth_entities.PasswordReset](client, dbName, entityType, collectionName, "PasswordReset")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":        true,
@@ -58,12 +49,14 @@ func NewPasswordResetMongoDBRepository(client *mongo.Client, dbName string) *Pas
 		"UserAgent": "user_agent",
 	})
 
-	return &PasswordResetRepository{repo}
+	return &PasswordResetRepository{
+		MongoDBRepository: *repo,
+	}
 }
 
 // collection returns the MongoDB collection for password resets
 func (r *PasswordResetRepository) collection() *mongo.Collection {
-	return r.mongoClient.Database(r.dbName).Collection(r.collectionName)
+	return r.MongoDBRepository.Collection()
 }
 
 // Save creates a new password reset record

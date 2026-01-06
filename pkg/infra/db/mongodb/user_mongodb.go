@@ -3,29 +3,20 @@ package db
 import (
 	"context"
 	"log/slog"
-	"reflect"
 
 	"go.mongodb.org/mongo-driver/mongo"
 
-	shared "github.com/resource-ownership/go-common/pkg/common"
 	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
+	shared "github.com/resource-ownership/go-common/pkg/common"
+	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 )
 
 type UserRepository struct {
-	MongoDBRepository[iam_entities.User]
+	mongodb.MongoDBRepository[iam_entities.User]
 }
 
 func NewUserRepository(client *mongo.Client, dbName string, entityType *iam_entities.User, collectionName string) *UserRepository {
-	repo := MongoDBRepository[iam_entities.User]{
-		mongoClient:       client,
-		dbName:            dbName,
-		mappingCache:      make(map[string]CacheItem),
-		entityModel:       reflect.TypeOf(entityType),
-		BsonFieldMappings: make(map[string]string),
-		collectionName:    collectionName,
-		entityName:        reflect.TypeOf(entityType).Name(),
-		QueryableFields:   make(map[string]bool),
-	}
+	repo := mongodb.NewMongoDBRepository[iam_entities.User](client, dbName, *entityType, collectionName, "User")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":            true,
@@ -46,7 +37,7 @@ func NewUserRepository(client *mongo.Client, dbName string, entityType *iam_enti
 	})
 
 	return &UserRepository{
-		repo,
+		MongoDBRepository: *repo,
 	}
 }
 

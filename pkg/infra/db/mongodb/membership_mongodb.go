@@ -1,28 +1,18 @@
 package db
 
 import (
-	"reflect"
-
 	"go.mongodb.org/mongo-driver/mongo"
 
 	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
+	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 )
 
 type MembershipRepository struct {
-	MongoDBRepository[iam_entities.Membership]
+	mongodb.MongoDBRepository[iam_entities.Membership]
 }
 
 func NewMembershipRepository(client *mongo.Client, dbName string, entityType *iam_entities.Membership, collectionName string) *MembershipRepository {
-	repo := MongoDBRepository[iam_entities.Membership]{
-		mongoClient:       client,
-		dbName:            dbName,
-		mappingCache:      make(map[string]CacheItem),
-		entityModel:       reflect.TypeOf(entityType),
-		BsonFieldMappings: make(map[string]string),
-		collectionName:    collectionName,
-		entityName:        reflect.TypeOf(entityType).Name(),
-		QueryableFields:   make(map[string]bool),
-	}
+	repo := mongodb.NewMongoDBRepository[iam_entities.Membership](client, dbName, *entityType, collectionName, "Membership")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":            true,
@@ -40,6 +30,6 @@ func NewMembershipRepository(client *mongo.Client, dbName string, entityType *ia
 	})
 
 	return &MembershipRepository{
-		repo,
+		MongoDBRepository: *repo,
 	}
 }

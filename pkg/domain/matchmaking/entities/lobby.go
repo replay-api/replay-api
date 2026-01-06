@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	shared "github.com/resource-ownership/go-common/pkg/common"
 	matchmaking_vo "github.com/replay-api/replay-api/pkg/domain/matchmaking/value-objects"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // PlayerSlot represents a slot in a matchmaking lobby
@@ -114,7 +114,7 @@ func NewMatchmakingLobby(
 }
 
 // GetID implements shared.Entity interface
-func (l *MatchmakingLobby) GetID() uuid.UUID {
+func (l MatchmakingLobby) GetID() uuid.UUID {
 	return l.ID
 }
 

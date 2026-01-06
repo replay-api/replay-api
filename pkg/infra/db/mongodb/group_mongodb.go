@@ -1,28 +1,18 @@
 package db
 
 import (
-	"reflect"
-
 	"go.mongodb.org/mongo-driver/mongo"
 
 	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
+	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 )
 
 type GroupRepository struct {
-	MongoDBRepository[iam_entities.Group]
+	mongodb.MongoDBRepository[iam_entities.Group]
 }
 
 func NewGroupRepository(client *mongo.Client, dbName string, entityType *iam_entities.Group, collectionName string) *GroupRepository {
-	repo := MongoDBRepository[iam_entities.Group]{
-		mongoClient:       client,
-		dbName:            dbName,
-		mappingCache:      make(map[string]CacheItem),
-		entityModel:       reflect.TypeOf(entityType),
-		BsonFieldMappings: make(map[string]string),
-		collectionName:    collectionName,
-		entityName:        reflect.TypeOf(entityType).Name(),
-		QueryableFields:   make(map[string]bool),
-	}
+	repo := mongodb.NewMongoDBRepository[iam_entities.Group](client, dbName, *entityType, collectionName, "Group")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":            true,
@@ -43,6 +33,6 @@ func NewGroupRepository(client *mongo.Client, dbName string, entityType *iam_ent
 	})
 
 	return &GroupRepository{
-		repo,
+		MongoDBRepository: *repo,
 	}
 }

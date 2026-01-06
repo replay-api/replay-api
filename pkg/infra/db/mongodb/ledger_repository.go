@@ -10,6 +10,7 @@ import (
 	wallet_entities "github.com/replay-api/replay-api/pkg/domain/wallet/entities"
 	wallet_out "github.com/replay-api/replay-api/pkg/domain/wallet/ports/out"
 	wallet_vo "github.com/replay-api/replay-api/pkg/domain/wallet/value-objects"
+	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -21,20 +22,61 @@ const (
 
 // LedgerRepository implements MongoDB persistence for ledger entries
 type LedgerRepository struct {
-	db *mongo.Database
+	mongodb.MongoDBRepository[*wallet_entities.LedgerEntry]
+	client *mongo.Client
 }
 
 // NewLedgerRepository creates a new MongoDB ledger repository
-func NewLedgerRepository(db *mongo.Database) wallet_out.LedgerRepository {
-	repo := &LedgerRepository{db: db}
-	repo.ensureIndexes()
-	return repo
+func NewLedgerRepository(client *mongo.Client, dbName string) wallet_out.LedgerRepository {
+	repo := mongodb.NewMongoDBRepository[*wallet_entities.LedgerEntry](client, dbName, &wallet_entities.LedgerEntry{}, ledgerEntriesCollection, "LedgerEntry")
+
+	repo.InitQueryableFields(map[string]bool{
+		"ID":             true,
+		"JournalID":      true,
+		"TransactionID":  true,
+		"AccountID":      true,
+		"AccountCode":    true,
+		"EntryType":      true,
+		"AssetType":      true,
+		"Currency":       true,
+		"Description":    true,
+		"CreatedAt":      true,
+		"CreatedBy":      true,
+		"IsReversed":     true,
+		"IdempotencyKey": true,
+	}, map[string]string{
+		"ID":             "_id",
+		"JournalID":      "journal_id",
+		"TransactionID":  "transaction_id",
+		"AccountID":      "account_id",
+		"AccountCode":    "account_code",
+		"EntryType":      "entry_type",
+		"AssetType":      "asset_type",
+		"Amount":         "amount",
+		"Currency":       "currency",
+		"BalanceBefore":  "balance_before",
+		"BalanceAfter":   "balance_after",
+		"Description":    "description",
+		"Metadata":       "metadata",
+		"CreatedAt":      "created_at",
+		"CreatedBy":      "created_by",
+		"IsReversed":     "is_reversed",
+		"ReversedBy":     "reversed_by",
+		"IdempotencyKey": "idempotency_key",
+	})
+
+	ledgerRepo := &LedgerRepository{
+		MongoDBRepository: *repo,
+		client:            client,
+	}
+	ledgerRepo.ensureIndexes()
+	return ledgerRepo
 }
 
 // ensureIndexes creates required indexes for performance and uniqueness
 func (r *LedgerRepository) ensureIndexes() {
 	ctx := context.Background()
-	collection := r.db.Collection(ledgerEntriesCollection)
+	collection := r.MongoDBRepository.Collection()
 
 	indexes := []mongo.IndexModel{
 		{
@@ -97,7 +139,7 @@ func (r *LedgerRepository) CreateTransaction(ctx context.Context, entries []*wal
 		return fmt.Errorf("no entries to create")
 	}
 
-	collection := r.db.Collection(ledgerEntriesCollection)
+	collection := r.MongoDBRepository.Collection()
 
 	// Validate all entries before insertion
 	for _, entry := range entries {
@@ -113,7 +155,7 @@ func (r *LedgerRepository) CreateTransaction(ctx context.Context, entries []*wal
 	}
 
 	// Use MongoDB session for transaction atomicity
-	session, err := r.db.Client().StartSession()
+	session, err := r.client.StartSession()
 	if err != nil {
 		return fmt.Errorf("failed to start session: %w", err)
 	}
@@ -145,7 +187,7 @@ func (r *LedgerRepository) CreateEntry(ctx context.Context, entry *wallet_entiti
 		return fmt.Errorf("entry validation failed: %w", err)
 	}
 
-	collection := r.db.Collection(ledgerEntriesCollection)
+	collection := r.MongoDBRepository.Collection()
 	_, err := collection.InsertOne(ctx, entry)
 	if err != nil {
 		return fmt.Errorf("failed to create entry: %w", err)
@@ -156,7 +198,7 @@ func (r *LedgerRepository) CreateEntry(ctx context.Context, entry *wallet_entiti
 
 // FindByID retrieves a ledger entry by ID
 func (r *LedgerRepository) FindByID(ctx context.Context, id uuid.UUID) (*wallet_entities.LedgerEntry, error) {
-	collection := r.db.Collection(ledgerEntriesCollection)
+	collection := r.MongoDBRepository.Collection()
 
 	filter := bson.M{"_id": id}
 	var entry wallet_entities.LedgerEntry
@@ -174,7 +216,7 @@ func (r *LedgerRepository) FindByID(ctx context.Context, id uuid.UUID) (*wallet_
 
 // FindByTransactionID retrieves all entries for a transaction
 func (r *LedgerRepository) FindByTransactionID(ctx context.Context, txID uuid.UUID) ([]*wallet_entities.LedgerEntry, error) {
-	collection := r.db.Collection(ledgerEntriesCollection)
+	collection := r.MongoDBRepository.Collection()
 
 	filter := bson.M{"transaction_id": txID}
 	cursor, err := collection.Find(ctx, filter)
@@ -193,7 +235,7 @@ func (r *LedgerRepository) FindByTransactionID(ctx context.Context, txID uuid.UU
 
 // FindByAccountID retrieves all entries for an account (wallet)
 func (r *LedgerRepository) FindByAccountID(ctx context.Context, accountID uuid.UUID, limit int, offset int) ([]*wallet_entities.LedgerEntry, error) {
-	collection := r.db.Collection(ledgerEntriesCollection)
+	collection := r.MongoDBRepository.Collection()
 
 	filter := bson.M{"account_id": accountID}
 	opts := options.Find().
@@ -217,7 +259,7 @@ func (r *LedgerRepository) FindByAccountID(ctx context.Context, accountID uuid.U
 
 // FindByAccountAndCurrency retrieves entries for specific currency
 func (r *LedgerRepository) FindByAccountAndCurrency(ctx context.Context, accountID uuid.UUID, currency wallet_vo.Currency) ([]*wallet_entities.LedgerEntry, error) {
-	collection := r.db.Collection(ledgerEntriesCollection)
+	collection := r.MongoDBRepository.Collection()
 
 	filter := bson.M{
 		"account_id": accountID,
@@ -240,7 +282,7 @@ func (r *LedgerRepository) FindByAccountAndCurrency(ctx context.Context, account
 
 // FindByIdempotencyKey checks if an entry with this key exists
 func (r *LedgerRepository) FindByIdempotencyKey(ctx context.Context, key string) (*wallet_entities.LedgerEntry, error) {
-	collection := r.db.Collection(ledgerEntriesCollection)
+	collection := r.MongoDBRepository.Collection()
 
 	filter := bson.M{"idempotency_key": key}
 	var entry wallet_entities.LedgerEntry
@@ -258,7 +300,7 @@ func (r *LedgerRepository) FindByIdempotencyKey(ctx context.Context, key string)
 
 // ExistsByIdempotencyKey checks if an idempotency key has been used
 func (r *LedgerRepository) ExistsByIdempotencyKey(ctx context.Context, key string) bool {
-	collection := r.db.Collection(ledgerEntriesCollection)
+	collection := r.MongoDBRepository.Collection()
 
 	filter := bson.M{"idempotency_key": key}
 	count, err := collection.CountDocuments(ctx, filter, options.Count().SetLimit(1))
@@ -271,7 +313,7 @@ func (r *LedgerRepository) ExistsByIdempotencyKey(ctx context.Context, key strin
 
 // FindByDateRange retrieves entries within a date range
 func (r *LedgerRepository) FindByDateRange(ctx context.Context, accountID uuid.UUID, from time.Time, to time.Time) ([]*wallet_entities.LedgerEntry, error) {
-	collection := r.db.Collection(ledgerEntriesCollection)
+	collection := r.MongoDBRepository.Collection()
 
 	filter := bson.M{
 		"account_id": accountID,
@@ -298,7 +340,7 @@ func (r *LedgerRepository) FindByDateRange(ctx context.Context, accountID uuid.U
 // CalculateBalance calculates the current balance for an account
 // For asset accounts: Balance = SUM(debits) - SUM(credits)
 func (r *LedgerRepository) CalculateBalance(ctx context.Context, accountID uuid.UUID, currency wallet_vo.Currency) (wallet_vo.Amount, error) {
-	collection := r.db.Collection(ledgerEntriesCollection)
+	collection := r.MongoDBRepository.Collection()
 
 	// Aggregate: sum debits and credits separately
 	pipeline := mongo.Pipeline{
@@ -346,7 +388,7 @@ func (r *LedgerRepository) CalculateBalance(ctx context.Context, accountID uuid.
 
 // GetAccountHistory retrieves transaction history with pagination and filters
 func (r *LedgerRepository) GetAccountHistory(ctx context.Context, accountID uuid.UUID, filters wallet_out.HistoryFilters) ([]*wallet_entities.LedgerEntry, int64, error) {
-	collection := r.db.Collection(ledgerEntriesCollection)
+	collection := r.MongoDBRepository.Collection()
 
 	// Build filter
 	filter := bson.M{"account_id": accountID}
@@ -422,7 +464,7 @@ func (r *LedgerRepository) GetAccountHistory(ctx context.Context, accountID uuid
 
 // FindPendingApprovals retrieves entries pending manual review
 func (r *LedgerRepository) FindPendingApprovals(ctx context.Context, limit int) ([]*wallet_entities.LedgerEntry, error) {
-	collection := r.db.Collection(ledgerEntriesCollection)
+	collection := r.MongoDBRepository.Collection()
 
 	filter := bson.M{
 		"metadata.approval_status": wallet_entities.ApprovalStatusPendingReview,
@@ -448,7 +490,7 @@ func (r *LedgerRepository) FindPendingApprovals(ctx context.Context, limit int) 
 
 // UpdateApprovalStatus updates the approval status
 func (r *LedgerRepository) UpdateApprovalStatus(ctx context.Context, entryID uuid.UUID, status wallet_entities.ApprovalStatus, approverID uuid.UUID) error {
-	collection := r.db.Collection(ledgerEntriesCollection)
+	collection := r.MongoDBRepository.Collection()
 
 	filter := bson.M{"_id": entryID}
 	update := bson.M{
@@ -472,7 +514,7 @@ func (r *LedgerRepository) UpdateApprovalStatus(ctx context.Context, entryID uui
 
 // MarkAsReversed marks an entry as reversed
 func (r *LedgerRepository) MarkAsReversed(ctx context.Context, entryID uuid.UUID, reversalEntryID uuid.UUID) error {
-	collection := r.db.Collection(ledgerEntriesCollection)
+	collection := r.MongoDBRepository.Collection()
 
 	filter := bson.M{"_id": entryID}
 	update := bson.M{
@@ -496,7 +538,7 @@ func (r *LedgerRepository) MarkAsReversed(ctx context.Context, entryID uuid.UUID
 
 // GetDailyTransactionCount gets count of transactions for an account in last 24h
 func (r *LedgerRepository) GetDailyTransactionCount(ctx context.Context, accountID uuid.UUID) (int64, error) {
-	collection := r.db.Collection(ledgerEntriesCollection)
+	collection := r.MongoDBRepository.Collection()
 
 	filter := bson.M{
 		"account_id": accountID,
@@ -515,7 +557,7 @@ func (r *LedgerRepository) GetDailyTransactionCount(ctx context.Context, account
 
 // GetDailyTransactionVolume gets total volume for an account in last 24h
 func (r *LedgerRepository) GetDailyTransactionVolume(ctx context.Context, accountID uuid.UUID, currency wallet_vo.Currency) (wallet_vo.Amount, error) {
-	collection := r.db.Collection(ledgerEntriesCollection)
+	collection := r.MongoDBRepository.Collection()
 
 	pipeline := mongo.Pipeline{
 		{{Key: "$match", Value: bson.M{
@@ -554,7 +596,7 @@ func (r *LedgerRepository) GetDailyTransactionVolume(ctx context.Context, accoun
 
 // FindByUserAndDateRange for tax reporting
 func (r *LedgerRepository) FindByUserAndDateRange(ctx context.Context, userID uuid.UUID, from time.Time, to time.Time) ([]*wallet_entities.LedgerEntry, error) {
-	collection := r.db.Collection(ledgerEntriesCollection)
+	collection := r.MongoDBRepository.Collection()
 
 	filter := bson.M{
 		"created_by": userID,

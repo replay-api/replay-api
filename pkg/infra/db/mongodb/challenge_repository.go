@@ -5,34 +5,87 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	shared "github.com/resource-ownership/go-common/pkg/common"
 	challenge_entities "github.com/replay-api/replay-api/pkg/domain/challenge/entities"
 	challenge_out "github.com/replay-api/replay-api/pkg/domain/challenge/ports/out"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 const challengeCollectionName = "challenges"
 
 // ChallengeRepository implements MongoDB persistence for challenges
 type ChallengeRepository struct {
-	client *mongo.Client
-	db     *mongo.Database
+	mongodb.MongoDBRepository[*challenge_entities.Challenge]
 }
 
 // NewChallengeRepository creates a new challenge repository
 func NewChallengeRepository(client *mongo.Client, dbName string) challenge_out.ChallengeRepository {
+	repo := mongodb.NewMongoDBRepository[*challenge_entities.Challenge](client, dbName, &challenge_entities.Challenge{}, challengeCollectionName, "Challenge")
+
+	repo.InitQueryableFields(map[string]bool{
+		"ID":             true,
+		"MatchID":        true,
+		"RoundNumber":    true,
+		"GameID":         true,
+		"LobbyID":        true,
+		"TournamentID":   true,
+		"ChallengerID":   true,
+		"ChallengerTeamID": true,
+		"Type":           true,
+		"Title":          true,
+		"Description":    true,
+		"Priority":       true,
+		"Status":         true,
+		"Resolution":     true,
+		"ResolvedByID":   true,
+		"ResolutionNotes": true,
+		"ResolvedAt":     true,
+		"VotingDeadline": true,
+		"ReviewDeadline": true,
+		"ExpiresAt":      true,
+		"MatchPausedAt":  true,
+		"MatchResumedAt": true,
+		"CreatedAt":      true,
+		"UpdatedAt":      true,
+	}, map[string]string{
+		"ID":             "_id",
+		"MatchID":        "match_id",
+		"RoundNumber":    "round_number",
+		"GameID":         "game_id",
+		"LobbyID":        "lobby_id",
+		"TournamentID":   "tournament_id",
+		"ChallengerID":   "challenger_id",
+		"ChallengerTeamID": "challenger_team_id",
+		"Type":           "type",
+		"Title":          "title",
+		"Description":    "description",
+		"Priority":       "priority",
+		"Status":         "status",
+		"Resolution":     "resolution",
+		"ResolvedByID":   "resolved_by_id",
+		"ResolutionNotes": "resolution_notes",
+		"ResolvedAt":     "resolved_at",
+		"VotingDeadline": "voting_deadline",
+		"ReviewDeadline": "review_deadline",
+		"ExpiresAt":      "expires_at",
+		"MatchPausedAt":  "match_paused_at",
+		"MatchResumedAt": "match_resumed_at",
+		"CreatedAt":      "created_at",
+		"UpdatedAt":      "updated_at",
+	})
+
 	return &ChallengeRepository{
-		client: client,
-		db:     client.Database(dbName),
+		MongoDBRepository: *repo,
 	}
 }
 
 // Save persists a challenge (create or update)
 func (r *ChallengeRepository) Save(ctx context.Context, challenge *challenge_entities.Challenge) error {
-	collection := r.db.Collection(challengeCollectionName)
+	collection := r.MongoDBRepository.Collection()
 
 	challenge.UpdatedAt = time.Now().UTC()
 	if challenge.CreatedAt.IsZero() {
@@ -46,7 +99,7 @@ func (r *ChallengeRepository) Save(ctx context.Context, challenge *challenge_ent
 
 // GetByID retrieves a challenge by its ID
 func (r *ChallengeRepository) GetByID(ctx context.Context, id uuid.UUID) (*challenge_entities.Challenge, error) {
-	collection := r.db.Collection(challengeCollectionName)
+	collection := r.MongoDBRepository.Collection()
 
 	var challenge challenge_entities.Challenge
 	err := collection.FindOne(ctx, bson.M{"_id": id}).Decode(&challenge)
@@ -62,7 +115,7 @@ func (r *ChallengeRepository) GetByID(ctx context.Context, id uuid.UUID) (*chall
 
 // GetByMatchID retrieves all challenges for a match
 func (r *ChallengeRepository) GetByMatchID(ctx context.Context, matchID uuid.UUID, search *shared.Search) ([]*challenge_entities.Challenge, error) {
-	collection := r.db.Collection(challengeCollectionName)
+	collection := r.MongoDBRepository.Collection()
 
 	query := bson.M{"match_id": matchID}
 
@@ -99,7 +152,7 @@ func (r *ChallengeRepository) GetByMatchID(ctx context.Context, matchID uuid.UUI
 
 // GetByChallengerID retrieves challenges submitted by a player
 func (r *ChallengeRepository) GetByChallengerID(ctx context.Context, challengerID uuid.UUID, search *shared.Search) ([]*challenge_entities.Challenge, error) {
-	collection := r.db.Collection(challengeCollectionName)
+	collection := r.MongoDBRepository.Collection()
 
 	query := bson.M{"challenger_id": challengerID}
 
@@ -136,7 +189,7 @@ func (r *ChallengeRepository) GetByChallengerID(ctx context.Context, challengerI
 
 // Search searches challenges based on criteria
 func (r *ChallengeRepository) Search(ctx context.Context, criteria challenge_out.ChallengeCriteria) ([]*challenge_entities.Challenge, int64, error) {
-	collection := r.db.Collection(challengeCollectionName)
+	collection := r.MongoDBRepository.Collection()
 
 	query := bson.M{}
 
@@ -222,7 +275,7 @@ func (r *ChallengeRepository) Search(ctx context.Context, criteria challenge_out
 
 // GetPending retrieves pending challenges requiring review
 func (r *ChallengeRepository) GetPending(ctx context.Context, priority *challenge_entities.ChallengePriority, gameID *string, limit int) ([]*challenge_entities.Challenge, error) {
-	collection := r.db.Collection(challengeCollectionName)
+	collection := r.MongoDBRepository.Collection()
 
 	query := bson.M{
 		"status": bson.M{
@@ -267,7 +320,7 @@ func (r *ChallengeRepository) GetPending(ctx context.Context, priority *challeng
 
 // GetExpired retrieves expired challenges
 func (r *ChallengeRepository) GetExpired(ctx context.Context, limit int) ([]*challenge_entities.Challenge, error) {
-	collection := r.db.Collection(challengeCollectionName)
+	collection := r.MongoDBRepository.Collection()
 
 	query := bson.M{
 		"status": bson.M{
@@ -301,7 +354,7 @@ func (r *ChallengeRepository) GetExpired(ctx context.Context, limit int) ([]*cha
 
 // CountByStatus counts challenges grouped by status
 func (r *ChallengeRepository) CountByStatus(ctx context.Context, matchID *uuid.UUID) (map[challenge_entities.ChallengeStatus]int64, error) {
-	collection := r.db.Collection(challengeCollectionName)
+	collection := r.MongoDBRepository.Collection()
 
 	matchStage := bson.M{}
 	if matchID != nil {
@@ -339,21 +392,21 @@ func (r *ChallengeRepository) CountByStatus(ctx context.Context, matchID *uuid.U
 
 // Delete deletes a challenge by ID
 func (r *ChallengeRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	collection := r.db.Collection(challengeCollectionName)
+	collection := r.MongoDBRepository.Collection()
 	_, err := collection.DeleteOne(ctx, bson.M{"_id": id})
 	return err
 }
 
 // DeleteByMatchID deletes all challenges for a match
 func (r *ChallengeRepository) DeleteByMatchID(ctx context.Context, matchID uuid.UUID) error {
-	collection := r.db.Collection(challengeCollectionName)
+	collection := r.MongoDBRepository.Collection()
 	_, err := collection.DeleteMany(ctx, bson.M{"match_id": matchID})
 	return err
 }
 
 // CreateIndexes creates necessary indexes for the challenges collection
 func (r *ChallengeRepository) CreateIndexes(ctx context.Context) error {
-	collection := r.db.Collection(challengeCollectionName)
+	collection := r.MongoDBRepository.Collection()
 
 	indexes := []mongo.IndexModel{
 		{

@@ -15,13 +15,13 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	replay_common "github.com/replay-api/replay-common/pkg/replay"
-	shared "github.com/resource-ownership/go-common/pkg/common"
 	wallet_entities "github.com/replay-api/replay-api/pkg/domain/wallet/entities"
 	wallet_out "github.com/replay-api/replay-api/pkg/domain/wallet/ports/out"
 	wallet_services "github.com/replay-api/replay-api/pkg/domain/wallet/services"
 	wallet_vo "github.com/replay-api/replay-api/pkg/domain/wallet/value-objects"
 	db "github.com/replay-api/replay-api/pkg/infra/db/mongodb"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // isReplicaSet checks if MongoDB is running as a replica set (required for transactions)

@@ -3,31 +3,21 @@ package db
 import (
 	"context"
 	"log/slog"
-	"reflect"
 	"time"
 
+	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 	"go.mongodb.org/mongo-driver/mongo"
 
-	shared "github.com/resource-ownership/go-common/pkg/common"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type SubscriptionRepository struct {
-	MongoDBRepository[billing_entities.Subscription]
+	mongodb.MongoDBRepository[billing_entities.Subscription]
 }
 
 func NewSubscriptionRepository(client *mongo.Client, dbName string, entityType billing_entities.Subscription, collectionName string) *SubscriptionRepository {
-	repo := MongoDBRepository[billing_entities.Subscription]{
-		mongoClient:       client,
-		dbName:            dbName,
-		mappingCache:      make(map[string]CacheItem),
-		entityModel:       reflect.TypeOf(entityType),
-		BsonFieldMappings: make(map[string]string),
-		collectionName:    collectionName,
-		entityName:        reflect.TypeOf(entityType).Name(),
-		QueryableFields:   make(map[string]bool),
-		collection:        client.Database(dbName).Collection(collectionName),
-	}
+	repo := mongodb.NewMongoDBRepository[billing_entities.Subscription](client, dbName, entityType, collectionName, "Subscription")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":              true,
@@ -68,7 +58,7 @@ func NewSubscriptionRepository(client *mongo.Client, dbName string, entityType b
 	})
 
 	return &SubscriptionRepository{
-		repo,
+		MongoDBRepository: *repo,
 	}
 }
 

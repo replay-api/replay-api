@@ -15,12 +15,12 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	replay_common "github.com/replay-api/replay-common/pkg/replay"
-	shared "github.com/resource-ownership/go-common/pkg/common"
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
 	matchmaking_in "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/in"
 	matchmaking_services "github.com/replay-api/replay-api/pkg/domain/matchmaking/services"
 	db "github.com/replay-api/replay-api/pkg/infra/db/mongodb"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // TestE2E_Glicko2RatingLifecycle tests the complete Glicko-2 rating lifecycle with real MongoDB
@@ -46,7 +46,7 @@ func TestE2E_Glicko2RatingLifecycle(t *testing.T) {
 	}()
 
 	// Initialize repository and service
-	ratingRepo := db.NewPlayerRatingMongoDBRepository(database)
+	ratingRepo := db.NewPlayerRatingMongoDBRepository(client, dbName)
 	ratingService := matchmaking_services.NewGlicko2RatingService(ratingRepo)
 
 	// Create test context with resource owner

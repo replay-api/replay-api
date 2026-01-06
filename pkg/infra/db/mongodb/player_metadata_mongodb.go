@@ -3,32 +3,22 @@ package db
 import (
 	"context"
 	"log/slog"
-	"reflect"
 
+	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	shared "github.com/resource-ownership/go-common/pkg/common"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type PlayerMetadataRepository struct {
-	MongoDBRepository[replay_entity.PlayerMetadata]
+	mongodb.MongoDBRepository[replay_entity.PlayerMetadata]
 }
 
 func NewPlayerMetadataRepository(client *mongo.Client, dbName string, entityType replay_entity.PlayerMetadata, collectionName string) *PlayerMetadataRepository {
-	repo := MongoDBRepository[replay_entity.PlayerMetadata]{
-		mongoClient:       client,
-		dbName:            dbName,
-		mappingCache:      make(map[string]CacheItem),
-		entityModel:       reflect.TypeOf(entityType),
-		BsonFieldMappings: make(map[string]string),
-		collectionName:    collectionName,
-		entityName:        reflect.TypeOf(entityType).Name(),
-		QueryableFields:   make(map[string]bool),
-		collection:        client.Database(dbName).Collection(collectionName),
-	}
+	repo := mongodb.NewMongoDBRepository[replay_entity.PlayerMetadata](client, dbName, entityType, collectionName, "PlayerMetadata")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":                 true,
@@ -57,7 +47,7 @@ func NewPlayerMetadataRepository(client *mongo.Client, dbName string, entityType
 	})
 
 	return &PlayerMetadataRepository{
-		repo,
+		MongoDBRepository: *repo,
 	}
 }
 
@@ -96,7 +86,7 @@ func (r *PlayerMetadataRepository) CreateMany(createCtx context.Context, events 
 		toInsert[i] = events[i]
 	}
 
-	_, err := r.collection.InsertMany(createCtx, toInsert)
+	_, err := r.MongoDBRepository.Collection().InsertMany(createCtx, toInsert)
 	if err != nil {
 		slog.ErrorContext(createCtx, err.Error())
 		return err
@@ -109,7 +99,7 @@ func (r *PlayerMetadataRepository) Create(createCtx context.Context, event repla
 	opts := options.Update().SetUpsert(true)
 	filter := bson.M{"_id": event.ID}
 	update := bson.M{"$set": event}
-	_, err := r.collection.UpdateOne(createCtx, filter, update, opts)
+	_, err := r.MongoDBRepository.Collection().UpdateOne(createCtx, filter, update, opts)
 	if err != nil {
 		slog.ErrorContext(createCtx, err.Error())
 		return err

@@ -10,22 +10,31 @@ import (
 	"github.com/gorilla/mux"
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
 	matchmaking_out "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/out"
+	matchmaking_services "github.com/replay-api/replay-api/pkg/domain/matchmaking/services"
 )
 
 type PrizePoolQueryController struct {
-	prizePoolRepo matchmaking_out.PrizePoolRepository
+	prizePoolRepo    matchmaking_out.PrizePoolRepository
+	prizePoolQuerySvc *matchmaking_services.PrizePoolQueryService
 }
 
 func NewPrizePoolQueryController(c container.Container) *PrizePoolQueryController {
 	var prizePoolRepo matchmaking_out.PrizePoolRepository
+	var prizePoolQuerySvc *matchmaking_services.PrizePoolQueryService
 
 	if err := c.Resolve(&prizePoolRepo); err != nil {
 		slog.Error("Failed to resolve PrizePoolRepository", "error", err)
 		panic(err)
 	}
 
+	if err := c.Resolve(&prizePoolQuerySvc); err != nil {
+		slog.Error("Failed to resolve PrizePoolQueryService", "error", err)
+		panic(err)
+	}
+
 	return &PrizePoolQueryController{
-		prizePoolRepo: prizePoolRepo,
+		prizePoolRepo:     prizePoolRepo,
+		prizePoolQuerySvc: prizePoolQuerySvc,
 	}
 }
 
@@ -174,7 +183,7 @@ func (c *PrizePoolQueryController) GetPendingDistributionsHandler(w http.Respons
 	// Default limit 100
 	limit := 100
 
-	pools, err := c.prizePoolRepo.FindPendingDistributions(r.Context(), limit)
+	pools, err := c.prizePoolQuerySvc.FindPendingDistributions(r.Context(), limit)
 	if err != nil {
 		slog.Error("GetPendingDistributionsHandler: error fetching pools", "error", err)
 		http.Error(w, "error fetching pending distributions", http.StatusInternalServerError)

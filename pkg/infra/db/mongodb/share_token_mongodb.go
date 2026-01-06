@@ -3,31 +3,22 @@ package db
 import (
 	"context"
 	"log/slog"
-	"reflect"
 	"time"
 
 	"github.com/google/uuid"
-	shared "github.com/resource-ownership/go-common/pkg/common"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
+	shared "github.com/resource-ownership/go-common/pkg/common"
+	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type ShareTokenRepository struct {
-	MongoDBRepository[replay_entity.ShareToken]
+	mongodb.MongoDBRepository[replay_entity.ShareToken]
 }
 
 func NewShareTokenRepository(client *mongo.Client, dbName string, entityType replay_entity.ShareToken, collectionName string) *ShareTokenRepository {
-	repo := MongoDBRepository[replay_entity.ShareToken]{
-		mongoClient:       client,
-		dbName:            dbName,
-		mappingCache:      make(map[string]CacheItem),
-		entityModel:       reflect.TypeOf(entityType),
-		BsonFieldMappings: make(map[string]string),
-		collectionName:    collectionName,
-		entityName:        reflect.TypeOf(entityType).Name(),
-		QueryableFields:   make(map[string]bool),
-	}
+	repo := mongodb.NewMongoDBRepository[replay_entity.ShareToken](client, dbName, entityType, collectionName, "ShareToken")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":            true,
@@ -54,7 +45,7 @@ func NewShareTokenRepository(client *mongo.Client, dbName string, entityType rep
 	})
 
 	return &ShareTokenRepository{
-		repo,
+		MongoDBRepository: *repo,
 	}
 }
 
@@ -95,7 +86,7 @@ func (r *ShareTokenRepository) Create(ctx context.Context, token *replay_entity.
 		token.Status = replay_entity.ShareTokenStatusActive
 	}
 
-	_, err := r.collection.InsertOne(ctx, token)
+	_, err := r.MongoDBRepository.Collection().InsertOne(ctx, token)
 	if err != nil {
 		slog.ErrorContext(ctx, "error creating share_token", "err", err)
 		return err
@@ -108,7 +99,7 @@ func (r *ShareTokenRepository) FindByToken(ctx context.Context, tokenID uuid.UUI
 	var token replay_entity.ShareToken
 
 	filter := bson.M{"token": tokenID}
-	err := r.collection.FindOne(ctx, filter).Decode(&token)
+	err := r.MongoDBRepository.Collection().FindOne(ctx, filter).Decode(&token)
 
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
@@ -127,7 +118,7 @@ func (r *ShareTokenRepository) Update(ctx context.Context, token *replay_entity.
 	filter := bson.M{"token": token.ID}
 	update := bson.M{"$set": token}
 
-	_, err := r.collection.UpdateOne(ctx, filter, update)
+	_, err := r.MongoDBRepository.Collection().UpdateOne(ctx, filter, update)
 	if err != nil {
 		slog.ErrorContext(ctx, "error updating share_token", "err", err, "token_id", token.ID)
 		return err
@@ -139,7 +130,7 @@ func (r *ShareTokenRepository) Update(ctx context.Context, token *replay_entity.
 func (r *ShareTokenRepository) Delete(ctx context.Context, tokenID uuid.UUID) error {
 	filter := bson.M{"token": tokenID}
 
-	_, err := r.collection.DeleteOne(ctx, filter)
+	_, err := r.MongoDBRepository.Collection().DeleteOne(ctx, filter)
 	if err != nil {
 		slog.ErrorContext(ctx, "error deleting share_token", "err", err, "token_id", tokenID)
 		return err
@@ -151,7 +142,7 @@ func (r *ShareTokenRepository) Delete(ctx context.Context, tokenID uuid.UUID) er
 func (r *ShareTokenRepository) FindByResourceID(ctx context.Context, resourceID uuid.UUID) ([]replay_entity.ShareToken, error) {
 	filter := bson.M{"resource_id": resourceID, "status": replay_entity.ShareTokenStatusActive}
 
-	cursor, err := r.collection.Find(ctx, filter)
+	cursor, err := r.MongoDBRepository.Collection().Find(ctx, filter)
 	if err != nil {
 		slog.ErrorContext(ctx, "error finding share_tokens by resource_id", "err", err, "resource_id", resourceID)
 		return nil, err
@@ -181,7 +172,7 @@ func (r *ShareTokenRepository) ExpireOldTokens(ctx context.Context) (int64, erro
 		},
 	}
 
-	result, err := r.collection.UpdateMany(ctx, filter, update)
+	result, err := r.MongoDBRepository.Collection().UpdateMany(ctx, filter, update)
 	if err != nil {
 		slog.ErrorContext(ctx, "error expiring old tokens", "err", err)
 		return 0, err

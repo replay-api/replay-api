@@ -3,30 +3,20 @@ package db
 import (
 	"context"
 	"log/slog"
-	"reflect"
 
+	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 	"go.mongodb.org/mongo-driver/mongo"
 
-	shared "github.com/resource-ownership/go-common/pkg/common"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type TeamRepository struct {
-	MongoDBRepository[replay_entity.Team]
+	mongodb.MongoDBRepository[replay_entity.Team]
 }
 
 func NewTeamRepository(client *mongo.Client, dbName string, entityType replay_entity.Team, collectionName string) *TeamRepository {
-	repo := MongoDBRepository[replay_entity.Team]{
-		mongoClient:       client,
-		dbName:            dbName,
-		mappingCache:      make(map[string]CacheItem),
-		entityModel:       reflect.TypeOf(entityType),
-		BsonFieldMappings: make(map[string]string),
-		collectionName:    collectionName,
-		entityName:        reflect.TypeOf(entityType).Name(),
-		QueryableFields:   make(map[string]bool),
-		collection:        client.Database(dbName).Collection(collectionName),
-	}
+	repo := mongodb.NewMongoDBRepository[replay_entity.Team](client, dbName, entityType, collectionName, "Team")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":                 true,
@@ -55,7 +45,7 @@ func NewTeamRepository(client *mongo.Client, dbName string, entityType replay_en
 	})
 
 	return &TeamRepository{
-		repo,
+		MongoDBRepository: *repo,
 	}
 }
 
@@ -94,7 +84,7 @@ func (r *TeamRepository) CreateMany(createCtx context.Context, events []replay_e
 		toInsert[i] = events[i]
 	}
 
-	_, err := r.collection.InsertMany(createCtx, toInsert)
+	_, err := r.MongoDBRepository.Collection().InsertMany(createCtx, toInsert)
 	if err != nil {
 		slog.ErrorContext(createCtx, err.Error())
 		return err

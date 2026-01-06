@@ -4,73 +4,35 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"reflect"
 	"time"
 
 	"github.com/google/uuid"
 	tournament_entities "github.com/replay-api/replay-api/pkg/domain/tournament/entities"
 	tournament_out "github.com/replay-api/replay-api/pkg/domain/tournament/ports/out"
+	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type MongoTournamentRepository struct {
-	*MongoDBRepository[*tournament_entities.Tournament]
+	mongodb.MongoDBRepository[tournament_entities.Tournament]
 }
 
 func NewMongoTournamentRepository(mongoClient *mongo.Client, dbName string) tournament_out.TournamentRepository {
-	mappingCache := make(map[string]CacheItem)
-	entityModel := reflect.TypeOf(tournament_entities.Tournament{})
-	repo := &MongoTournamentRepository{
-		MongoDBRepository: &MongoDBRepository[*tournament_entities.Tournament]{
-			mongoClient:       mongoClient,
-			dbName:            dbName,
-			mappingCache:      mappingCache,
-			entityModel:       entityModel,
-			collectionName:    "tournaments",
-			entityName:        "Tournament",
-			BsonFieldMappings: make(map[string]string),
-			QueryableFields:   make(map[string]bool),
-		},
-	}
+	entityType := tournament_entities.Tournament{}
+	repo := mongodb.NewMongoDBRepository[tournament_entities.Tournament](mongoClient, dbName, entityType, "tournaments", "Tournament")
 
-	// Define BSON field mappings
-	bsonFieldMappings := map[string]string{
-		"ID":                 "_id",
-		"Name":               "name",
-		"Description":        "description",
-		"GameID":             "game_id",
-		"GameMode":           "game_mode",
-		"Region":             "region",
-		"Format":             "format",
-		"MaxParticipants":    "max_participants",
-		"MinParticipants":    "min_participants",
-		"EntryFee":           "entry_fee",
-		"Currency":           "currency",
-		"PrizePool":          "prize_pool",
-		"Status":             "status",
-		"StartTime":          "start_time",
-		"EndTime":            "end_time",
-		"RegistrationOpen":   "registration_open",
-		"RegistrationClose":  "registration_close",
-		"Participants":       "participants",
-		"Matches":            "matches",
-		"Winners":            "winners",
-		"Rules":              "rules",
-		"OrganizerID":        "organizer_id",
-		"CreatedAt":          "created_at",
-		"UpdatedAt":          "updated_at",
-		"ResourceOwner":      "resource_owner",
-	}
-
-	// Define queryable fields for search operations
-	queryableFields := map[string]bool{
+	repo.InitQueryableFields(map[string]bool{
+		"ID":                true,
 		"Name":              true,
+		"Description":       true,
 		"GameID":            true,
 		"GameMode":          true,
 		"Region":            true,
 		"Format":            true,
+		"MaxParticipants":   true,
+		"MinParticipants":   true,
 		"Status":            true,
 		"StartTime":         true,
 		"EndTime":           true,
@@ -79,11 +41,29 @@ func NewMongoTournamentRepository(mongoClient *mongo.Client, dbName string) tour
 		"OrganizerID":       true,
 		"CreatedAt":         true,
 		"UpdatedAt":         true,
+	}, map[string]string{
+		"ID":                "_id",
+		"Name":              "name",
+		"Description":       "description",
+		"GameID":            "game_id",
+		"GameMode":          "game_mode",
+		"Region":            "region",
+		"Format":            "format",
+		"MaxParticipants":   "max_participants",
+		"MinParticipants":   "min_participants",
+		"Status":            "status",
+		"StartTime":         "start_time",
+		"EndTime":           "end_time",
+		"RegistrationOpen":  "registration_open",
+		"RegistrationClose": "registration_close",
+		"OrganizerID":       "organizer_id",
+		"CreatedAt":         "created_at",
+		"UpdatedAt":         "updated_at",
+	})
+
+	return &MongoTournamentRepository{
+		MongoDBRepository: *repo,
 	}
-
-	repo.InitQueryableFields(queryableFields, bsonFieldMappings)
-
-	return repo
 }
 
 func (r *MongoTournamentRepository) Save(ctx context.Context, tournament *tournament_entities.Tournament) error {
@@ -93,7 +73,7 @@ func (r *MongoTournamentRepository) Save(ctx context.Context, tournament *tourna
 
 	tournament.UpdatedAt = time.Now().UTC()
 
-	_, err := r.collection.InsertOne(ctx, tournament)
+	_, err := r.MongoDBRepository.Collection().InsertOne(ctx, tournament)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to save tournament", "tournament_id", tournament.ID, "error", err)
 		return fmt.Errorf("failed to save tournament: %w", err)
@@ -107,7 +87,7 @@ func (r *MongoTournamentRepository) FindByID(ctx context.Context, id uuid.UUID) 
 	var tournament tournament_entities.Tournament
 
 	filter := bson.M{"_id": id}
-	err := r.collection.FindOne(ctx, filter).Decode(&tournament)
+	err := r.MongoDBRepository.Collection().FindOne(ctx, filter).Decode(&tournament)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, fmt.Errorf("tournament not found: %s", id)
@@ -119,11 +99,16 @@ func (r *MongoTournamentRepository) FindByID(ctx context.Context, id uuid.UUID) 
 	return &tournament, nil
 }
 
+// GetByID implements the Searchable interface
+func (r *MongoTournamentRepository) GetByID(ctx context.Context, id uuid.UUID) (*tournament_entities.Tournament, error) {
+	return r.FindByID(ctx, id)
+}
+
 func (r *MongoTournamentRepository) FindByOrganizer(ctx context.Context, organizerID uuid.UUID) ([]*tournament_entities.Tournament, error) {
 	filter := bson.M{"organizer_id": organizerID}
 	findOptions := options.Find().SetSort(bson.D{{Key: "start_time", Value: -1}})
 
-	cursor, err := r.collection.Find(ctx, filter, findOptions)
+	cursor, err := r.MongoDBRepository.Collection().Find(ctx, filter, findOptions)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to find tournaments by organizer", "organizer_id", organizerID, "error", err)
 		return nil, fmt.Errorf("failed to find tournaments: %w", err)
@@ -161,7 +146,7 @@ func (r *MongoTournamentRepository) FindByGameAndRegion(ctx context.Context, gam
 		findOptions.SetLimit(int64(limit))
 	}
 
-	cursor, err := r.collection.Find(ctx, filter, findOptions)
+	cursor, err := r.MongoDBRepository.Collection().Find(ctx, filter, findOptions)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to find tournaments", "game_id", gameID, "region", region, "error", err)
 		return nil, fmt.Errorf("failed to find tournaments: %w", err)
@@ -199,7 +184,7 @@ func (r *MongoTournamentRepository) FindUpcoming(ctx context.Context, gameID str
 		findOptions.SetLimit(int64(limit))
 	}
 
-	cursor, err := r.collection.Find(ctx, filter, findOptions)
+	cursor, err := r.MongoDBRepository.Collection().Find(ctx, filter, findOptions)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to find upcoming tournaments", "game_id", gameID, "error", err)
 		return nil, fmt.Errorf("failed to find upcoming tournaments: %w", err)
@@ -230,7 +215,7 @@ func (r *MongoTournamentRepository) FindInProgress(ctx context.Context, limit in
 		findOptions.SetLimit(int64(limit))
 	}
 
-	cursor, err := r.collection.Find(ctx, filter, findOptions)
+	cursor, err := r.MongoDBRepository.Collection().Find(ctx, filter, findOptions)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to find in-progress tournaments", "error", err)
 		return nil, fmt.Errorf("failed to find in-progress tournaments: %w", err)
@@ -261,7 +246,7 @@ func (r *MongoTournamentRepository) Update(ctx context.Context, tournament *tour
 	filter := bson.M{"_id": tournament.ID}
 	update := bson.M{"$set": tournament}
 
-	result, err := r.collection.UpdateOne(ctx, filter, update)
+	result, err := r.MongoDBRepository.Collection().UpdateOne(ctx, filter, update)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update tournament", "tournament_id", tournament.ID, "error", err)
 		return fmt.Errorf("failed to update tournament: %w", err)
@@ -278,7 +263,7 @@ func (r *MongoTournamentRepository) Update(ctx context.Context, tournament *tour
 func (r *MongoTournamentRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	filter := bson.M{"_id": id}
 
-	result, err := r.collection.DeleteOne(ctx, filter)
+	result, err := r.MongoDBRepository.Collection().DeleteOne(ctx, filter)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete tournament", "id", id, "error", err)
 		return fmt.Errorf("failed to delete tournament: %w", err)
@@ -303,7 +288,7 @@ func (r *MongoTournamentRepository) FindPlayerTournaments(ctx context.Context, p
 
 	findOptions := options.Find().SetSort(bson.D{{Key: "start_time", Value: -1}})
 
-	cursor, err := r.collection.Find(ctx, filter, findOptions)
+	cursor, err := r.MongoDBRepository.Collection().Find(ctx, filter, findOptions)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to find player tournaments", "player_id", playerID, "error", err)
 		return nil, fmt.Errorf("failed to find player tournaments: %w", err)

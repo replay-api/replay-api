@@ -2,7 +2,6 @@ package wallet_usecases_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -10,6 +9,7 @@ import (
 	shared "github.com/resource-ownership/go-common/pkg/common"
 	wallet_entities "github.com/replay-api/replay-api/pkg/domain/wallet/entities"
 	wallet_in "github.com/replay-api/replay-api/pkg/domain/wallet/ports/in"
+	wallet_services "github.com/replay-api/replay-api/pkg/domain/wallet/services"
 	wallet_usecases "github.com/replay-api/replay-api/pkg/domain/wallet/usecases"
 	wallet_vo "github.com/replay-api/replay-api/pkg/domain/wallet/value-objects"
 	"github.com/stretchr/testify/assert"
@@ -60,6 +60,27 @@ func (m *MockWalletRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	return args.Error(0)
 }
 
+func (m *MockWalletRepository) GetByID(ctx context.Context, id uuid.UUID) (*wallet_entities.UserWallet, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*wallet_entities.UserWallet), args.Error(1)
+}
+
+func (m *MockWalletRepository) Search(ctx context.Context, s shared.Search) ([]wallet_entities.UserWallet, error) {
+	args := m.Called(ctx, s)
+	return args.Get(0).([]wallet_entities.UserWallet), args.Error(1)
+}
+
+func (m *MockWalletRepository) Compile(ctx context.Context, searchParams []shared.SearchAggregation, resultOptions shared.SearchResultOptions) (*shared.Search, error) {
+	args := m.Called(ctx, searchParams, resultOptions)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*shared.Search), args.Error(1)
+}
+
 func createTestEVMAddress() wallet_vo.EVMAddress {
 	addr, _ := wallet_vo.NewEVMAddress("0x1234567890123456789012345678901234567890")
 	return addr
@@ -67,7 +88,8 @@ func createTestEVMAddress() wallet_vo.EVMAddress {
 
 func TestGetWalletBalance_Success(t *testing.T) {
 	mockWalletRepo := new(MockWalletRepository)
-	usecase := wallet_usecases.NewGetWalletBalanceUseCase(mockWalletRepo)
+	walletQuerySvc := wallet_services.NewWalletQueryService(mockWalletRepo)
+	usecase := wallet_usecases.NewGetWalletBalanceUseCase(walletQuerySvc)
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
@@ -94,7 +116,7 @@ func TestGetWalletBalance_Success(t *testing.T) {
 		IsLocked:       false,
 	}
 
-	mockWalletRepo.On("FindByUserID", mock.Anything, userID).Return(testWallet, nil)
+	mockWalletRepo.On("Search", mock.Anything, mock.AnythingOfType("shared.Search")).Return([]wallet_entities.UserWallet{*testWallet}, nil)
 
 	query := wallet_in.GetWalletBalanceQuery{
 		UserID: userID,
@@ -117,7 +139,8 @@ func TestGetWalletBalance_Success(t *testing.T) {
 
 func TestGetWalletBalance_Unauthenticated(t *testing.T) {
 	mockWalletRepo := new(MockWalletRepository)
-	usecase := wallet_usecases.NewGetWalletBalanceUseCase(mockWalletRepo)
+	walletQuerySvc := wallet_services.NewWalletQueryService(mockWalletRepo)
+	usecase := wallet_usecases.NewGetWalletBalanceUseCase(walletQuerySvc)
 
 	ctx := context.Background()
 	// No authentication context
@@ -135,7 +158,8 @@ func TestGetWalletBalance_Unauthenticated(t *testing.T) {
 
 func TestGetWalletBalance_InvalidQuery(t *testing.T) {
 	mockWalletRepo := new(MockWalletRepository)
-	usecase := wallet_usecases.NewGetWalletBalanceUseCase(mockWalletRepo)
+	walletQuerySvc := wallet_services.NewWalletQueryService(mockWalletRepo)
+	usecase := wallet_usecases.NewGetWalletBalanceUseCase(walletQuerySvc)
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
@@ -153,7 +177,8 @@ func TestGetWalletBalance_InvalidQuery(t *testing.T) {
 
 func TestGetWalletBalance_WalletNotFound_ReturnsDefault(t *testing.T) {
 	mockWalletRepo := new(MockWalletRepository)
-	usecase := wallet_usecases.NewGetWalletBalanceUseCase(mockWalletRepo)
+	walletQuerySvc := wallet_services.NewWalletQueryService(mockWalletRepo)
+	usecase := wallet_usecases.NewGetWalletBalanceUseCase(walletQuerySvc)
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
@@ -161,7 +186,7 @@ func TestGetWalletBalance_WalletNotFound_ReturnsDefault(t *testing.T) {
 	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
 
 	// Wallet not found
-	mockWalletRepo.On("FindByUserID", mock.Anything, userID).Return(nil, errors.New("wallet not found"))
+	mockWalletRepo.On("Search", mock.Anything, mock.AnythingOfType("shared.Search")).Return([]wallet_entities.UserWallet{}, nil)
 
 	query := wallet_in.GetWalletBalanceQuery{
 		UserID: userID,
@@ -181,7 +206,8 @@ func TestGetWalletBalance_WalletNotFound_ReturnsDefault(t *testing.T) {
 
 func TestGetWalletBalance_LockedWallet(t *testing.T) {
 	mockWalletRepo := new(MockWalletRepository)
-	usecase := wallet_usecases.NewGetWalletBalanceUseCase(mockWalletRepo)
+	walletQuerySvc := wallet_services.NewWalletQueryService(mockWalletRepo)
+	usecase := wallet_usecases.NewGetWalletBalanceUseCase(walletQuerySvc)
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
@@ -208,7 +234,7 @@ func TestGetWalletBalance_LockedWallet(t *testing.T) {
 		LockReason:     "Fraud investigation",
 	}
 
-	mockWalletRepo.On("FindByUserID", mock.Anything, userID).Return(testWallet, nil)
+	mockWalletRepo.On("Search", mock.Anything, mock.AnythingOfType("shared.Search")).Return([]wallet_entities.UserWallet{*testWallet}, nil)
 
 	query := wallet_in.GetWalletBalanceQuery{
 		UserID: userID,

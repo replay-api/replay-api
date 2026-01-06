@@ -3,31 +3,21 @@ package db
 import (
 	"context"
 	"log/slog"
-	"reflect"
 
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/mongo"
 
-	shared "github.com/resource-ownership/go-common/pkg/common"
 	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
+	shared "github.com/resource-ownership/go-common/pkg/common"
+	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 )
 
 type PlayerProfileRepository struct {
-	MongoDBRepository[squad_entities.PlayerProfile]
+	mongodb.MongoDBRepository[squad_entities.PlayerProfile]
 }
 
 func NewPlayerProfileRepository(client *mongo.Client, dbName string, entityType squad_entities.PlayerProfile, collectionName string) *PlayerProfileRepository {
-	repo := MongoDBRepository[squad_entities.PlayerProfile]{
-		mongoClient:       client,
-		dbName:            dbName,
-		mappingCache:      make(map[string]CacheItem),
-		entityModel:       reflect.TypeOf(entityType),
-		BsonFieldMappings: make(map[string]string),
-		collectionName:    collectionName,
-		entityName:        reflect.TypeOf(entityType).Name(),
-		QueryableFields:   make(map[string]bool),
-		collection:        client.Database(dbName).Collection(collectionName),
-	}
+	repo := mongodb.NewMongoDBRepository[squad_entities.PlayerProfile](client, dbName, entityType, collectionName, "PlayerProfile")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":              true,
@@ -62,45 +52,35 @@ func NewPlayerProfileRepository(client *mongo.Client, dbName string, entityType 
 	})
 
 	return &PlayerProfileRepository{
-		repo,
+		MongoDBRepository: *repo,
 	}
 }
 
 func (r *PlayerProfileRepository) Search(ctx context.Context, s shared.Search) ([]squad_entities.PlayerProfile, error) {
-	cursor, err := r.Query(ctx, s)
-	if cursor != nil {
-		defer cursor.Close(ctx)
-	}
+	return r.MongoDBRepository.Search(ctx, s)
+}
 
-	if err != nil {
-		slog.ErrorContext(ctx, "error querying player profile entity", "err", err)
-		return nil, err
-	}
+func (r *PlayerProfileRepository) GetByID(ctx context.Context, id uuid.UUID) (*squad_entities.PlayerProfile, error) {
+	return r.MongoDBRepository.GetByID(ctx, id)
+}
 
-	players := make([]squad_entities.PlayerProfile, 0)
+func (r *PlayerProfileRepository) Compile(ctx context.Context, searchParams []shared.SearchAggregation, resultOptions shared.SearchResultOptions) (*shared.Search, error) {
+	return r.MongoDBRepository.Compile(ctx, searchParams, resultOptions)
+}
 
-	for cursor.Next(ctx) {
-		var p squad_entities.PlayerProfile
-		err := cursor.Decode(&p)
+func (r *PlayerProfileRepository) Create(ctx context.Context, profile *squad_entities.PlayerProfile) (*squad_entities.PlayerProfile, error) {
+	return r.MongoDBRepository.Create(ctx, profile)
+}
 
-		if err != nil {
-			slog.ErrorContext(ctx, "error decoding player profile entity", "err", err)
-			return nil, err
-		}
-
-		players = append(players, p)
-	}
-
-	slog.InfoContext(ctx, "player profile entity search successful", "players", players)
-
-	return players, nil
+func (r *PlayerProfileRepository) CreateMany(ctx context.Context, profiles []*squad_entities.PlayerProfile) error {
+	return r.MongoDBRepository.CreateMany(ctx, profiles)
 }
 
 func (r *PlayerProfileRepository) Update(ctx context.Context, profile *squad_entities.PlayerProfile) (*squad_entities.PlayerProfile, error) {
 	filter := map[string]interface{}{"baseentity._id": profile.ID}
 	update := map[string]interface{}{"$set": profile}
 
-	_, err := r.collection.UpdateOne(ctx, filter, update)
+	_, err := r.UpdateOne(ctx, filter, update)
 	if err != nil {
 		slog.ErrorContext(ctx, "error updating player profile", "err", err, "profile_id", profile.ID)
 		return nil, err
@@ -112,7 +92,7 @@ func (r *PlayerProfileRepository) Update(ctx context.Context, profile *squad_ent
 func (r *PlayerProfileRepository) Delete(ctx context.Context, profileID uuid.UUID) error {
 	filter := map[string]interface{}{"baseentity._id": profileID}
 
-	result, err := r.collection.DeleteOne(ctx, filter)
+	result, err := r.DeleteOne(ctx, filter)
 	if err != nil {
 		slog.ErrorContext(ctx, "error deleting player profile", "err", err, "profile_id", profileID)
 		return err

@@ -1,27 +1,17 @@
 package db
 
 import (
-	"reflect"
-
 	google_entities "github.com/replay-api/replay-api/pkg/domain/google/entities"
+	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type GoogleUserRepository struct {
-	MongoDBRepository[google_entities.GoogleUser]
+	mongodb.MongoDBRepository[google_entities.GoogleUser]
 }
 
 func NewGoogleUserMongoDBRepository(client *mongo.Client, dbName string, entityType google_entities.GoogleUser, collectionName string) *GoogleUserRepository {
-	repo := MongoDBRepository[google_entities.GoogleUser]{
-		mongoClient:       client,
-		dbName:            dbName,
-		mappingCache:      make(map[string]CacheItem),
-		entityModel:       reflect.TypeOf(entityType),
-		BsonFieldMappings: make(map[string]string),
-		collectionName:    collectionName,
-		entityName:        reflect.TypeOf(entityType).Name(),
-		QueryableFields:   make(map[string]bool),
-	}
+	repo := mongodb.NewMongoDBRepository[google_entities.GoogleUser](client, dbName, entityType, collectionName, "GoogleUser")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":            true,
@@ -52,6 +42,6 @@ func NewGoogleUserMongoDBRepository(client *mongo.Client, dbName string, entityT
 	})
 
 	return &GoogleUserRepository{
-		repo,
+		MongoDBRepository: *repo,
 	}
 }

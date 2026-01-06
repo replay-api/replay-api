@@ -18,17 +18,20 @@ import (
 // All wallet operations are recorded in an immutable ledger for audit compliance
 // Uses transaction coordinator for atomic operations with automatic rollback
 type WalletService struct {
-	walletRepo  wallet_out.WalletRepository
-	coordinator *TransactionCoordinator
+	walletRepo     wallet_out.WalletRepository
+	walletQuerySvc *WalletQueryService
+	coordinator    *TransactionCoordinator
 }
 
 func NewWalletService(
 	walletRepo wallet_out.WalletRepository,
+	walletQuerySvc *WalletQueryService,
 	coordinator *TransactionCoordinator,
 ) wallet_in.WalletCommand {
 	return &WalletService{
-		walletRepo:  walletRepo,
-		coordinator: coordinator,
+		walletRepo:     walletRepo,
+		walletQuerySvc: walletQuerySvc,
+		coordinator:    coordinator,
 	}
 }
 
@@ -52,7 +55,7 @@ func (s *WalletService) CreateWallet(ctx context.Context, cmd wallet_in.CreateWa
 }
 
 func (s *WalletService) Deposit(ctx context.Context, cmd wallet_in.DepositCommand) error {
-	wallet, err := s.walletRepo.FindByUserID(ctx, cmd.UserID)
+	wallet, err := s.walletQuerySvc.FindByUserID(ctx, cmd.UserID)
 	if err != nil {
 		return fmt.Errorf("wallet not found: %w", err)
 	}
@@ -98,7 +101,7 @@ func (s *WalletService) Deposit(ctx context.Context, cmd wallet_in.DepositComman
 }
 
 func (s *WalletService) Withdraw(ctx context.Context, cmd wallet_in.WithdrawCommand) error {
-	wallet, err := s.walletRepo.FindByUserID(ctx, cmd.UserID)
+	wallet, err := s.walletQuerySvc.FindByUserID(ctx, cmd.UserID)
 	if err != nil {
 		return fmt.Errorf("wallet not found: %w", err)
 	}
@@ -138,7 +141,7 @@ func (s *WalletService) Withdraw(ctx context.Context, cmd wallet_in.WithdrawComm
 }
 
 func (s *WalletService) DeductEntryFee(ctx context.Context, cmd wallet_in.DeductEntryFeeCommand) error {
-	wallet, err := s.walletRepo.FindByUserID(ctx, cmd.UserID)
+	wallet, err := s.walletQuerySvc.FindByUserID(ctx, cmd.UserID)
 	if err != nil {
 		return fmt.Errorf("wallet not found: %w", err)
 	}
@@ -178,7 +181,7 @@ func (s *WalletService) DeductEntryFee(ctx context.Context, cmd wallet_in.Deduct
 }
 
 func (s *WalletService) AddPrize(ctx context.Context, cmd wallet_in.AddPrizeCommand) error {
-	wallet, err := s.walletRepo.FindByUserID(ctx, cmd.UserID)
+	wallet, err := s.walletQuerySvc.FindByUserID(ctx, cmd.UserID)
 	if err != nil {
 		return fmt.Errorf("wallet not found: %w", err)
 	}
@@ -220,7 +223,7 @@ func (s *WalletService) AddPrize(ctx context.Context, cmd wallet_in.AddPrizeComm
 }
 
 func (s *WalletService) Refund(ctx context.Context, cmd wallet_in.RefundCommand) error {
-	wallet, err := s.walletRepo.FindByUserID(ctx, cmd.UserID)
+	wallet, err := s.walletQuerySvc.FindByUserID(ctx, cmd.UserID)
 	if err != nil {
 		return fmt.Errorf("wallet not found: %w", err)
 	}
@@ -279,7 +282,7 @@ func (s *WalletService) Refund(ctx context.Context, cmd wallet_in.RefundCommand)
 
 // DebitWallet debits an amount from the user's wallet
 func (s *WalletService) DebitWallet(ctx context.Context, cmd wallet_in.DebitWalletCommand) (*wallet_entities.WalletTransaction, error) {
-	wallet, err := s.walletRepo.FindByUserID(ctx, cmd.UserID)
+	wallet, err := s.walletQuerySvc.FindByUserID(ctx, cmd.UserID)
 	if err != nil {
 		return nil, fmt.Errorf("wallet not found: %w", err)
 	}
@@ -330,7 +333,7 @@ func (s *WalletService) DebitWallet(ctx context.Context, cmd wallet_in.DebitWall
 
 // CreditWallet credits an amount to the user's wallet
 func (s *WalletService) CreditWallet(ctx context.Context, cmd wallet_in.CreditWalletCommand) (*wallet_entities.WalletTransaction, error) {
-	wallet, err := s.walletRepo.FindByUserID(ctx, cmd.UserID)
+	wallet, err := s.walletQuerySvc.FindByUserID(ctx, cmd.UserID)
 	if err != nil {
 		return nil, fmt.Errorf("wallet not found: %w", err)
 	}

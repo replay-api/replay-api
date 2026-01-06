@@ -7,26 +7,30 @@ import (
 
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
 	matchmaking_out "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/out"
+	matchmaking_services "github.com/replay-api/replay-api/pkg/domain/matchmaking/services"
 	wallet_in "github.com/replay-api/replay-api/pkg/domain/wallet/ports/in"
 )
 
 type PrizeDistributionJob struct {
-	prizePoolRepo matchmaking_out.PrizePoolRepository
-	walletCommand wallet_in.WalletCommand
-	ticker        *time.Ticker
-	interval      time.Duration
+	prizePoolRepo    matchmaking_out.PrizePoolRepository
+	prizePoolQuerySvc *matchmaking_services.PrizePoolQueryService
+	walletCommand     wallet_in.WalletCommand
+	ticker            *time.Ticker
+	interval          time.Duration
 }
 
 func NewPrizeDistributionJob(
 	poolRepo matchmaking_out.PrizePoolRepository,
+	poolQuerySvc *matchmaking_services.PrizePoolQueryService,
 	walletCmd wallet_in.WalletCommand,
 	interval time.Duration,
 ) *PrizeDistributionJob {
 	return &PrizeDistributionJob{
-		prizePoolRepo: poolRepo,
-		walletCommand: walletCmd,
-		ticker:        time.NewTicker(interval),
-		interval:      interval,
+		prizePoolRepo:     poolRepo,
+		prizePoolQuerySvc: poolQuerySvc,
+		walletCommand:     walletCmd,
+		ticker:            time.NewTicker(interval),
+		interval:          interval,
 	}
 }
 
@@ -51,7 +55,7 @@ func (j *PrizeDistributionJob) Run(ctx context.Context) {
 func (j *PrizeDistributionJob) processPendingDistributions(ctx context.Context) {
 	slog.InfoContext(ctx, "Processing pending prize distributions")
 
-	pools, err := j.prizePoolRepo.FindPendingDistributions(ctx, 100)
+	pools, err := j.prizePoolQuerySvc.FindPendingDistributions(ctx, 100)
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to find pending distributions", "error", err)
 		return
@@ -123,7 +127,7 @@ func (j *PrizeDistributionJob) distributePool(ctx context.Context, pool *matchma
 		now := time.Now().UTC()
 		pool.DistributedAt = &now
 
-		if err := j.prizePoolRepo.Update(ctx, pool); err != nil {
+		if err := j.prizePoolRepo.UpdateUnsafe(ctx, pool); err != nil {
 			slog.ErrorContext(ctx, "Failed to update pool status to distributed", "pool_id", pool.ID, "error", err)
 			return err
 		}
@@ -131,7 +135,7 @@ func (j *PrizeDistributionJob) distributePool(ctx context.Context, pool *matchma
 		slog.InfoContext(ctx, "Prize pool fully distributed", "pool_id", pool.ID, "match_id", pool.MatchID, "winner_count", successCount, "total_amount", pool.TotalAmount.String())
 	} else {
 		// Partial distribution - update winners but keep status as in_escrow for retry
-		if err := j.prizePoolRepo.Update(ctx, pool); err != nil {
+		if err := j.prizePoolRepo.UpdateUnsafe(ctx, pool); err != nil {
 			slog.ErrorContext(ctx, "Failed to update pool with partial distribution", "pool_id", pool.ID, "error", err)
 			return err
 		}

@@ -19,9 +19,9 @@ import (
 	tournament_entities "github.com/replay-api/replay-api/pkg/domain/tournament/entities"
 	wallet_entities "github.com/replay-api/replay-api/pkg/domain/wallet/entities"
 	wallet_vo "github.com/replay-api/replay-api/pkg/domain/wallet/value-objects"
-	db "github.com/replay-api/replay-api/pkg/infra/db/mongodb"
 	replay_common "github.com/replay-api/replay-common/pkg/replay"
 	shared "github.com/resource-ownership/go-common/pkg/common"
+	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 )
 
 // ==========================================
@@ -532,7 +532,7 @@ func main() {
 	slog.Info("Connecting to MongoDB", "uri", mongoURI[:30]+"...", "db", dbName)
 
 	// Connect to MongoDB with UUID registry for proper serialization
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoURI).SetRegistry(db.MongoRegistry))
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoURI).SetRegistry(mongodb.MongoRegistry))
 	if err != nil {
 		slog.Error("Failed to connect to MongoDB", "error", err)
 		os.Exit(1)

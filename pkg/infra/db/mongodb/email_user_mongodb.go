@@ -1,27 +1,17 @@
 package db
 
 import (
-	"reflect"
-
 	email_entities "github.com/replay-api/replay-api/pkg/domain/email/entities"
+	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type EmailUserRepository struct {
-	MongoDBRepository[email_entities.EmailUser]
+	mongodb.MongoDBRepository[email_entities.EmailUser]
 }
 
 func NewEmailUserMongoDBRepository(client *mongo.Client, dbName string, entityType email_entities.EmailUser, collectionName string) *EmailUserRepository {
-	repo := MongoDBRepository[email_entities.EmailUser]{
-		mongoClient:       client,
-		dbName:            dbName,
-		mappingCache:      make(map[string]CacheItem),
-		entityModel:       reflect.TypeOf(entityType),
-		BsonFieldMappings: make(map[string]string),
-		collectionName:    collectionName,
-		entityName:        reflect.TypeOf(entityType).Name(),
-		QueryableFields:   make(map[string]bool),
-	}
+	repo := mongodb.NewMongoDBRepository[email_entities.EmailUser](client, dbName, entityType, collectionName, "EmailUser")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":            true,
@@ -44,6 +34,6 @@ func NewEmailUserMongoDBRepository(client *mongo.Client, dbName string, entityTy
 	})
 
 	return &EmailUserRepository{
-		repo,
+		MongoDBRepository: *repo,
 	}
 }

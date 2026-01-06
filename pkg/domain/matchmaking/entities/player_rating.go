@@ -90,7 +90,7 @@ func NewPlayerRating(playerID uuid.UUID, gameID replay_common.GameIDKey, resourc
 	}
 }
 
-func (r *PlayerRating) GetID() uuid.UUID {
+func (r PlayerRating) GetID() uuid.UUID {
 	return r.ID
 }
 

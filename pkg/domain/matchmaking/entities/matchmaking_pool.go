@@ -18,6 +18,11 @@ type MatchmakingPool struct {
 	UpdatedAt      time.Time              `json:"updated_at" bson:"updated_at"`
 }
 
+// GetID returns the matchmaking pool ID
+func (p MatchmakingPool) GetID() uuid.UUID {
+	return p.ID
+}
+
 // PoolStatistics tracks real-time pool metrics
 type PoolStatistics struct {
 	TotalPlayers      int                         `json:"total_players" bson:"total_players"`
@@ -26,10 +31,6 @@ type PoolStatistics struct {
 	PlayersBySkill    map[string]int              `json:"players_by_skill" bson:"players_by_skill"` // MMR ranges
 	EstimatedMatchTime int                        `json:"estimated_match_time_seconds" bson:"estimated_match_time_seconds"`
 	MatchesLast24h    int                         `json:"matches_last_24h" bson:"matches_last_24h"`
-}
-
-func (p *MatchmakingPool) GetID() uuid.UUID {
-	return p.ID
 }
 
 // PoolSnapshot represents a point-in-time view of the pool

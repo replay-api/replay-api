@@ -47,6 +47,11 @@ type Achievement struct {
 	UpdatedAt   time.Time           `json:"updated_at" bson:"updated_at"`
 }
 
+// GetID returns the achievement ID
+func (a Achievement) GetID() uuid.UUID {
+	return a.ID
+}
+
 // AchievementCriteria defines the unlock criteria
 type AchievementCriteria struct {
 	Type       string                 `json:"type" bson:"type"`               // e.g., "count", "streak", "unique"
@@ -71,6 +76,11 @@ type PlayerAchievement struct {
 // IsUnlocked returns true if the achievement has been unlocked
 func (pa *PlayerAchievement) IsUnlocked() bool {
 	return pa.UnlockedAt != nil
+}
+
+// GetID returns the player achievement ID
+func (pa PlayerAchievement) GetID() uuid.UUID {
+	return pa.ID
 }
 
 // GetProgressPercentage returns the progress as a percentage

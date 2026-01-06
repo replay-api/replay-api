@@ -2,30 +2,20 @@ package db
 
 import (
 	"context"
-	"log/slog"
-	"reflect"
 
 	"go.mongodb.org/mongo-driver/mongo"
 
-	shared "github.com/resource-ownership/go-common/pkg/common"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
+	shared "github.com/resource-ownership/go-common/pkg/common"
+	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 )
 
 type BadgeRepository struct {
-	MongoDBRepository[replay_entity.Badge]
+	mongodb.MongoDBRepository[replay_entity.Badge]
 }
 
 func NewBadgeRepository(client *mongo.Client, dbName string, entityType replay_entity.Badge, collectionName string) *BadgeRepository {
-	repo := MongoDBRepository[replay_entity.Badge]{
-		mongoClient:       client,
-		dbName:            dbName,
-		mappingCache:      make(map[string]CacheItem),
-		entityModel:       reflect.TypeOf(entityType),
-		BsonFieldMappings: make(map[string]string),
-		collectionName:    collectionName,
-		entityName:        reflect.TypeOf(entityType).Name(),
-		QueryableFields:   make(map[string]bool),
-	}
+	repo := mongodb.NewMongoDBRepository[replay_entity.Badge](client, dbName, entityType, collectionName, "Badge")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":            true,
@@ -57,52 +47,18 @@ func NewBadgeRepository(client *mongo.Client, dbName string, entityType replay_e
 	})
 
 	return &BadgeRepository{
-		repo,
+		MongoDBRepository: *repo,
 	}
 }
 
 func (r *BadgeRepository) Search(ctx context.Context, s shared.Search) ([]replay_entity.Badge, error) {
-	cursor, err := r.Query(ctx, s)
-	if cursor != nil {
-		defer cursor.Close(ctx)
-	}
-
-	if err != nil {
-		slog.ErrorContext(ctx, "error querying Badge entity", "err", err)
-		return nil, err
-	}
-
-	Badges := make([]replay_entity.Badge, 0)
-
-	for cursor.Next(ctx) {
-		var p replay_entity.Badge
-		err := cursor.Decode(&p)
-
-		if err != nil {
-			slog.ErrorContext(ctx, "error decoding Badge entity", "err", err)
-			return nil, err
-		}
-
-		Badges = append(Badges, p)
-	}
-
-	return Badges, nil
+	return r.MongoDBRepository.Search(ctx, s)
 }
 
 func (r *BadgeRepository) CreateMany(createCtx context.Context, events []replay_entity.Badge) error {
-	collection := r.mongoClient.Database(r.dbName).Collection(r.collectionName)
-
-	toInsert := make([]interface{}, len(events))
-
+	pointers := make([]*replay_entity.Badge, len(events))
 	for i := range events {
-		toInsert[i] = events[i]
+		pointers[i] = &events[i]
 	}
-
-	_, err := collection.InsertMany(createCtx, toInsert)
-	if err != nil {
-		slog.ErrorContext(createCtx, err.Error())
-		return err
-	}
-
-	return nil
+	return r.MongoDBRepository.CreateMany(createCtx, pointers)
 }

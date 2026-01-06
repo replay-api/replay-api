@@ -3,10 +3,10 @@ package db
 import (
 	"context"
 	"log/slog"
-	"reflect"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 
@@ -14,21 +14,12 @@ import (
 )
 
 type RIDTokenRepository struct {
-	MongoDBRepository[iam_entity.RIDToken]
+	mongodb.MongoDBRepository[iam_entity.RIDToken]
 }
 
 func NewRIDTokenRepository(client *mongo.Client, dbName string, entityType iam_entity.RIDToken, collectionName string) *RIDTokenRepository {
 	// TODO: create Factory for encapsulating this and reducing bloat/repetition of some fields like queryableFields, mappingCache.. this needs a facade for a clearer instantiation
-	repo := MongoDBRepository[iam_entity.RIDToken]{
-		mongoClient:       client,
-		dbName:            dbName,
-		mappingCache:      make(map[string]CacheItem),
-		entityModel:       reflect.TypeOf(entityType),
-		BsonFieldMappings: make(map[string]string),
-		collectionName:    collectionName,
-		entityName:        reflect.TypeOf(entityType).Name(),
-		QueryableFields:   make(map[string]bool),
-	}
+	repo := mongodb.NewMongoDBRepository[iam_entity.RIDToken](client, dbName, entityType, collectionName, "RIDToken")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":            true,
@@ -55,7 +46,7 @@ func NewRIDTokenRepository(client *mongo.Client, dbName string, entityType iam_e
 	})
 
 	return &RIDTokenRepository{
-		repo,
+		MongoDBRepository: *repo,
 	}
 }
 
@@ -67,7 +58,7 @@ func (r *RIDTokenRepository) Delete(ctx context.Context, tokenID string) error {
 		return err
 	}
 
-	collection := r.mongoClient.Database(r.dbName).Collection(r.collectionName)
+	collection := r.MongoDBRepository.Collection()
 	result, err := collection.DeleteOne(ctx, bson.M{"_id": id})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete token", "tokenID", tokenID, "err", err)
@@ -90,7 +81,7 @@ func (r *RIDTokenRepository) Revoke(ctx context.Context, tokenID string) error {
 		return err
 	}
 
-	collection := r.mongoClient.Database(r.dbName).Collection(r.collectionName)
+	collection := r.MongoDBRepository.Collection()
 	
 	update := bson.M{
 		"$set": bson.M{
@@ -120,7 +111,7 @@ func (r *RIDTokenRepository) FindByID(ctx context.Context, tokenID uuid.UUID) (*
 
 // IsRevoked checks if a token has been revoked
 func (r *RIDTokenRepository) IsRevoked(ctx context.Context, tokenID uuid.UUID) (bool, error) {
-	collection := r.mongoClient.Database(r.dbName).Collection(r.collectionName)
+	collection := r.MongoDBRepository.Collection()
 	
 	var result struct {
 		RevokedAt *time.Time `bson:"revoked_at"`

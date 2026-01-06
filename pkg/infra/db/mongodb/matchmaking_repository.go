@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -20,21 +21,49 @@ const (
 
 // MatchmakingSessionRepository implements MongoDB persistence for matchmaking sessions
 type MatchmakingSessionRepository struct {
-	client *mongo.Client
-	db     *mongo.Database
+	mongodb.MongoDBRepository[matchmaking_entities.MatchmakingSession]
 }
 
 // NewMatchmakingSessionRepository creates a new repository instance
 func NewMatchmakingSessionRepository(client *mongo.Client, dbName string) *MatchmakingSessionRepository {
+	repo := mongodb.NewMongoDBRepository[matchmaking_entities.MatchmakingSession](client, dbName, matchmaking_entities.MatchmakingSession{}, matchmakingSessionsCollection, "MatchmakingSession")
+
+	repo.InitQueryableFields(map[string]bool{
+		"ID":           true,
+		"PlayerID":     true,
+		"SquadID":      true,
+		"Status":       true,
+		"PlayerMMR":    true,
+		"QueuedAt":     true,
+		"MatchedAt":    true,
+		"MatchID":      true,
+		"EstimatedWait": true,
+		"ExpiresAt":    true,
+		"CreatedAt":    true,
+		"UpdatedAt":    true,
+	}, map[string]string{
+		"ID":           "_id",
+		"PlayerID":     "player_id",
+		"SquadID":      "squad_id",
+		"Status":       "status",
+		"PlayerMMR":    "player_mmr",
+		"QueuedAt":     "queued_at",
+		"MatchedAt":    "matched_at",
+		"MatchID":      "match_id",
+		"EstimatedWait": "estimated_wait_seconds",
+		"ExpiresAt":    "expires_at",
+		"CreatedAt":    "created_at",
+		"UpdatedAt":    "updated_at",
+	})
+
 	return &MatchmakingSessionRepository{
-		client: client,
-		db:     client.Database(dbName),
+		MongoDBRepository: *repo,
 	}
 }
 
 // Save creates or updates a matchmaking session
 func (r *MatchmakingSessionRepository) Save(ctx context.Context, session *matchmaking_entities.MatchmakingSession) error {
-	collection := r.db.Collection(matchmakingSessionsCollection)
+	collection := r.MongoDBRepository.Collection()
 
 	session.UpdatedAt = time.Now()
 	if session.CreatedAt.IsZero() {
@@ -48,7 +77,7 @@ func (r *MatchmakingSessionRepository) Save(ctx context.Context, session *matchm
 
 // GetByID retrieves a session by ID
 func (r *MatchmakingSessionRepository) GetByID(ctx context.Context, id uuid.UUID) (*matchmaking_entities.MatchmakingSession, error) {
-	collection := r.db.Collection(matchmakingSessionsCollection)
+	collection := r.MongoDBRepository.Collection()
 
 	var session matchmaking_entities.MatchmakingSession
 	err := collection.FindOne(ctx, bson.M{"_id": id}).Decode(&session)
@@ -64,7 +93,7 @@ func (r *MatchmakingSessionRepository) GetByID(ctx context.Context, id uuid.UUID
 
 // GetByPlayerID retrieves active sessions for a player
 func (r *MatchmakingSessionRepository) GetByPlayerID(ctx context.Context, playerID uuid.UUID) ([]*matchmaking_entities.MatchmakingSession, error) {
-	collection := r.db.Collection(matchmakingSessionsCollection)
+	collection := r.MongoDBRepository.Collection()
 
 	filter := bson.M{
 		"player_id": playerID,
@@ -92,7 +121,7 @@ func (r *MatchmakingSessionRepository) GetByPlayerID(ctx context.Context, player
 
 // GetActiveSessions retrieves all active sessions with filters
 func (r *MatchmakingSessionRepository) GetActiveSessions(ctx context.Context, filters matchmaking_out.SessionFilters) ([]*matchmaking_entities.MatchmakingSession, error) {
-	collection := r.db.Collection(matchmakingSessionsCollection)
+	collection := r.MongoDBRepository.Collection()
 
 	query := bson.M{}
 
@@ -160,7 +189,7 @@ func (r *MatchmakingSessionRepository) GetActiveSessions(ctx context.Context, fi
 
 // UpdateStatus updates the session status
 func (r *MatchmakingSessionRepository) UpdateStatus(ctx context.Context, id uuid.UUID, status matchmaking_entities.SessionStatus) error {
-	collection := r.db.Collection(matchmakingSessionsCollection)
+	collection := r.MongoDBRepository.Collection()
 
 	update := bson.M{
 		"$set": bson.M{
@@ -181,14 +210,14 @@ func (r *MatchmakingSessionRepository) UpdateStatus(ctx context.Context, id uuid
 
 // Delete removes a session
 func (r *MatchmakingSessionRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	collection := r.db.Collection(matchmakingSessionsCollection)
+	collection := r.MongoDBRepository.Collection()
 	_, err := collection.DeleteOne(ctx, bson.M{"_id": id})
 	return err
 }
 
 // DeleteExpired removes expired sessions
 func (r *MatchmakingSessionRepository) DeleteExpired(ctx context.Context) (int64, error) {
-	collection := r.db.Collection(matchmakingSessionsCollection)
+	collection := r.MongoDBRepository.Collection()
 
 	result, err := collection.DeleteMany(ctx, bson.M{
 		"expires_at": bson.M{"$lte": time.Now()},
@@ -202,21 +231,41 @@ func (r *MatchmakingSessionRepository) DeleteExpired(ctx context.Context) (int64
 
 // MatchmakingPoolRepository implements MongoDB persistence for matchmaking pools
 type MatchmakingPoolRepository struct {
-	client *mongo.Client
-	db     *mongo.Database
+	mongodb.MongoDBRepository[matchmaking_entities.MatchmakingPool]
 }
 
 // NewMatchmakingPoolRepository creates a new repository instance
 func NewMatchmakingPoolRepository(client *mongo.Client, dbName string) *MatchmakingPoolRepository {
+	repo := mongodb.NewMongoDBRepository[matchmaking_entities.MatchmakingPool](client, dbName, matchmaking_entities.MatchmakingPool{}, matchmakingPoolsCollection, "MatchmakingPool")
+
+	repo.InitQueryableFields(map[string]bool{
+		"ID":             true,
+		"GameID":         true,
+		"GameMode":       true,
+		"Region":         true,
+		"ActiveSessions": true,
+		"PoolStats":      true,
+		"CreatedAt":      true,
+		"UpdatedAt":      true,
+	}, map[string]string{
+		"ID":             "_id",
+		"GameID":         "game_id",
+		"GameMode":       "game_mode",
+		"Region":         "region",
+		"ActiveSessions": "active_sessions",
+		"PoolStats":      "pool_stats",
+		"CreatedAt":      "created_at",
+		"UpdatedAt":      "updated_at",
+	})
+
 	return &MatchmakingPoolRepository{
-		client: client,
-		db:     client.Database(dbName),
+		MongoDBRepository: *repo,
 	}
 }
 
 // Save creates or updates a pool
 func (r *MatchmakingPoolRepository) Save(ctx context.Context, pool *matchmaking_entities.MatchmakingPool) error {
-	collection := r.db.Collection(matchmakingPoolsCollection)
+	collection := r.MongoDBRepository.Collection()
 
 	pool.UpdatedAt = time.Now()
 	if pool.CreatedAt.IsZero() {
@@ -230,7 +279,7 @@ func (r *MatchmakingPoolRepository) Save(ctx context.Context, pool *matchmaking_
 
 // GetByID retrieves a pool by ID
 func (r *MatchmakingPoolRepository) GetByID(ctx context.Context, id uuid.UUID) (*matchmaking_entities.MatchmakingPool, error) {
-	collection := r.db.Collection(matchmakingPoolsCollection)
+	collection := r.MongoDBRepository.Collection()
 
 	var pool matchmaking_entities.MatchmakingPool
 	err := collection.FindOne(ctx, bson.M{"_id": id}).Decode(&pool)
@@ -246,7 +295,7 @@ func (r *MatchmakingPoolRepository) GetByID(ctx context.Context, id uuid.UUID) (
 
 // GetByGameModeRegion retrieves a pool by game, mode, and region
 func (r *MatchmakingPoolRepository) GetByGameModeRegion(ctx context.Context, gameID, gameMode, region string) (*matchmaking_entities.MatchmakingPool, error) {
-	collection := r.db.Collection(matchmakingPoolsCollection)
+	collection := r.MongoDBRepository.Collection()
 
 	var pool matchmaking_entities.MatchmakingPool
 	err := collection.FindOne(ctx, bson.M{
@@ -266,7 +315,7 @@ func (r *MatchmakingPoolRepository) GetByGameModeRegion(ctx context.Context, gam
 
 // UpdateStats updates pool statistics
 func (r *MatchmakingPoolRepository) UpdateStats(ctx context.Context, poolID uuid.UUID, stats matchmaking_entities.PoolStatistics) error {
-	collection := r.db.Collection(matchmakingPoolsCollection)
+	collection := r.MongoDBRepository.Collection()
 
 	update := bson.M{
 		"$set": bson.M{
@@ -281,7 +330,7 @@ func (r *MatchmakingPoolRepository) UpdateStats(ctx context.Context, poolID uuid
 
 // GetAllActive retrieves all active pools
 func (r *MatchmakingPoolRepository) GetAllActive(ctx context.Context) ([]*matchmaking_entities.MatchmakingPool, error) {
-	collection := r.db.Collection(matchmakingPoolsCollection)
+	collection := r.MongoDBRepository.Collection()
 
 	cursor, err := collection.Find(ctx, bson.M{})
 	if err != nil {

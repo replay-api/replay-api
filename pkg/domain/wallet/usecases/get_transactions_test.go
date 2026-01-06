@@ -12,6 +12,7 @@ import (
 	wallet_entities "github.com/replay-api/replay-api/pkg/domain/wallet/entities"
 	wallet_in "github.com/replay-api/replay-api/pkg/domain/wallet/ports/in"
 	wallet_out "github.com/replay-api/replay-api/pkg/domain/wallet/ports/out"
+	wallet_services "github.com/replay-api/replay-api/pkg/domain/wallet/services"
 	wallet_usecases "github.com/replay-api/replay-api/pkg/domain/wallet/usecases"
 	wallet_vo "github.com/replay-api/replay-api/pkg/domain/wallet/value-objects"
 	"github.com/stretchr/testify/assert"
@@ -119,7 +120,8 @@ func (m *MockLedgerRepository) FindByUserAndDateRange(ctx context.Context, userI
 func TestGetTransactions_Success(t *testing.T) {
 	mockWalletRepo := new(MockWalletRepository)
 	mockLedgerRepo := new(MockLedgerRepository)
-	usecase := wallet_usecases.NewGetTransactionsUseCase(mockWalletRepo, mockLedgerRepo)
+	walletQuerySvc := wallet_services.NewWalletQueryService(mockWalletRepo)
+	usecase := wallet_usecases.NewGetTransactionsUseCase(mockWalletRepo, walletQuerySvc, mockLedgerRepo)
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
@@ -140,7 +142,7 @@ func TestGetTransactions_Success(t *testing.T) {
 		},
 	}
 
-	mockWalletRepo.On("FindByUserID", mock.Anything, userID).Return(testWallet, nil)
+	mockWalletRepo.On("Search", mock.Anything, mock.AnythingOfType("shared.Search")).Return([]wallet_entities.UserWallet{*testWallet}, nil)
 
 	// Create test ledger entries
 	entries := []*wallet_entities.LedgerEntry{
@@ -203,7 +205,8 @@ func TestGetTransactions_Success(t *testing.T) {
 func TestGetTransactions_Unauthenticated(t *testing.T) {
 	mockWalletRepo := new(MockWalletRepository)
 	mockLedgerRepo := new(MockLedgerRepository)
-	usecase := wallet_usecases.NewGetTransactionsUseCase(mockWalletRepo, mockLedgerRepo)
+	walletQuerySvc := wallet_services.NewWalletQueryService(mockWalletRepo)
+	usecase := wallet_usecases.NewGetTransactionsUseCase(mockWalletRepo, walletQuerySvc, mockLedgerRepo)
 
 	ctx := context.Background()
 	// No authentication context
@@ -226,7 +229,8 @@ func TestGetTransactions_Unauthenticated(t *testing.T) {
 func TestGetTransactions_InvalidQuery(t *testing.T) {
 	mockWalletRepo := new(MockWalletRepository)
 	mockLedgerRepo := new(MockLedgerRepository)
-	usecase := wallet_usecases.NewGetTransactionsUseCase(mockWalletRepo, mockLedgerRepo)
+	walletQuerySvc := wallet_services.NewWalletQueryService(mockWalletRepo)
+	usecase := wallet_usecases.NewGetTransactionsUseCase(mockWalletRepo, walletQuerySvc, mockLedgerRepo)
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
@@ -249,7 +253,8 @@ func TestGetTransactions_InvalidQuery(t *testing.T) {
 func TestGetTransactions_WalletNotFound_ReturnsEmpty(t *testing.T) {
 	mockWalletRepo := new(MockWalletRepository)
 	mockLedgerRepo := new(MockLedgerRepository)
-	usecase := wallet_usecases.NewGetTransactionsUseCase(mockWalletRepo, mockLedgerRepo)
+	walletQuerySvc := wallet_services.NewWalletQueryService(mockWalletRepo)
+	usecase := wallet_usecases.NewGetTransactionsUseCase(mockWalletRepo, walletQuerySvc, mockLedgerRepo)
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
@@ -257,7 +262,7 @@ func TestGetTransactions_WalletNotFound_ReturnsEmpty(t *testing.T) {
 	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
 
 	// Wallet not found
-	mockWalletRepo.On("FindByUserID", mock.Anything, userID).Return(nil, errors.New("wallet not found"))
+	mockWalletRepo.On("Search", mock.Anything, mock.AnythingOfType("shared.Search")).Return([]wallet_entities.UserWallet{}, nil)
 
 	query := wallet_in.GetTransactionsQuery{
 		UserID: userID,
@@ -275,12 +280,14 @@ func TestGetTransactions_WalletNotFound_ReturnsEmpty(t *testing.T) {
 	assert.Empty(t, result.Transactions)
 	assert.Equal(t, int64(0), result.TotalCount)
 	mockWalletRepo.AssertExpectations(t)
+	mockLedgerRepo.AssertExpectations(t)
 }
 
 func TestGetTransactions_LedgerError(t *testing.T) {
 	mockWalletRepo := new(MockWalletRepository)
 	mockLedgerRepo := new(MockLedgerRepository)
-	usecase := wallet_usecases.NewGetTransactionsUseCase(mockWalletRepo, mockLedgerRepo)
+	walletQuerySvc := wallet_services.NewWalletQueryService(mockWalletRepo)
+	usecase := wallet_usecases.NewGetTransactionsUseCase(mockWalletRepo, walletQuerySvc, mockLedgerRepo)
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
@@ -297,7 +304,7 @@ func TestGetTransactions_LedgerError(t *testing.T) {
 		},
 	}
 
-	mockWalletRepo.On("FindByUserID", mock.Anything, userID).Return(testWallet, nil)
+	mockWalletRepo.On("Search", mock.Anything, mock.AnythingOfType("shared.Search")).Return([]wallet_entities.UserWallet{*testWallet}, nil)
 	mockLedgerRepo.On("GetAccountHistory", mock.Anything, walletID, mock.Anything).Return([]*wallet_entities.LedgerEntry{}, int64(0), errors.New("database error"))
 
 	query := wallet_in.GetTransactionsQuery{
@@ -319,7 +326,8 @@ func TestGetTransactions_LedgerError(t *testing.T) {
 func TestGetTransactions_EmptyTransactions(t *testing.T) {
 	mockWalletRepo := new(MockWalletRepository)
 	mockLedgerRepo := new(MockLedgerRepository)
-	usecase := wallet_usecases.NewGetTransactionsUseCase(mockWalletRepo, mockLedgerRepo)
+	walletQuerySvc := wallet_services.NewWalletQueryService(mockWalletRepo)
+	usecase := wallet_usecases.NewGetTransactionsUseCase(mockWalletRepo, walletQuerySvc, mockLedgerRepo)
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
@@ -336,7 +344,7 @@ func TestGetTransactions_EmptyTransactions(t *testing.T) {
 		},
 	}
 
-	mockWalletRepo.On("FindByUserID", mock.Anything, userID).Return(testWallet, nil)
+	mockWalletRepo.On("Search", mock.Anything, mock.AnythingOfType("shared.Search")).Return([]wallet_entities.UserWallet{*testWallet}, nil)
 	mockLedgerRepo.On("GetAccountHistory", mock.Anything, walletID, mock.Anything).Return([]*wallet_entities.LedgerEntry{}, int64(0), nil)
 
 	query := wallet_in.GetTransactionsQuery{
@@ -362,7 +370,8 @@ func TestGetTransactions_EmptyTransactions(t *testing.T) {
 func TestGetTransactions_WithPagination(t *testing.T) {
 	mockWalletRepo := new(MockWalletRepository)
 	mockLedgerRepo := new(MockLedgerRepository)
-	usecase := wallet_usecases.NewGetTransactionsUseCase(mockWalletRepo, mockLedgerRepo)
+	walletQuerySvc := wallet_services.NewWalletQueryService(mockWalletRepo)
+	usecase := wallet_usecases.NewGetTransactionsUseCase(mockWalletRepo, walletQuerySvc, mockLedgerRepo)
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
@@ -379,7 +388,7 @@ func TestGetTransactions_WithPagination(t *testing.T) {
 		},
 	}
 
-	mockWalletRepo.On("FindByUserID", mock.Anything, userID).Return(testWallet, nil)
+	mockWalletRepo.On("Search", mock.Anything, mock.AnythingOfType("shared.Search")).Return([]wallet_entities.UserWallet{*testWallet}, nil)
 
 	// Return one entry for page 2
 	entries := []*wallet_entities.LedgerEntry{

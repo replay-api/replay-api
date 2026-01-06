@@ -64,7 +64,7 @@ type MatchmakingSession struct {
 	Metadata          map[string]any    `json:"metadata,omitempty" bson:"metadata,omitempty"`
 }
 
-func (m *MatchmakingSession) GetID() uuid.UUID {
+func (m MatchmakingSession) GetID() uuid.UUID {
 	return m.ID
 }
 

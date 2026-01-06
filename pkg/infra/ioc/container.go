@@ -15,6 +15,7 @@ import (
 
 	// repositories/db
 	db "github.com/replay-api/replay-api/pkg/infra/db/mongodb"
+	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 
 	// messageBroker (kafka/rabbit)
 	kafka "github.com/replay-api/replay-api/pkg/infra/kafka"
@@ -1376,7 +1377,7 @@ func InjectMongoDB(c container.Container) error {
 			return nil, err
 		}
 
-		mongoOptions := options.Client().ApplyURI(config.MongoDB.URI).SetRegistry(db.MongoRegistry).SetMaxPoolSize(100)
+		mongoOptions := options.Client().ApplyURI(config.MongoDB.URI).SetRegistry(mongodb.MongoRegistry).SetMaxPoolSize(100)
 
 		client, err := mongo.Connect(context.TODO(), mongoOptions)
 
@@ -2270,7 +2271,7 @@ func InjectMongoDB(c container.Container) error {
 			return nil, err
 		}
 
-		repo := db.NewProfileRepository(client, config.MongoDB.DBName, &iam_entities.Profile{}, "profiles")
+		repo := db.NewProfileRepository(client, config.MongoDB.DBName, iam_entities.Profile{}, "profiles")
 
 		return repo, nil
 	})
@@ -2493,8 +2494,7 @@ func InjectMongoDB(c container.Container) error {
 			return nil, err
 		}
 
-		database := client.Database(config.MongoDB.DBName)
-		return db.NewLedgerRepository(database), nil
+		return db.NewLedgerRepository(client, config.MongoDB.DBName), nil
 	})
 
 	if err != nil {
@@ -2590,20 +2590,20 @@ func InjectMongoDB(c container.Container) error {
 
 	// Wallet Query Service
 	err = c.Singleton(func() (wallet_in.WalletQuery, error) {
-		var walletRepo wallet_out.WalletRepository
-		var ledgerRepo wallet_out.LedgerRepository
+		var getBalanceUseCase *wallet_usecases.GetWalletBalanceUseCase
+		var getTransactionsUseCase *wallet_usecases.GetTransactionsUseCase
 
-		if err := c.Resolve(&walletRepo); err != nil {
-			slog.Error("Failed to resolve wallet_out.WalletRepository for WalletQueryService.", "err", err)
+		if err := c.Resolve(&getBalanceUseCase); err != nil {
+			slog.Error("Failed to resolve GetWalletBalanceUseCase for WalletQueryService.", "err", err)
 			return nil, err
 		}
 
-		if err := c.Resolve(&ledgerRepo); err != nil {
-			slog.Error("Failed to resolve wallet_out.LedgerRepository for WalletQueryService.", "err", err)
+		if err := c.Resolve(&getTransactionsUseCase); err != nil {
+			slog.Error("Failed to resolve GetTransactionsUseCase for WalletQueryService.", "err", err)
 			return nil, err
 		}
 
-		return wallet_usecases.NewWalletQueryService(walletRepo, ledgerRepo), nil
+		return wallet_usecases.NewWalletQueryService(getBalanceUseCase, getTransactionsUseCase), nil
 	})
 
 	if err != nil {
@@ -2940,7 +2940,7 @@ func InjectMongoDB(c container.Container) error {
 			return nil, err
 		}
 
-		return db.NewPlayerRatingMongoDBRepository(client.Database(config.MongoDB.DBName)), nil
+		return db.NewPlayerRatingMongoDBRepository(client, config.MongoDB.DBName), nil
 	})
 
 	if err != nil {
@@ -3006,13 +3006,70 @@ func InjectMongoDB(c container.Container) error {
 		panic(err)
 	}
 
+	// Prize Pool Query Service
+	err = c.Singleton(func() (*matchmaking_services.PrizePoolQueryService, error) {
+		var poolRepo matchmaking_out.PrizePoolRepository
+
+		if err := c.Resolve(&poolRepo); err != nil {
+			slog.Error("Failed to resolve matchmaking_out.PrizePoolRepository for PrizePoolQueryService.", "err", err)
+			return nil, err
+		}
+
+		return matchmaking_services.NewPrizePoolQueryService(poolRepo), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load *matchmaking_services.PrizePoolQueryService.", "err", err)
+		panic(err)
+	}
+
+	// Matchmaking Session Query Service
+	err = c.Singleton(func() (*matchmaking_services.MatchmakingSessionQueryService, error) {
+		var sessionRepo matchmaking_out.MatchmakingSessionRepository
+
+		if err := c.Resolve(&sessionRepo); err != nil {
+			slog.Error("Failed to resolve matchmaking_out.MatchmakingSessionRepository for MatchmakingSessionQueryService.", "err", err)
+			return nil, err
+		}
+
+		return matchmaking_services.NewMatchmakingSessionQueryService(sessionRepo), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load *matchmaking_services.MatchmakingSessionQueryService.", "err", err)
+		panic(err)
+	}
+
+	// Matchmaking Pool Query Service
+	err = c.Singleton(func() (*matchmaking_services.MatchmakingPoolQueryService, error) {
+		var poolRepo matchmaking_out.MatchmakingPoolRepository
+
+		if err := c.Resolve(&poolRepo); err != nil {
+			slog.Error("Failed to resolve matchmaking_out.MatchmakingPoolRepository for MatchmakingPoolQueryService.", "err", err)
+			return nil, err
+		}
+
+		return matchmaking_services.NewMatchmakingPoolQueryService(poolRepo), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load *matchmaking_services.MatchmakingPoolQueryService.", "err", err)
+		panic(err)
+	}
+
 	// Prize Distribution Job
 	err = c.Singleton(func() (*jobs.PrizeDistributionJob, error) {
 		var poolRepo matchmaking_out.PrizePoolRepository
+		var poolQuerySvc *matchmaking_services.PrizePoolQueryService
 		var walletCmd wallet_in.WalletCommand
 
 		if err := c.Resolve(&poolRepo); err != nil {
 			slog.Error("Failed to resolve matchmaking_out.PrizePoolRepository for PrizeDistributionJob.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&poolQuerySvc); err != nil {
+			slog.Error("Failed to resolve *matchmaking_services.PrizePoolQueryService for PrizeDistributionJob.", "err", err)
 			return nil, err
 		}
 
@@ -3022,7 +3079,7 @@ func InjectMongoDB(c container.Container) error {
 		}
 
 		// Run every 5 minutes
-		return jobs.NewPrizeDistributionJob(poolRepo, walletCmd, 5*time.Minute), nil
+		return jobs.NewPrizeDistributionJob(poolRepo, poolQuerySvc, walletCmd, 5*time.Minute), nil
 	})
 
 	if err != nil {
@@ -3055,14 +3112,14 @@ func InjectMongoDB(c container.Container) error {
 
 	// Tournament Reader Service
 	err = c.Singleton(func() (tournament_in.TournamentReader, error) {
-		var tournamentRepo tournament_out.TournamentRepository
+		var tournamentQuerySvc *tournament_services.TournamentQueryService
 
-		if err := c.Resolve(&tournamentRepo); err != nil {
-			slog.Error("Failed to resolve tournament_out.TournamentRepository for TournamentReaderService.", "err", err)
+		if err := c.Resolve(&tournamentQuerySvc); err != nil {
+			slog.Error("Failed to resolve TournamentQueryService for TournamentReaderService.", "err", err)
 			return nil, err
 		}
 
-		return tournament_services.NewTournamentReaderService(tournamentRepo), nil
+		return tournament_services.NewTournamentReaderService(tournamentQuerySvc), nil
 	})
 
 	if err != nil {

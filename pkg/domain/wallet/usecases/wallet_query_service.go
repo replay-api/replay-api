@@ -4,24 +4,23 @@ import (
 	"context"
 
 	wallet_in "github.com/replay-api/replay-api/pkg/domain/wallet/ports/in"
-	wallet_out "github.com/replay-api/replay-api/pkg/domain/wallet/ports/out"
 )
 
 // WalletQueryService implements the WalletQuery interface
-// by combining all query use cases
+// by delegating to the domain query service
 type WalletQueryService struct {
-	getBalanceUseCase      *GetWalletBalanceUseCase
+	getBalanceUseCase     *GetWalletBalanceUseCase
 	getTransactionsUseCase *GetTransactionsUseCase
 }
 
 // NewWalletQueryService creates a new wallet query service
 func NewWalletQueryService(
-	walletRepo wallet_out.WalletRepository,
-	ledgerRepo wallet_out.LedgerRepository,
+	getBalanceUseCase *GetWalletBalanceUseCase,
+	getTransactionsUseCase *GetTransactionsUseCase,
 ) *WalletQueryService {
 	return &WalletQueryService{
-		getBalanceUseCase:      NewGetWalletBalanceUseCase(walletRepo),
-		getTransactionsUseCase: NewGetTransactionsUseCase(walletRepo, ledgerRepo),
+		getBalanceUseCase:     getBalanceUseCase,
+		getTransactionsUseCase: getTransactionsUseCase,
 	}
 }
 

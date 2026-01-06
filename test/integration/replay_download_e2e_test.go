@@ -16,9 +16,9 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	shared "github.com/resource-ownership/go-common/pkg/common"
-	replay_common "github.com/replay-api/replay-common/pkg/replay"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // mockReplayContentReader provides mock replay file content for testing

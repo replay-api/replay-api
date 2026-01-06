@@ -12,9 +12,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 	replay_common "github.com/replay-api/replay-common/pkg/replay"
 	shared "github.com/resource-ownership/go-common/pkg/common"
-	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 )
 
 // TestE2E_SquadInvitation tests the squad invitation entity and lifecycle

@@ -6,7 +6,7 @@ import (
 
 	shared "github.com/resource-ownership/go-common/pkg/common"
 	wallet_in "github.com/replay-api/replay-api/pkg/domain/wallet/ports/in"
-	wallet_out "github.com/replay-api/replay-api/pkg/domain/wallet/ports/out"
+	wallet_services "github.com/replay-api/replay-api/pkg/domain/wallet/services"
 )
 
 // GetWalletBalanceUseCase retrieves current wallet balances for authenticated users.
@@ -25,15 +25,15 @@ import (
 // seamless UX for new users before their first deposit.
 //
 // Dependencies:
-//   - WalletRepository: For wallet lookup by user ID
+//   - WalletQueryService: For wallet lookup by user ID
 type GetWalletBalanceUseCase struct {
-	walletRepo wallet_out.WalletRepository
+	walletQuerySvc *wallet_services.WalletQueryService
 }
 
 // NewGetWalletBalanceUseCase creates a new get wallet balance use case
-func NewGetWalletBalanceUseCase(walletRepo wallet_out.WalletRepository) *GetWalletBalanceUseCase {
+func NewGetWalletBalanceUseCase(walletQuerySvc *wallet_services.WalletQueryService) *GetWalletBalanceUseCase {
 	return &GetWalletBalanceUseCase{
-		walletRepo: walletRepo,
+		walletQuerySvc: walletQuerySvc,
 	}
 }
 
@@ -54,8 +54,8 @@ func (uc *GetWalletBalanceUseCase) GetBalance(ctx context.Context, query wallet_
 	slog.InfoContext(ctx, "GetWalletBalance: fetching balance", "user_id", query.UserID)
 
 	// Try to fetch wallet
-	wallet, err := uc.walletRepo.FindByUserID(ctx, query.UserID)
-	if err != nil {
+	wallet, err := uc.walletQuerySvc.FindByUserID(ctx, query.UserID)
+	if err != nil || wallet == nil {
 		slog.InfoContext(ctx, "GetWalletBalance: wallet not found, returning default",
 			"user_id", query.UserID,
 			"error", err,
