@@ -174,6 +174,38 @@ func (c *Client) Publish(ctx context.Context, topic string, msg *Message) error 
 	return nil
 }
 
+// PublishRaw sends a message to the specified topic with raw data and headers
+func (c *Client) PublishRaw(ctx context.Context, topic string, key string, value []byte, headers map[string]string) error {
+	headersList := make([]kafka.Header, 0, len(headers)+1)
+	for k, v := range headers {
+		headersList = append(headersList, kafka.Header{Key: k, Value: []byte(v)})
+	}
+	headersList = append(headersList, kafka.Header{Key: "region", Value: []byte(c.config.Region)})
+
+	kafkaMsg := kafka.Message{
+		Key:     []byte(key),
+		Value:   value,
+		Headers: headersList,
+		Time:    time.Now(),
+	}
+
+	writer := c.GetWriter(topic)
+	if err := writer.WriteMessages(ctx, kafkaMsg); err != nil {
+		slog.Error("Failed to publish message",
+			"topic", topic,
+			"key", key,
+			"error", err)
+		return fmt.Errorf("failed to write message: %w", err)
+	}
+
+	slog.Debug("Published message",
+		"topic", topic,
+		"key", key,
+		"region", c.config.Region)
+
+	return nil
+}
+
 // PublishBatch sends multiple messages to the specified topic
 func (c *Client) PublishBatch(ctx context.Context, topic string, msgs []*Message) error {
 	kafkaMsgs := make([]kafka.Message, len(msgs))
