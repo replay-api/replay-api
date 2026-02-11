@@ -14,7 +14,7 @@ require (
 	github.com/prometheus/client_golang v1.19.0
 	github.com/replay-api/replay-common v0.0.0-20260105132037-5c54623d9838
 	github.com/resource-ownership/go-common v0.0.0
-	github.com/resource-ownership/go-mongodb v0.0.0-00010101000000-000000000000
+	github.com/resource-ownership/go-mongodb v0.0.0-20260108121442-6391fd0a2895
 	github.com/segmentio/kafka-go v0.4.49
 	github.com/streadway/amqp v1.1.0
 	github.com/stretchr/testify v1.11.1
@@ -60,6 +60,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/resource-ownership/go-common => ../resource-ownership/go-common
-
-replace github.com/resource-ownership/go-mongodb => ../resource-ownership/go-mongodb
+// Remote version redirects: go-mongodb depends on go-common v0.0.0 (via its own replace directive).
+// This maps the placeholder version to the real pseudo-version so the module graph resolves correctly.
+replace github.com/resource-ownership/go-common v0.0.0 => github.com/resource-ownership/go-common v0.0.0-20260108121510-f5e4801eff59
