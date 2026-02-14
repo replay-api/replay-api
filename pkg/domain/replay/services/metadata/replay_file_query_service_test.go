@@ -39,6 +39,15 @@ func (m *mockReplayFileMetadataReader) GetByID(ctx context.Context, id uuid.UUID
 	return nil, fmt.Errorf("replay file not found")
 }
 
+func (m *mockReplayFileMetadataReader) FindByContentHash(ctx context.Context, contentHash string) (*replay_entity.ReplayFile, error) {
+	for _, file := range m.replayFiles {
+		if file.ContentHash == contentHash {
+			return &file, nil
+		}
+	}
+	return nil, nil
+}
+
 func TestReplayFileQueryService_Filter(t *testing.T) {
 	tenantID := uuid.New()
 	clientID := uuid.New()
@@ -47,15 +56,7 @@ func TestReplayFileQueryService_Filter(t *testing.T) {
 	entity := shared.NewEntity(shared.ResourceOwner{TenantID: tenantID, ClientID: clientID, UserID: userID})
 
 	sampleReplayFiles := []replay_entity.ReplayFile{
-		{
-			ID:            entity.ID,
-			GameID:        replay_common.CS2_GAME_ID,
-			NetworkID:     replay_common.SteamNetworkIDKey,
-			Header:        struct{ Filestamp string }{Filestamp: "HLTV-1.0.0"},
-			ResourceOwner: entity.ResourceOwner,
-			CreatedAt:     entity.CreatedAt,
-			UpdatedAt:     entity.UpdatedAt,
-		},
+		*replay_entity.NewReplayFile(replay_common.CS2_GAME_ID, replay_common.SteamNetworkIDKey, 1000, "test-uri", entity.ResourceOwner),
 	}
 
 	tests := []struct {

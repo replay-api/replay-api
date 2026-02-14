@@ -170,31 +170,12 @@ func (s *PlayerStatisticsService) extractPlayerStats(match *replay_entity.Match,
 	}
 
 	ts := match.Scoreboard.TeamScoreboards[teamIdx]
+	playerIDStr := playerID.String()
 	
-	// Try to get stats from PlayerStats map
-	if ts.PlayerStats != nil {
-		if playerStats, ok := ts.PlayerStats[playerID]; ok {
-			// Type assert and extract stats
-			if statsMap, ok := playerStats.(map[string]interface{}); ok {
-				if k, ok := statsMap["frags"].(float64); ok {
-					kills = int(k)
-				}
-				if d, ok := statsMap["times_eliminated"].(float64); ok {
-					deaths = int(d)
-				}
-				if a, ok := statsMap["assists"].(float64); ok {
-					assists = int(a)
-				}
-				if h, ok := statsMap["headshots"].(float64); ok {
-					headshots = int(h)
-				}
-				if dmg, ok := statsMap["total_damage"].(float64); ok {
-					damage = int(dmg)
-				}
-				if r, ok := statsMap["total_rounds_played"].(float64); ok {
-					rounds = int(r)
-				}
-			}
+	// Find player stats from the array
+	for _, stats := range ts.PlayerStats {
+		if stats.PlayerID == playerIDStr {
+			return stats.Kills, stats.Deaths, stats.Assists, stats.Headshots, stats.TotalDamage, 0
 		}
 	}
 

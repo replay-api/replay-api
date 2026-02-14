@@ -61,16 +61,13 @@ type AchievementCriteria struct {
 
 // PlayerAchievement represents an achievement unlocked by a player
 type PlayerAchievement struct {
-	ID            uuid.UUID           `json:"id" bson:"_id"`
-	PlayerID      uuid.UUID           `json:"player_id" bson:"player_id"`
-	AchievementID uuid.UUID           `json:"achievement_id" bson:"achievement_id"`
-	Achievement   *Achievement        `json:"achievement,omitempty" bson:"-"` // Populated for API responses
-	Progress      int                 `json:"progress" bson:"progress"`
-	TargetValue   int                 `json:"target_value" bson:"target_value"`
-	UnlockedAt    *time.Time          `json:"unlocked_at" bson:"unlocked_at"`
-	CreatedAt     time.Time           `json:"created_at" bson:"created_at"`
-	UpdatedAt     time.Time           `json:"updated_at" bson:"updated_at"`
-	ResourceOwner shared.ResourceOwner `json:"-" bson:"resource_owner"`
+	shared.BaseEntity `json:",inline" bson:",inline"`
+	PlayerID          uuid.UUID    `json:"player_id" bson:"player_id"`
+	AchievementID     uuid.UUID    `json:"achievement_id" bson:"achievement_id"`
+	Achievement       *Achievement `json:"achievement,omitempty" bson:"-"` // Populated for API responses
+	Progress          int          `json:"progress" bson:"progress"`
+	TargetValue       int          `json:"target_value" bson:"target_value"`
+	UnlockedAt        *time.Time   `json:"unlocked_at" bson:"unlocked_at"`
 }
 
 // IsUnlocked returns true if the achievement has been unlocked
@@ -93,17 +90,14 @@ func (pa *PlayerAchievement) GetProgressPercentage() float64 {
 
 // NewPlayerAchievement creates a new player achievement tracking record
 func NewPlayerAchievement(playerID, achievementID uuid.UUID, targetValue int, resourceOwner shared.ResourceOwner) *PlayerAchievement {
-	now := time.Now()
+	entity := shared.NewEntity(resourceOwner)
 	return &PlayerAchievement{
-		ID:            uuid.New(),
+		BaseEntity:    entity,
 		PlayerID:      playerID,
 		AchievementID: achievementID,
 		Progress:      0,
 		TargetValue:   targetValue,
 		UnlockedAt:    nil,
-		CreatedAt:     now,
-		UpdatedAt:     now,
-		ResourceOwner: resourceOwner,
 	}
 }
 

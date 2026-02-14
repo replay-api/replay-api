@@ -10,9 +10,9 @@ import (
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	shared "github.com/resource-ownership/go-common/pkg/common"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // WithdrawalController handles withdrawal HTTP requests
@@ -88,7 +88,7 @@ func (ctrl *WithdrawalController) CreateWithdrawalHandler(apiContext context.Con
 		withdrawal, err := ctrl.withdrawalCommand.Create(ctx, cmd)
 		if err != nil {
 			slog.ErrorContext(ctx, "Failed to create withdrawal", "error", err)
-			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
+			http.Error(w, `{"error":"Failed to process withdrawal request"}`, http.StatusBadRequest)
 			return
 		}
 
@@ -127,7 +127,7 @@ func (ctrl *WithdrawalController) CancelWithdrawalHandler(apiContext context.Con
 		withdrawal, err := ctrl.withdrawalCommand.Cancel(ctx, withdrawalID)
 		if err != nil {
 			slog.ErrorContext(ctx, "Failed to cancel withdrawal", "error", err)
-			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
+			http.Error(w, `{"error":"Failed to cancel withdrawal"}`, http.StatusBadRequest)
 			return
 		}
 
@@ -165,7 +165,7 @@ func (ctrl *WithdrawalController) GetWithdrawalHandler(apiContext context.Contex
 		withdrawal, err := ctrl.withdrawalCommand.GetByID(ctx, withdrawalID)
 		if err != nil {
 			slog.ErrorContext(ctx, "Failed to get withdrawal", "error", err)
-			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusNotFound)
+			http.Error(w, `{"error":"Withdrawal not found"}`, http.StatusNotFound)
 			return
 		}
 

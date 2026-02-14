@@ -9,23 +9,27 @@ import (
 	tournament_entities "github.com/replay-api/replay-api/pkg/domain/tournament/entities"
 	tournament_in "github.com/replay-api/replay-api/pkg/domain/tournament/ports/in"
 	tournament_out "github.com/replay-api/replay-api/pkg/domain/tournament/ports/out"
+	tournament_usecases "github.com/replay-api/replay-api/pkg/domain/tournament/usecases"
 	wallet_in "github.com/replay-api/replay-api/pkg/domain/wallet/ports/in"
 )
 
 // TournamentService implements tournament management business logic
 type TournamentService struct {
-	tournamentRepo tournament_out.TournamentRepository
-	walletCommand  wallet_in.WalletCommand
+	tournamentRepo   tournament_out.TournamentRepository
+	walletCommand    wallet_in.WalletCommand
+	bracketGenerator *tournament_usecases.GenerateBracketsUseCase
 }
 
 // NewTournamentService creates a new tournament service
 func NewTournamentService(
 	tournamentRepo tournament_out.TournamentRepository,
 	walletCommand wallet_in.WalletCommand,
+	bracketGenerator *tournament_usecases.GenerateBracketsUseCase,
 ) tournament_in.TournamentCommand {
 	return &TournamentService{
-		tournamentRepo: tournamentRepo,
-		walletCommand:  walletCommand,
+		tournamentRepo:   tournamentRepo,
+		walletCommand:    walletCommand,
+		bracketGenerator: bracketGenerator,
 	}
 }
 
@@ -142,11 +146,29 @@ func (s *TournamentService) DeleteTournament(ctx context.Context, tournamentID u
 		return fmt.Errorf("cannot delete tournament in status: %s", tournament.Status)
 	}
 
-	// TODO: Issue refunds to registered players if entry fee was charged
+	// Issue refunds to registered players if entry fee was charged
 	if len(tournament.Participants) > 0 && !tournament.EntryFee.IsZero() {
-		slog.WarnContext(ctx, "deleting tournament with registered players - refunds should be issued",
+		slog.InfoContext(ctx, "issuing refunds for tournament deletion",
 			"tournament_id", tournamentID,
 			"participant_count", len(tournament.Participants))
+
+		for _, participant := range tournament.Participants {
+			creditCmd := wallet_in.CreditWalletCommand{
+				UserID:      participant.PlayerID,
+				Amount:      tournament.EntryFee,
+				Currency:    string(tournament.Currency),
+				Description: fmt.Sprintf("Tournament deletion refund: %s", tournament.Name),
+				Metadata: map[string]interface{}{
+					"tournament_id": tournament.ID.String(),
+					"type":          "tournament_deletion_refund",
+				},
+			}
+
+			if _, err := s.walletCommand.CreditWallet(ctx, creditCmd); err != nil {
+				slog.ErrorContext(ctx, "failed to refund participant on tournament deletion",
+					"player_id", participant.PlayerID, "error", err)
+			}
+		}
 	}
 
 	// Delete tournament
@@ -202,7 +224,23 @@ func (s *TournamentService) RegisterPlayer(ctx context.Context, cmd tournament_i
 
 	// Persist updated tournament
 	if err := s.tournamentRepo.Update(ctx, tournament); err != nil {
-		// TODO: Consider refunding entry fee on persistence failure
+		// Refund entry fee since registration could not be persisted
+		if !tournament.EntryFee.IsZero() {
+			refundCmd := wallet_in.CreditWalletCommand{
+				UserID:      cmd.PlayerID,
+				Amount:      tournament.EntryFee,
+				Currency:    string(tournament.Currency),
+				Description: fmt.Sprintf("Registration rollback refund: %s", tournament.Name),
+				Metadata: map[string]interface{}{
+					"tournament_id": tournament.ID.String(),
+					"type":          "registration_rollback_refund",
+				},
+			}
+			if _, refundErr := s.walletCommand.CreditWallet(ctx, refundCmd); refundErr != nil {
+				slog.ErrorContext(ctx, "CRITICAL: failed to refund entry fee after persistence failure",
+					"player_id", cmd.PlayerID, "refund_error", refundErr, "persist_error", err)
+			}
+		}
 		slog.ErrorContext(ctx, "failed to persist tournament registration", "error", err)
 		return fmt.Errorf("failed to save registration: %w", err)
 	}
@@ -311,6 +349,12 @@ func (s *TournamentService) CloseRegistration(ctx context.Context, tournamentID 
 func (s *TournamentService) StartTournament(ctx context.Context, tournamentID uuid.UUID) error {
 	slog.InfoContext(ctx, "starting tournament", "tournament_id", tournamentID)
 
+	// Generate bracket matches before starting (tournament must be in ready status)
+	if err := s.bracketGenerator.Exec(ctx, tournamentID); err != nil {
+		return fmt.Errorf("failed to generate brackets: %w", err)
+	}
+
+	// Re-fetch tournament with generated brackets
 	tournament, err := s.tournamentRepo.FindByID(ctx, tournamentID)
 	if err != nil {
 		return fmt.Errorf("tournament not found: %w", err)
@@ -319,8 +363,6 @@ func (s *TournamentService) StartTournament(ctx context.Context, tournamentID uu
 	if err := tournament.Start(); err != nil {
 		return fmt.Errorf("failed to start tournament: %w", err)
 	}
-
-	// TODO: Generate bracket matches based on tournament format
 
 	if err := s.tournamentRepo.Update(ctx, tournament); err != nil {
 		return fmt.Errorf("failed to save tournament: %w", err)

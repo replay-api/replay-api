@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/bsontype"
 )
 
 // EVMAddress represents an Ethereum Virtual Machine compatible address
@@ -67,6 +70,65 @@ func (e EVMAddress) MarshalJSON() ([]byte, error) {
 func (e *EVMAddress) UnmarshalJSON(data []byte) error {
 	// Remove quotes
 	address := strings.Trim(string(data), `"`)
+
+	parsed, err := NewEVMAddress(address)
+	if err != nil {
+		return err
+	}
+
+	*e = parsed
+	return nil
+}
+
+// MarshalBSON implements bson.Marshaler
+func (e EVMAddress) MarshalBSON() ([]byte, error) {
+	return bson.Marshal(e.address)
+}
+
+// UnmarshalBSON implements bson.Unmarshaler
+func (e *EVMAddress) UnmarshalBSON(data []byte) error {
+	var address string
+	if err := bson.Unmarshal(data, &address); err != nil {
+		return err
+	}
+
+	// Allow empty addresses (zero address)
+	if address == "" || address == "0x0000000000000000000000000000000000000000" {
+		e.address = "0x0000000000000000000000000000000000000000"
+		return nil
+	}
+
+	parsed, err := NewEVMAddress(address)
+	if err != nil {
+		return err
+	}
+
+	*e = parsed
+	return nil
+}
+
+// MarshalBSONValue implements bson.ValueMarshaler
+func (e EVMAddress) MarshalBSONValue() (bsontype.Type, []byte, error) {
+	return bson.MarshalValue(e.address)
+}
+
+// UnmarshalBSONValue implements bson.ValueUnmarshaler
+func (e *EVMAddress) UnmarshalBSONValue(t bsontype.Type, data []byte) error {
+	if t != bsontype.String {
+		return fmt.Errorf("invalid BSON type for EVMAddress: %s", t)
+	}
+
+	var address string
+	rawValue := bson.RawValue{Type: t, Value: data}
+	if err := rawValue.Unmarshal(&address); err != nil {
+		return err
+	}
+
+	// Allow empty addresses (zero address)
+	if address == "" || address == "0x0000000000000000000000000000000000000000" {
+		e.address = "0x0000000000000000000000000000000000000000"
+		return nil
+	}
 
 	parsed, err := NewEVMAddress(address)
 	if err != nil {

@@ -1,8 +1,6 @@
 package iam_entities
 
 import (
-	"time"
-
 	"github.com/google/uuid"
 	shared "github.com/resource-ownership/go-common/pkg/common"
 )
@@ -10,20 +8,16 @@ import (
 type UserIDKey uuid.UUID
 
 type User struct {
-	ID            uuid.UUID            `json:"-" bson:"_id"`
-	Name          string               `json:"name" bson:"name"`
-	ResourceOwner shared.ResourceOwner `json:"resource_owner" bson:"resource_owner"`
-	CreatedAt     time.Time            `json:"created_at" bson:"created_at"`
-	UpdatedAt     time.Time            `json:"updated_at" bson:"updated_at"`
+	shared.BaseEntity `json:",inline" bson:",inline"`
+	Name              string `json:"name" bson:"name"`
 }
 
 func NewUser(userID uuid.UUID, name string, resourceOwner shared.ResourceOwner) *User {
+	entity := shared.NewEntity(resourceOwner)
+	entity.ID = userID
 	return &User{
-		ID:            userID,
-		Name:          name,
-		ResourceOwner: resourceOwner,
-		CreatedAt:     time.Now(),
-		UpdatedAt:     time.Now(),
+		BaseEntity: entity,
+		Name:       name,
 	}
 }
 

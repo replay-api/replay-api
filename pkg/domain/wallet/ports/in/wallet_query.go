@@ -100,6 +100,8 @@ type TransactionDTO struct {
 type WalletQuery interface {
 	GetBalance(ctx context.Context, query GetWalletBalanceQuery) (*WalletBalanceResult, error)
 	GetTransactions(ctx context.Context, query GetTransactionsQuery) (*TransactionsResult, error)
+	// GetWalletByUserID returns the wallet entity for a user, used for ownership verification
+	GetWalletByUserID(ctx context.Context, userID uuid.UUID) (*wallet_entities.UserWallet, error)
 }
 
 // Note: ValidationError is defined in wallet_command.go (same package)

@@ -36,7 +36,8 @@ func BeginNewMatch(p dem.Parser, matchContext *state.CS2MatchContext, out chan *
 
 		b := builders.NewCSMatchStatsBuilder(p, matchContext).WithRoundsStats(matchContext.RoundContexts)
 
-		payload := b.Build()
+		// Use BuildWithHeader() to include map name, duration, etc.
+		payload := b.BuildWithHeader()
 
 		currentTick := replay_common.TickIDType(gs.IngameTick())
 

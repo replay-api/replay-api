@@ -91,6 +91,9 @@ type LedgerAccount struct {
 // LedgerMetadata stores additional context about the transaction
 type LedgerMetadata struct {
 	OperationType      string                 `json:"operation_type" bson:"operation_type"` // "Deposit", "Withdrawal", "Transfer", "Prize"
+	ChainID            int                    `json:"chain_id,omitempty" bson:"chain_id,omitempty"`
+	PaymentMethod      string                 `json:"payment_method,omitempty" bson:"payment_method,omitempty"`
+	ContractAddress    string                 `json:"contract_address,omitempty" bson:"contract_address,omitempty"`
 	TxHash             string                 `json:"tx_hash,omitempty" bson:"tx_hash,omitempty"`
 	PaymentID          *uuid.UUID             `json:"payment_id,omitempty" bson:"payment_id,omitempty"`
 	MatchID            *uuid.UUID             `json:"match_id,omitempty" bson:"match_id,omitempty"`
@@ -345,16 +348,30 @@ func (j *JournalEntry) AddCredit(accountID uuid.UUID, accountCode string, amount
 }
 
 // Validate ensures the journal entry follows double-entry rules
+// CRITICAL: Debits MUST exactly equal Credits — no tolerance allowed
+// Since we use cents-based arithmetic (int64), amounts are always exact
 func (j *JournalEntry) Validate() error {
 	if len(j.Entries) < 2 {
 		return errors.New("journal entry must have at least 2 entries")
 	}
 
-	// Check debits equal credits (with small tolerance for floating point)
-	tolerance := big.NewFloat(0.001)
+	if j.Reference == "" {
+		return errors.New("journal reference is required")
+	}
+
+	if j.Currency == "" {
+		return errors.New("journal currency is required")
+	}
+
+	// Check debits exactly equal credits
+	// Using a very small tolerance (0.000001) for big.Float precision
+	// This is NOT the same as the old 0.001 tolerance — amounts passed through
+	// cents-based Amount VO will always be exact to 2 decimal places
+	tolerance := big.NewFloat(0.000001)
 	diff := new(big.Float).Sub(j.TotalDebit, j.TotalCredit)
-	if diff.Abs(diff).Cmp(tolerance) > 0 {
-		return fmt.Errorf("debits (%.2f) must equal credits (%.2f), difference: %.4f",
+	absDiff := new(big.Float).Abs(diff)
+	if absDiff.Cmp(tolerance) > 0 {
+		return fmt.Errorf("ACCOUNTING VIOLATION: debits (%.4f) must equal credits (%.4f), difference: %.6f",
 			floatFromBig(j.TotalDebit),
 			floatFromBig(j.TotalCredit),
 			floatFromBig(diff),

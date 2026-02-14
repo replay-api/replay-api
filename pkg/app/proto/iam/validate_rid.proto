@@ -9,8 +9,20 @@ message ValidateRIDRequest {
   string operation_id = 2;
 }
 
+// ResourceOwner contains the verified identity extracted from the RID token.
+// This is the single source of truth for user identity — no additional
+// headers should be needed to determine who the caller is.
+message ResourceOwner {
+  string tenant_id = 1;
+  string client_id = 2;
+  string group_id = 3;
+  string user_id = 4;
+}
+
 message ValidateRIDResponse {
   bool is_valid = 1;
+  ResourceOwner resource_owner = 2;
+  int32 intended_audience = 3;
   string reason = 4;
 }
 

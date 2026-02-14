@@ -27,11 +27,7 @@ type PlayerProfile struct {
 	Roles       []string                `json:"roles" bson:"roles"`
 	Description string                  `json:"description" bson:"description"`
 	NetworkIDs  map[string]string       `json:"-" bson:"network_ids"`
-	// TODO: regions?
-	// TODO: country!
-	// TODO: languagues
-	// TODO: gender (optional)
-	// TODO: Status Or flag indicating to request participation in Squad (and/or status: looking for squad, looking for friends etcs)
+	// Future fields: region, country, language, gender, squad-seeking status
 }
 
 func (e PlayerProfile) GetID() uuid.UUID {

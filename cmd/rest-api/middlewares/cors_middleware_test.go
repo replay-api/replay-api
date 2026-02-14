@@ -150,7 +150,68 @@ func TestCORSMiddleware_Handler_MatchingOrigin(t *testing.T) {
 	assert.Equal(t, "https://api.leetgaming.gg", rr.Header().Get("Access-Control-Allow-Origin"))
 }
 
+// TestCORSMiddleware_AuthenticationHeaders validates RID token headers are allowed
+// Business context: File uploads require RID token authentication via X-Resource-Owner-ID.
+// Identity headers (X-User-ID, etc.) are no longer sent — identity comes from the RID token.
+// This test ensures the RID authentication header is allowed in CORS.
+func TestCORSMiddleware_AuthenticationHeaders(t *testing.T) {
+	m := NewCORSMiddleware()
 
+	// Create a test handler
+	handler := m.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
 
+	// Test OPTIONS preflight request with RID token header (the only auth header needed)
+	req := httptest.NewRequest("OPTIONS", "/games/cs2/replays", nil)
+	req.Header.Set("Origin", "http://localhost:3030")
+	req.Header.Set("Access-Control-Request-Method", "POST")
+	req.Header.Set("Access-Control-Request-Headers", "X-Resource-Owner-ID, X-Intended-Audience")
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	// Verify CORS headers are set correctly
+	assert.Equal(t, "http://localhost:3030", rr.Header().Get("Access-Control-Allow-Origin"))
+	assert.Equal(t, "GET, POST, PUT, DELETE, OPTIONS, PATCH", rr.Header().Get("Access-Control-Allow-Methods"))
+	assert.Equal(t, "true", rr.Header().Get("Access-Control-Allow-Credentials"))
+
+	// CRITICAL: Verify RID token headers are allowed
+	allowedHeaders := rr.Header().Get("Access-Control-Allow-Headers")
+	assert.Contains(t, allowedHeaders, "X-Resource-Owner-ID", "X-Resource-Owner-ID header must be allowed for authentication")
+	assert.Contains(t, allowedHeaders, "X-Intended-Audience", "X-Intended-Audience header must be allowed for authentication")
+
+	// SECURITY: Verify identity headers are NOT in the allowed list
+	// Identity is resolved server-side from the RID token, not from client headers
+	assert.NotContains(t, allowedHeaders, "X-User-ID", "X-User-ID must NOT be in CORS allow list — identity comes from RID token")
+	assert.NotContains(t, allowedHeaders, "X-Tenant-ID", "X-Tenant-ID must NOT be in CORS allow list — identity comes from RID token")
+	assert.NotContains(t, allowedHeaders, "X-Client-ID", "X-Client-ID must NOT be in CORS allow list — identity comes from RID token")
+	assert.NotContains(t, allowedHeaders, "X-Group-ID", "X-Group-ID must NOT be in CORS allow list — identity comes from RID token")
+}
+
+// TestCORSMiddleware_UploadEndpointCORS validates upload endpoint specifically
+// Business context: The /games/{gameId}/replays endpoint is used for file uploads.
+// Authentication is via X-Resource-Owner-ID (RID token) only.
+func TestCORSMiddleware_UploadEndpointCORS(t *testing.T) {
+	m := NewCORSMiddleware()
+
+	handler := m.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	// Simulate the actual upload request — only RID token header is needed
+	req := httptest.NewRequest("POST", "/games/cs2/replays", nil)
+	req.Header.Set("Origin", "http://localhost:3030")
+	req.Header.Set("X-Resource-Owner-ID", "test-token")
+	req.Header.Set("X-Intended-Audience", "1")
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	// Verify the request is allowed and CORS headers are present
+	assert.Equal(t, "http://localhost:3030", rr.Header().Get("Access-Control-Allow-Origin"))
+	assert.Equal(t, "true", rr.Header().Get("Access-Control-Allow-Credentials"))
+	assert.Equal(t, http.StatusOK, rr.Code)
+}
 
 

@@ -376,6 +376,198 @@ var (
 		},
 		[]string{"game"},
 	)
+
+	// ============================================
+	// Wallet & Billing Metrics
+	// ============================================
+
+	// Wallet Balance Metrics
+	LeetgamingWalletBalanceTotalUSD = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "leetgaming_wallet_balance_total_usd",
+			Help: "Total wallet balance in USD (converted)",
+		},
+		[]string{"wallet_type"},
+	)
+
+	LeetgamingWalletBalanceTotal = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "leetgaming_wallet_balance_total",
+			Help: "Total wallet balance by currency (in cents)",
+		},
+		[]string{"currency"},
+	)
+
+	LeetgamingWalletsTotal = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "leetgaming_wallets_total",
+			Help: "Total number of wallets",
+		},
+	)
+
+	LeetgamingWalletsLockedTotal = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "leetgaming_wallets_locked_total",
+			Help: "Number of locked wallets",
+		},
+	)
+
+	// Transaction Metrics
+	LeetgamingWalletDepositsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "leetgaming_wallet_deposits_total",
+			Help: "Total number of deposits",
+		},
+		[]string{"currency", "provider"},
+	)
+
+	LeetgamingWalletDepositsTotalUSD = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "leetgaming_wallet_deposits_total_usd",
+			Help: "Total deposits in USD",
+		},
+	)
+
+	LeetgamingWalletWithdrawalsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "leetgaming_wallet_withdrawals_total",
+			Help: "Total number of withdrawals",
+		},
+		[]string{"currency", "status"},
+	)
+
+	LeetgamingWalletWithdrawalsTotalUSD = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "leetgaming_wallet_withdrawals_total_usd",
+			Help: "Total withdrawals in USD",
+		},
+	)
+
+	LeetgamingWalletPrizesTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "leetgaming_wallet_prizes_total",
+			Help: "Total prizes paid",
+		},
+		[]string{"currency", "source"},
+	)
+
+	LeetgamingWalletPrizesTotalUSD = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "leetgaming_wallet_prizes_total_usd",
+			Help: "Total prizes paid in USD",
+		},
+	)
+
+	LeetgamingWalletEntryFeesTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "leetgaming_wallet_entry_fees_total",
+			Help: "Total entry fees collected",
+		},
+		[]string{"currency", "game"},
+	)
+
+	LeetgamingWalletEntryFeesTotalUSD = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "leetgaming_wallet_entry_fees_total_usd",
+			Help: "Total entry fees in USD",
+		},
+	)
+
+	LeetgamingWalletTransactionsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "leetgaming_wallet_transactions_total",
+			Help: "Total wallet transactions by type",
+		},
+		[]string{"type", "currency"},
+	)
+
+	LeetgamingWithdrawalsPendingTotal = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "leetgaming_withdrawals_pending_total",
+			Help: "Number of pending withdrawals",
+		},
+	)
+
+	// Subscription Metrics
+	LeetgamingSubscriptionsActive = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "leetgaming_subscriptions_active",
+			Help: "Number of active subscriptions by tier",
+		},
+		[]string{"tier"},
+	)
+
+	LeetgamingSubscriptionsCreatedTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "leetgaming_subscriptions_created_total",
+			Help: "Total subscriptions created",
+		},
+		[]string{"tier", "billing_period"},
+	)
+
+	LeetgamingSubscriptionsChurnedTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "leetgaming_subscriptions_churned_total",
+			Help: "Total subscriptions churned/cancelled",
+		},
+		[]string{"tier", "reason"},
+	)
+
+	LeetgamingSubscriptionRevenueUSD = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "leetgaming_subscription_revenue_usd",
+			Help: "Subscription revenue in USD",
+		},
+		[]string{"tier", "billing_period"},
+	)
+
+	// Payment Metrics
+	LeetgamingPaymentsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "leetgaming_payments_total",
+			Help: "Total payments processed",
+		},
+		[]string{"provider", "status"},
+	)
+
+	LeetgamingPaymentFailuresTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "leetgaming_payment_failures_total",
+			Help: "Total payment failures",
+		},
+		[]string{"provider", "reason"},
+	)
+
+	LeetgamingRefundsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "leetgaming_refunds_total",
+			Help: "Total refunds processed",
+		},
+		[]string{"reason"},
+	)
+
+	// Security & Compliance Metrics
+	LeetgamingFraudAlertsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "leetgaming_fraud_alerts_total",
+			Help: "Total fraud alerts triggered",
+		},
+		[]string{"type", "severity"},
+	)
+
+	LeetgamingLedgerEntriesTotal = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "leetgaming_ledger_entries_total",
+			Help: "Total ledger entries",
+		},
+	)
+
+	LeetgamingLedgerBalancedTotal = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "leetgaming_ledger_balanced_total",
+			Help: "Number of balanced ledger entries (debits = credits)",
+		},
+	)
 )
 
 type responseWriter struct {
@@ -449,4 +641,110 @@ func RecordPaymentFailure(provider, paymentType, reason string) {
 
 func RecordPaymentDuration(provider, paymentType string, duration time.Duration) {
 	PaymentProcessingDuration.WithLabelValues(provider, paymentType).Observe(duration.Seconds())
+}
+
+// ============================================
+// Wallet Metric Recording Functions
+// ============================================
+
+// RecordWalletDeposit records a deposit transaction
+func RecordWalletDeposit(currency, provider string, amountUSD float64) {
+	LeetgamingWalletDepositsTotal.WithLabelValues(currency, provider).Inc()
+	LeetgamingWalletDepositsTotalUSD.Add(amountUSD)
+	LeetgamingWalletTransactionsTotal.WithLabelValues("deposit", currency).Inc()
+}
+
+// RecordWalletWithdrawal records a withdrawal transaction
+func RecordWalletWithdrawal(currency, status string, amountUSD float64) {
+	LeetgamingWalletWithdrawalsTotal.WithLabelValues(currency, status).Inc()
+	LeetgamingWalletWithdrawalsTotalUSD.Add(amountUSD)
+	LeetgamingWalletTransactionsTotal.WithLabelValues("withdrawal", currency).Inc()
+}
+
+// RecordWalletPrize records a prize payout
+func RecordWalletPrize(currency, source string, amountUSD float64) {
+	LeetgamingWalletPrizesTotal.WithLabelValues(currency, source).Inc()
+	LeetgamingWalletPrizesTotalUSD.Add(amountUSD)
+	LeetgamingWalletTransactionsTotal.WithLabelValues("prize", currency).Inc()
+}
+
+// RecordWalletEntryFee records an entry fee deduction
+func RecordWalletEntryFee(currency, game string, amountUSD float64) {
+	LeetgamingWalletEntryFeesTotal.WithLabelValues(currency, game).Inc()
+	LeetgamingWalletEntryFeesTotalUSD.Add(amountUSD)
+	LeetgamingWalletTransactionsTotal.WithLabelValues("entry_fee", currency).Inc()
+}
+
+// SetWalletBalance updates the total wallet balance gauge
+func SetWalletBalance(currency string, balanceCents float64) {
+	LeetgamingWalletBalanceTotal.WithLabelValues(currency).Set(balanceCents)
+}
+
+// SetWalletBalanceUSD updates the USD balance gauge
+func SetWalletBalanceUSD(walletType string, balanceUSD float64) {
+	LeetgamingWalletBalanceTotalUSD.WithLabelValues(walletType).Set(balanceUSD)
+}
+
+// SetTotalWallets updates the total wallets gauge
+func SetTotalWallets(count float64) {
+	LeetgamingWalletsTotal.Set(count)
+}
+
+// SetLockedWallets updates the locked wallets gauge
+func SetLockedWallets(count float64) {
+	LeetgamingWalletsLockedTotal.Set(count)
+}
+
+// SetPendingWithdrawals updates the pending withdrawals gauge
+func SetPendingWithdrawals(count float64) {
+	LeetgamingWithdrawalsPendingTotal.Set(count)
+}
+
+// RecordSubscriptionCreated records a new subscription
+func RecordSubscriptionCreated(tier, billingPeriod string) {
+	LeetgamingSubscriptionsCreatedTotal.WithLabelValues(tier, billingPeriod).Inc()
+}
+
+// RecordSubscriptionChurned records a subscription cancellation
+func RecordSubscriptionChurned(tier, reason string) {
+	LeetgamingSubscriptionsChurnedTotal.WithLabelValues(tier, reason).Inc()
+}
+
+// SetActiveSubscriptions updates the active subscriptions gauge by tier
+func SetActiveSubscriptions(tier string, count float64) {
+	LeetgamingSubscriptionsActive.WithLabelValues(tier).Set(count)
+}
+
+// RecordSubscriptionRevenue records subscription revenue
+func RecordSubscriptionRevenue(tier, billingPeriod string, amountUSD float64) {
+	LeetgamingSubscriptionRevenueUSD.WithLabelValues(tier, billingPeriod).Add(amountUSD)
+}
+
+// RecordPaymentProcessed records a successful payment
+func RecordPaymentProcessed(provider string) {
+	LeetgamingPaymentsTotal.WithLabelValues(provider, "success").Inc()
+}
+
+// RecordPaymentFailed records a payment failure
+func RecordPaymentFailed(provider, reason string) {
+	LeetgamingPaymentsTotal.WithLabelValues(provider, "failed").Inc()
+	LeetgamingPaymentFailuresTotal.WithLabelValues(provider, reason).Inc()
+}
+
+// RecordRefund records a refund
+func RecordRefund(reason string) {
+	LeetgamingRefundsTotal.WithLabelValues(reason).Inc()
+}
+
+// RecordFraudAlert records a fraud detection alert
+func RecordFraudAlert(alertType, severity string) {
+	LeetgamingFraudAlertsTotal.WithLabelValues(alertType, severity).Inc()
+}
+
+// RecordLedgerEntry records a ledger entry
+func RecordLedgerEntry(balanced bool) {
+	LeetgamingLedgerEntriesTotal.Inc()
+	if balanced {
+		LeetgamingLedgerBalancedTotal.Inc()
+	}
 }

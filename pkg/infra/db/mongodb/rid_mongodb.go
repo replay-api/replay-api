@@ -104,9 +104,20 @@ func (r *RIDTokenRepository) Revoke(ctx context.Context, tokenID string) error {
 	return nil
 }
 
-// FindByID retrieves a token by its ID
+// FindByID retrieves a token by its ID without visibility filtering
 func (r *RIDTokenRepository) FindByID(ctx context.Context, tokenID uuid.UUID) (*iam_entity.RIDToken, error) {
-	return r.GetByID(ctx, tokenID)
+	collection := r.MongoDBRepository.Collection()
+	
+	var token iam_entity.RIDToken
+	err := collection.FindOne(ctx, bson.M{"_id": tokenID}).Decode(&token)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil // Token doesn't exist
+		}
+		return nil, err
+	}
+
+	return &token, nil
 }
 
 // IsRevoked checks if a token has been revoked

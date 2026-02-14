@@ -110,7 +110,7 @@ func (c *TournamentCommandController) CreateTournamentHandler(apiContext context
 		tournament, err := c.tournamentCommand.CreateTournament(r.Context(), cmd)
 		if err != nil {
 			slog.ErrorContext(r.Context(), "failed to create tournament", "error", err)
-			http.Error(w, "failed to create tournament: "+err.Error(), http.StatusInternalServerError)
+			http.Error(w, `{"success":false,"error":"Failed to create tournament"}`, http.StatusInternalServerError)
 			return
 		}
 
@@ -179,7 +179,7 @@ func (c *TournamentCommandController) UpdateTournamentHandler(apiContext context
 		tournament, err := c.tournamentCommand.UpdateTournament(r.Context(), cmd)
 		if err != nil {
 			slog.ErrorContext(r.Context(), "failed to update tournament", "error", err)
-			http.Error(w, "failed to update tournament: "+err.Error(), http.StatusBadRequest)
+			http.Error(w, `{"success":false,"error":"Failed to update tournament"}`, http.StatusBadRequest)
 			return
 		}
 
@@ -206,7 +206,7 @@ func (c *TournamentCommandController) DeleteTournamentHandler(apiContext context
 
 		if err := c.tournamentCommand.DeleteTournament(r.Context(), tournamentID); err != nil {
 			slog.ErrorContext(r.Context(), "failed to delete tournament", "error", err)
-			http.Error(w, "failed to delete tournament: "+err.Error(), http.StatusBadRequest)
+			http.Error(w, `{"success":false,"error":"Failed to delete tournament"}`, http.StatusBadRequest)
 			return
 		}
 
@@ -250,7 +250,7 @@ func (c *TournamentCommandController) RegisterPlayerHandler(apiContext context.C
 
 		if err := c.tournamentCommand.RegisterPlayer(r.Context(), cmd); err != nil {
 			slog.ErrorContext(r.Context(), "failed to register player", "error", err)
-			http.Error(w, "failed to register: "+err.Error(), http.StatusBadRequest)
+			http.Error(w, `{"success":false,"error":"Failed to register for tournament"}`, http.StatusBadRequest)
 			return
 		}
 
@@ -293,7 +293,7 @@ func (c *TournamentCommandController) UnregisterPlayerHandler(apiContext context
 
 		if err := c.tournamentCommand.UnregisterPlayer(r.Context(), cmd); err != nil {
 			slog.ErrorContext(r.Context(), "failed to unregister player", "error", err)
-			http.Error(w, "failed to unregister: "+err.Error(), http.StatusBadRequest)
+			http.Error(w, `{"success":false,"error":"Failed to unregister from tournament"}`, http.StatusBadRequest)
 			return
 		}
 
@@ -316,7 +316,7 @@ func (c *TournamentCommandController) StartTournamentHandler(apiContext context.
 
 		if err := c.tournamentCommand.StartTournament(r.Context(), tournamentID); err != nil {
 			slog.ErrorContext(r.Context(), "failed to start tournament", "error", err)
-			http.Error(w, "failed to start tournament: "+err.Error(), http.StatusBadRequest)
+			http.Error(w, `{"success":false,"error":"Failed to start tournament"}`, http.StatusBadRequest)
 			return
 		}
 

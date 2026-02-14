@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"log/slog"
+	"strconv"
 
 	"github.com/google/uuid"
 	dem "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs"
@@ -71,6 +72,16 @@ func ClutchStart(p dem.Parser, matchContext *state.CS2MatchContext, out chan *re
 
 		matchContext = matchContext.WithClutch(roundIndex, playerInClutch, opponents)
 
+		// Track clutch attempt in stats accumulator
+		if matchContext.StatsAccumulator != nil {
+			steamID := strconv.FormatUint(playerInClutch.SteamID64, 10)
+			team := "CT"
+			if playerInClutch.Team == infocs.TeamTerrorists {
+				team = "T"
+			}
+			matchContext.StatsAccumulator.RecordClutchAttempt(steamID, playerInClutch.Name, team)
+		}
+
 		b := builders.NewCSMatchStatsBuilder(p, matchContext).WithRoundsStats(matchContext.RoundContexts)
 
 		out <- &replay_entity.GameEvent{
@@ -79,7 +90,7 @@ func ClutchStart(p dem.Parser, matchContext *state.CS2MatchContext, out chan *re
 			Type:          fps_events.Event_ClutchStartID,
 			Payload:       b.Build(),
 			GameTime:      p.CurrentTime(),
-			ResourceOwner: matchContext.ResourceOwner, // TODO: remover daqui ou do matchContext, esta redundante
+			ResourceOwner: matchContext.ResourceOwner,
 		}
 	}
 }

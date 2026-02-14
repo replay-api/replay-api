@@ -4,13 +4,14 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
-	replay_common "github.com/replay-api/replay-common/pkg/replay"
 	"github.com/replay-api/replay-api/cmd/rest-api/controllers"
-	shared "github.com/resource-ownership/go-common/pkg/common"
 	iam_in "github.com/replay-api/replay-api/pkg/domain/iam/ports/in"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type ResourceContextMiddleware struct {
@@ -41,6 +42,22 @@ func (m *ResourceContextMiddleware) Handler(next http.Handler) http.Handler {
 
 		rid := r.Header.Get(controllers.ResourceOwnerIDHeaderKey)
 		if rid == "" {
+			// Check if this is a replay upload request - allow guest uploads
+			isReplayUpload := strings.Contains(r.URL.Path, "/games/") && strings.Contains(r.URL.Path, "/replays") && r.Method == "POST" && !strings.Contains(r.URL.Path, "/replays/")
+			slog.InfoContext(ctx, "checking replay upload", "path", r.URL.Path, "method", r.Method, "isReplayUpload", isReplayUpload)
+			if isReplayUpload {
+				slog.InfoContext(ctx, "allowing guest upload for replay endpoint", "path", r.URL.Path)
+				// Set up guest resource owner context
+				guestUserID := uuid.New()
+				guestGroupID := uuid.New()
+				ctx = context.WithValue(ctx, shared.GroupIDKey, guestGroupID)
+				ctx = context.WithValue(ctx, shared.UserIDKey, guestUserID)
+				ctx = context.WithValue(ctx, shared.AudienceKey, shared.UserAudienceIDKey)
+				ctx = context.WithValue(ctx, shared.AuthenticatedKey, true) // Allow guest uploads
+				next.ServeHTTP(w, r.WithContext(ctx))
+				return
+			}
+			
 			slog.WarnContext(ctx, "missing resource owner id", "ResourceOwnerIDHeaderKey", controllers.ResourceOwnerIDHeaderKey)
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return
@@ -73,6 +90,9 @@ func (m *ResourceContextMiddleware) Handler(next http.Handler) http.Handler {
 			slog.WarnContext(ctx, "non end user resource owner", "reso", reso)
 		}
 
+		// Set ALL resource owner fields in context including TenantID and ClientID
+		ctx = context.WithValue(ctx, shared.TenantIDKey, reso.TenantID)
+		ctx = context.WithValue(ctx, shared.ClientIDKey, reso.ClientID)
 		ctx = context.WithValue(ctx, shared.GroupIDKey, reso.GroupID)
 		ctx = context.WithValue(ctx, shared.UserIDKey, reso.UserID)
 		ctx = context.WithValue(ctx, shared.AudienceKey, aud)

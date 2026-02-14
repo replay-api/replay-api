@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	common "github.com/replay-api/replay-api/pkg/domain"
 	wallet_in "github.com/replay-api/replay-api/pkg/domain/wallet/ports/in"
+	wallet_vo "github.com/replay-api/replay-api/pkg/domain/wallet/value-objects"
 	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
@@ -105,8 +106,8 @@ func (c *WalletQueryController) GetWalletTransactionsHandler(w http.ResponseWrit
 	// Parse limit with maximum cap for security/performance
 	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
 		if limit, err := strconv.Atoi(limitStr); err == nil && limit > 0 {
-			if limit > 200 {
-				limit = 200 // Cap maximum to prevent abuse
+			if limit > 100 {
+				limit = 100 // Cap to domain max — prevents abuse
 			}
 			filters.Limit = limit
 		}
@@ -135,6 +136,28 @@ func (c *WalletQueryController) GetWalletTransactionsHandler(w http.ResponseWrit
 	sortOrder := r.URL.Query().Get("sort_order")
 	if sortOrder == "asc" || sortOrder == "desc" {
 		filters.SortOrder = sortOrder
+	}
+
+	// Parse currency filter (validated against supported currencies)
+	if currencyStr := r.URL.Query().Get("currency"); currencyStr != "" {
+		currency, err := wallet_vo.ParseCurrency(currencyStr)
+		if err == nil {
+			filters.Currency = &currency
+		}
+		// Silently ignore invalid currencies (returns unfiltered results)
+	}
+
+	// Parse operation type filter
+	if opType := r.URL.Query().Get("type"); opType != "" {
+		// Validate against known operation types
+		allowedTypes := map[string]bool{
+			"DEPOSIT": true, "WITHDRAWAL": true, "TRANSFER": true,
+			"PRIZE_DISTRIBUTION": true, "ENTRY_FEE": true,
+			"PLATFORM_FEE": true, "REFUND": true, "ADJUSTMENT": true,
+		}
+		if allowedTypes[opType] {
+			filters.OperationType = &opType
+		}
 	}
 
 	// Create query - only allow access to the authenticated user's transactions

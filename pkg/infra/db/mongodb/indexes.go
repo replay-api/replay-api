@@ -263,6 +263,247 @@ func GetAllIndexes() []IndexDefinition {
 			},
 			Options: options.Index(),
 		},
+
+		// Replay Files Indexes - Optimized for searchable framework with resource ownership
+		{
+			Collection: "replay_files",
+			Name:       "idx_replay_files_game_status",
+			Keys: bson.D{
+				{Key: "game_id", Value: 1},
+				{Key: "status", Value: 1},
+				{Key: "created_at", Value: -1},
+			},
+			Options: options.Index(),
+		},
+		{
+			Collection: "replay_files",
+			Name:       "idx_replay_files_visibility",
+			Keys: bson.D{
+				{Key: "visibility_type", Value: 1},
+				{Key: "game_id", Value: 1},
+			},
+			Options: options.Index(),
+		},
+		{
+			Collection: "replay_files",
+			Name:       "idx_replay_files_resource_owner_user",
+			Keys: bson.D{
+				{Key: "resource_owner.user_id", Value: 1},
+				{Key: "game_id", Value: 1},
+			},
+			Options: options.Index(),
+		},
+		{
+			Collection: "replay_files",
+			Name:       "idx_replay_files_resource_owner_group",
+			Keys: bson.D{
+				{Key: "resource_owner.group_id", Value: 1},
+				{Key: "game_id", Value: 1},
+			},
+			Options: options.Index(),
+		},
+		{
+			Collection: "replay_files",
+			Name:       "idx_replay_files_resource_owner_client",
+			Keys: bson.D{
+				{Key: "resource_owner.client_id", Value: 1},
+				{Key: "visibility_type", Value: 1},
+			},
+			Options: options.Index(),
+		},
+		{
+			Collection: "replay_files",
+			Name:       "idx_replay_files_network_id",
+			Keys: bson.D{
+				{Key: "network_id", Value: 1},
+				{Key: "game_id", Value: 1},
+			},
+			Options: options.Index(),
+		},
+		// Content hash for replay deduplication - sparse to handle null values
+		{
+			Collection: "replay_files",
+			Name:       "idx_replay_files_content_hash",
+			Keys: bson.D{
+				{Key: "content_hash", Value: 1},
+			},
+			Options: options.Index().
+				SetSparse(true), // Don't index documents without content_hash
+		},
+		// Original replay reference for deduplication tracking
+		{
+			Collection: "replay_files",
+			Name:       "idx_replay_files_original_replay_id",
+			Keys: bson.D{
+				{Key: "original_replay_id", Value: 1},
+			},
+			Options: options.Index().
+				SetSparse(true), // Don't index documents without original_replay_id
+		},
+
+		// Game Events Indexes - Optimized for highlights and event queries
+		{
+			Collection: "game_events",
+			Name:       "idx_game_events_game_type",
+			Keys: bson.D{
+				{Key: "game_id", Value: 1},
+				{Key: "event_type", Value: 1},
+				{Key: "created_at", Value: -1},
+			},
+			Options: options.Index(),
+		},
+		{
+			Collection: "game_events",
+			Name:       "idx_game_events_replay_file",
+			Keys: bson.D{
+				{Key: "replay_file_id", Value: 1},
+				{Key: "event_type", Value: 1},
+			},
+			Options: options.Index(),
+		},
+		{
+			Collection: "game_events",
+			Name:       "idx_game_events_match",
+			Keys: bson.D{
+				{Key: "match_id", Value: 1},
+				{Key: "round_number", Value: 1},
+			},
+			Options: options.Index(),
+		},
+		{
+			Collection: "game_events",
+			Name:       "idx_game_events_player",
+			Keys: bson.D{
+				{Key: "player_id", Value: 1},
+				{Key: "event_type", Value: 1},
+			},
+			Options: options.Index(),
+		},
+		{
+			Collection: "game_events",
+			Name:       "idx_game_events_visibility",
+			Keys: bson.D{
+				{Key: "visibility_type", Value: 1},
+				{Key: "game_id", Value: 1},
+			},
+			Options: options.Index(),
+		},
+		{
+			Collection: "game_events",
+			Name:       "idx_game_events_resource_owner_user",
+			Keys: bson.D{
+				{Key: "resource_owner.user_id", Value: 1},
+				{Key: "game_id", Value: 1},
+			},
+			Options: options.Index(),
+		},
+
+		// Match Metadata Indexes - Optimized for match queries
+		{
+			Collection: "match_metadata",
+			Name:       "idx_match_metadata_game_status",
+			Keys: bson.D{
+				{Key: "game_id", Value: 1},
+				{Key: "status", Value: 1},
+				{Key: "created_at", Value: -1},
+			},
+			Options: options.Index(),
+		},
+		{
+			Collection: "match_metadata",
+			Name:       "idx_match_metadata_replay_file",
+			Keys: bson.D{
+				{Key: "replay_file_id", Value: 1},
+			},
+			Options: options.Index(),
+		},
+		{
+			Collection: "match_metadata",
+			Name:       "idx_match_metadata_network",
+			Keys: bson.D{
+				{Key: "network_id", Value: 1},
+				{Key: "game_id", Value: 1},
+			},
+			Options: options.Index(),
+		},
+		{
+			Collection: "match_metadata",
+			Name:       "idx_match_metadata_visibility",
+			Keys: bson.D{
+				{Key: "visibility_type", Value: 1},
+				{Key: "game_id", Value: 1},
+			},
+			Options: options.Index(),
+		},
+		{
+			Collection: "match_metadata",
+			Name:       "idx_match_metadata_resource_owner_user",
+			Keys: bson.D{
+				{Key: "resource_owner.user_id", Value: 1},
+				{Key: "game_id", Value: 1},
+			},
+			Options: options.Index(),
+		},
+		// Index for map filtering
+		{
+			Collection: "match_metadata",
+			Name:       "idx_match_metadata_map_name",
+			Keys: bson.D{
+				{Key: "map_name", Value: 1},
+				{Key: "game_id", Value: 1},
+				{Key: "created_at", Value: -1},
+			},
+			Options: options.Index(),
+		},
+		// Index for played_at date range queries
+		{
+			Collection: "match_metadata",
+			Name:       "idx_match_metadata_played_at",
+			Keys: bson.D{
+				{Key: "played_at", Value: -1},
+				{Key: "game_id", Value: 1},
+			},
+			Options: options.Index(),
+		},
+
+		// Player Metadata Indexes - For player profile lookups
+		{
+			Collection: "player_metadata",
+			Name:       "idx_player_metadata_network_user",
+			Keys: bson.D{
+				{Key: "network_id", Value: 1},
+				{Key: "network_user_id", Value: 1},
+			},
+			Options: options.Index(),
+		},
+		{
+			Collection: "player_metadata",
+			Name:       "idx_player_metadata_game",
+			Keys: bson.D{
+				{Key: "game_id", Value: 1},
+				{Key: "created_at", Value: -1},
+			},
+			Options: options.Index(),
+		},
+
+		// RID Tokens Indexes - For authentication/session management
+		{
+			Collection: "rid_tokens",
+			Name:       "idx_rid_tokens_expires",
+			Keys: bson.D{
+				{Key: "expires_at", Value: 1},
+			},
+			Options: options.Index().
+				SetExpireAfterSeconds(0), // TTL index
+		},
+		{
+			Collection: "rid_tokens",
+			Name:       "idx_rid_tokens_user",
+			Keys: bson.D{
+				{Key: "resource_owner.user_id", Value: 1},
+			},
+			Options: options.Index(),
+		},
 	}
 }
 

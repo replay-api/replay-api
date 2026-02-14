@@ -43,6 +43,12 @@ func (am *AuthMiddleware) isPublicPostPath(path string) bool {
 		"/auth/guest":        true, // Guest token creation doesn't require auth
 		"/webhooks/stripe":   true,
 	}
+	
+	// Allow POST to game replay upload endpoints for guest uploads
+	if strings.Contains(path, "/games/") && strings.Contains(path, "/replays") && !strings.Contains(path, "/replays/") {
+		return true
+	}
+	
 	return publicPostPaths[path]
 }
 
@@ -59,6 +65,9 @@ func (am *AuthMiddleware) isPublicPath(path string) bool {
 		"/tournaments",
 		"/players",
 		"/squads",
+		"/games/",               // Allow public access to game-related endpoints (matches, replays, etc.)
+		"/plans",                // Plans listing is public
+		"/subscriptions/plans",  // Plans listing via subscriptions path is public
 	}
 
 	for _, prefix := range publicPrefixes {

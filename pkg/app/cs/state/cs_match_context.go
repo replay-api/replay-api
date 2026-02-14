@@ -13,17 +13,19 @@ import (
 )
 
 type CS2MatchContext struct {
-	MatchID       uuid.UUID `json:"match_id"`
-	Header        cs_entity.CSReplayFileHeader
-	RoundContexts map[int]*CS2RoundContext `json:"round_contexts"`
-	ResourceOwner shared.ResourceOwner     `json:"resource_owner"`
+	MatchID          uuid.UUID `json:"match_id"`
+	Header           cs_entity.CSReplayFileHeader
+	RoundContexts    map[int]*CS2RoundContext `json:"round_contexts"`
+	ResourceOwner    shared.ResourceOwner     `json:"resource_owner"`
+	StatsAccumulator *PlayerStatsAccumulator  `json:"-"` // Tracks advanced player stats during parsing
 }
 
 func NewCS2MatchContext(userContext context.Context, matchID uuid.UUID) *CS2MatchContext {
 	return &CS2MatchContext{
-		MatchID:       matchID,
-		RoundContexts: make(map[int]*CS2RoundContext),
-		ResourceOwner: shared.GetResourceOwner(userContext),
+		MatchID:          matchID,
+		RoundContexts:    make(map[int]*CS2RoundContext),
+		ResourceOwner:    shared.GetResourceOwner(userContext),
+		StatsAccumulator: NewPlayerStatsAccumulator(),
 	}
 }
 

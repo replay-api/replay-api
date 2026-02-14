@@ -18,8 +18,8 @@ type ReplayFileContentRepository struct {
 	bucket *gridfs.Bucket
 }
 
-func NewReplayFileContentRepository(client *mongo.Client) *ReplayFileContentRepository {
-	db := client.Database("replay")
+func NewReplayFileContentRepository(client *mongo.Client, dbName string) *ReplayFileContentRepository {
+	db := client.Database(dbName)
 	bucket, err := gridfs.NewBucket(db, options.GridFSBucket().SetName("replay_file_content"))
 
 	if err != nil {

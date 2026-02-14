@@ -299,12 +299,12 @@ func (s *ReconciliationService) ReconcileAllWallets(
 		Results:   []ReconciliationResult{},
 	}
 
-	// TODO: Implement batch reconciliation
-	// This requires a method to list all wallets, which isn't in the current interface
-	// For now, this is a placeholder for future implementation
+	// Batch reconciliation requires a ListAll/ListActive method on WalletRepository
+	// which is not yet available. When implemented, iterate all wallets and call ReconcileWallet.
+	slog.WarnContext(ctx, "batch reconciliation skipped: wallet listing not yet implemented")
 
 	report.CompletedAt = time.Now().UTC()
-	report.Status = "Completed"
+	report.Status = "Skipped"
 
 	return report, nil
 }
@@ -316,11 +316,14 @@ func (s *ReconciliationService) VerifyLedgerIntegrity(
 	fromDate time.Time,
 	toDate time.Time,
 ) (*LedgerIntegrityReport, error) {
-	// TODO: Implement ledger integrity verification
-	// This requires querying all entries in date range and verifying:
+	// Ledger integrity verification requires querying all entries in date range
+	// and verifying:
 	// 1. Every transaction has matching debit/credit entries
 	// 2. Total debits = total credits across all entries
 	// 3. No orphaned entries
+	// Requires a ListByDateRange method on LedgerRepository.
+	slog.WarnContext(ctx, "ledger integrity verification skipped: date-range ledger query not yet implemented",
+		"from", fromDate, "to", toDate)
 
 	report := &LedgerIntegrityReport{
 		ReportID:  uuid.New(),

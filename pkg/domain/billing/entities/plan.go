@@ -286,13 +286,14 @@ const (
 )
 
 type Plan struct {
-	shared.BaseEntity
+	shared.BaseEntity    `bson:"baseentity"`
 	Name                 string                                `json:"name" bson:"name"`
 	Description          string                                `json:"description" bson:"description"`
 	Kind                 PlanKindType                          `json:"kind" bson:"kind"`
 	CustomerType         PlanCustomerType                      `json:"customer_type" bson:"customer_type"`
 	Prices               map[BillingPeriodType][]Price         `json:"prices" bson:"prices"`
 	OperationLimits      map[BillableOperationKey]BillableItem `json:"operation_limits" bson:"operation_limits"`
+	Features             []string                              `json:"features" bson:"features"` // Simple feature list for display purposes
 	IsFree               bool                                  `json:"is_free" bson:"is_free"`
 	IsAvailable          bool                                  `json:"is_available" bson:"is_available"`
 	IsLegacy             bool                                  `json:"is_legacy" bson:"is_legacy"`

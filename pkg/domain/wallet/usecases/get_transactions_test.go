@@ -127,6 +127,7 @@ func TestGetTransactions_Success(t *testing.T) {
 	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
 	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	walletID := uuid.New()
 	now := time.Now()
@@ -260,6 +261,7 @@ func TestGetTransactions_WalletNotFound_ReturnsEmpty(t *testing.T) {
 	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
 	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	// Wallet not found
 	mockWalletRepo.On("Search", mock.Anything, mock.AnythingOfType("shared.Search")).Return([]wallet_entities.UserWallet{}, nil)
@@ -293,6 +295,7 @@ func TestGetTransactions_LedgerError(t *testing.T) {
 	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
 	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	walletID := uuid.New()
 	now := time.Now()
@@ -333,6 +336,7 @@ func TestGetTransactions_EmptyTransactions(t *testing.T) {
 	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
 	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	walletID := uuid.New()
 	now := time.Now()
@@ -377,6 +381,7 @@ func TestGetTransactions_WithPagination(t *testing.T) {
 	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
 	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	walletID := uuid.New()
 	now := time.Now()

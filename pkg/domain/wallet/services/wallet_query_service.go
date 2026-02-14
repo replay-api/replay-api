@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	shared "github.com/resource-ownership/go-common/pkg/common"
 	wallet_entities "github.com/replay-api/replay-api/pkg/domain/wallet/entities"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // WalletQueryService provides domain query operations for wallets using technology-agnostic search patterns
@@ -46,12 +46,14 @@ func NewWalletQueryService(walletReader shared.Searchable[wallet_entities.UserWa
 // FindByUserID finds a wallet by user ID
 // Business rule: Wallets are scoped by resource ownership (RLS)
 func (s *WalletQueryService) FindByUserID(ctx context.Context, userID uuid.UUID) (*wallet_entities.UserWallet, error) {
-	search := shared.NewSearchBuilder().
-		WithAggregation(shared.NewSearchAggregation().
-			WithValueParam("UserID", userID).
-			Build()).
-		WithLimit(1).
-		Build()
+	// Use NewSearchByValues which properly extracts resource owner from context for RLS
+	search := shared.NewSearchByValues(ctx, []shared.SearchableValue{
+		{
+			Field:    "UserID",
+			Values:   []interface{}{userID},
+			Operator: shared.EqualsOperator,
+		},
+	}, shared.NewSearchResultOptions(0, 1), shared.UserAudienceIDKey)
 
 	entities, err := s.reader.Search(ctx, search)
 	if err != nil {
@@ -68,12 +70,14 @@ func (s *WalletQueryService) FindByUserID(ctx context.Context, userID uuid.UUID)
 // FindByEVMAddress finds a wallet by EVM address
 // Business rule: EVM addresses are unique identifiers
 func (s *WalletQueryService) FindByEVMAddress(ctx context.Context, evmAddress string) (*wallet_entities.UserWallet, error) {
-	search := shared.NewSearchBuilder().
-		WithAggregation(shared.NewSearchAggregation().
-			WithValueParam("EVMAddress", evmAddress).
-			Build()).
-		WithLimit(1).
-		Build()
+	// Use NewSearchByValues which properly extracts resource owner from context for RLS
+	search := shared.NewSearchByValues(ctx, []shared.SearchableValue{
+		{
+			Field:    "EVMAddress",
+			Values:   []interface{}{evmAddress},
+			Operator: shared.EqualsOperator,
+		},
+	}, shared.NewSearchResultOptions(0, 1), shared.UserAudienceIDKey)
 
 	entities, err := s.reader.Search(ctx, search)
 	if err != nil {

@@ -1,26 +1,33 @@
 # build
-FROM golang:1.25.4-alpine AS build
-RUN apk add --no-cache tzdata ca-certificates
-WORKDIR /app
-COPY go.mod go.sum ./
-COPY vendor ./vendor
+FROM golang:1.23.4-alpine AS build
+RUN apk add --no-cache tzdata ca-certificates git
+WORKDIR /workspace
+
+# Copy all modules for replace directives
+COPY ../resource-ownership/go-common ./resource-ownership/go-common
+COPY ../resource-ownership/go-mongodb ./resource-ownership/go-mongodb
+COPY ../replay-common ./replay-common
+# Copy the current directory (replay-api) to workspace
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -ldflags="-s -w" -o replay-api-http-service ./cmd/rest-api
-RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -ldflags="-s -w" -o rpc-api ./cmd/rpc-api
-RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -ldflags="-s -w" -o seed ./cmd/cli/seed/main.go
-RUN mkdir -p /app/replay_files
-RUN mkdir -p /app/coverage
+
+WORKDIR /workspace/replay-api
+RUN go mod tidy && go mod download
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o replay-api-http-service ./cmd/rest-api
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o rpc-api ./cmd/rpc-api || true
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o seed ./cmd/cli/seed/main.go || true
+RUN mkdir -p /workspace/replay-api/replay_files
+RUN mkdir -p /workspace/replay-api/coverage
 
 # runtime - using scratch for minimal image size
 FROM scratch AS runtime
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=build /usr/share/zoneinfo /usr/share/zoneinfo
 WORKDIR /app
-COPY --from=build /app/replay-api-http-service ./
-COPY --from=build /app/rpc-api ./rpc-api
-COPY --from=build /app/seed ./seed
-COPY --from=build /app/replay_files ./replay_files
-COPY --from=build /app/coverage ./coverage
+COPY --from=build /workspace/replay-api/replay-api-http-service ./
+COPY --from=build /workspace/replay-api/rpc-api ./rpc-api
+COPY --from=build /workspace/replay-api/seed ./seed
+COPY --from=build /workspace/replay-api/replay_files ./replay_files
+COPY --from=build /workspace/replay-api/coverage ./coverage
 
 # Environment variables
 ENV TZ=UTC

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"log/slog"
+	"strconv"
 
 	dem "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs"
 	evt "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs/events"
@@ -37,7 +38,63 @@ func HitEvent(p dem.Parser, matchContext *state.CS2MatchContext, out chan *entit
 
 		currentTick := replay_common.TickIDType(gs.IngameTick())
 
-		// sourcePlayerID := fmt.Sprintf("%d", event.Shooter.SteamID64) // TODO: ticket + spec (angles data, values etc)
+		// Extract attacker info for stats tracking
+		attackerSteamID := ""
+		attackerName := ""
+		attackerTeam := ""
+		if event.Attacker != nil {
+			attackerSteamID = strconv.FormatUint(event.Attacker.SteamID64, 10)
+			attackerName = event.Attacker.Name
+			if event.Attacker.Team == 3 {
+				attackerTeam = "CT"
+			} else if event.Attacker.Team == 2 {
+				attackerTeam = "T"
+			}
+		}
+		
+		// Extract victim info
+		victimSteamID := ""
+		victimTeam := ""
+		if event.Player != nil {
+			victimSteamID = strconv.FormatUint(event.Player.SteamID64, 10)
+			if event.Player.Team == 3 {
+				victimTeam = "CT"
+			} else if event.Player.Team == 2 {
+				victimTeam = "T"
+			}
+		}
+		
+		// Track damage in accumulator
+		if matchContext.StatsAccumulator != nil && attackerSteamID != "" {
+			damage := event.HealthDamage + event.ArmorDamage
+			weaponName := ""
+			if event.Weapon != nil {
+				weaponName = event.Weapon.String()
+			}
+			
+			// Determine hitbox from hit group
+			hitbox := ""
+			switch event.HitGroup {
+			case 1:
+				hitbox = "head"
+			case 2, 3, 6:
+				hitbox = "body" // chest, stomach, neck
+			case 4, 5:
+				hitbox = "arms"
+			case 7, 8:
+				hitbox = "legs"
+			}
+			
+			isSelfDamage := attackerSteamID == victimSteamID
+			matchContext.StatsAccumulator.RecordDamage(
+				attackerSteamID, attackerName, attackerTeam,
+				victimSteamID, victimTeam,
+				damage, weaponName, hitbox, isSelfDamage,
+			)
+			
+			// Record hit for accuracy
+			matchContext.StatsAccumulator.RecordWeaponHit(attackerSteamID, attackerName, attackerTeam)
+		}
 
 		payload := cs_entity.CSHitStats{
 			// SourcePlayerID: sourcePlayerID,

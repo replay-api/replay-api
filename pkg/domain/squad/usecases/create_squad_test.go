@@ -452,7 +452,9 @@ func TestCreateSquadUseCase_Exec_Success(t *testing.T) {
 	mockGroupReader.On("Search", mock.Anything, mock.Anything).Return([]iam_entities.Group{}, nil)
 
 	newGroup := &iam_entities.Group{
-		ID: groupID,
+		BaseEntity: shared.BaseEntity{
+			ID: groupID,
+		},
 	}
 	mockGroupWriter.On("Create", mock.Anything, mock.Anything).Return(newGroup, nil)
 
@@ -523,7 +525,9 @@ func TestCreateSquadUseCase_Exec_BillingFailure(t *testing.T) {
 
 	// Existing group
 	existingGroup := iam_entities.Group{
-		ID: groupID,
+		BaseEntity: shared.BaseEntity{
+			ID: groupID,
+		},
 	}
 	mockGroupReader.On("Search", mock.Anything, mock.Anything).Return([]iam_entities.Group{existingGroup}, nil)
 
@@ -579,7 +583,9 @@ func TestCreateSquadUseCase_Exec_WithMembers(t *testing.T) {
 
 	// Existing group
 	existingGroup := iam_entities.Group{
-		ID: groupID,
+		BaseEntity: shared.BaseEntity{
+			ID: groupID,
+		},
 	}
 	mockGroupReader.On("Search", mock.Anything, mock.Anything).Return([]iam_entities.Group{existingGroup}, nil)
 
@@ -666,7 +672,9 @@ func TestCreateSquadUseCase_Exec_MemberNotFound(t *testing.T) {
 
 	// Existing group
 	existingGroup := iam_entities.Group{
-		ID: groupID,
+		BaseEntity: shared.BaseEntity{
+			ID: groupID,
+		},
 	}
 	mockGroupReader.On("Search", mock.Anything, mock.Anything).Return([]iam_entities.Group{existingGroup}, nil)
 

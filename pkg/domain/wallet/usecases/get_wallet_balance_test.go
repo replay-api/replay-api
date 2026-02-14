@@ -81,6 +81,11 @@ func (m *MockWalletRepository) Compile(ctx context.Context, searchParams []share
 	return args.Get(0).(*shared.Search), args.Error(1)
 }
 
+func (m *MockWalletRepository) ExistsByUserID(ctx context.Context, userID uuid.UUID) (bool, error) {
+	args := m.Called(ctx, userID)
+	return args.Bool(0), args.Error(1)
+}
+
 func createTestEVMAddress() wallet_vo.EVMAddress {
 	addr, _ := wallet_vo.NewEVMAddress("0x1234567890123456789012345678901234567890")
 	return addr
@@ -95,6 +100,7 @@ func TestGetWalletBalance_Success(t *testing.T) {
 	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
 	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	// Create a test wallet
 	walletID := uuid.New()
@@ -184,6 +190,7 @@ func TestGetWalletBalance_WalletNotFound_ReturnsDefault(t *testing.T) {
 	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
 	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	// Wallet not found
 	mockWalletRepo.On("Search", mock.Anything, mock.AnythingOfType("shared.Search")).Return([]wallet_entities.UserWallet{}, nil)
@@ -213,6 +220,7 @@ func TestGetWalletBalance_LockedWallet(t *testing.T) {
 	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
 	userID := uuid.New()
 	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
+	ctx = context.WithValue(ctx, shared.TenantIDKey, uuid.New())
 
 	// Create a locked wallet
 	walletID := uuid.New()

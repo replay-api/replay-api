@@ -2,7 +2,6 @@ package iam_entities
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
 	shared "github.com/resource-ownership/go-common/pkg/common"
@@ -21,24 +20,19 @@ const (
 )
 
 type Group struct {
-	ID            uuid.UUID            `json:"id" bson:"_id"`
-	Name          string               `json:"name" bson:"name"`
-	Type          GroupType            `json:"type" bson:"type"`
-	ResourceOwner shared.ResourceOwner `json:"resource_owner" bson:"resource_owner"`
-	CreatedAt     time.Time            `json:"created_at" bson:"created_at"`
-	UpdatedAt     time.Time            `json:"updated_at" bson:"updated_at"`
+	shared.BaseEntity `json:",inline" bson:",inline"`
+	Name              string    `json:"name" bson:"name"`
+	Type              GroupType `json:"type" bson:"type"`
 }
 
 func NewGroup(groupID uuid.UUID, name string, groupType GroupType, resourceOwner shared.ResourceOwner) *Group {
 	resourceOwner.GroupID = groupID
-
+	entity := shared.NewEntity(resourceOwner)
+	entity.ID = groupID
 	return &Group{
-		ID:            groupID,
-		Name:          name,
-		Type:          groupType,
-		ResourceOwner: resourceOwner,
-		CreatedAt:     time.Now(),
-		UpdatedAt:     time.Now(),
+		BaseEntity: entity,
+		Name:       name,
+		Type:       groupType,
 	}
 }
 

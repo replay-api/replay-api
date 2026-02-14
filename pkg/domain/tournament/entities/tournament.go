@@ -279,10 +279,6 @@ func (t *Tournament) Start() error {
 		return fmt.Errorf("tournament start time has not been reached")
 	}
 
-	// Generate bracket matches based on format
-	// (Implementation would depend on format - single elimination, etc.)
-	// For now, just change status
-
 	t.Status = TournamentStatusInProgress
 	t.UpdatedAt = now
 

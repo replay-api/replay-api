@@ -1,0 +1,60 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Replay Worker Dockerfile
+# Async replay processing service using Kafka
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Build stage
+FROM golang:1.23-alpine AS builder
+
+WORKDIR /app
+
+# Install build dependencies
+RUN apk add --no-cache git ca-certificates tzdata
+
+# Copy go mod files for dependency caching
+COPY replay-api/go.mod replay-api/go.sum ./replay-api/
+COPY replay-common/go.mod ./replay-common/
+COPY resource-ownership/go-common/go.mod ./resource-ownership/go-common/
+COPY resource-ownership/go-mongodb/go.mod ./resource-ownership/go-mongodb/
+
+# Download dependencies
+WORKDIR /app/replay-api
+RUN go mod download
+
+# Copy source code
+WORKDIR /app
+COPY replay-api/ ./replay-api/
+COPY replay-common/ ./replay-common/
+COPY resource-ownership/ ./resource-ownership/
+
+# Build the replay worker binary
+WORKDIR /app/replay-api
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/replay-worker ./cmd/replay-worker
+
+# Runtime stage
+FROM alpine:3.19
+
+WORKDIR /app
+
+# Install runtime dependencies
+RUN apk add --no-cache ca-certificates tzdata
+
+# Create replay files directory for temporary storage during processing
+RUN mkdir -p /app/replay_files && chmod 755 /app/replay_files
+
+# Copy binary from builder
+COPY --from=builder /app/replay-worker /app/replay-worker
+
+# Non-root user for security - must own replay_files directory
+RUN adduser -D -g '' appuser && chown -R appuser:appuser /app
+USER appuser
+
+# Environment defaults
+ENV KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+ENV KAFKA_SECURITY_PROTOCOL=PLAINTEXT
+ENV LOG_LEVEL=info
+ENV HEALTH_PORT=8081
+
+EXPOSE 8081
+
+ENTRYPOINT ["/app/replay-worker"]

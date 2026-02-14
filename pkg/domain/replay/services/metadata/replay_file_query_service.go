@@ -45,32 +45,36 @@ func NewReplayFileQueryService(fileMetadataReader shared.Searchable[replay_entit
 	// QueryableFields: Fields available for search/filter queries
 	// SECURITY: InternalURI and Error are DENY to prevent information leakage
 	queryableFields := map[string]bool{
-		"ID":            true,               // Primary key
-		"GameID":        true,               // Filter by game (CS2, Valorant)
-		"NetworkID":     true,               // Network/region identifier
-		"Size":          true,               // File size in bytes
-		"InternalURI":   shared.DENY,        // SECURITY: Internal storage path
-		"Status":        true,               // Processing status
-		"Error":         shared.DENY,        // SECURITY: Internal error details
-		"Header":        true,               // Game-specific header (map name, etc.)
-		"ResourceOwner": true,               // Allow querying by owner
-		"CreatedAt":     true,               // Upload timestamp
-		"UpdatedAt":     true,               // Last update timestamp
+		"ID":              true,               // Primary key
+		"GameID":          true,               // Filter by game (CS2, Valorant)
+		"NetworkID":       true,               // Network/region identifier
+		"Size":            true,               // File size in bytes
+		"InternalURI":     shared.DENY,        // SECURITY: Internal storage path
+		"Status":          true,               // Processing status
+		"Error":           shared.DENY,        // SECURITY: Internal error details
+		"Header":          true,               // Game-specific header (map name, etc.)
+		"ResourceOwner":   true,               // Allow querying by owner
+		"VisibilityLevel": true,               // Public/Private/Friends audience
+		"VisibilityType":  true,               // Visibility type enum
+		"CreatedAt":       true,               // Upload timestamp
+		"UpdatedAt":       true,               // Last update timestamp
 	}
 
 	// ReadableFields: Fields included in API responses
 	readableFields := map[string]bool{
-		"ID":            true,
-		"GameID":        true,
-		"NetworkID":     true,
-		"Size":          true,
-		"InternalURI":   shared.DENY,        // SECURITY: Never expose storage paths
-		"Status":        true,
-		"Error":         shared.DENY,        // SECURITY: Never expose error details
-		"Header":        true,
-		"ResourceOwner": shared.DENY,        // SECURITY: Hide resource ownership
-		"CreatedAt":     true,
-		"UpdatedAt":     true,
+		"ID":              true,
+		"GameID":          true,
+		"NetworkID":       true,
+		"Size":            true,
+		"InternalURI":     shared.DENY,        // SECURITY: Never expose storage paths
+		"Status":          true,
+		"Error":           shared.DENY,        // SECURITY: Never expose error details
+		"Header":          true,
+		"ResourceOwner":   shared.DENY,        // SECURITY: Hide resource ownership
+		"VisibilityLevel": true,               // Show visibility audience
+		"VisibilityType":  true,               // Show visibility type
+		"CreatedAt":       true,
+		"UpdatedAt":       true,
 	}
 
 	service := &shared.BaseQueryService[replay_entity.ReplayFile]{

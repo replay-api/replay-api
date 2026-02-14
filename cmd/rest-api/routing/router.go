@@ -84,6 +84,17 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	tournamentCommandController := cmd_controllers.NewTournamentCommandController(container)
 	tournamentQueryController := query_controllers.NewTournamentQueryController(container)
 	walletQueryController := query_controllers.NewWalletQueryController(container)
+	walletCommandController := cmd_controllers.NewWalletCommandController(container)
+
+	// Subscription and Plan controllers
+	subscriptionQueryController := query_controllers.NewSubscriptionQueryController(container)
+	planQueryController := query_controllers.NewPlanQueryController(container)
+
+	// Subscription command controllers (upgrade, downgrade)
+	subscriptionCommandController := cmd_controllers.NewSubscriptionController(container)
+
+	// Checkout controller (payment → subscription activation)
+	checkoutController := cmd_controllers.NewCheckoutController(container)
 
 	// Prize pool matchmaking controllers
 	var lobbyCommand matchmaking_in.LobbyCommand
@@ -122,6 +133,7 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 
 	r.Use(middlewares.ErrorMiddleware)
 	r.Use(mux.CORSMethodMiddleware(r))
+	r.Use(metrics.Middleware) // Prometheus HTTP request instrumentation
 	r.Use(resourceContextMiddleware.Handler)
 
 	// Enable rate limiting (100 requests per minute per IP)
@@ -185,9 +197,14 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	r.HandleFunc(AuthLogout, OptionsHandler).Methods("OPTIONS")
 	r.HandleFunc(AuthLogout, authController.Logout(ctx)).Methods("POST")
 
-	// Matches API
+	// Matches API (singular form for backwards compatibility)
 	r.HandleFunc(Match, matchController.DefaultSearchHandler).Methods("GET")
 	r.HandleFunc(MatchDetail, matchController.GetMatchDetailHandler).Methods("GET")
+	// Matches API (plural form for frontend SDK compatibility)
+	r.HandleFunc(Matches, matchController.DefaultSearchHandler).Methods("GET")
+	r.HandleFunc(MatchesDetail, matchController.GetMatchDetailHandler).Methods("GET")
+	r.HandleFunc(MatchesScoreboard, matchController.GetMatchScoreboardHandler).Methods("GET")
+	r.HandleFunc(MatchesEvents, eventController.GetMatchEventsHandler).Methods("GET")
 	// r.HandleFunc("/games/{game_id}/matches/{match_id}/share", metadataController.GetEventsByGameIDAndMatchID(ctx)).Methods("POST")
 
 	// Replay Files Query API (search/list)
@@ -197,14 +214,30 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	// Replay API (upload)
 	r.HandleFunc(Replay, fileController.UploadHandler(ctx)).Methods("POST")
 	r.HandleFunc(Replay, OptionsHandler).Methods("OPTIONS") // TODO: remover
-	r.HandleFunc("/games/{game_id}/replays/{id}", fileController.GetReplayMetadata(ctx)).Methods("GET")
+	r.HandleFunc("/games/{game_id}/replays/{id}", replayFileQueryController.GetReplayFileHandler).Methods("GET")
 	r.HandleFunc("/games/{game_id}/replays/{id}", fileController.UpdateReplayMetadata(ctx)).Methods("PUT")
 	r.HandleFunc("/games/{game_id}/replays/{id}", fileController.DeleteReplayFile(ctx)).Methods("DELETE")
 	r.HandleFunc("/games/{game_id}/replays/{id}/download", fileController.DownloadReplayFile(ctx)).Methods("GET")
 	r.HandleFunc("/games/{game_id}/replays/{id}/status", fileController.GetReplayProcessingStatus(ctx)).Methods("GET")
+	r.HandleFunc("/games/{game_id}/replays/{id}/events", fileController.GetReplayEvents(ctx)).Methods("GET")
+	r.HandleFunc("/games/{game_id}/replays/{id}/scoreboard", fileController.GetReplayScoreboard(ctx)).Methods("GET")
+	r.HandleFunc("/games/{game_id}/replays/{id}/timeline", fileController.GetReplayTimeline(ctx)).Methods("GET")
+
+	// Replay Files API (alias for frontend compatibility)
+	r.HandleFunc("/games/{game_id}/replay-files/{id}", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/games/{game_id}/replay-files/{id}", fileController.GetReplayMetadata(ctx)).Methods("GET")
+	r.HandleFunc("/games/{game_id}/replay-files/{id}", fileController.UpdateReplayMetadata(ctx)).Methods("PUT")
+	r.HandleFunc("/games/{game_id}/replay-files/{id}", fileController.DeleteReplayFile(ctx)).Methods("DELETE")
+	r.HandleFunc("/games/{game_id}/replay-files/{id}/download", fileController.DownloadReplayFile(ctx)).Methods("GET")
+	r.HandleFunc("/games/{game_id}/replays/{id}/status", fileController.GetReplayProcessingStatus(ctx)).Methods("GET")
+	r.HandleFunc("/games/{game_id}/replay-files/{id}/events", fileController.GetReplayEvents(ctx)).Methods("GET")
+	r.HandleFunc("/games/{game_id}/replay-files/{id}/scoreboard", fileController.GetReplayScoreboard(ctx)).Methods("GET")
+	r.HandleFunc("/games/{game_id}/replay-files/{id}/timeline", fileController.GetReplayTimeline(ctx)).Methods("GET")
 
 	// Game Events API
 	r.HandleFunc(GameEvents, eventController.DefaultSearchHandler).Methods("GET")
+	r.HandleFunc(MatchesEvents, eventController.GetMatchEventsHandler).Methods("GET")
+	r.HandleFunc(MatchesEvents, OptionsHandler).Methods("OPTIONS")
 
 	// Match Analytics API (heatmaps, trajectories, positioning)
 	matchAnalyticsController := query_controllers.NewMatchAnalyticsController(container)
@@ -297,6 +330,33 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	r.HandleFunc("/matches/{match_id}/prize-pool", prizePoolQueryController.GetPrizePoolByMatchHandler).Methods("GET")
 	r.HandleFunc("/prize-pools/pending-distributions", prizePoolQueryController.GetPendingDistributionsHandler).Methods("GET")
 
+	// Scores / Match Results API
+	matchResultCommandController := cmd_controllers.NewMatchResultCommandController(container)
+	matchResultQueryController := query_controllers.NewMatchResultQueryController(container)
+
+	// Match Result Command endpoints (write operations)
+	r.HandleFunc("/scores/match-results", matchResultCommandController.SubmitMatchResultHandler(ctx)).Methods("POST")
+	r.HandleFunc("/scores/match-results", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/scores/match-results/{id}/verify", matchResultCommandController.VerifyMatchResultHandler(ctx)).Methods("PUT")
+	r.HandleFunc("/scores/match-results/{id}/verify", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/scores/match-results/{id}/dispute", matchResultCommandController.DisputeMatchResultHandler(ctx)).Methods("PUT")
+	r.HandleFunc("/scores/match-results/{id}/dispute", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/scores/match-results/{id}/conciliate", matchResultCommandController.ConciliateMatchResultHandler(ctx)).Methods("PUT")
+	r.HandleFunc("/scores/match-results/{id}/conciliate", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/scores/match-results/{id}/finalize", matchResultCommandController.FinalizeMatchResultHandler(ctx)).Methods("PUT")
+	r.HandleFunc("/scores/match-results/{id}/finalize", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/scores/match-results/{id}/cancel", matchResultCommandController.CancelMatchResultHandler(ctx)).Methods("PUT")
+	r.HandleFunc("/scores/match-results/{id}/cancel", OptionsHandler).Methods("OPTIONS")
+
+	// Match Result Query endpoints (read operations)
+	r.HandleFunc("/scores/match-results", matchResultQueryController.ListMatchResultsHandler).Methods("GET")
+	r.HandleFunc("/scores/match-results/{id}", matchResultQueryController.GetMatchResultHandler).Methods("GET")
+	r.HandleFunc("/scores/match-results/{id}", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/scores/match-results/by-match/{matchId}", matchResultQueryController.GetMatchResultByMatchHandler).Methods("GET")
+	r.HandleFunc("/scores/match-results/by-match/{matchId}", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/scores/tournaments/{tournamentId}/results", matchResultQueryController.GetTournamentResultsHandler).Methods("GET")
+	r.HandleFunc("/scores/tournaments/{tournamentId}/results", OptionsHandler).Methods("OPTIONS")
+
 	// Tournament API
 	r.HandleFunc("/tournaments", tournamentCommandController.CreateTournamentHandler(ctx)).Methods("POST")
 	r.HandleFunc("/tournaments", tournamentQueryController.ListTournamentsHandler).Methods("GET")
@@ -310,9 +370,53 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	r.HandleFunc("/players/{player_id}/tournaments", tournamentQueryController.GetPlayerTournamentsHandler).Methods("GET")
 	r.HandleFunc("/organizers/{organizer_id}/tournaments", tournamentQueryController.GetOrganizerTournamentsHandler).Methods("GET")
 
-	// Wallet API
+	// Wallet API - Query endpoints
 	r.HandleFunc("/wallet/balance", walletQueryController.GetWalletBalanceHandler).Methods("GET")
 	r.HandleFunc("/wallet/transactions", walletQueryController.GetWalletTransactionsHandler).Methods("GET")
+	r.HandleFunc("/wallet/balance", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/wallet/transactions", OptionsHandler).Methods("OPTIONS")
+
+	// Wallet API - Command endpoints
+	r.HandleFunc("/wallet", walletCommandController.CreateWalletHandler(ctx)).Methods("POST")
+	r.HandleFunc("/wallet", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/wallet/deposit", walletCommandController.DepositHandler(ctx)).Methods("POST")
+	r.HandleFunc("/wallet/deposit", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/wallet/withdraw", walletCommandController.WithdrawHandler(ctx)).Methods("POST")
+	r.HandleFunc("/wallet/withdraw", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/wallet/entry-fee", walletCommandController.DeductEntryFeeHandler(ctx)).Methods("POST")
+	r.HandleFunc("/wallet/entry-fee", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/wallet/prize", walletCommandController.AddPrizeHandler(ctx)).Methods("POST")
+	r.HandleFunc("/wallet/prize", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/wallet/credit", walletCommandController.CreditWalletHandler(ctx)).Methods("POST")
+	r.HandleFunc("/wallet/credit", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/wallet/debit", walletCommandController.DebitWalletHandler(ctx)).Methods("POST")
+	r.HandleFunc("/wallet/debit", OptionsHandler).Methods("OPTIONS")
+
+	// Subscription API
+	r.HandleFunc("/subscriptions/current", subscriptionQueryController.GetCurrentSubscriptionHandler).Methods("GET")
+	r.HandleFunc("/subscriptions/current", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/subscriptions/{subscription_id}", subscriptionQueryController.GetSubscriptionByIDHandler).Methods("GET")
+	r.HandleFunc("/subscriptions/{subscription_id}", OptionsHandler).Methods("OPTIONS")
+
+	// Subscription Mutations API (upgrade, downgrade)
+	r.HandleFunc("/subscriptions/upgrade", subscriptionCommandController.UpgradeSubscriptionHandler()).Methods("POST")
+	r.HandleFunc("/subscriptions/upgrade", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/subscriptions/downgrade", subscriptionCommandController.DowngradeSubscriptionHandler()).Methods("POST")
+	r.HandleFunc("/subscriptions/downgrade", OptionsHandler).Methods("OPTIONS")
+
+	// Checkout API (payment → subscription activation)
+	r.HandleFunc("/checkout", checkoutController.CheckoutHandler(ctx)).Methods("POST")
+	r.HandleFunc("/checkout", OptionsHandler).Methods("OPTIONS")
+
+	// Plan API (both /plans and /subscriptions/plans for SDK compatibility)
+	r.HandleFunc("/plans", planQueryController.ListAvailablePlansHandler).Methods("GET")
+	r.HandleFunc("/plans", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/plans/{plan_id}", planQueryController.GetPlanByIDHandler).Methods("GET")
+	r.HandleFunc("/plans/{plan_id}", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/subscriptions/plans", planQueryController.ListAvailablePlansHandler).Methods("GET")
+	r.HandleFunc("/subscriptions/plans", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/subscriptions/plans/{plan_id}", planQueryController.GetPlanByIDHandler).Methods("GET")
+	r.HandleFunc("/subscriptions/plans/{plan_id}", OptionsHandler).Methods("OPTIONS")
 
 	// Payment API
 	paymentController := cmd_controllers.NewPaymentController(container)

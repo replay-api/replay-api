@@ -53,3 +53,15 @@ type DowngradeSubscriptionCommand struct {
 type DowngradeSubscriptionCommandHandler interface {
 	Exec(ctx context.Context, command DowngradeSubscriptionCommand) error
 }
+
+// CheckoutSubscriptionCommand represents the orchestration of payment → subscription activation
+type CheckoutSubscriptionCommand struct {
+	PlanID        uuid.UUID
+	PaymentID     uuid.UUID
+	BillingPeriod string // "monthly", "quarterly", "yearly"
+	Args          map[string]interface{}
+}
+
+type CheckoutSubscriptionCommandHandler interface {
+	Exec(ctx context.Context, command CheckoutSubscriptionCommand) (*billing_entities.Subscription, error)
+}

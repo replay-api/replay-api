@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 	"go.mongodb.org/mongo-driver/mongo"
 
@@ -140,6 +141,11 @@ func (r *SubscriptionRepository) Update(ctx context.Context, subscription *billi
 	}
 
 	return updated, nil
+}
+
+// GetByID retrieves a subscription by its ID
+func (r *SubscriptionRepository) GetByID(ctx context.Context, id uuid.UUID) (*billing_entities.Subscription, error) {
+	return r.MongoDBRepository.GetByID(ctx, id)
 }
 
 // Cancel cancels a subscription

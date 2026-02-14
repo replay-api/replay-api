@@ -49,18 +49,15 @@ type BackupCode struct {
 
 // UserMFA stores MFA configuration for a user
 type UserMFA struct {
-	ID              uuid.UUID            `json:"id" bson:"_id"`
-	UserID          uuid.UUID            `json:"user_id" bson:"user_id"`
-	Method          MFAMethod            `json:"method" bson:"method"`
-	Status          MFAStatus            `json:"status" bson:"status"`
-	TOTPConfig      *TOTPConfig          `json:"totp_config,omitempty" bson:"totp_config,omitempty"`
-	BackupCodes     []BackupCode         `json:"-" bson:"backup_codes"` // Never expose backup codes
-	BackupCodesLeft int                  `json:"backup_codes_left" bson:"backup_codes_left"`
-	VerifiedAt      *time.Time           `json:"verified_at,omitempty" bson:"verified_at,omitempty"`
-	LastUsedAt      *time.Time           `json:"last_used_at,omitempty" bson:"last_used_at,omitempty"`
-	ResourceOwner   shared.ResourceOwner `json:"resource_owner" bson:"resource_owner"`
-	CreatedAt       time.Time            `json:"created_at" bson:"created_at"`
-	UpdatedAt       time.Time            `json:"updated_at" bson:"updated_at"`
+	shared.BaseEntity `json:",inline" bson:",inline"`
+	UserID            uuid.UUID    `json:"user_id" bson:"user_id"`
+	Method            MFAMethod    `json:"method" bson:"method"`
+	Status            MFAStatus    `json:"status" bson:"status"`
+	TOTPConfig        *TOTPConfig  `json:"totp_config,omitempty" bson:"totp_config,omitempty"`
+	BackupCodes       []BackupCode `json:"-" bson:"backup_codes"` // Never expose backup codes
+	BackupCodesLeft   int          `json:"backup_codes_left" bson:"backup_codes_left"`
+	VerifiedAt        *time.Time   `json:"verified_at,omitempty" bson:"verified_at,omitempty"`
+	LastUsedAt        *time.Time   `json:"last_used_at,omitempty" bson:"last_used_at,omitempty"`
 }
 
 // MFASetupResponse contains the data needed to set up MFA on user's device
@@ -81,15 +78,12 @@ type MFAVerifyRequest struct {
 
 // NewUserMFA creates a new MFA configuration for a user
 func NewUserMFA(userID uuid.UUID, method MFAMethod, rxn shared.ResourceOwner) *UserMFA {
-	now := time.Now()
+	entity := shared.NewEntity(rxn)
 	return &UserMFA{
-		ID:            uuid.New(),
-		UserID:        userID,
-		Method:        method,
-		Status:        MFAStatusPending,
-		ResourceOwner: rxn,
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		BaseEntity: entity,
+		UserID:     userID,
+		Method:     method,
+		Status:     MFAStatusPending,
 	}
 }
 

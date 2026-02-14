@@ -5,8 +5,10 @@ import (
 	"log"
 	"log/slog"
 
+	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
@@ -127,4 +129,111 @@ func (r *EventsRepository) GetByGameIDAndMatchID(queryCtx context.Context, gameI
 	}
 
 	return res, nil
+}
+
+// GetMatchEvents returns events for a specific match with pagination and optional filtering
+func (r *EventsRepository) GetMatchEvents(ctx context.Context, gameID string, matchID uuid.UUID, limit, offset int, eventType string) ([]replay_entity.GameEvent, error) {
+	collection := r.MongoDBRepository.Collection()
+
+	// Build query with proper UUID type
+	filter := bson.D{
+		{Key: "game_id", Value: gameID},
+		{Key: "match_id", Value: matchID},
+	}
+
+	if eventType != "" {
+		filter = append(filter, bson.E{Key: "type", Value: eventType})
+	}
+
+	// Set up find options with pagination and sorting
+	opts := options.Find().
+		SetSort(bson.D{{Key: "tick_id", Value: 1}}).
+		SetSkip(int64(offset))
+
+	if limit > 0 {
+		opts.SetLimit(int64(limit))
+	}
+
+	cur, err := collection.Find(ctx, filter, opts)
+	if err != nil {
+		slog.ErrorContext(ctx, "error querying match events", "err", err)
+		return nil, err
+	}
+	defer cur.Close(ctx)
+
+	var events []replay_entity.GameEvent
+	for cur.Next(ctx) {
+		var event replay_entity.GameEvent
+		if err := cur.Decode(&event); err != nil {
+			slog.ErrorContext(ctx, "error decoding game event", "err", err)
+			return nil, err
+		}
+		events = append(events, event)
+	}
+
+	if err := cur.Err(); err != nil {
+		slog.ErrorContext(ctx, "cursor error", "err", err)
+		return nil, err
+	}
+
+	return events, nil
+}
+
+// GetMatchEventsWithCount returns events for a specific match with total count for pagination
+// Supports multiple event types for efficient filtering (e.g., ["kill", "clutchstart", "clutchend"])
+func (r *EventsRepository) GetMatchEventsWithCount(ctx context.Context, gameID string, matchID uuid.UUID, limit, offset int, eventTypes []string) ([]replay_entity.GameEvent, int64, error) {
+	collection := r.MongoDBRepository.Collection()
+
+	// Build query with proper UUID type
+	filter := bson.D{
+		{Key: "game_id", Value: gameID},
+		{Key: "match_id", Value: matchID},
+	}
+
+	// Support multiple event types with $in operator for scalable filtering
+	if len(eventTypes) == 1 {
+		filter = append(filter, bson.E{Key: "type", Value: eventTypes[0]})
+	} else if len(eventTypes) > 1 {
+		filter = append(filter, bson.E{Key: "type", Value: bson.D{{Key: "$in", Value: eventTypes}}})
+	}
+
+	// Get total count first (for pagination metadata)
+	totalCount, err := collection.CountDocuments(ctx, filter)
+	if err != nil {
+		slog.ErrorContext(ctx, "error counting match events", "err", err)
+		return nil, 0, err
+	}
+
+	// Set up find options with pagination and sorting
+	opts := options.Find().
+		SetSort(bson.D{{Key: "tick_id", Value: 1}}).
+		SetSkip(int64(offset))
+
+	if limit > 0 {
+		opts.SetLimit(int64(limit))
+	}
+
+	cur, err := collection.Find(ctx, filter, opts)
+	if err != nil {
+		slog.ErrorContext(ctx, "error querying match events", "err", err)
+		return nil, 0, err
+	}
+	defer cur.Close(ctx)
+
+	var events []replay_entity.GameEvent
+	for cur.Next(ctx) {
+		var event replay_entity.GameEvent
+		if err := cur.Decode(&event); err != nil {
+			slog.ErrorContext(ctx, "error decoding game event", "err", err)
+			return nil, 0, err
+		}
+		events = append(events, event)
+	}
+
+	if err := cur.Err(); err != nil {
+		slog.ErrorContext(ctx, "cursor error", "err", err)
+		return nil, 0, err
+	}
+
+	return events, totalCount, nil
 }

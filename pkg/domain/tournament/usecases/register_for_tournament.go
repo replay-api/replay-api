@@ -6,8 +6,10 @@ import (
 	"log/slog"
 
 	shared "github.com/resource-ownership/go-common/pkg/common"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
+	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
 	tournament_in "github.com/replay-api/replay-api/pkg/domain/tournament/ports/in"
 	tournament_out "github.com/replay-api/replay-api/pkg/domain/tournament/ports/out"
 )
@@ -43,19 +45,19 @@ import (
 type RegisterForTournamentUseCase struct {
 	billableOperationHandler billing_in.BillableOperationCommandHandler
 	tournamentRepository     tournament_out.TournamentRepository
-	// playerProfileReader      squad_in.PlayerProfileReader // TODO: Re-enable once PlayerProfileRepository is properly registered
+	playerProfileReader      squad_in.PlayerProfileReader
 }
 
 // NewRegisterForTournamentUseCase creates a new register for tournament usecase
 func NewRegisterForTournamentUseCase(
 	billableOperationHandler billing_in.BillableOperationCommandHandler,
 	tournamentRepository tournament_out.TournamentRepository,
-	// playerProfileReader squad_in.PlayerProfileReader, // TODO: Re-enable once PlayerProfileRepository is properly registered
+	playerProfileReader squad_in.PlayerProfileReader,
 ) *RegisterForTournamentUseCase {
 	return &RegisterForTournamentUseCase{
 		billableOperationHandler: billableOperationHandler,
 		tournamentRepository:     tournamentRepository,
-		// playerProfileReader:      playerProfileReader,
+		playerProfileReader:      playerProfileReader,
 	}
 }
 
@@ -67,30 +69,29 @@ func (uc *RegisterForTournamentUseCase) Exec(ctx context.Context, cmd tournament
 		return shared.NewErrUnauthorized()
 	}
 
-	// 2. CRITICAL: Ownership validation - prevent impersonation
-	// TODO: Re-enable ownership validation once PlayerProfileRepository is properly registered
+	// 2. Ownership validation - prevent impersonation
 	// Verify the PlayerID belongs to the authenticated user
-	// playerSearch := squad_entities.NewSearchByID(ctx, cmd.PlayerID)
-	// players, err := uc.playerProfileReader.Search(ctx, playerSearch)
-	// if err != nil {
-	// 	slog.ErrorContext(ctx, "failed to find player profile", "error", err, "player_id", cmd.PlayerID)
-	// 	return fmt.Errorf("player not found")
-	// }
-	// if len(players) == 0 {
-	// 	return shared.NewErrNotFound(replay_common.ResourceTypePlayerProfile, "ID", cmd.PlayerID.String())
-	// }
+	playerSearch := shared.NewSearchByID(ctx, cmd.PlayerID, shared.UserAudienceIDKey)
+	players, err := uc.playerProfileReader.Search(ctx, playerSearch)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find player profile", "error", err, "player_id", cmd.PlayerID)
+		return fmt.Errorf("player not found")
+	}
+	if len(players) == 0 {
+		return shared.NewErrNotFound(replay_common.ResourceTypePlayerProfile, "ID", cmd.PlayerID.String())
+	}
 
-	// // Verify ownership - player must belong to authenticated user
-	// currentUserID := shared.GetResourceOwner(ctx).UserID
-	// if players[0].ResourceOwner.UserID != currentUserID {
-	// 	slog.WarnContext(ctx, "Tournament registration impersonation attempt blocked",
-	// 		"attempted_player_id", cmd.PlayerID,
-	// 		"player_owner", players[0].ResourceOwner.UserID,
-	// 		"attacker_user_id", currentUserID,
-	// 		"tournament_id", cmd.TournamentID,
-	// 	)
-	// 	return shared.NewErrUnauthorized()
-	// }
+	// Verify ownership - player must belong to authenticated user
+	currentUserID := shared.GetResourceOwner(ctx).UserID
+	if players[0].ResourceOwner.UserID != currentUserID {
+		slog.WarnContext(ctx, "Tournament registration impersonation attempt blocked",
+			"attempted_player_id", cmd.PlayerID,
+			"player_owner", players[0].ResourceOwner.UserID,
+			"attacker_user_id", currentUserID,
+			"tournament_id", cmd.TournamentID,
+		)
+		return shared.NewErrUnauthorized()
+	}
 
 	// 3. Get tournament
 	tournament, err := uc.tournamentRepository.FindByID(ctx, cmd.TournamentID)

@@ -72,7 +72,7 @@ func (ctrl *SubscriptionController) UpgradeSubscriptionHandler() http.HandlerFun
 
 		if err := ctrl.upgradeHandler.Exec(r.Context(), cmd); err != nil {
 			slog.ErrorContext(r.Context(), "Failed to upgrade subscription", "error", err)
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, `{"success":false,"error":"Failed to upgrade subscription"}`, http.StatusBadRequest)
 			return
 		}
 
@@ -112,7 +112,7 @@ func (ctrl *SubscriptionController) DowngradeSubscriptionHandler() http.HandlerF
 
 		if err := ctrl.downgradeHandler.Exec(r.Context(), cmd); err != nil {
 			slog.ErrorContext(r.Context(), "Failed to downgrade subscription", "error", err)
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, `{"success":false,"error":"Failed to downgrade subscription"}`, http.StatusBadRequest)
 			return
 		}
 

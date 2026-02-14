@@ -160,11 +160,11 @@ func createContextWithResourceOwner(userID, groupID uuid.UUID) context.Context {
 
 func createTestProfile(userID, groupID uuid.UUID, source iam_entities.RIDSourceKey, key string) iam_entities.Profile {
 	rxn := shared.ResourceOwner{UserID: userID, GroupID: groupID}
+	entity := shared.NewEntity(rxn)
 	return iam_entities.Profile{
-		ID:            uuid.New(),
-		RIDSource:     source,
-		SourceKey:     key,
-		ResourceOwner: rxn,
+		BaseEntity: entity,
+		RIDSource:  source,
+		SourceKey:  key,
 	}
 }
 
@@ -228,12 +228,7 @@ func TestScenario_NewUserOnboardingViaSteam(t *testing.T) {
 	mockMembershipWriter.On("Create", mock.Anything, mock.AnythingOfType("*iam_entities.Membership")).Return(expectedMembership, nil)
 
 	// Profile creation succeeds
-	expectedProfile := &iam_entities.Profile{
-		ID:            uuid.New(),
-		RIDSource:     iam_entities.RIDSource_Steam,
-		SourceKey:     steamID,
-		ResourceOwner: rxn,
-	}
+	expectedProfile := iam_entities.NewProfile(userID, groupID, iam_entities.RIDSource_Steam, steamID, nil, rxn)
 	mockProfileWriter.On("Create", mock.Anything, mock.AnythingOfType("*iam_entities.Profile")).Return(expectedProfile, nil)
 
 	// RID Token creation succeeds
@@ -355,12 +350,7 @@ func TestScenario_GoogleOAuthOnboarding(t *testing.T) {
 	mockGroupWriter.On("Create", mock.Anything, mock.AnythingOfType("*iam_entities.Group")).Return(createTestGroup(groupID, iam_entities.DefaultUserGroupName, rxn), nil)
 	mockMembershipWriter.On("Create", mock.Anything, mock.AnythingOfType("*iam_entities.Membership")).Return(createTestMembership(rxn), nil)
 
-	expectedProfile := &iam_entities.Profile{
-		ID:            uuid.New(),
-		RIDSource:     iam_entities.RIDSource_Google,
-		SourceKey:     googleEmail,
-		ResourceOwner: rxn,
-	}
+	expectedProfile := iam_entities.NewProfile(userID, groupID, iam_entities.RIDSource_Google, googleEmail, nil, rxn)
 	mockProfileWriter.On("Create", mock.Anything, mock.AnythingOfType("*iam_entities.Profile")).Return(expectedProfile, nil)
 	mockCreateRIDToken.On("Exec", mock.Anything, mock.Anything, iam_entities.RIDSource_Google, iam_entities.DefaultTokenAudience).Return(createTestRIDToken(rxn, iam_entities.RIDSource_Google), nil)
 
@@ -601,12 +591,7 @@ func TestOnboardOpenIDUser_TokenCreationError(t *testing.T) {
 	mockMembershipWriter := new(MockMembershipWriter)
 	mockMembershipWriter.On("Create", mock.Anything, mock.AnythingOfType("*iam_entities.Membership")).Return(createTestMembership(rxn), nil)
 
-	expectedProfile := &iam_entities.Profile{
-		ID:            uuid.New(),
-		RIDSource:     iam_entities.RIDSource_Steam,
-		SourceKey:     "12345",
-		ResourceOwner: rxn,
-	}
+	expectedProfile := iam_entities.NewProfile(userID, groupID, iam_entities.RIDSource_Steam, "12345", nil, rxn)
 	mockProfileWriter := new(MockProfileWriter)
 	mockProfileWriter.On("Create", mock.Anything, mock.AnythingOfType("*iam_entities.Profile")).Return(expectedProfile, nil)
 

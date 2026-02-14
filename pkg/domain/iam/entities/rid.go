@@ -22,7 +22,7 @@ const (
 
 type RIDToken struct {
 	ID               uuid.UUID                  `json:"-" bson:"_id"`
-	Key              uuid.UUID                  `json:"-" bson:"key"` // deprecated TODO: delete
+	Key              uuid.UUID                  `json:"-" bson:"key"` // Deprecated: use ID instead. Retained for backward compatibility with existing DB documents.
 	Source           RIDSourceKey               `json:"-" bson:"source"`
 	ResourceOwner    shared.ResourceOwner       `json:"-" bson:"resource_owner"`
 	IntendedAudience shared.IntendedAudienceKey `json:"-" bson:"intended_audience"`

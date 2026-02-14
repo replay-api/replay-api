@@ -74,14 +74,22 @@ func (c *MatchQueryController) GetMatchDetailHandler(w http.ResponseWriter, r *h
 
 	slog.Info("Fetching match detail", "match_id", matchID, "game_id", gameID)
 
-	// Search for the specific match
+	// Parse match ID as UUID
+	matchUUID, err := uuid.Parse(matchID)
+	if err != nil {
+		slog.Error("GetMatchDetailHandler: invalid match_id format", "match_id", matchID)
+		http.Error(w, "invalid match_id format", http.StatusBadRequest)
+		return
+	}
+
+	// Search for the specific match - use capitalized field names to match struct tags
 	searchParams := []shared.SearchAggregation{
 		{
 			Params: []shared.SearchParameter{
 				{
 					ValueParams: []shared.SearchableValue{
-						{Field: "id", Values: []interface{}{matchID}, Operator: shared.EqualsOperator},
-						{Field: "game_id", Values: []interface{}{gameID}, Operator: shared.EqualsOperator},
+						{Field: "ID", Values: []interface{}{matchUUID}, Operator: shared.EqualsOperator},
+						{Field: "GameID", Values: []interface{}{gameID}, Operator: shared.EqualsOperator},
 					},
 				},
 			},
@@ -120,7 +128,7 @@ func (c *MatchQueryController) GetMatchDetailHandler(w http.ResponseWriter, r *h
 	matchDetail := map[string]any{
 		"match": match,
 		"metadata": map[string]any{
-			"has_events": len(match.Events) > 0,
+			"has_events": match.EventCount > 0,
 			"has_rounds": len(match.Scoreboard.TeamScoreboards) > 0,
 		},
 	}
@@ -382,4 +390,83 @@ func (c *MatchQueryController) GetSquadMatchHistoryHandler(w http.ResponseWriter
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(response)
+}
+
+// GetMatchScoreboardHandler handles GET /games/{game_id}/matches/{match_id}/scoreboard
+// Returns the scoreboard data for a specific match
+func (c *MatchQueryController) GetMatchScoreboardHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	matchID := vars["match_id"]
+	gameID := vars["game_id"]
+
+	if matchID == "" || gameID == "" {
+		slog.Error("GetMatchScoreboardHandler: missing match_id or game_id")
+		http.Error(w, "match_id and game_id are required", http.StatusBadRequest)
+		return
+	}
+
+	slog.Info("Fetching match scoreboard", "match_id", matchID, "game_id", gameID)
+
+	// Parse match ID as UUID
+	matchUUID, err := uuid.Parse(matchID)
+	if err != nil {
+		slog.Error("GetMatchScoreboardHandler: invalid match_id format", "match_id", matchID)
+		http.Error(w, "invalid match_id format", http.StatusBadRequest)
+		return
+	}
+
+	// Search for the specific match
+	searchParams := []shared.SearchAggregation{
+		{
+			Params: []shared.SearchParameter{
+				{
+					ValueParams: []shared.SearchableValue{
+						{Field: "ID", Values: []interface{}{matchUUID}, Operator: shared.EqualsOperator},
+						{Field: "GameID", Values: []interface{}{gameID}, Operator: shared.EqualsOperator},
+					},
+				},
+			},
+			AggregationClause: shared.AndAggregationClause,
+		},
+	}
+
+	resultOptions := shared.SearchResultOptions{
+		Limit: 1,
+		Skip:  0,
+	}
+
+	compiledSearch, err := c.matchReader.Compile(r.Context(), searchParams, resultOptions)
+	if err != nil {
+		slog.Error("GetMatchScoreboardHandler: error compiling search", "error", err)
+		http.Error(w, "invalid search parameters", http.StatusBadRequest)
+		return
+	}
+
+	results, err := c.matchReader.Search(r.Context(), *compiledSearch)
+	if err != nil {
+		slog.Error("GetMatchScoreboardHandler: error searching match", "error", err)
+		http.Error(w, "error fetching match", http.StatusInternalServerError)
+		return
+	}
+
+	if len(results) == 0 {
+		slog.Warn("GetMatchScoreboardHandler: match not found", "match_id", matchID)
+		http.Error(w, "match not found", http.StatusNotFound)
+		return
+	}
+
+	match := results[0]
+
+	// Return the scoreboard from the match
+	scoreboardResponse := map[string]any{
+		"match_id":         match.ID,
+		"game_id":          match.GameID,
+		"scoreboard":       match.Scoreboard,
+		"team_scoreboards": match.Scoreboard.TeamScoreboards,
+		"match_mvp":        match.Scoreboard.MatchMVP,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(scoreboardResponse)
 }

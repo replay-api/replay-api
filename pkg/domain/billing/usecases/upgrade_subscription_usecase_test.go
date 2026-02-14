@@ -28,6 +28,14 @@ func (m *MockSubscriptionReader) GetCurrentSubscription(ctx context.Context, own
 	return args.Get(0).(*billing_entities.Subscription), args.Error(1)
 }
 
+func (m *MockSubscriptionReader) GetByID(ctx context.Context, id uuid.UUID) (*billing_entities.Subscription, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*billing_entities.Subscription), args.Error(1)
+}
+
 // MockSubscriptionWriter implements billing_out.SubscriptionWriter
 type MockSubscriptionWriter struct {
 	mock.Mock

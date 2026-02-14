@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/mux"
 	matchmaking_in "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/in"
 	matchmaking_vo "github.com/replay-api/replay-api/pkg/domain/matchmaking/value-objects"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type LobbyController struct {
@@ -58,18 +59,24 @@ type LobbyActionResponse struct {
 func (ctrl *LobbyController) CreateLobbyHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
 
-		var req CreateLobbyRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			slog.ErrorContext(apiContext, "failed to decode create lobby request", "error", err)
-			http.Error(w, "invalid request body", http.StatusBadRequest)
+		// SECURITY: Derive creator ID from authenticated context, not from request body
+		ctx := r.Context()
+		authenticated, ok := ctx.Value(shared.AuthenticatedKey).(bool)
+		if !ok || !authenticated {
+			http.Error(w, `{"success":false,"error":"Authentication required"}`, http.StatusUnauthorized)
+			return
+		}
+		creatorID, ok := ctx.Value(shared.UserIDKey).(uuid.UUID)
+		if !ok || creatorID == uuid.Nil {
+			http.Error(w, `{"success":false,"error":"User identity not found"}`, http.StatusUnauthorized)
 			return
 		}
 
-		creatorID, err := uuid.Parse(req.CreatorID)
-		if err != nil {
-			http.Error(w, "invalid creator_id", http.StatusBadRequest)
+		var req CreateLobbyRequest
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&req); err != nil {
+			slog.ErrorContext(apiContext, "failed to decode create lobby request", "error", err)
+			http.Error(w, "invalid request body", http.StatusBadRequest)
 			return
 		}
 
@@ -99,7 +106,7 @@ func (ctrl *LobbyController) CreateLobbyHandler(apiContext context.Context) http
 		lobby, err := ctrl.lobbyCommand.CreateLobby(apiContext, cmd)
 		if err != nil {
 			slog.ErrorContext(apiContext, "failed to create lobby", "error", err)
-			http.Error(w, "failed to create lobby: "+err.Error(), http.StatusInternalServerError)
+			http.Error(w, `{"success":false,"error":"Failed to create lobby"}`, http.StatusInternalServerError)
 			return
 		}
 
@@ -119,7 +126,19 @@ func (ctrl *LobbyController) CreateLobbyHandler(apiContext context.Context) http
 func (ctrl *LobbyController) JoinLobbyHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+
+		// SECURITY: Derive player ID from authenticated context
+		ctx := r.Context()
+		authenticated, ok := ctx.Value(shared.AuthenticatedKey).(bool)
+		if !ok || !authenticated {
+			http.Error(w, `{"success":false,"error":"Authentication required"}`, http.StatusUnauthorized)
+			return
+		}
+		playerID, ok := ctx.Value(shared.UserIDKey).(uuid.UUID)
+		if !ok || playerID == uuid.Nil {
+			http.Error(w, `{"success":false,"error":"User identity not found"}`, http.StatusUnauthorized)
+			return
+		}
 
 		vars := mux.Vars(r)
 		lobbyID, err := uuid.Parse(vars["lobby_id"])
@@ -129,28 +148,22 @@ func (ctrl *LobbyController) JoinLobbyHandler(apiContext context.Context) http.H
 		}
 
 		var req JoinLobbyRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&req); err != nil {
 			slog.ErrorContext(apiContext, "failed to decode join lobby request", "error", err)
 			http.Error(w, "invalid request body", http.StatusBadRequest)
 			return
 		}
 
-		playerID, err := uuid.Parse(req.PlayerID)
-		if err != nil {
-			http.Error(w, "invalid player_id", http.StatusBadRequest)
-			return
-		}
-
 		cmd := matchmaking_in.JoinLobbyCommand{
 			LobbyID:  lobbyID,
-			PlayerID: playerID,
+			PlayerID: playerID, // From auth context, NOT from request body
 			MMR:      req.MMR,
 		}
 
 		err = ctrl.lobbyCommand.JoinLobby(apiContext, cmd)
 		if err != nil {
 			slog.ErrorContext(apiContext, "failed to join lobby", "lobby_id", lobbyID, "player_id", playerID, "error", err)
-			http.Error(w, "failed to join lobby: "+err.Error(), http.StatusBadRequest)
+			http.Error(w, `{"success":false,"error":"Failed to join lobby"}`, http.StatusBadRequest)
 			return
 		}
 
@@ -170,7 +183,19 @@ func (ctrl *LobbyController) JoinLobbyHandler(apiContext context.Context) http.H
 func (ctrl *LobbyController) LeaveLobbyHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+
+		// SECURITY: Derive player ID from authenticated context
+		ctx := r.Context()
+		authenticated, ok := ctx.Value(shared.AuthenticatedKey).(bool)
+		if !ok || !authenticated {
+			http.Error(w, `{"success":false,"error":"Authentication required"}`, http.StatusUnauthorized)
+			return
+		}
+		playerID, ok := ctx.Value(shared.UserIDKey).(uuid.UUID)
+		if !ok || playerID == uuid.Nil {
+			http.Error(w, `{"success":false,"error":"User identity not found"}`, http.StatusUnauthorized)
+			return
+		}
 
 		vars := mux.Vars(r)
 		lobbyID, err := uuid.Parse(vars["lobby_id"])
@@ -179,22 +204,15 @@ func (ctrl *LobbyController) LeaveLobbyHandler(apiContext context.Context) http.
 			return
 		}
 
-		playerIDParam := r.URL.Query().Get("player_id")
-		playerID, err := uuid.Parse(playerIDParam)
-		if err != nil {
-			http.Error(w, "invalid player_id", http.StatusBadRequest)
-			return
-		}
-
 		cmd := matchmaking_in.LeaveLobbyCommand{
 			LobbyID:  lobbyID,
-			PlayerID: playerID,
+			PlayerID: playerID, // From auth context, NOT from query string
 		}
 
 		err = ctrl.lobbyCommand.LeaveLobby(apiContext, cmd)
 		if err != nil {
 			slog.ErrorContext(apiContext, "failed to leave lobby", "lobby_id", lobbyID, "player_id", playerID, "error", err)
-			http.Error(w, "failed to leave lobby: "+err.Error(), http.StatusBadRequest)
+			http.Error(w, `{"success":false,"error":"Failed to leave lobby"}`, http.StatusBadRequest)
 			return
 		}
 
@@ -214,7 +232,19 @@ func (ctrl *LobbyController) LeaveLobbyHandler(apiContext context.Context) http.
 func (ctrl *LobbyController) SetPlayerReadyHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+
+		// SECURITY: Derive player ID from authenticated context
+		ctx := r.Context()
+		authenticated, ok := ctx.Value(shared.AuthenticatedKey).(bool)
+		if !ok || !authenticated {
+			http.Error(w, `{"success":false,"error":"Authentication required"}`, http.StatusUnauthorized)
+			return
+		}
+		playerID, ok := ctx.Value(shared.UserIDKey).(uuid.UUID)
+		if !ok || playerID == uuid.Nil {
+			http.Error(w, `{"success":false,"error":"User identity not found"}`, http.StatusUnauthorized)
+			return
+		}
 
 		vars := mux.Vars(r)
 		lobbyID, err := uuid.Parse(vars["lobby_id"])
@@ -224,30 +254,23 @@ func (ctrl *LobbyController) SetPlayerReadyHandler(apiContext context.Context) h
 		}
 
 		var reqBody struct {
-			PlayerID string `json:"player_id"`
-			IsReady  bool   `json:"is_ready"`
+			IsReady bool `json:"is_ready"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&reqBody); err != nil {
 			http.Error(w, "invalid request body", http.StatusBadRequest)
-			return
-		}
-
-		playerID, err := uuid.Parse(reqBody.PlayerID)
-		if err != nil {
-			http.Error(w, "invalid player_id", http.StatusBadRequest)
 			return
 		}
 
 		cmd := matchmaking_in.SetPlayerReadyCommand{
 			LobbyID:  lobbyID,
-			PlayerID: playerID,
+			PlayerID: playerID, // From auth context, NOT from request body
 			IsReady:  reqBody.IsReady,
 		}
 
 		err = ctrl.lobbyCommand.SetPlayerReady(apiContext, cmd)
 		if err != nil {
 			slog.ErrorContext(apiContext, "failed to set player ready", "lobby_id", lobbyID, "player_id", playerID, "error", err)
-			http.Error(w, "failed to set ready status: "+err.Error(), http.StatusBadRequest)
+			http.Error(w, `{"success":false,"error":"Failed to update ready status"}`, http.StatusBadRequest)
 			return
 		}
 
@@ -267,7 +290,14 @@ func (ctrl *LobbyController) SetPlayerReadyHandler(apiContext context.Context) h
 func (ctrl *LobbyController) StartMatchHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+
+		// SECURITY: Require authentication
+		ctx := r.Context()
+		authenticated, ok := ctx.Value(shared.AuthenticatedKey).(bool)
+		if !ok || !authenticated {
+			http.Error(w, `{"success":false,"error":"Authentication required"}`, http.StatusUnauthorized)
+			return
+		}
 
 		vars := mux.Vars(r)
 		lobbyID, err := uuid.Parse(vars["lobby_id"])
@@ -279,7 +309,7 @@ func (ctrl *LobbyController) StartMatchHandler(apiContext context.Context) http.
 		matchID, err := ctrl.lobbyCommand.StartMatch(apiContext, lobbyID)
 		if err != nil {
 			slog.ErrorContext(apiContext, "failed to start match", "lobby_id", lobbyID, "error", err)
-			http.Error(w, "failed to start match: "+err.Error(), http.StatusBadRequest)
+			http.Error(w, `{"success":false,"error":"Failed to start match"}`, http.StatusBadRequest)
 			return
 		}
 
@@ -305,7 +335,14 @@ func (ctrl *LobbyController) StartMatchHandler(apiContext context.Context) http.
 func (ctrl *LobbyController) CancelLobbyHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+
+		// SECURITY: Require authentication
+		ctx := r.Context()
+		authenticated, ok := ctx.Value(shared.AuthenticatedKey).(bool)
+		if !ok || !authenticated {
+			http.Error(w, `{"success":false,"error":"Authentication required"}`, http.StatusUnauthorized)
+			return
+		}
 
 		vars := mux.Vars(r)
 		lobbyID, err := uuid.Parse(vars["lobby_id"])
@@ -317,7 +354,7 @@ func (ctrl *LobbyController) CancelLobbyHandler(apiContext context.Context) http
 		var reqBody struct {
 			Reason string `json:"reason"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&reqBody); err != nil {
 			// If no body provided, use default reason
 			reqBody.Reason = "cancelled by creator"
 		}
@@ -329,7 +366,7 @@ func (ctrl *LobbyController) CancelLobbyHandler(apiContext context.Context) http
 		err = ctrl.lobbyCommand.CancelLobby(apiContext, lobbyID, reqBody.Reason)
 		if err != nil {
 			slog.ErrorContext(apiContext, "failed to cancel lobby", "lobby_id", lobbyID, "error", err)
-			http.Error(w, "failed to cancel lobby: "+err.Error(), http.StatusBadRequest)
+			http.Error(w, `{"success":false,"error":"Failed to cancel lobby"}`, http.StatusBadRequest)
 			return
 		}
 

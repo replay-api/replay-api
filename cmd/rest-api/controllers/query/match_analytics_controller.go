@@ -1,6 +1,7 @@
 package query_controllers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -12,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	cs_entities "github.com/replay-api/replay-api/pkg/domain/cs/entities"
+	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 	replay_in "github.com/replay-api/replay-api/pkg/domain/replay/ports/in"
 	replay_common "github.com/replay-api/replay-common/pkg/replay"
 	shared "github.com/resource-ownership/go-common/pkg/common"
@@ -23,6 +25,30 @@ type MatchAnalyticsController struct {
 
 func NewMatchAnalyticsController(container container.Container) *MatchAnalyticsController {
 	return &MatchAnalyticsController{container: container}
+}
+
+// fetchEventsForMatch fetches all events for a given match ID
+func (ctrl *MatchAnalyticsController) fetchEventsForMatch(ctx context.Context, matchID uuid.UUID) ([]*replay_entity.GameEvent, error) {
+	var eventReader replay_in.EventReader
+	if err := ctrl.container.Resolve(&eventReader); err != nil {
+		return nil, err
+	}
+
+	eventSearch := shared.NewSearchByValues(ctx, []shared.SearchableValue{
+		{Field: "MatchID", Values: []interface{}{matchID}, Operator: shared.EqualsOperator},
+	}, shared.SearchResultOptions{Limit: 10000}, shared.UserAudienceIDKey) // TODO: Add pagination for large matches
+
+	eventResults, err := eventReader.Search(ctx, eventSearch)
+	if err != nil {
+		return nil, err
+	}
+
+	events := make([]*replay_entity.GameEvent, len(eventResults))
+	for i, event := range eventResults {
+		events[i] = &event
+	}
+
+	return events, nil
 }
 
 type TrajectoryPoint struct {
@@ -134,10 +160,18 @@ func (ctrl *MatchAnalyticsController) GetMatchTrajectoryHandler(w http.ResponseW
 
 	match := matches[0]
 
+	// Fetch events for this match
+	events, err := ctrl.fetchEventsForMatch(r.Context(), match.ID)
+	if err != nil {
+		slog.Error("GetMatchTrajectoryHandler: failed to fetch events", "err", err)
+		http.Error(w, "error fetching events", http.StatusInternalServerError)
+		return
+	}
+
 	// Aggregate trajectories from all events in the match
 	playerTrajectories := make(map[string]*PlayerTrajectory)
 
-	for _, event := range match.Events {
+	for _, event := range events {
 		if event == nil || event.Stats == nil {
 			continue
 		}
@@ -234,10 +268,18 @@ func (ctrl *MatchAnalyticsController) GetRoundTrajectoryHandler(w http.ResponseW
 
 	match := matches[0]
 
+	// Fetch events for this match
+	events, err := ctrl.fetchEventsForMatch(r.Context(), match.ID)
+	if err != nil {
+		slog.Error("GetRoundTrajectoryHandler: failed to fetch events", "err", err)
+		http.Error(w, "error fetching events", http.StatusInternalServerError)
+		return
+	}
+
 	// Aggregate trajectories from events in the specific round
 	playerTrajectories := make(map[string]*PlayerTrajectory)
 
-	for _, event := range match.Events {
+	for _, event := range events {
 		if event == nil || event.Stats == nil {
 			continue
 		}
@@ -345,10 +387,18 @@ func (ctrl *MatchAnalyticsController) GetMatchHeatmapHandler(w http.ResponseWrit
 
 	match := matches[0]
 
+	// Fetch events for this match
+	events, err := ctrl.fetchEventsForMatch(r.Context(), match.ID)
+	if err != nil {
+		slog.Warn("GetMatchHeatmapHandler: failed to fetch events, returning empty heatmap", "err", err)
+		// Return empty heatmap instead of error
+		events = []*replay_entity.GameEvent{}
+	}
+
 	// Build heatmap grid from positioning data
 	grid := make(map[string]int)
 
-	for _, event := range match.Events {
+	for _, event := range events {
 		if event == nil || event.Stats == nil {
 			continue
 		}
@@ -457,9 +507,17 @@ func (ctrl *MatchAnalyticsController) GetRoundHeatmapHandler(w http.ResponseWrit
 
 	match := matches[0]
 
+	// Fetch events for this match
+	events, err := ctrl.fetchEventsForMatch(r.Context(), match.ID)
+	if err != nil {
+		slog.Error("GetRoundHeatmapHandler: failed to fetch events", "err", err)
+		http.Error(w, "error fetching events", http.StatusInternalServerError)
+		return
+	}
+
 	// Build heatmap grid from positioning data for specific round
 	grid := make(map[string]int)
-	for _, event := range match.Events {
+	for _, event := range events {
 		if event == nil || event.Stats == nil {
 			continue
 		}
@@ -547,6 +605,15 @@ func (ctrl *MatchAnalyticsController) GetPositioningStatsHandler(w http.Response
 	}
 
 	match := matches[0]
+
+	// Fetch events for this match
+	events, err := ctrl.fetchEventsForMatch(r.Context(), match.ID)
+	if err != nil {
+		slog.Error("GetPositioningStatsHandler: failed to fetch events", "err", err)
+		http.Error(w, "error fetching events", http.StatusInternalServerError)
+		return
+	}
+
 	response := PositioningStatsResponse{
 		MatchID:             matchID,
 		ZoneFrequencies:     make(map[string]map[string]int),
@@ -556,7 +623,7 @@ func (ctrl *MatchAnalyticsController) GetPositioningStatsHandler(w http.Response
 	}
 
 	// Aggregate positioning stats from all events
-	for _, event := range match.Events {
+	for _, event := range events {
 		if event == nil || event.Stats == nil {
 			continue
 		}

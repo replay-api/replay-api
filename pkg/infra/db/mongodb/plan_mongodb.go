@@ -120,7 +120,7 @@ func (repo *PlanRepository) GetAvailablePlans(ctx context.Context) ([]*billing_e
 		{Key: "kind", Value: 1},
 	})
 
-	cursor, err := repo.MongoDBRepository.FindWithRLS(ctx, bson.M{
+	filter := bson.M{
 		"is_active":    true,
 		"is_legacy":    false,
 		"is_available": true,
@@ -131,8 +131,9 @@ func (repo *PlanRepository) GetAvailablePlans(ctx context.Context) ([]*billing_e
 			{"expiration_date": bson.M{"$gte": time.Now()}},
 			{"expiration_date": bson.M{"$eq": nil}},
 		},
-	}, opts)
+	}
 
+	cursor, err := repo.MongoDBRepository.FindWithRLS(ctx, filter, opts)
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to retrieve available plans", "err", err)
 		return nil, err

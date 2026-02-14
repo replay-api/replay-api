@@ -11,6 +11,8 @@ import (
 
 type EventReader interface {
 	shared.Searchable[replay_entity.GameEvent]
+	GetMatchEvents(ctx context.Context, gameID string, matchID uuid.UUID, limit, offset int, eventType string) ([]replay_entity.GameEvent, error)
+	GetMatchEventsWithCount(ctx context.Context, gameID string, matchID uuid.UUID, limit, offset int, eventTypes []string) ([]replay_entity.GameEvent, int64, error)
 }
 
 type MatchReader interface {

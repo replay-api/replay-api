@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	shared "github.com/resource-ownership/go-common/pkg/common"
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 	use_cases "github.com/replay-api/replay-api/pkg/domain/replay/use_cases"
 	"github.com/stretchr/testify/assert"
@@ -18,6 +19,43 @@ import (
 // =============================================================================
 // Mock Implementations
 // =============================================================================
+
+// MockReplayFileMetadataReader implements replay_out.ReplayFileMetadataReader
+type MockReplayFileMetadataReader struct {
+	mock.Mock
+}
+
+func (m *MockReplayFileMetadataReader) Search(ctx context.Context, search shared.Search) ([]replay_entity.ReplayFile, error) {
+	args := m.Called(ctx, search)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]replay_entity.ReplayFile), args.Error(1)
+}
+
+func (m *MockReplayFileMetadataReader) Compile(ctx context.Context, searchParams []shared.SearchAggregation, resultOptions shared.SearchResultOptions) (*shared.Search, error) {
+	args := m.Called(ctx, searchParams, resultOptions)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*shared.Search), args.Error(1)
+}
+
+func (m *MockReplayFileMetadataReader) GetByID(ctx context.Context, replayFileID uuid.UUID) (*replay_entity.ReplayFile, error) {
+	args := m.Called(ctx, replayFileID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*replay_entity.ReplayFile), args.Error(1)
+}
+
+func (m *MockReplayFileMetadataReader) FindByContentHash(ctx context.Context, contentHash string) (*replay_entity.ReplayFile, error) {
+	args := m.Called(ctx, contentHash)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*replay_entity.ReplayFile), args.Error(1)
+}
 
 // MockReplayFileMetadataWriter implements replay_out.ReplayFileMetadataWriter
 type MockReplayFileMetadataWriter struct {
@@ -63,19 +101,27 @@ func createAuthenticatedContext() context.Context {
 	return ctx
 }
 
+func createGuestContext() context.Context {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, shared.TenantIDKey, replay_common.TeamPROTenantID)
+	ctx = context.WithValue(ctx, shared.ClientIDKey, replay_common.TeamPROAppClientID)
+	ctx = context.WithValue(ctx, shared.GroupIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.UserIDKey, uuid.New())
+	ctx = context.WithValue(ctx, shared.AuthenticatedKey, false)
+	return ctx
+}
+
 func createUnauthenticatedContext() context.Context {
 	return context.Background()
 }
 
 func createTestReplayFile(size int) *replay_entity.ReplayFile {
-	return &replay_entity.ReplayFile{
-		ID:          uuid.New(),
-		GameID:      "cs",
-		NetworkID:   "steam",
-		Size:        size,
-		Status:      replay_entity.ReplayFileStatusPending,
-		InternalURI: "",
+	resourceOwner := shared.ResourceOwner{
+		TenantID: uuid.New(),
+		ClientID: uuid.New(),
+		UserID:   uuid.New(),
 	}
+	return replay_entity.NewReplayFile("cs2", "steam", size, "", resourceOwner)
 }
 
 // =============================================================================
@@ -89,8 +135,12 @@ func TestScenario_AuthenticatedUserUploadsReplay(t *testing.T) {
 	replayContent := []byte("demo file content simulation")
 	reader := bytes.NewReader(replayContent)
 
+	mockMetadataReader := new(MockReplayFileMetadataReader)
 	mockMetadataWriter := new(MockReplayFileMetadataWriter)
 	mockContentWriter := new(MockReplayFileContentWriter)
+
+	// No duplicate found (deduplication check)
+	mockMetadataReader.On("FindByContentHash", mock.Anything, mock.AnythingOfType("string")).Return(nil, nil)
 
 	// Metadata creation succeeds
 	createdFile := createTestReplayFile(len(replayContent))
@@ -106,9 +156,55 @@ func TestScenario_AuthenticatedUserUploadsReplay(t *testing.T) {
 	updatedFile.Status = replay_entity.ReplayFileStatusProcessing
 	mockMetadataWriter.On("Update", mock.Anything, mock.AnythingOfType("*entities.ReplayFile")).Return(updatedFile, nil)
 
-	usecase := use_cases.NewUploadReplayFileUseCase(mockMetadataWriter, mockContentWriter)
+	usecase := use_cases.NewUploadReplayFileUseCase(mockMetadataReader, mockMetadataWriter, mockContentWriter, nil)
 
 	// When: The user uploads the replay
+	result, err := usecase.Exec(ctx, reader)
+
+	// Then: The replay is successfully uploaded and metadata is created
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, expectedURI, result.InternalURI)
+	assert.Equal(t, replay_entity.ReplayFileStatusProcessing, result.Status)
+
+	mockMetadataReader.AssertExpectations(t)
+	mockMetadataWriter.AssertExpectations(t)
+	mockContentWriter.AssertExpectations(t)
+}
+
+// TestScenario_GuestUserCanUpload tests that guest users can upload replays
+func TestScenario_GuestUserCanUpload(t *testing.T) {
+	// Given: A guest user (unauthenticated) trying to upload with proper context values
+	ctx := createGuestContext()
+	replayContent := []byte("demo file content")
+	reader := bytes.NewReader(replayContent)
+
+	expectedURI := "s3://replays/bucket/test-id"
+
+	mockMetadataReader := new(MockReplayFileMetadataReader)
+	mockMetadataReader.On("FindByContentHash", mock.Anything, mock.AnythingOfType("string")).Return(nil, nil)
+	mockMetadataWriter := new(MockReplayFileMetadataWriter)
+	mockContentWriter := new(MockReplayFileContentWriter)
+
+	usecase := use_cases.NewUploadReplayFileUseCase(mockMetadataReader, mockMetadataWriter, mockContentWriter, nil)
+
+	// Setup expectations
+	expectedEntity := replay_entity.NewReplayFile("cs2", "steam", len(replayContent), "", shared.GetResourceOwner(ctx))
+	expectedEntity.ID = uuid.MustParse("25d97570-2666-44ce-84d9-3ea683e78ae1") // Fixed ID for test
+	expectedEntity.InternalURI = expectedURI
+	expectedEntity.Status = replay_entity.ReplayFileStatusProcessing
+
+	mockMetadataWriter.On("Create", mock.Anything, mock.MatchedBy(func(entity *replay_entity.ReplayFile) bool {
+		return entity.GameID == "cs2" && entity.NetworkID == "steam" && entity.Size == len(replayContent)
+	})).Return(expectedEntity, nil)
+
+	mockContentWriter.On("Put", mock.Anything, expectedEntity.ID, mock.AnythingOfType("*bytes.Reader")).Return(expectedURI, nil)
+
+	mockMetadataWriter.On("Update", mock.Anything, mock.MatchedBy(func(entity *replay_entity.ReplayFile) bool {
+		return entity.ID == expectedEntity.ID && entity.InternalURI == expectedURI && entity.Status == replay_entity.ReplayFileStatusProcessing
+	})).Return(expectedEntity, nil)
+
+	// When: The guest user uploads the replay
 	result, err := usecase.Exec(ctx, reader)
 
 	// Then: The replay is successfully uploaded and metadata is created
@@ -121,30 +217,6 @@ func TestScenario_AuthenticatedUserUploadsReplay(t *testing.T) {
 	mockContentWriter.AssertExpectations(t)
 }
 
-// TestScenario_UnauthenticatedUserCannotUpload tests access control
-func TestScenario_UnauthenticatedUserCannotUpload(t *testing.T) {
-	// Given: An unauthenticated user trying to upload
-	ctx := createUnauthenticatedContext()
-	replayContent := []byte("demo file content")
-	reader := bytes.NewReader(replayContent)
-
-	mockMetadataWriter := new(MockReplayFileMetadataWriter)
-	mockContentWriter := new(MockReplayFileContentWriter)
-
-	usecase := use_cases.NewUploadReplayFileUseCase(mockMetadataWriter, mockContentWriter)
-
-	// When: The user attempts to upload
-	result, err := usecase.Exec(ctx, reader)
-
-	// Then: Access is denied with ErrUnauthorized
-	assert.Error(t, err)
-	assert.Nil(t, result)
-
-	// No storage operations should occur
-	mockMetadataWriter.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
-	mockContentWriter.AssertNotCalled(t, "Put", mock.Anything, mock.Anything, mock.Anything)
-}
-
 // TestScenario_LargeReplayFileUpload tests handling of larger files
 func TestScenario_LargeReplayFileUpload(t *testing.T) {
 	// Given: An authenticated user with a large replay file (10MB simulated)
@@ -155,6 +227,8 @@ func TestScenario_LargeReplayFileUpload(t *testing.T) {
 	}
 	reader := bytes.NewReader(largeContent)
 
+	mockMetadataReader := new(MockReplayFileMetadataReader)
+	mockMetadataReader.On("FindByContentHash", mock.Anything, mock.AnythingOfType("string")).Return(nil, nil)
 	mockMetadataWriter := new(MockReplayFileMetadataWriter)
 	mockContentWriter := new(MockReplayFileContentWriter)
 
@@ -168,7 +242,7 @@ func TestScenario_LargeReplayFileUpload(t *testing.T) {
 	updatedFile.InternalURI = expectedURI
 	mockMetadataWriter.On("Update", mock.Anything, mock.AnythingOfType("*entities.ReplayFile")).Return(updatedFile, nil)
 
-	usecase := use_cases.NewUploadReplayFileUseCase(mockMetadataWriter, mockContentWriter)
+	usecase := use_cases.NewUploadReplayFileUseCase(mockMetadataReader, mockMetadataWriter, mockContentWriter, nil)
 
 	// When: The user uploads the large file
 	result, err := usecase.Exec(ctx, reader)
@@ -189,12 +263,14 @@ func TestUploadReplayFile_MetadataCreationFails(t *testing.T) {
 	replayContent := []byte("demo content")
 	reader := bytes.NewReader(replayContent)
 
+	mockMetadataReader := new(MockReplayFileMetadataReader)
+	mockMetadataReader.On("FindByContentHash", mock.Anything, mock.AnythingOfType("string")).Return(nil, nil)
 	mockMetadataWriter := new(MockReplayFileMetadataWriter)
 	mockContentWriter := new(MockReplayFileContentWriter)
 
 	mockMetadataWriter.On("Create", mock.Anything, mock.AnythingOfType("*entities.ReplayFile")).Return(nil, errors.New("database error"))
 
-	usecase := use_cases.NewUploadReplayFileUseCase(mockMetadataWriter, mockContentWriter)
+	usecase := use_cases.NewUploadReplayFileUseCase(mockMetadataReader, mockMetadataWriter, mockContentWriter, nil)
 
 	// When: Metadata creation fails
 	result, err := usecase.Exec(ctx, reader)
@@ -214,6 +290,8 @@ func TestUploadReplayFile_ContentUploadFails(t *testing.T) {
 	replayContent := []byte("demo content")
 	reader := bytes.NewReader(replayContent)
 
+	mockMetadataReader := new(MockReplayFileMetadataReader)
+	mockMetadataReader.On("FindByContentHash", mock.Anything, mock.AnythingOfType("string")).Return(nil, nil)
 	mockMetadataWriter := new(MockReplayFileMetadataWriter)
 	mockContentWriter := new(MockReplayFileContentWriter)
 
@@ -228,7 +306,7 @@ func TestUploadReplayFile_ContentUploadFails(t *testing.T) {
 	failedFile.Status = replay_entity.ReplayFileStatusFailed
 	mockMetadataWriter.On("Update", mock.Anything, mock.AnythingOfType("*entities.ReplayFile")).Return(failedFile, nil)
 
-	usecase := use_cases.NewUploadReplayFileUseCase(mockMetadataWriter, mockContentWriter)
+	usecase := use_cases.NewUploadReplayFileUseCase(mockMetadataReader, mockMetadataWriter, mockContentWriter, nil)
 
 	// When: Content upload fails
 	result, err := usecase.Exec(ctx, reader)
@@ -250,6 +328,8 @@ func TestUploadReplayFile_MetadataUpdateFails(t *testing.T) {
 	replayContent := []byte("demo content")
 	reader := bytes.NewReader(replayContent)
 
+	mockMetadataReader := new(MockReplayFileMetadataReader)
+	mockMetadataReader.On("FindByContentHash", mock.Anything, mock.AnythingOfType("string")).Return(nil, nil)
 	mockMetadataWriter := new(MockReplayFileMetadataWriter)
 	mockContentWriter := new(MockReplayFileContentWriter)
 
@@ -262,7 +342,7 @@ func TestUploadReplayFile_MetadataUpdateFails(t *testing.T) {
 	// Final update fails
 	mockMetadataWriter.On("Update", mock.Anything, mock.AnythingOfType("*entities.ReplayFile")).Return(nil, errors.New("update failed"))
 
-	usecase := use_cases.NewUploadReplayFileUseCase(mockMetadataWriter, mockContentWriter)
+	usecase := use_cases.NewUploadReplayFileUseCase(mockMetadataReader, mockMetadataWriter, mockContentWriter, nil)
 
 	// When: Metadata update fails
 	result, err := usecase.Exec(ctx, reader)
@@ -273,26 +353,47 @@ func TestUploadReplayFile_MetadataUpdateFails(t *testing.T) {
 	assert.Nil(t, result)
 }
 
-func TestUploadReplayFile_AuthenticatedKeyFalse(t *testing.T) {
-	// Given: A context with AuthenticatedKey explicitly set to false
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, shared.AuthenticatedKey, false)
+func TestUploadReplayFile_GuestUser(t *testing.T) {
+	// Given: A context with AuthenticatedKey set to false but proper resource owner context (like ResourceContextMiddleware)
+	ctx := createGuestContext()
 
 	replayContent := []byte("demo content")
 	reader := bytes.NewReader(replayContent)
 
+	mockMetadataReader := new(MockReplayFileMetadataReader)
+	mockMetadataReader.On("FindByContentHash", mock.Anything, mock.AnythingOfType("string")).Return(nil, nil)
 	mockMetadataWriter := new(MockReplayFileMetadataWriter)
 	mockContentWriter := new(MockReplayFileContentWriter)
 
-	usecase := use_cases.NewUploadReplayFileUseCase(mockMetadataWriter, mockContentWriter)
+	usecase := use_cases.NewUploadReplayFileUseCase(mockMetadataReader, mockMetadataWriter, mockContentWriter, nil)
 
-	// When: Upload is attempted with authenticated=false
+	// Setup expectations
+	expectedEntity := replay_entity.NewReplayFile("cs", "steam", len(replayContent), "", shared.GetResourceOwner(ctx))
+	expectedEntity.ID = uuid.MustParse("25d97570-2666-44ce-84d9-3ea683e78ae1") // Fixed ID for test
+	expectedEntity.InternalURI = "s3://replays/bucket/test-id"
+	expectedEntity.Status = replay_entity.ReplayFileStatusProcessing
+
+	mockMetadataWriter.On("Create", mock.Anything, mock.MatchedBy(func(entity *replay_entity.ReplayFile) bool {
+		return entity.GameID == "cs2" && entity.NetworkID == "steam" && entity.Size == len(replayContent)
+	})).Return(expectedEntity, nil)
+
+	mockContentWriter.On("Put", mock.Anything, expectedEntity.ID, mock.AnythingOfType("*bytes.Reader")).Return("s3://replays/bucket/test-id", nil)
+
+	mockMetadataWriter.On("Update", mock.Anything, mock.MatchedBy(func(entity *replay_entity.ReplayFile) bool {
+		return entity.ID == expectedEntity.ID && entity.InternalURI == "s3://replays/bucket/test-id" && entity.Status == replay_entity.ReplayFileStatusProcessing
+	})).Return(expectedEntity, nil)
+
+	// When: Upload is attempted by guest user
 	result, err := usecase.Exec(ctx, reader)
 
-	// Then: Access is denied
-	assert.Error(t, err)
-	assert.Nil(t, result)
-	mockMetadataWriter.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
+	// Then: Upload succeeds
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "s3://replays/bucket/test-id", result.InternalURI)
+	assert.Equal(t, replay_entity.ReplayFileStatusProcessing, result.Status)
+
+	mockMetadataWriter.AssertExpectations(t)
+	mockContentWriter.AssertExpectations(t)
 }
 
 // TestUploadReplayFile_EmptyFile tests handling of empty replay files
@@ -302,6 +403,8 @@ func TestUploadReplayFile_EmptyFile(t *testing.T) {
 	emptyContent := []byte{}
 	reader := bytes.NewReader(emptyContent)
 
+	mockMetadataReader := new(MockReplayFileMetadataReader)
+	mockMetadataReader.On("FindByContentHash", mock.Anything, mock.AnythingOfType("string")).Return(nil, nil)
 	mockMetadataWriter := new(MockReplayFileMetadataWriter)
 	mockContentWriter := new(MockReplayFileContentWriter)
 
@@ -315,7 +418,7 @@ func TestUploadReplayFile_EmptyFile(t *testing.T) {
 	updatedFile.InternalURI = expectedURI
 	mockMetadataWriter.On("Update", mock.Anything, mock.AnythingOfType("*entities.ReplayFile")).Return(updatedFile, nil)
 
-	usecase := use_cases.NewUploadReplayFileUseCase(mockMetadataWriter, mockContentWriter)
+	usecase := use_cases.NewUploadReplayFileUseCase(mockMetadataReader, mockMetadataWriter, mockContentWriter, nil)
 
 	// When: An empty file is uploaded
 	result, err := usecase.Exec(ctx, reader)

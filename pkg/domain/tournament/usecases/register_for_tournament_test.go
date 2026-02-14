@@ -75,10 +75,12 @@ func createRegistrationTournament(status tournament_entities.TournamentStatus) *
 func TestRegisterForTournament_Success(t *testing.T) {
 	mockBilling := new(MockBillableOperationHandler)
 	mockTournamentRepo := new(MockTournamentRepository)
+	mockPlayerProfileReader := new(MockPlayerProfileReader)
 
 	usecase := tournament_usecases.NewRegisterForTournamentUseCase(
 		mockBilling,
 		mockTournamentRepo,
+		mockPlayerProfileReader,
 	)
 
 	ctx := context.Background()
@@ -109,7 +111,7 @@ func TestRegisterForTournament_Success(t *testing.T) {
 	}
 
 	// mock player ownership verification
-	// mockPlayerReader.On("Search", mock.Anything, mock.Anything).Return([]squad_entities.PlayerProfile{playerProfile}, nil)
+	mockPlayerProfileReader.On("Search", mock.Anything, mock.Anything).Return([]squad_entities.PlayerProfile{playerProfile}, nil)
 
 	// mock tournament retrieval
 	mockTournamentRepo.On("FindByID", mock.Anything, tournamentID).Return(tournament, nil)
@@ -128,16 +130,18 @@ func TestRegisterForTournament_Success(t *testing.T) {
 	assert.NoError(t, err)
 	mockBilling.AssertExpectations(t)
 	mockTournamentRepo.AssertExpectations(t)
-	// mockPlayerReader.AssertExpectations(t) // TODO: Re-enable once PlayerProfileRepository is properly registered
+	mockPlayerProfileReader.AssertExpectations(t)
 }
 
 func TestRegisterForTournament_Unauthenticated(t *testing.T) {
 	mockBilling := new(MockBillableOperationHandler)
 	mockTournamentRepo := new(MockTournamentRepository)
+	mockPlayerProfileReader := new(MockPlayerProfileReader)
 
 	usecase := tournament_usecases.NewRegisterForTournamentUseCase(
 		mockBilling,
 		mockTournamentRepo,
+		mockPlayerProfileReader,
 	)
 
 	ctx := context.Background()
@@ -156,10 +160,12 @@ func TestRegisterForTournament_Unauthenticated(t *testing.T) {
 func TestRegisterForTournament_ImpersonationBlocked(t *testing.T) {
 	mockBilling := new(MockBillableOperationHandler)
 	mockTournamentRepo := new(MockTournamentRepository)
+	mockPlayerProfileReader := new(MockPlayerProfileReader)
 
 	usecase := tournament_usecases.NewRegisterForTournamentUseCase(
 		mockBilling,
 		mockTournamentRepo,
+		mockPlayerProfileReader,
 	)
 
 	ctx := context.Background()
@@ -188,34 +194,24 @@ func TestRegisterForTournament_ImpersonationBlocked(t *testing.T) {
 	}
 
 	// mock player ownership verification - returns victim's profile
-	// mockPlayerReader.On("Search", mock.Anything, mock.Anything).Return([]squad_entities.PlayerProfile{playerProfile}, nil)
-
-	// Since ownership check is disabled, it will proceed to tournament lookup
-	tournament := createRegistrationTournament(tournament_entities.TournamentStatusRegistration)
-	cmd.TournamentID = tournament.ID
-
-	// mock tournament retrieval
-	mockTournamentRepo.On("FindByID", mock.Anything, cmd.TournamentID).Return(tournament, nil)
-
-	// mock billing validation - this is where it should fail (since ownership check is disabled)
-	mockBilling.On("Validate", mock.Anything, mock.Anything).Return(assert.AnError)
+	mockPlayerProfileReader.On("Search", mock.Anything, mock.Anything).Return([]squad_entities.PlayerProfile{playerProfile}, nil)
 
 	err := usecase.Exec(ctx, cmd)
 
-	// Should fail at billing validation (not ownership check since it's disabled)
+	// Should fail at ownership check - impersonation blocked
 	assert.Error(t, err)
-	// mockPlayerReader.AssertExpectations(t) // TODO: Re-enable once PlayerProfileRepository is properly registered
-	mockTournamentRepo.AssertExpectations(t)
-	mockBilling.AssertExpectations(t)
+	mockPlayerProfileReader.AssertExpectations(t)
 }
 
 func TestRegisterForTournament_TournamentNotFound(t *testing.T) {
 	mockBilling := new(MockBillableOperationHandler)
 	mockTournamentRepo := new(MockTournamentRepository)
+	mockPlayerProfileReader := new(MockPlayerProfileReader)
 
 	usecase := tournament_usecases.NewRegisterForTournamentUseCase(
 		mockBilling,
 		mockTournamentRepo,
+		mockPlayerProfileReader,
 	)
 
 	ctx := context.Background()
@@ -245,7 +241,7 @@ func TestRegisterForTournament_TournamentNotFound(t *testing.T) {
 	}
 
 	// mock player ownership verification
-	// mockPlayerReader.On("Search", mock.Anything, mock.Anything).Return([]squad_entities.PlayerProfile{playerProfile}, nil)
+	mockPlayerProfileReader.On("Search", mock.Anything, mock.Anything).Return([]squad_entities.PlayerProfile{playerProfile}, nil)
 
 	// mock tournament not found
 	mockTournamentRepo.On("FindByID", mock.Anything, tournamentID).Return(nil, assert.AnError)
@@ -255,16 +251,18 @@ func TestRegisterForTournament_TournamentNotFound(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "tournament not found")
 	mockTournamentRepo.AssertExpectations(t)
-	// mockPlayerReader.AssertExpectations(t) // TODO: Re-enable once PlayerProfileRepository is properly registered
+	mockPlayerProfileReader.AssertExpectations(t)
 }
 
 func TestRegisterForTournament_BillingValidationFails(t *testing.T) {
 	mockBilling := new(MockBillableOperationHandler)
 	mockTournamentRepo := new(MockTournamentRepository)
+	mockPlayerProfileReader := new(MockPlayerProfileReader)
 
 	usecase := tournament_usecases.NewRegisterForTournamentUseCase(
 		mockBilling,
 		mockTournamentRepo,
+		mockPlayerProfileReader,
 	)
 
 	ctx := context.Background()
@@ -295,7 +293,7 @@ func TestRegisterForTournament_BillingValidationFails(t *testing.T) {
 	}
 
 	// mock player ownership verification
-	// mockPlayerReader.On("Search", mock.Anything, mock.Anything).Return([]squad_entities.PlayerProfile{playerProfile}, nil)
+	mockPlayerProfileReader.On("Search", mock.Anything, mock.Anything).Return([]squad_entities.PlayerProfile{playerProfile}, nil)
 
 	// mock tournament retrieval
 	mockTournamentRepo.On("FindByID", mock.Anything, tournamentID).Return(tournament, nil)
@@ -308,16 +306,18 @@ func TestRegisterForTournament_BillingValidationFails(t *testing.T) {
 	assert.Error(t, err)
 	mockBilling.AssertExpectations(t)
 	mockTournamentRepo.AssertExpectations(t)
-	// mockPlayerReader.AssertExpectations(t) // TODO: Re-enable once PlayerProfileRepository is properly registered
+	mockPlayerProfileReader.AssertExpectations(t)
 }
 
 func TestRegisterForTournament_UpdateFails(t *testing.T) {
 	mockBilling := new(MockBillableOperationHandler)
 	mockTournamentRepo := new(MockTournamentRepository)
+	mockPlayerProfileReader := new(MockPlayerProfileReader)
 
 	usecase := tournament_usecases.NewRegisterForTournamentUseCase(
 		mockBilling,
 		mockTournamentRepo,
+		mockPlayerProfileReader,
 	)
 
 	ctx := context.Background()
@@ -348,7 +348,7 @@ func TestRegisterForTournament_UpdateFails(t *testing.T) {
 	}
 
 	// mock player ownership verification
-	// mockPlayerReader.On("Search", mock.Anything, mock.Anything).Return([]squad_entities.PlayerProfile{playerProfile}, nil)
+	mockPlayerProfileReader.On("Search", mock.Anything, mock.Anything).Return([]squad_entities.PlayerProfile{playerProfile}, nil)
 
 	// mock tournament retrieval
 	mockTournamentRepo.On("FindByID", mock.Anything, tournamentID).Return(tournament, nil)
@@ -365,5 +365,5 @@ func TestRegisterForTournament_UpdateFails(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to register for tournament")
 	mockBilling.AssertExpectations(t)
 	mockTournamentRepo.AssertExpectations(t)
-	// mockPlayerReader.AssertExpectations(t) // TODO: Re-enable once PlayerProfileRepository is properly registered
+	mockPlayerProfileReader.AssertExpectations(t)
 }

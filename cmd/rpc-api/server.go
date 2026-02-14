@@ -13,6 +13,7 @@ import (
 	billing_in "github.com/replay-api/replay-api/pkg/domain/billing/ports/in"
 	iam_entities "github.com/replay-api/replay-api/pkg/domain/iam/entities"
 	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -107,6 +108,8 @@ func (s *rpcServer) GetContextWithUser(ctx context.Context, ridToken uuid.UUID) 
 }
 
 // ValidateRID implements the gRPC endpoint to validate an RID.
+// Returns the full ResourceOwner data so downstream services can
+// derive user identity from the RID token without additional headers.
 func (s *rpcServer) ValidateRID(ctx context.Context, req *iam.ValidateRIDRequest) (*iam.ValidateRIDResponse, error) {
 	if req.RidToken == "" {
 		slog.Error("RID token is required")
@@ -120,18 +123,29 @@ func (s *rpcServer) ValidateRID(ctx context.Context, req *iam.ValidateRIDRequest
 		return nil, status.Error(codes.InvalidArgument, "Invalid RID token (::1)")
 	}
 
-	_, err = s.GetContextWithUser(ctx, rid)
+	verifiedCtx, err := s.GetContextWithUser(ctx, rid)
 
 	if err != nil {
 		slog.Error("Invalid RID token (::2)")
 		return nil, status.Error(codes.Unauthenticated, "Invalid RID token (::2)")
 	}
 
-	slog.Info("RID is valid")
+	// Extract resource owner from verified context
+	reso := shared.GetResourceOwner(verifiedCtx)
+	aud, _ := verifiedCtx.Value(shared.AudienceKey).(shared.IntendedAudienceKey)
+
+	slog.Info("RID is valid", "user_id", reso.UserID, "audience", aud)
 
 	return &iam.ValidateRIDResponse{
 		IsValid: true,
 		Reason:  "RID is valid",
+		ResourceOwner: &iam.ResourceOwner{
+			TenantId: reso.TenantID.String(),
+			ClientId: reso.ClientID.String(),
+			GroupId:  reso.GroupID.String(),
+			UserId:   reso.UserID.String(),
+		},
+		IntendedAudience: int32(aud),
 	}, nil
 }
 

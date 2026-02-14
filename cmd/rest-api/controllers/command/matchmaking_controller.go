@@ -10,10 +10,10 @@ import (
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	shared "github.com/resource-ownership/go-common/pkg/common"
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
 	matchmaking_in "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/in"
 	matchmaking_services "github.com/replay-api/replay-api/pkg/domain/matchmaking/services"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type MatchmakingController struct {
@@ -88,19 +88,21 @@ type PoolStatsResponse struct {
 func (ctrl *MatchmakingController) JoinQueueHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
 
 		var req JoinQueueRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&req); err != nil {
 			http.Error(w, "invalid request body", http.StatusBadRequest)
 			return
 		}
 
-		playerID, err := uuid.Parse(req.PlayerID)
-		if err != nil {
-			http.Error(w, "invalid player_id", http.StatusBadRequest)
+		// SECURITY: Derive player ID from authenticated context, NOT from request body
+		ctx := r.Context()
+		resourceOwner := shared.GetResourceOwner(ctx)
+		if resourceOwner.UserID == uuid.Nil {
+			http.Error(w, `{"success":false,"error":"Authentication required"}`, http.StatusUnauthorized)
 			return
 		}
+		playerID := resourceOwner.UserID
 
 		// Build command for use case
 		cmd := matchmaking_in.JoinMatchmakingQueueCommand{
@@ -143,21 +145,11 @@ func (ctrl *MatchmakingController) JoinQueueHandler(apiContext context.Context) 
 
 		// Execute via use case handler
 		if ctrl.joinQueueHandler != nil {
-			// Get resource owner from context for proper authentication
-			ctx := r.Context()
-			resourceOwner := shared.GetResourceOwner(ctx)
-			if resourceOwner.UserID != uuid.Nil {
-				cmd.PlayerID = resourceOwner.UserID
-			}
-
+			// Player ID already set from auth context above
 			session, err := ctrl.joinQueueHandler.Exec(ctx, cmd)
 			if err != nil {
 				slog.ErrorContext(ctx, "Failed to join matchmaking queue", "err", err, "player_id", cmd.PlayerID)
-				if err.Error() == "Unauthorized" {
-					http.Error(w, "unauthorized", http.StatusUnauthorized)
-					return
-				}
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				http.Error(w, `{"success":false,"error":"Failed to join queue"}`, http.StatusBadRequest)
 				return
 			}
 
@@ -176,10 +168,9 @@ func (ctrl *MatchmakingController) JoinQueueHandler(apiContext context.Context) 
 
 		// Fallback: direct repository access (deprecated - for backwards compatibility)
 		slog.Warn("JoinQueueHandler using deprecated direct repository access")
-		resourceOwner := shared.GetResourceOwner(r.Context())
 		session := &matchmaking_entities.MatchmakingSession{
 			BaseEntity: shared.NewEntity(resourceOwner),
-			PlayerID:   playerID,
+			PlayerID:   playerID, // From auth context
 			Preferences: matchmaking_entities.MatchPreferences{
 				GameID:   cmd.GameID,
 				GameMode: cmd.GameMode,
@@ -211,7 +202,6 @@ func (ctrl *MatchmakingController) JoinQueueHandler(apiContext context.Context) 
 func (ctrl *MatchmakingController) GetPoolStatsHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
 
 		vars := mux.Vars(r)
 		gameID := vars["game_id"]
@@ -229,7 +219,8 @@ func (ctrl *MatchmakingController) GetPoolStatsHandler(apiContext context.Contex
 		}
 
 		// Generate realistic pool stats
-		stats := ctrl.generatePoolStats(gameID, gameMode, region)
+		ctx := r.Context()
+		stats := ctrl.generatePoolStats(ctx, gameID, gameMode, region)
 
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(stats)
@@ -240,7 +231,6 @@ func (ctrl *MatchmakingController) GetPoolStatsHandler(apiContext context.Contex
 func (ctrl *MatchmakingController) LeaveQueueHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
 
 		vars := mux.Vars(r)
 		sessionID := vars["session_id"]
@@ -266,11 +256,7 @@ func (ctrl *MatchmakingController) LeaveQueueHandler(apiContext context.Context)
 
 			if err := ctrl.leaveQueueHandler.Exec(ctx, cmd); err != nil {
 				slog.ErrorContext(ctx, "Failed to leave matchmaking queue", "err", err, "session_id", sessionID)
-				if err.Error() == "Unauthorized" {
-					http.Error(w, "unauthorized", http.StatusUnauthorized)
-					return
-				}
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				http.Error(w, `{"success":false,"error":"Failed to leave queue"}`, http.StatusBadRequest)
 				return
 			}
 
@@ -294,7 +280,6 @@ func (ctrl *MatchmakingController) LeaveQueueHandler(apiContext context.Context)
 func (ctrl *MatchmakingController) GetSessionStatusHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
 
 		vars := mux.Vars(r)
 		sessionID := vars["session_id"]
@@ -407,9 +392,7 @@ func (ctrl *MatchmakingController) calculateQueuePositionForSession(ctx context.
 	return ctrl.calculateQueuePositionFromDB(ctx, session.Preferences)
 }
 
-func (ctrl *MatchmakingController) generatePoolStats(gameID, gameMode, region string) PoolStatsResponse {
-	ctx := context.Background()
-	
+func (ctrl *MatchmakingController) generatePoolStats(ctx context.Context, gameID, gameMode, region string) PoolStatsResponse {
 	// Try to get real data from database
 	if ctrl.sessionQuerySvc != nil {
 		sessions, err := ctrl.sessionQuerySvc.FindActiveSessions(ctx, gameID, gameMode, region, nil, nil, nil, nil, 1000, 0)

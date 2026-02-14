@@ -51,8 +51,8 @@ type BankDetails struct {
 
 // Withdrawal represents a withdrawal request from a user's wallet
 type Withdrawal struct {
-	ID                   uuid.UUID            `json:"id" bson:"_id"`
-	UserID               uuid.UUID            `json:"user_id" bson:"user_id"`
+	shared.BaseEntity     `json:",inline" bson:",inline"`
+	UserID                uuid.UUID            `json:"user_id" bson:"user_id"`
 	WalletID             uuid.UUID            `json:"wallet_id" bson:"wallet_id"`
 	Amount               float64              `json:"amount" bson:"amount"`
 	Currency             string               `json:"currency" bson:"currency"`
@@ -68,11 +68,8 @@ type Withdrawal struct {
 	ReviewedBy           *uuid.UUID           `json:"reviewed_by,omitempty" bson:"reviewed_by,omitempty"`
 	ReviewedAt           *time.Time           `json:"reviewed_at,omitempty" bson:"reviewed_at,omitempty"`
 	ProcessedAt          *time.Time           `json:"processed_at,omitempty" bson:"processed_at,omitempty"`
-	CompletedAt          *time.Time           `json:"completed_at,omitempty" bson:"completed_at,omitempty"`
-	History              []WithdrawalHistory  `json:"history" bson:"history"`
-	ResourceOwner        shared.ResourceOwner `json:"resource_owner" bson:"resource_owner"`
-	CreatedAt            time.Time            `json:"created_at" bson:"created_at"`
-	UpdatedAt            time.Time            `json:"updated_at" bson:"updated_at"`
+	CompletedAt       *time.Time           `json:"completed_at,omitempty" bson:"completed_at,omitempty"`
+	History           []WithdrawalHistory  `json:"history" bson:"history"`
 }
 
 // WithdrawalHistory tracks status changes for a withdrawal
@@ -94,18 +91,19 @@ func NewWithdrawal(
 	fee float64,
 	rxn shared.ResourceOwner,
 ) *Withdrawal {
+	entity := shared.NewEntity(rxn)
 	now := time.Now()
 	return &Withdrawal{
-		ID:            uuid.New(),
-		UserID:        userID,
-		WalletID:      walletID,
-		Amount:        amount,
-		Currency:      currency,
-		Method:        method,
-		Status:        WithdrawalStatusPending,
-		BankDetails:   bankDetails,
-		Fee:           fee,
-		NetAmount:     amount - fee,
+		BaseEntity:  entity,
+		UserID:      userID,
+		WalletID:    walletID,
+		Amount:      amount,
+		Currency:    currency,
+		Method:      method,
+		Status:      WithdrawalStatusPending,
+		BankDetails: bankDetails,
+		Fee:         fee,
+		NetAmount:   amount - fee,
 		History: []WithdrawalHistory{
 			{
 				Status:    WithdrawalStatusPending,
@@ -113,9 +111,6 @@ func NewWithdrawal(
 				Timestamp: now,
 			},
 		},
-		ResourceOwner: rxn,
-		CreatedAt:     now,
-		UpdatedAt:     now,
 	}
 }
 
