@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"log/slog"
+	"strconv"
 
 	dem "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs"
 	evt "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs/events"
@@ -37,13 +38,32 @@ func WeaponFire(p dem.Parser, matchContext *state.CS2MatchContext, out chan *ent
 
 		currentTick := replay_common.TickIDType(gs.IngameTick())
 
-		// sourcePlayerID := fmt.Sprintf("%d", event.Shooter.SteamID64) // TODO: ticket + spec (angles data, values etc)
+		// Track shots for accuracy calculation
+		if event.Shooter != nil && matchContext.StatsAccumulator != nil {
+			shooterSteamID := strconv.FormatUint(event.Shooter.SteamID64, 10)
+			shooterName := event.Shooter.Name
+			shooterTeam := ""
+			if event.Shooter.Team == 3 {
+				shooterTeam = "CT"
+			} else if event.Shooter.Team == 2 {
+				shooterTeam = "T"
+			}
+			
+			// Only count actual weapon shots (not grenades)
+			if event.Weapon != nil && event.Weapon.Class() != 6 { // 6 = grenades
+				matchContext.StatsAccumulator.RecordWeaponFire(shooterSteamID, shooterName, shooterTeam)
+			}
+			
+			// Track grenade throws
+			if event.Weapon != nil && event.Weapon.Class() == 6 {
+				grenadeType := event.Weapon.String()
+				matchContext.StatsAccumulator.RecordGrenadeThrown(shooterSteamID, shooterName, shooterTeam, grenadeType)
+			}
+		}
 
 		payload := cs_entity.CSHitStats{
 			// SourcePlayerID: sourcePlayerID,
 			// TODO: ticket + spec (angles data, values etc)
-			// Damage: event.Shooter.FlashTick
-
 		}
 
 		battleContext.Hits[currentTick] = payload

@@ -70,11 +70,8 @@ func TestCS2ReplayAdapter_GetEvents(t *testing.T) {
 	ctx = context.WithValue(ctx, shared.ClientIDKey, replay_common.TeamPROAppClientID)
 	ctx = context.WithValue(ctx, shared.UserIDKey, uuid.New())
 
-	match := &e.Match{
-		ID:            uuid.New(),
-		ReplayFileID:  uuid.New(),
-		ResourceOwner: shared.GetResourceOwner(ctx),
-	}
+	resourceOwner := shared.GetResourceOwner(ctx)
+	match := e.NewCS2MatchWithOwner(resourceOwner, uuid.New())
 
 	err = adapter.Parse(ctx, match.ID, file, eventsChan)
 

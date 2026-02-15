@@ -4,12 +4,13 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	shared "github.com/resource-ownership/go-common/pkg/common"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type SubscriptionReader interface {
 	GetCurrentSubscription(ctx context.Context, rxn shared.ResourceOwner) (*billing_entities.Subscription, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*billing_entities.Subscription, error)
 }
 
 type PlanReader interface {

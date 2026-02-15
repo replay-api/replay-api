@@ -56,18 +56,13 @@ const (
 )
 
 type ShareToken struct {
-	ID            uuid.UUID            `json:"token" bson:"token"`
-	ResourceID    uuid.UUID            `json:"resource_id" bson:"resource_id"`
-	ResourceType  SharingResourceType  `json:"resource_type" bson:"resource_type"`
-	ExpiresAt     time.Time            `json:"expires_at" bson:"expires_at"`
-	Uri           string               `json:"uri" bson:"uri"`
-	EntityType    string               `json:"entity_type" bson:"entity_type"`
-	Status        ShareTokenStatus     `json:"status" bson:"status"`
-	ResourceOwner shared.ResourceOwner `json:"resource_owner" bson:"resource_owner"`
-	CreatedAt     time.Time            `json:"created_at" bson:"created_at"`
-	UpdatedAt     time.Time            `json:"updated_at" bson:"updated_at"`
-
-	// ShareToken    string               `json:"share_token" bson:"share_token"`
+	shared.BaseEntity `json:",inline" bson:",inline"`
+	ResourceID        uuid.UUID           `json:"resource_id" bson:"resource_id"`
+	ResourceType      SharingResourceType `json:"resource_type" bson:"resource_type"`
+	ExpiresAt         time.Time           `json:"expires_at" bson:"expires_at"`
+	Uri               string              `json:"uri" bson:"uri"`
+	EntityType        string              `json:"entity_type" bson:"entity_type"`
+	Status            ShareTokenStatus    `json:"status" bson:"status"`
 }
 
 func (s ShareToken) GetID() uuid.UUID {
@@ -83,6 +78,19 @@ func (s *ShareToken) Validate() error {
 		return errors.New("resource_type is required")
 	}
 	return nil
+}
+
+func NewShareToken(resourceOwner shared.ResourceOwner, resourceID uuid.UUID, resourceType SharingResourceType, expiresAt time.Time) *ShareToken {
+	entity := shared.NewUnrestrictedEntity(resourceOwner)
+	return &ShareToken{
+		BaseEntity:   entity,
+		ResourceID:   resourceID,
+		ResourceType: resourceType,
+		ExpiresAt:    expiresAt,
+		Uri:          "", // Will be set by the controller
+		EntityType:   string(resourceType),
+		Status:       ShareTokenStatusActive,
+	}
 }
 
 // IsValid checks if the share token is active and not expired

@@ -185,16 +185,16 @@ func (hs *HealthService) RegisterKafkaChecker(checkFunc func(ctx context.Context
 	})
 }
 
-// RegisterRedisChecker registers a Redis health checker
-func (hs *HealthService) RegisterRedisChecker(pingFunc func(ctx context.Context) error) {
-	hs.RegisterChecker("redis", func(ctx context.Context) ComponentHealth {
+// RegisterDragonflyChecker registers a Dragonfly health checker
+func (hs *HealthService) RegisterDragonflyChecker(pingFunc func(ctx context.Context) error) {
+	hs.RegisterChecker("dragonfly", func(ctx context.Context) ComponentHealth {
 		start := time.Now()
 		err := pingFunc(ctx)
 		latency := time.Since(start)
 
 		if err != nil {
 			return ComponentHealth{
-				Name:      "redis",
+				Name:      "dragonfly",
 				Status:    HealthStatusUnhealthy,
 				Message:   err.Error(),
 				Latency:   latency,
@@ -203,7 +203,7 @@ func (hs *HealthService) RegisterRedisChecker(pingFunc func(ctx context.Context)
 		}
 
 		return ComponentHealth{
-			Name:      "redis",
+			Name:      "dragonfly",
 			Status:    HealthStatusHealthy,
 			Latency:   latency,
 			LastCheck: time.Now(),

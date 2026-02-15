@@ -35,6 +35,12 @@ type EmailVerificationRepository interface {
 	CountRecentAttempts(ctx context.Context, email string, minutes int) (int, error)
 }
 
+// EmailUserVerifier allows the auth domain to mark a user's email as verified
+type EmailUserVerifier interface {
+	// MarkEmailVerified sets the email_verified flag to true for the given user
+	MarkEmailVerified(ctx context.Context, userID uuid.UUID) error
+}
+
 // EmailSender defines the interface for sending emails
 type EmailSender interface {
 	// SendVerificationEmail sends a verification email

@@ -127,7 +127,9 @@ func TestGlicko2RatingService_GetPlayerRating_ExistingPlayer(t *testing.T) {
 	gameID := replay_common.CS2.ID
 	
 	existingRating := &matchmaking_entities.PlayerRating{
-		ID:              uuid.New(),
+		BaseEntity: shared.BaseEntity{
+			ID: uuid.New(),
+		},
 		PlayerID:        playerID,
 		GameID:          gameID,
 		Rating:          1800.0,

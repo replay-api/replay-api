@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	shared "github.com/resource-ownership/go-common/pkg/common"
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // MatchmakingSessionQueryService provides domain query operations for matchmaking sessions using technology-agnostic search patterns
@@ -45,12 +45,9 @@ func NewMatchmakingSessionQueryService(sessionReader shared.Searchable[matchmaki
 
 // GetByID returns a single session by its ID
 func (s *MatchmakingSessionQueryService) GetByID(ctx context.Context, id uuid.UUID) (*matchmaking_entities.MatchmakingSession, error) {
-	search := shared.NewSearchBuilder().
-		WithAggregation(shared.NewSearchAggregation().
-			WithValueParam("ID", id).
-			Build()).
-		WithLimit(1).
-		Build()
+	// Use NewSearchByID which properly sets visibility options from context
+	// This ensures RLS (Row-Level Security) respects the user's tenant
+	search := shared.NewSearchByID(ctx, id, shared.UserAudienceIDKey)
 
 	entities, err := s.reader.Search(ctx, search)
 	if err != nil {
@@ -74,6 +71,7 @@ func (s *MatchmakingSessionQueryService) FindByPlayerID(ctx context.Context, pla
 			WithValueParam("Status", matchmaking_entities.StatusQueued, matchmaking_entities.StatusSearching).
 			Build()).
 		WithSort("QueuedAt", shared.AscendingIDKey).
+		WithVisibilityFromContext(ctx, shared.UserAudienceIDKey).
 		Build()
 
 	entities, err := s.reader.Search(ctx, search)
@@ -130,7 +128,8 @@ func (s *MatchmakingSessionQueryService) FindActiveSessions(ctx context.Context,
 
 	builder := shared.NewSearchBuilder().
 		WithAggregation(aggBuilder.Build()).
-		WithSort("QueuedAt", shared.AscendingIDKey)
+		WithSort("QueuedAt", shared.AscendingIDKey).
+		WithVisibilityFromContext(ctx, shared.UserAudienceIDKey)
 
 	if limit > 0 {
 		builder.WithLimit(uint(limit))
@@ -166,6 +165,7 @@ func (s *MatchmakingSessionQueryService) FindExpiredSessions(ctx context.Context
 			Build()).
 		WithSort("ExpiresAt", shared.AscendingIDKey).
 		WithLimit(uint(limit)).
+		WithVisibilityFromContext(ctx, shared.TenantAudienceIDKey). // Tenant-level for background job
 		Build()
 
 	entities, err := s.reader.Search(ctx, search)

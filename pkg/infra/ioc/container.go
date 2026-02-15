@@ -56,6 +56,12 @@ import (
 	matchmaking_services "github.com/replay-api/replay-api/pkg/domain/matchmaking/services"
 
 	matchmaking_usecases "github.com/replay-api/replay-api/pkg/domain/matchmaking/usecases"
+
+	scores_in "github.com/replay-api/replay-api/pkg/domain/scores/ports/in"
+	scores_out "github.com/replay-api/replay-api/pkg/domain/scores/ports/out"
+	scores_usecases "github.com/replay-api/replay-api/pkg/domain/scores/usecases"
+	scores_adapter "github.com/replay-api/replay-api/pkg/infra/adapters/scores"
+
 	tournament_in "github.com/replay-api/replay-api/pkg/domain/tournament/ports/in"
 	tournament_out "github.com/replay-api/replay-api/pkg/domain/tournament/ports/out"
 	tournament_services "github.com/replay-api/replay-api/pkg/domain/tournament/services"
@@ -73,6 +79,13 @@ import (
 	billing_services "github.com/replay-api/replay-api/pkg/domain/billing/services"
 	billing_usecases "github.com/replay-api/replay-api/pkg/domain/billing/usecases"
 
+	payment_in "github.com/replay-api/replay-api/pkg/domain/payment/ports/in"
+	payment_out "github.com/replay-api/replay-api/pkg/domain/payment/ports/out"
+	payment_services "github.com/replay-api/replay-api/pkg/domain/payment/services"
+	payment_usecases "github.com/replay-api/replay-api/pkg/domain/payment/usecases"
+
+	stripe_adapter "github.com/replay-api/replay-api/pkg/infra/adapters/stripe"
+
 	media_out "github.com/replay-api/replay-api/pkg/domain/media/ports/out"
 	media_adapter "github.com/replay-api/replay-api/pkg/infra/adapters/media"
 
@@ -81,6 +94,12 @@ import (
 	iam_in "github.com/replay-api/replay-api/pkg/domain/iam/ports/in"
 	iam_out "github.com/replay-api/replay-api/pkg/domain/iam/ports/out"
 	iam_query_services "github.com/replay-api/replay-api/pkg/domain/iam/services"
+
+	auth_in "github.com/replay-api/replay-api/pkg/domain/auth/ports/in"
+	auth_out "github.com/replay-api/replay-api/pkg/domain/auth/ports/out"
+	auth_services "github.com/replay-api/replay-api/pkg/domain/auth/services"
+
+	email_adapter "github.com/replay-api/replay-api/pkg/infra/adapters/email"
 
 	// domain
 	google_entities "github.com/replay-api/replay-api/pkg/domain/google/entities"
@@ -310,6 +329,13 @@ func (b *ContainerBuilder) WithInboundPorts() *ContainerBuilder {
 			return nil, err
 		}
 
+		var replayFileMetadataReader replay_out.ReplayFileMetadataReader
+		err = c.Resolve(&replayFileMetadataReader)
+		if err != nil {
+			slog.Error("Failed to resolve ReplayFileMetadataReader for replay_in.UploadReplayFileCommand.", "err", err)
+			return nil, err
+		}
+
 		var ReplayFileMetadataWriter replay_out.ReplayFileMetadataWriter
 		err = c.Resolve(&ReplayFileMetadataWriter)
 		if err != nil {
@@ -324,7 +350,14 @@ func (b *ContainerBuilder) WithInboundPorts() *ContainerBuilder {
 			return nil, err
 		}
 
-		return replay_use_cases.NewUploadReplayFileUseCase(ReplayFileMetadataWriter, replayDataWriter), nil
+		var eventPublisher replay_out.ReplayEventPublisher
+		err = c.Resolve(&eventPublisher)
+		if err != nil {
+			slog.Warn("Failed to resolve ReplayEventPublisher for replay_in.UploadReplayFileCommand - continuing without Kafka events", "err", err)
+			// Continue without event publisher - can be nil for local dev
+		}
+
+		return replay_use_cases.NewUploadReplayFileUseCase(replayFileMetadataReader, ReplayFileMetadataWriter, replayDataWriter, eventPublisher), nil
 	})
 
 	if err != nil {
@@ -454,6 +487,30 @@ func (b *ContainerBuilder) WithInboundPorts() *ContainerBuilder {
 
 	if err != nil {
 		slog.Error("Failed to register replay_in.UploadAndProcessReplayFileCommand.")
+		panic(err)
+	}
+
+	// Register UpdateReplayMetadataCommand for updating replay metadata (title, description, visibility, tags)
+	err = c.Singleton(func() (replay_in.UpdateReplayMetadataCommand, error) {
+		var replayFileMetadataReader replay_out.ReplayFileMetadataReader
+		err := c.Resolve(&replayFileMetadataReader)
+		if err != nil {
+			slog.Error("Failed to resolve replay_out.ReplayFileMetadataReader for replay_in.UpdateReplayMetadataCommand.", "err", err)
+			return nil, err
+		}
+
+		var replayFileMetadataWriter replay_out.ReplayFileMetadataWriter
+		err = c.Resolve(&replayFileMetadataWriter)
+		if err != nil {
+			slog.Error("Failed to resolve replay_out.ReplayFileMetadataWriter for replay_in.UpdateReplayMetadataCommand.", "err", err)
+			return nil, err
+		}
+
+		return replay_use_cases.NewUpdateReplayMetadataUseCase(replayFileMetadataReader, replayFileMetadataWriter), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to register replay_in.UpdateReplayMetadataCommand.")
 		panic(err)
 	}
 
@@ -1353,10 +1410,37 @@ func (b *ContainerBuilder) WithKafka() *ContainerBuilder {
 func (b *ContainerBuilder) WithEventPublisher() *ContainerBuilder {
 	c := b.Container
 
-	// Kafka Event Publisher (dummy for local development)
-	err := c.Singleton(func() (*kafka.EventPublisher, error) {
+	// Register Kafka client singleton
+	err := c.Singleton(func() (*kafka.Client, error) {
+		kafkaConfig := kafka.NewConfigFromEnv()
+		if kafkaConfig.BootstrapServers == "" || kafkaConfig.BootstrapServers == "localhost:9092" {
+			// Check if Kafka is actually configured
+			if os.Getenv("KAFKA_BOOTSTRAP_SERVERS") == "" {
+				slog.Info("Kafka not configured, using dummy client for local development")
+				return nil, nil
+			}
+		}
+		
+		client, err := kafka.NewClient(kafkaConfig)
+		if err != nil {
+			slog.Warn("Failed to create Kafka client, continuing without it", "err", err)
+			return nil, nil
+		}
+		slog.Info("Kafka client created", "brokers", kafkaConfig.BootstrapServers)
+		return client, nil
+	})
+
+	if err != nil {
+		slog.Warn("Failed to register *kafka.Client.", "err", err)
+	}
+
+	// Kafka Event Publisher
+	err = c.Singleton(func() (*kafka.EventPublisher, error) {
+		var kafkaClient *kafka.Client
+		_ = c.Resolve(&kafkaClient) // May be nil for local dev
+
 		// EventPublisher handles nil client gracefully for local development
-		return &kafka.EventPublisher{}, nil
+		return kafka.NewEventPublisher(kafkaClient), nil
 	})
 
 	if err != nil {
@@ -1378,6 +1462,20 @@ func (b *ContainerBuilder) WithEventPublisher() *ContainerBuilder {
 	if err != nil {
 		slog.Error("Failed to load *kafka.MatchmakingProducer.", "err", err)
 		panic(err)
+	// Register replay event publisher adapter
+	err = c.Singleton(func() (replay_out.ReplayEventPublisher, error) {
+		var eventPublisher *kafka.EventPublisher
+		err := c.Resolve(&eventPublisher)
+		if err != nil {
+			slog.Warn("Failed to resolve EventPublisher for ReplayEventPublisher adapter - continuing without it", "err", err)
+			return nil, nil
+		}
+		return kafka.NewReplayEventPublisherAdapter(eventPublisher), nil
+	})
+
+	if err != nil {
+		slog.Warn("Failed to load replay_out.ReplayEventPublisher.", "err", err)
+		// Don't panic - event publishing is optional for local dev
 	}
 
 	return b
@@ -1503,7 +1601,7 @@ func InjectMongoDB(c container.Container) error {
 			return nil, err
 		}
 
-		repo := db.NewReplayFileMetadataRepository(client, config.MongoDB.DBName, replay_entity.ReplayFile{}, "replay_file_metadata")
+		repo := db.NewReplayFileMetadataRepository(client, config.MongoDB.DBName, replay_entity.ReplayFile{}, "replay_files")
 
 		return repo, nil
 	})
@@ -1799,7 +1897,7 @@ func InjectMongoDB(c container.Container) error {
 
 		// return s3.NewS3Adapter(config.S3), nil
 		// return local_files.NewLocalFileAdapter(), nil
-		return db.NewReplayFileContentRepository(client), nil
+		return db.NewReplayFileContentRepository(client, config.MongoDB.DBName), nil
 	})
 
 	if err != nil {
@@ -1827,7 +1925,7 @@ func InjectMongoDB(c container.Container) error {
 			return nil, err
 		}
 
-		return db.NewReplayFileContentRepository(client), nil
+		return db.NewReplayFileContentRepository(client, config.MongoDB.DBName), nil
 	})
 
 	if err != nil {
@@ -2082,6 +2180,85 @@ func InjectMongoDB(c container.Container) error {
 
 	if err != nil {
 		slog.Error("Failed to load PasswordHasher.", "err", err)
+		panic(err)
+	}
+
+	// Email verification infrastructure
+	err = c.Singleton(func() (auth_out.EmailVerificationRepository, error) {
+		var client *mongo.Client
+		err := c.Resolve(&client)
+		if err != nil {
+			slog.Error("Failed to resolve mongo.Client for EmailVerificationRepository.", "err", err)
+			return nil, err
+		}
+
+		var config common.Config
+		err = c.Resolve(&config)
+		if err != nil {
+			slog.Error("Failed to resolve config for EmailVerificationRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewEmailVerificationMongoDBRepository(client, config.MongoDB.DBName), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load EmailVerificationRepository.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (auth_out.EmailSender, error) {
+		return email_adapter.NewNoopEmailSender(true), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load EmailSender.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (auth_out.EmailUserVerifier, error) {
+		var repo *db.EmailUserRepository
+		err := c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve EmailUserRepository for auth_out.EmailUserVerifier.", "err", err)
+			return nil, err
+		}
+
+		return repo, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load EmailUserVerifier.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (auth_in.EmailVerificationCommand, error) {
+		var verificationRepo auth_out.EmailVerificationRepository
+		err := c.Resolve(&verificationRepo)
+		if err != nil {
+			slog.Error("Failed to resolve EmailVerificationRepository for EmailVerificationCommand.", "err", err)
+			return nil, err
+		}
+
+		var emailSender auth_out.EmailSender
+		err = c.Resolve(&emailSender)
+		if err != nil {
+			slog.Error("Failed to resolve EmailSender for EmailVerificationCommand.", "err", err)
+			return nil, err
+		}
+
+		var emailUserVerifier auth_out.EmailUserVerifier
+		err = c.Resolve(&emailUserVerifier)
+		if err != nil {
+			slog.Error("Failed to resolve EmailUserVerifier for EmailVerificationCommand.", "err", err)
+			return nil, err
+		}
+
+		return auth_services.NewEmailVerificationService(verificationRepo, emailSender, emailUserVerifier), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load EmailVerificationCommand.", "err", err)
 		panic(err)
 	}
 
@@ -2553,16 +2730,29 @@ func InjectMongoDB(c container.Container) error {
 	}
 
 	// Ledger Service (must be registered before TransactionCoordinator)
+	// Uses real MongoDB LedgerServiceRepository for financial-grade persistence
 	err = c.Singleton(func() (*wallet_services.LedgerService, error) {
 		var auditTrail billing_in.AuditTrailCommand
+		var client *mongo.Client
+		var config common.Config
 
 		if err := c.Resolve(&auditTrail); err != nil {
 			slog.Error("Failed to resolve billing_in.AuditTrailCommand for LedgerService.", "err", err)
 			return nil, err
 		}
 
-		// Use no-op repository for now - TODO: implement proper MongoDB repository
-		ledgerRepo := wallet_services.NewNoOpLedgerRepository()
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve mongo.Client for LedgerServiceRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for LedgerServiceRepository.", "err", err)
+			return nil, err
+		}
+
+		ledgerRepo := db.NewLedgerServiceRepository(client, config.MongoDB.DBName)
+		slog.Info("LedgerService using real MongoDB LedgerServiceRepository")
 		return wallet_services.NewLedgerService(ledgerRepo, auditTrail), nil
 	})
 
@@ -2657,9 +2847,42 @@ func InjectMongoDB(c container.Container) error {
 		panic(err)
 	}
 
-	// Wallet Service (no-op for basic functionality)
+	// Wallet Command Service (uses real WalletService with Kafka event publishing)
 	err = c.Singleton(func() (wallet_in.WalletCommand, error) {
-		return &NoOpWalletCommand{}, nil
+		var walletRepo wallet_out.WalletRepository
+		var walletQuerySvc *wallet_services.WalletQueryService
+		var coordinator *wallet_services.TransactionCoordinator
+
+		if err := c.Resolve(&walletRepo); err != nil {
+			slog.Warn("Failed to resolve WalletRepository for WalletCommand, using NoOp", "err", err)
+			return &NoOpWalletCommand{}, nil
+		}
+
+		if err := c.Resolve(&walletQuerySvc); err != nil {
+			slog.Warn("Failed to resolve WalletQueryService for WalletCommand, using NoOp", "err", err)
+			return &NoOpWalletCommand{}, nil
+		}
+
+		if err := c.Resolve(&coordinator); err != nil {
+			slog.Warn("Failed to resolve TransactionCoordinator for WalletCommand, using NoOp", "err", err)
+			return &NoOpWalletCommand{}, nil
+		}
+
+		// Try to wire Kafka event publisher for financial-grade event streaming
+		var eventPublisher *kafka.EventPublisher
+		if err := c.Resolve(&eventPublisher); err != nil {
+			slog.Info("EventPublisher not available for WalletService — events will not be published", "err", err)
+		}
+
+		walletEventAdapter := kafka.NewWalletEventPublisherAdapter(eventPublisher)
+
+		if walletEventAdapter != nil {
+			slog.Info("WalletCommand using real WalletService with Kafka event publishing")
+			return wallet_services.NewWalletServiceWithEvents(walletRepo, walletQuerySvc, coordinator, walletEventAdapter), nil
+		}
+
+		slog.Info("WalletCommand using real WalletService without event publishing")
+		return wallet_services.NewWalletService(walletRepo, walletQuerySvc, coordinator), nil
 	})
 
 	if err != nil {
@@ -2928,6 +3151,184 @@ func InjectMongoDB(c container.Container) error {
 		panic(err)
 	}
 
+	// UpgradeSubscriptionCommandHandler
+	err = c.Singleton(func() (billing_in.UpgradeSubscriptionCommandHandler, error) {
+		var subscriptionReader billing_out.SubscriptionReader
+		var subscriptionWriter billing_out.SubscriptionWriter
+		var planReader billing_out.PlanReader
+
+		if err := c.Resolve(&subscriptionReader); err != nil {
+			slog.Error("Failed to resolve SubscriptionReader for UpgradeSubscriptionCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&subscriptionWriter); err != nil {
+			slog.Error("Failed to resolve SubscriptionWriter for UpgradeSubscriptionCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&planReader); err != nil {
+			slog.Error("Failed to resolve PlanReader for UpgradeSubscriptionCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		return billing_usecases.NewUpgradeSubscriptionUseCase(subscriptionReader, subscriptionWriter, planReader), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load billing_in.UpgradeSubscriptionCommandHandler.", "err", err)
+		panic(err)
+	}
+
+	// DowngradeSubscriptionCommandHandler
+	err = c.Singleton(func() (billing_in.DowngradeSubscriptionCommandHandler, error) {
+		var subscriptionReader billing_out.SubscriptionReader
+		var subscriptionWriter billing_out.SubscriptionWriter
+		var planReader billing_out.PlanReader
+		var billableEntryReader billing_out.BillableEntryReader
+
+		if err := c.Resolve(&subscriptionReader); err != nil {
+			slog.Error("Failed to resolve SubscriptionReader for DowngradeSubscriptionCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&subscriptionWriter); err != nil {
+			slog.Error("Failed to resolve SubscriptionWriter for DowngradeSubscriptionCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&planReader); err != nil {
+			slog.Error("Failed to resolve PlanReader for DowngradeSubscriptionCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&billableEntryReader); err != nil {
+			slog.Error("Failed to resolve BillableEntryReader for DowngradeSubscriptionCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		return billing_usecases.NewDowngradeSubscriptionUseCase(subscriptionReader, subscriptionWriter, planReader, billableEntryReader), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load billing_in.DowngradeSubscriptionCommandHandler.", "err", err)
+		panic(err)
+	}
+
+	// Payment - PaymentRepository (MongoDB)
+	err = c.Singleton(func() (payment_out.PaymentRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve mongo.Client for PaymentRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for PaymentRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewPaymentRepository(client, config.MongoDB.DBName), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load payment_out.PaymentRepository.", "err", err)
+		panic(err)
+	}
+
+	// StripeAdapter (PaymentProviderAdapter)
+	err = c.Singleton(func() (payment_out.PaymentProviderAdapter, error) {
+		return stripe_adapter.NewStripeAdapter(), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load payment_out.PaymentProviderAdapter (Stripe).", "err", err)
+		panic(err)
+	}
+
+	// PaymentCommand (PaymentService)
+	err = c.Singleton(func() (payment_in.PaymentCommand, error) {
+		var paymentRepo payment_out.PaymentRepository
+		var walletCommand wallet_in.WalletCommand
+		var stripeAdapter payment_out.PaymentProviderAdapter
+
+		if err := c.Resolve(&paymentRepo); err != nil {
+			slog.Error("Failed to resolve PaymentRepository for PaymentService.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&walletCommand); err != nil {
+			slog.Error("Failed to resolve WalletCommand for PaymentService.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&stripeAdapter); err != nil {
+			slog.Error("Failed to resolve PaymentProviderAdapter for PaymentService.", "err", err)
+			return nil, err
+		}
+
+		return payment_services.NewPaymentService(paymentRepo, walletCommand, stripeAdapter), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load payment_in.PaymentCommand.", "err", err)
+		panic(err)
+	}
+
+	// PaymentQuery (PaymentQueryService)
+	err = c.Singleton(func() (payment_in.PaymentQuery, error) {
+		var paymentRepo payment_out.PaymentRepository
+
+		if err := c.Resolve(&paymentRepo); err != nil {
+			slog.Error("Failed to resolve PaymentRepository for PaymentQueryService.", "err", err)
+			return nil, err
+		}
+
+		return payment_usecases.NewPaymentQueryService(paymentRepo), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load payment_in.PaymentQuery.", "err", err)
+		panic(err)
+	}
+
+	// CheckoutSubscriptionCommandHandler
+	err = c.Singleton(func() (billing_in.CheckoutSubscriptionCommandHandler, error) {
+		var subscriptionReader billing_out.SubscriptionReader
+		var subscriptionWriter billing_out.SubscriptionWriter
+		var planReader billing_out.PlanReader
+		var paymentRepo payment_out.PaymentRepository
+
+		if err := c.Resolve(&subscriptionReader); err != nil {
+			slog.Error("Failed to resolve SubscriptionReader for CheckoutSubscriptionCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&subscriptionWriter); err != nil {
+			slog.Error("Failed to resolve SubscriptionWriter for CheckoutSubscriptionCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&planReader); err != nil {
+			slog.Error("Failed to resolve PlanReader for CheckoutSubscriptionCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&paymentRepo); err != nil {
+			slog.Error("Failed to resolve PaymentRepository for CheckoutSubscriptionCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		return billing_usecases.NewCheckoutSubscriptionUseCase(subscriptionReader, subscriptionWriter, planReader, paymentRepo), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load billing_in.CheckoutSubscriptionCommandHandler.", "err", err)
+		panic(err)
+	}
+
 	// Billing - Audit Trail Repository (commented out for basic functionality)
 	// err = c.Singleton(func() (*db.AuditTrailRepository, error) {
 	// 	var client *mongo.Client
@@ -3170,6 +3571,7 @@ func InjectMongoDB(c container.Container) error {
 	err = c.Singleton(func() (tournament_in.TournamentCommand, error) {
 		var tournamentRepo tournament_out.TournamentRepository
 		var walletCmd wallet_in.WalletCommand
+		var bracketGenerator *tournament_usecases.GenerateBracketsUseCase
 
 		if err := c.Resolve(&tournamentRepo); err != nil {
 			slog.Error("Failed to resolve tournament_out.TournamentRepository for TournamentService.", "err", err)
@@ -3181,7 +3583,12 @@ func InjectMongoDB(c container.Container) error {
 			return nil, err
 		}
 
-		return tournament_services.NewTournamentService(tournamentRepo, walletCmd), nil
+		if err := c.Resolve(&bracketGenerator); err != nil {
+			slog.Error("Failed to resolve GenerateBracketsUseCase for TournamentService.", "err", err)
+			return nil, err
+		}
+
+		return tournament_services.NewTournamentService(tournamentRepo, walletCmd, bracketGenerator), nil
 	})
 
 	if err != nil {
@@ -3303,7 +3710,7 @@ func InjectMongoDB(c container.Container) error {
 	err = c.Singleton(func() (*tournament_usecases.RegisterForTournamentUseCase, error) {
 		var billableOperationHandler billing_in.BillableOperationCommandHandler
 		var tournamentRepo tournament_out.TournamentRepository
-		// var playerProfileRepo *db.PlayerProfileRepository // TODO: Re-enable once PlayerProfileRepository is properly registered
+		var playerProfileReader squad_in.PlayerProfileReader
 
 		if err := c.Resolve(&billableOperationHandler); err != nil {
 			slog.Error("Failed to resolve BillableOperationCommandHandler for RegisterForTournamentUseCase.", "err", err)
@@ -3313,12 +3720,12 @@ func InjectMongoDB(c container.Container) error {
 			slog.Error("Failed to resolve TournamentRepository for RegisterForTournamentUseCase.", "err", err)
 			return nil, err
 		}
-		// if err := c.Resolve(&playerProfileRepo); err != nil {
-		// 	slog.Error("Failed to resolve PlayerProfileRepository for RegisterForTournamentUseCase.", "err", err)
-		// 	return nil, err
-		// }
+		if err := c.Resolve(&playerProfileReader); err != nil {
+			slog.Error("Failed to resolve PlayerProfileReader for RegisterForTournamentUseCase.", "err", err)
+			return nil, err
+		}
 
-		return tournament_usecases.NewRegisterForTournamentUseCase(billableOperationHandler, tournamentRepo), nil
+		return tournament_usecases.NewRegisterForTournamentUseCase(billableOperationHandler, tournamentRepo, playerProfileReader), nil
 	})
 	if err != nil {
 		slog.Error("Failed to load RegisterForTournamentUseCase.", "err", err)
@@ -3346,6 +3753,108 @@ func InjectMongoDB(c container.Container) error {
 	}
 
 	// -----
+
+	// Scores Domain - Match Result Repository
+	err = c.Singleton(func() (scores_out.MatchResultRepository, error) {
+		var mongoClient *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&mongoClient); err != nil {
+			slog.Error("Failed to resolve mongo.Client for MatchResultRepository.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve Config for MatchResultRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewMongoMatchResultRepository(mongoClient, config.MongoDB.DBName), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load scores_out.MatchResultRepository.", "err", err)
+		panic(err)
+	}
+
+	// Scores Domain - Event Publisher Adapter
+	err = c.Singleton(func() (scores_out.ScoreEventPublisher, error) {
+		var eventPublisher *kafka.EventPublisher
+
+		if err := c.Resolve(&eventPublisher); err != nil {
+			slog.Warn("EventPublisher not available for ScoreEventPublisher, using nil-safe adapter", "err", err)
+			return kafka.NewScoreEventPublisherAdapter(nil), nil
+		}
+
+		return kafka.NewScoreEventPublisherAdapter(eventPublisher), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load scores_out.ScoreEventPublisher.", "err", err)
+		panic(err)
+	}
+
+	// Scores Domain - Prize Distribution Gateway
+	err = c.Singleton(func() (scores_out.PrizeDistributionGateway, error) {
+		var tournamentPrizeService *tournament_services.PrizeDistributionService
+		var matchmakingPrizeRepo matchmaking_out.PrizePoolRepository
+		var tournamentPrizePoolRepo tournament_services.PrizePoolRepository
+
+		// These are optional dependencies — scores work without prize distribution
+		if err := c.Resolve(&tournamentPrizeService); err != nil {
+			slog.Warn("TournamentPrizeDistributionService not available for PrizeDistributionGateway", "err", err)
+		}
+		if err := c.Resolve(&matchmakingPrizeRepo); err != nil {
+			slog.Warn("MatchmakingPrizePoolRepository not available for PrizeDistributionGateway", "err", err)
+		}
+		if err := c.Resolve(&tournamentPrizePoolRepo); err != nil {
+			slog.Warn("TournamentPrizePoolRepository not available for PrizeDistributionGateway", "err", err)
+		}
+
+		return scores_adapter.NewPrizeDistributionAdapter(tournamentPrizeService, tournamentPrizePoolRepo, matchmakingPrizeRepo), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load scores_out.PrizeDistributionGateway.", "err", err)
+		panic(err)
+	}
+
+	// Scores Domain - Command Handler
+	err = c.Singleton(func() (scores_in.MatchResultCommandHandler, error) {
+		var repo scores_out.MatchResultRepository
+		var eventPub scores_out.ScoreEventPublisher
+		var prizeGateway scores_out.PrizeDistributionGateway
+
+		if err := c.Resolve(&repo); err != nil {
+			slog.Error("Failed to resolve MatchResultRepository for MatchResultCommandHandler.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&eventPub); err != nil {
+			slog.Error("Failed to resolve ScoreEventPublisher for MatchResultCommandHandler.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&prizeGateway); err != nil {
+			slog.Warn("PrizeDistributionGateway not available for MatchResultCommandHandler", "err", err)
+		}
+
+		return scores_usecases.NewMatchResultCommandHandler(repo, eventPub, prizeGateway), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load scores_in.MatchResultCommandHandler.", "err", err)
+		panic(err)
+	}
+
+	// Scores Domain - Query Handler
+	err = c.Singleton(func() (scores_in.MatchResultQueryHandler, error) {
+		var repo scores_out.MatchResultRepository
+
+		if err := c.Resolve(&repo); err != nil {
+			slog.Error("Failed to resolve MatchResultRepository for MatchResultQueryHandler.", "err", err)
+			return nil, err
+		}
+
+		return scores_usecases.NewMatchResultQueryHandler(repo), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load scores_in.MatchResultQueryHandler.", "err", err)
+		panic(err)
+	}
 
 	return nil
 }

@@ -12,6 +12,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -30,20 +31,30 @@ type RequestSigningMiddleware struct {
 	signingKey     []byte
 	enabledPaths   map[string]bool
 	nonceCache     map[string]time.Time
+	nonceMu        sync.RWMutex // SECURITY: Protects concurrent nonce cache access
 	nonceCacheTTL  time.Duration
+	isProduction   bool
 }
 
 // NewRequestSigningMiddleware creates a new request signing middleware
 func NewRequestSigningMiddleware() *RequestSigningMiddleware {
 	signingKey := os.Getenv("REQUEST_SIGNING_KEY")
+	env := os.Getenv("APP_ENV")
+	isProd := env == "production" || env == "prod"
+
 	if signingKey == "" {
-		slog.Warn("REQUEST_SIGNING_KEY not set, request signing disabled")
+		if isProd {
+			slog.Error("CRITICAL: REQUEST_SIGNING_KEY not set in production — request signing will REJECT all signed requests")
+		} else {
+			slog.Warn("REQUEST_SIGNING_KEY not set, request signing disabled (development mode)")
+		}
 	}
 
 	rsm := &RequestSigningMiddleware{
 		signingKey:    []byte(signingKey),
 		nonceCacheTTL: MaxRequestAge * 2,
 		nonceCache:    make(map[string]time.Time),
+		isProduction:  isProd,
 		enabledPaths: map[string]bool{
 			"/payments":         true,
 			"/wallet/withdraw":  true,
@@ -64,11 +75,13 @@ func (rsm *RequestSigningMiddleware) cleanupNonces() {
 
 	for range ticker.C {
 		now := time.Now()
+		rsm.nonceMu.Lock()
 		for nonce, expiry := range rsm.nonceCache {
 			if now.After(expiry) {
 				delete(rsm.nonceCache, nonce)
 			}
 		}
+		rsm.nonceMu.Unlock()
 	}
 }
 
@@ -125,9 +138,23 @@ func (rsm *RequestSigningMiddleware) Handler(next http.Handler) http.Handler {
 			return
 		}
 
-		// Skip if signing key not configured (dev mode)
+		// SECURITY: Fail-closed in production when signing key not configured
 		if len(rsm.signingKey) == 0 {
-			slog.WarnContext(r.Context(), "request signing disabled, allowing unsigned request",
+			if rsm.isProduction {
+				slog.ErrorContext(r.Context(), "SECURITY: rejecting unsigned request — REQUEST_SIGNING_KEY not configured in production",
+					"path", path,
+					"method", method,
+				)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusServiceUnavailable)
+				_ = json.NewEncoder(w).Encode(map[string]interface{}{
+					"success": false,
+					"error":   "Service temporarily unavailable",
+					"code":    "SIGNING_UNAVAILABLE",
+				})
+				return
+			}
+			slog.WarnContext(r.Context(), "request signing disabled, allowing unsigned request (dev mode)",
 				"path", path,
 				"method", method,
 			)
@@ -190,7 +217,10 @@ func (rsm *RequestSigningMiddleware) Handler(next http.Handler) http.Handler {
 		}
 
 		// Check nonce hasn't been used (prevent replay attacks)
-		if _, exists := rsm.nonceCache[nonce]; exists {
+		rsm.nonceMu.RLock()
+		_, exists := rsm.nonceCache[nonce]
+		rsm.nonceMu.RUnlock()
+		if exists {
 			slog.WarnContext(r.Context(), "duplicate nonce detected",
 				"path", path,
 				"nonce", nonce,
@@ -236,7 +266,9 @@ func (rsm *RequestSigningMiddleware) Handler(next http.Handler) http.Handler {
 		}
 
 		// Store nonce to prevent replay
+		rsm.nonceMu.Lock()
 		rsm.nonceCache[nonce] = time.Now().Add(rsm.nonceCacheTTL)
+		rsm.nonceMu.Unlock()
 
 		slog.InfoContext(r.Context(), "request signature verified",
 			"path", path,

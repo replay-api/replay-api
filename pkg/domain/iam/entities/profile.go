@@ -2,7 +2,6 @@ package iam_entities
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
 	shared "github.com/resource-ownership/go-common/pkg/common"
@@ -33,31 +32,23 @@ const (
 )
 
 type Profile struct {
-	ID              uuid.UUID                  `json:"id" bson:"_id"`
-	RIDSource       RIDSourceKey               `json:"rid_source" bson:"rid_source"`
-	SourceKey       string                     `json:"source_key" bson:"source_key"` // ie. steam id, google@, etc
-	Details         interface{}                `json:"details" bson:"details"`       // TODO: deprecate. GET /profile/:id/details => mux para steam,google,squad,player
-	Links           map[ProfileLinkType]string `json:"links" bson:"links"`
-	VisibilityLevel shared.IntendedAudienceKey `json:"visibility_level" bson:"visibility_level"`
-	VisibilityType  shared.VisibilityTypeKey   `json:"visibility_type" bson:"visibility_type"`
-	Type            ProfileType                `json:"type" bson:"type"` // ie. steam, google, team/squad, player
-	ResourceOwner   shared.ResourceOwner       `json:"resource_owner" bson:"resource_owner"`
-	CreatedAt       time.Time                  `json:"created_at" bson:"created_at"`
-	UpdatedAt       time.Time                  `json:"updated_at" bson:"updated_at"`
+	shared.BaseEntity `json:",inline" bson:",inline"`
+	RIDSource         RIDSourceKey               `json:"rid_source" bson:"rid_source"`
+	SourceKey         string                     `json:"source_key" bson:"source_key"` // ie. steam id, google@, etc
+	Details           interface{}                `json:"details" bson:"details"`       // TODO: deprecate. GET /profile/:id/details => mux para steam,google,squad,player
+	Links             map[ProfileLinkType]string `json:"links" bson:"links"`
+	Type              ProfileType                `json:"type" bson:"type"` // ie. steam, google, team/squad, player
 }
 
 func NewProfile(userID uuid.UUID, groupID uuid.UUID, ridSource RIDSourceKey, sourceKey string, details interface{}, resourceOwner shared.ResourceOwner) *Profile {
 	resourceOwner.UserID = userID
 	resourceOwner.GroupID = groupID
-
+	entity := shared.NewEntity(resourceOwner)
 	return &Profile{
-		ID:            uuid.New(),
-		RIDSource:     ridSource,
-		SourceKey:     sourceKey,
-		Details:       details,
-		ResourceOwner: resourceOwner,
-		CreatedAt:     time.Now(),
-		UpdatedAt:     time.Now(),
+		BaseEntity: entity,
+		RIDSource:  ridSource,
+		SourceKey:  sourceKey,
+		Details:    details,
 	}
 }
 

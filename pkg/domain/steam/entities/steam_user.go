@@ -8,15 +8,24 @@ import (
 )
 
 type SteamUser struct {
-	ID            uuid.UUID            `json:"id" bson:"_id"`
-	VHash         string               `json:"v_hash" bson:"v_hash"`
-	Name          string               `json:"name" bson:"name"`
-	Email         string               `json:"email" bson:"email"`
-	Image         string               `json:"image" bson:"image"`
-	Steam         Steam                `json:"steam" bson:"steam"`
-	ResourceOwner shared.ResourceOwner `json:"resource_owner" bson:"resource_owner"`
-	CreatedAt     time.Time            `json:"created_at" bson:"created_at"`
-	UpdatedAt     time.Time            `json:"updated_at" bson:"updated_at"`
+	shared.BaseEntity `json:",inline" bson:",inline"`
+	VHash             string `json:"v_hash" bson:"v_hash"`
+	Name              string `json:"name" bson:"name"`
+	Email             string `json:"email" bson:"email"`
+	Image             string `json:"image" bson:"image"`
+	Steam             Steam  `json:"steam" bson:"steam"`
+}
+
+func NewSteamUser(vHash, name, email, image string, steam Steam, resourceOwner shared.ResourceOwner) *SteamUser {
+	entity := shared.NewEntity(resourceOwner)
+	return &SteamUser{
+		BaseEntity: entity,
+		VHash:      vHash,
+		Name:       name,
+		Email:      email,
+		Image:      image,
+		Steam:      steam,
+	}
 }
 
 type Steam struct {

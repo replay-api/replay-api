@@ -40,10 +40,15 @@ func (c *CreateWalletCommand) Validate() error {
 
 // DepositCommand request to deposit funds
 type DepositCommand struct {
-	UserID   uuid.UUID
-	Currency string
-	Amount   float64
-	TxHash   string
+	UserID         uuid.UUID
+	Currency       string
+	Amount         float64
+	TxHash         string
+	ChainID        int    // Source chain for crypto deposits (0 = off-chain/fiat)
+	PaymentMethod  string // crypto, credit_card, pix, bank_transfer
+	IdempotencyKey string // Client-provided key for duplicate prevention
+	SourceIP       string // Populated by controller from HTTP request
+	UserAgent      string // Populated by controller from HTTP request
 }
 
 // Validate validates the command parameters
@@ -54,18 +59,39 @@ func (c *DepositCommand) Validate() error {
 	if c.Amount <= 0 {
 		return &ValidationError{Field: "amount", Message: "amount must be positive"}
 	}
+	if c.Amount > wallet_entities.MaxSingleTransactionAmount {
+		return &ValidationError{Field: "amount", Message: "amount exceeds maximum transaction limit"}
+	}
 	if c.Currency == "" {
 		return &ValidationError{Field: "currency", Message: "currency is required"}
+	}
+	parsedCurrency, err := wallet_vo.ParseCurrency(c.Currency)
+	if err != nil {
+		return &ValidationError{Field: "currency", Message: "unsupported currency"}
+	}
+	// Crypto deposits require chain ID and tx hash
+	if parsedCurrency.IsStablecoin() && c.PaymentMethod == "crypto" {
+		if c.ChainID == 0 {
+			return &ValidationError{Field: "chain_id", Message: "chain_id is required for crypto deposits"}
+		}
+		if _, err := wallet_vo.ParseChainID(c.ChainID); err != nil {
+			return &ValidationError{Field: "chain_id", Message: err.Error()}
+		}
 	}
 	return nil
 }
 
 // WithdrawCommand request to withdraw funds
 type WithdrawCommand struct {
-	UserID    uuid.UUID
-	Currency  string
-	Amount    float64
-	ToAddress string
+	UserID         uuid.UUID
+	Currency       string
+	Amount         float64
+	ToAddress      string
+	ChainID        int    // Target chain for crypto withdrawals (0 = off-chain/fiat)
+	PaymentMethod  string // crypto, bank_transfer, pix
+	IdempotencyKey string // Client-provided key for duplicate prevention
+	SourceIP       string // Populated by controller from HTTP request
+	UserAgent      string // Populated by controller from HTTP request
 }
 
 // Validate validates the command parameters
@@ -76,20 +102,38 @@ func (c *WithdrawCommand) Validate() error {
 	if c.Amount <= 0 {
 		return &ValidationError{Field: "amount", Message: "amount must be positive"}
 	}
+	if c.Amount > wallet_entities.MaxSingleTransactionAmount {
+		return &ValidationError{Field: "amount", Message: "amount exceeds maximum transaction limit"}
+	}
 	if c.Currency == "" {
 		return &ValidationError{Field: "currency", Message: "currency is required"}
 	}
+	parsedCurrency, err := wallet_vo.ParseCurrency(c.Currency)
+	if err != nil {
+		return &ValidationError{Field: "currency", Message: "unsupported currency"}
+	}
 	if c.ToAddress == "" {
 		return &ValidationError{Field: "to_address", Message: "to_address is required"}
+	}
+	// Crypto withdrawals require chain ID
+	if parsedCurrency.IsStablecoin() && c.PaymentMethod == "crypto" {
+		if c.ChainID == 0 {
+			return &ValidationError{Field: "chain_id", Message: "chain_id is required for crypto withdrawals"}
+		}
+		if _, err := wallet_vo.ParseChainID(c.ChainID); err != nil {
+			return &ValidationError{Field: "chain_id", Message: err.Error()}
+		}
 	}
 	return nil
 }
 
 // DeductEntryFeeCommand request to deduct matchmaking entry fee
 type DeductEntryFeeCommand struct {
-	UserID   uuid.UUID
-	Currency string
-	Amount   float64
+	UserID       uuid.UUID
+	Currency     string
+	Amount       float64
+	MatchID      *uuid.UUID // The match this entry fee is for
+	TournamentID *uuid.UUID // The tournament this entry fee is for
 }
 
 // Validate validates the command parameters
@@ -103,14 +147,19 @@ func (c *DeductEntryFeeCommand) Validate() error {
 	if c.Currency == "" {
 		return &ValidationError{Field: "currency", Message: "currency is required"}
 	}
+	if _, err := wallet_vo.ParseCurrency(c.Currency); err != nil {
+		return &ValidationError{Field: "currency", Message: "unsupported currency"}
+	}
 	return nil
 }
 
 // AddPrizeCommand request to add prize winnings
 type AddPrizeCommand struct {
-	UserID   uuid.UUID
-	Currency string
-	Amount   float64
+	UserID       uuid.UUID
+	Currency     string
+	Amount       float64
+	MatchID      *uuid.UUID // The match this prize is from
+	TournamentID *uuid.UUID // The tournament this prize is from
 }
 
 // Validate validates the command parameters
@@ -124,15 +173,22 @@ func (c *AddPrizeCommand) Validate() error {
 	if c.Currency == "" {
 		return &ValidationError{Field: "currency", Message: "currency is required"}
 	}
+	if _, err := wallet_vo.ParseCurrency(c.Currency); err != nil {
+		return &ValidationError{Field: "currency", Message: "unsupported currency"}
+	}
 	return nil
 }
 
 // RefundCommand request to refund amount
 type RefundCommand struct {
-	UserID   uuid.UUID
-	Currency string
-	Amount   float64
-	Reason   string
+	UserID         uuid.UUID
+	Currency       string
+	Amount         float64
+	Reason         string
+	OriginalTxID   *uuid.UUID // Original transaction being refunded (optional but recommended)
+	IdempotencyKey string     // Client-provided key for duplicate prevention
+	SourceIP       string     // Populated by controller from HTTP request
+	UserAgent      string     // Populated by controller from HTTP request
 }
 
 // Validate validates the command parameters
@@ -143,8 +199,17 @@ func (c *RefundCommand) Validate() error {
 	if c.Amount <= 0 {
 		return &ValidationError{Field: "amount", Message: "amount must be positive"}
 	}
+	if c.Amount > wallet_entities.MaxSingleTransactionAmount {
+		return &ValidationError{Field: "amount", Message: "amount exceeds maximum transaction limit"}
+	}
 	if c.Currency == "" {
 		return &ValidationError{Field: "currency", Message: "currency is required"}
+	}
+	if _, err := wallet_vo.ParseCurrency(c.Currency); err != nil {
+		return &ValidationError{Field: "currency", Message: "unsupported currency"}
+	}
+	if c.Reason == "" {
+		return &ValidationError{Field: "reason", Message: "reason is required for refunds"}
 	}
 	return nil
 }
@@ -169,6 +234,12 @@ func (c *DebitWalletCommand) Validate() error {
 	if c.Currency == "" {
 		return &ValidationError{Field: "currency", Message: "currency is required"}
 	}
+	if _, err := wallet_vo.ParseCurrency(c.Currency); err != nil {
+		return &ValidationError{Field: "currency", Message: "unsupported currency"}
+	}
+	if c.Description == "" {
+		return &ValidationError{Field: "description", Message: "description is required for debit operations"}
+	}
 	return nil
 }
 
@@ -191,6 +262,12 @@ func (c *CreditWalletCommand) Validate() error {
 	}
 	if c.Currency == "" {
 		return &ValidationError{Field: "currency", Message: "currency is required"}
+	}
+	if _, err := wallet_vo.ParseCurrency(c.Currency); err != nil {
+		return &ValidationError{Field: "currency", Message: "unsupported currency"}
+	}
+	if c.Description == "" {
+		return &ValidationError{Field: "description", Message: "description is required for credit operations"}
 	}
 	return nil
 }

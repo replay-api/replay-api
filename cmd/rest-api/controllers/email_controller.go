@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/golobby/container/v3"
@@ -124,7 +125,7 @@ func (c *EmailController) OnboardEmailUser(apiContext context.Context) http.Hand
 
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set(ResourceOwnerIDHeaderKey, ridToken.GetID().String())
-		w.Header().Set(ResourceOwnerAudTypeHeaderKey, string(ridToken.IntendedAudience))
+		w.Header().Set(ResourceOwnerAudTypeHeaderKey, strconv.FormatUint(uint64(ridToken.IntendedAudience), 10))
 		w.WriteHeader(http.StatusCreated)
 		_ = json.NewEncoder(w).Encode(resultUser)
 	}
@@ -189,7 +190,7 @@ func (c *EmailController) LoginEmailUser(apiContext context.Context) http.Handle
 
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set(ResourceOwnerIDHeaderKey, ridToken.GetID().String())
-		w.Header().Set(ResourceOwnerAudTypeHeaderKey, string(ridToken.IntendedAudience))
+		w.Header().Set(ResourceOwnerAudTypeHeaderKey, strconv.FormatUint(uint64(ridToken.IntendedAudience), 10))
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(emailUser)
 	}

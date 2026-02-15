@@ -22,18 +22,21 @@ const (
 
 // EmailVerificationService implements email verification business logic
 type EmailVerificationService struct {
-	verificationRepo auth_out.EmailVerificationRepository
-	emailSender      auth_out.EmailSender
+	verificationRepo  auth_out.EmailVerificationRepository
+	emailSender       auth_out.EmailSender
+	emailUserVerifier auth_out.EmailUserVerifier
 }
 
 // NewEmailVerificationService creates a new email verification service
 func NewEmailVerificationService(
 	verificationRepo auth_out.EmailVerificationRepository,
 	emailSender auth_out.EmailSender,
+	emailUserVerifier auth_out.EmailUserVerifier,
 ) auth_in.EmailVerificationCommand {
 	return &EmailVerificationService{
-		verificationRepo: verificationRepo,
-		emailSender:      emailSender,
+		verificationRepo:  verificationRepo,
+		emailSender:       emailSender,
+		emailUserVerifier: emailUserVerifier,
 	}
 }
 
@@ -151,6 +154,14 @@ func (s *EmailVerificationService) VerifyEmail(ctx context.Context, cmd auth_in.
 		// Update verification status
 		if err := s.verificationRepo.Update(ctx, verification); err != nil {
 			slog.ErrorContext(ctx, "failed to update verification", "error", err)
+		}
+
+		// Mark user's email as verified
+		if s.emailUserVerifier != nil {
+			if err := s.emailUserVerifier.MarkEmailVerified(ctx, verification.UserID); err != nil {
+				slog.ErrorContext(ctx, "failed to mark email as verified on user record",
+					"error", err, "user_id", verification.UserID)
+			}
 		}
 
 		slog.InfoContext(ctx, "email verified successfully",

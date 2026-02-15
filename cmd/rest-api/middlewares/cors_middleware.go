@@ -66,6 +66,9 @@ func (m *CORSMiddleware) Handler(next http.Handler) http.Handler {
 
 		w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+		// IMPORTANT: Only X-Resource-Owner-ID (RID token) is required for authentication.
+		// Identity fields (user_id, tenant_id, etc.) are resolved server-side from the RID token.
+		// DO NOT add X-User-ID, X-Tenant-ID, X-Client-ID, X-Group-ID — they are not sent by the frontend.
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Resource-Owner-ID, X-Intended-Audience, X-Request-ID, X-Search, x-search")
 		w.Header().Set("Access-Control-Expose-Headers", "X-Resource-Owner-ID, X-Intended-Audience")
 		w.Header().Set("Access-Control-Allow-Credentials", "true")

@@ -11,10 +11,10 @@ import (
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	shared "github.com/resource-ownership/go-common/pkg/common"
 	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
 	squad_out "github.com/replay-api/replay-api/pkg/domain/squad/ports/out"
 	squad_value_objects "github.com/replay-api/replay-api/pkg/domain/squad/value-objects"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -39,7 +39,6 @@ func NewSquadController(container container.Container) *SquadController {
 
 func (ctrl *SquadController) CreateSquadHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "POST")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
@@ -63,7 +62,7 @@ func (ctrl *SquadController) CreateSquadHandler(apiContext context.Context) http
 				w.WriteHeader(http.StatusConflict)
 				errorJSON := map[string]string{
 					"code":  "CONFLICT",
-					"error": err.Error(),
+					"error": "A squad with this identifier already exists",
 				}
 
 				err = json.NewEncoder(w).Encode(errorJSON)
@@ -74,7 +73,7 @@ func (ctrl *SquadController) CreateSquadHandler(apiContext context.Context) http
 				w.WriteHeader(http.StatusNotFound)
 				errorJSON := map[string]string{
 					"code":  "NOT_FOUND",
-					"error": err.Error(),
+					"error": "The requested resource was not found",
 				}
 
 				err = json.NewEncoder(w).Encode(errorJSON)
@@ -675,7 +674,7 @@ func (ctrl *SquadController) InvitePlayerHandler(apiContext context.Context) htt
 		invitation, err := invitationUseCase.InvitePlayer(r.Context(), invitationCmd)
 		if err != nil {
 			slog.ErrorContext(r.Context(), "Failed to invite player", "error", err)
-			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
+			http.Error(w, `{"error":"failed to invite player"}`, http.StatusBadRequest)
 			return
 		}
 
@@ -718,7 +717,7 @@ func (ctrl *SquadController) RequestJoinHandler(apiContext context.Context) http
 		invitation, err := invitationUseCase.RequestJoin(r.Context(), joinCmd)
 		if err != nil {
 			slog.ErrorContext(r.Context(), "Failed to create join request", "error", err)
-			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
+			http.Error(w, `{"error":"failed to create join request"}`, http.StatusBadRequest)
 			return
 		}
 
@@ -761,7 +760,7 @@ func (ctrl *SquadController) RespondToInvitationHandler(apiContext context.Conte
 		invitation, err := invitationUseCase.RespondToInvitation(r.Context(), respondCmd)
 		if err != nil {
 			slog.ErrorContext(r.Context(), "Failed to respond to invitation", "error", err)
-			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
+			http.Error(w, `{"error":"failed to respond to invitation"}`, http.StatusBadRequest)
 			return
 		}
 
@@ -797,7 +796,7 @@ func (ctrl *SquadController) CancelInvitationHandler(apiContext context.Context)
 		err = invitationUseCase.CancelInvitation(r.Context(), invitationUUID)
 		if err != nil {
 			slog.ErrorContext(r.Context(), "Failed to cancel invitation", "error", err)
-			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
+			http.Error(w, `{"error":"failed to cancel invitation"}`, http.StatusBadRequest)
 			return
 		}
 

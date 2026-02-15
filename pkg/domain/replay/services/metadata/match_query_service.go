@@ -39,28 +39,52 @@ type MatchQueryService struct {
 func NewMatchQueryService(matchReader replay_out.MatchMetadataReader) replay_in.MatchReader {
 	// QueryableFields: Fields available for search/filter queries
 	queryableFields := map[string]bool{
-		"ID":            true,               // Primary key
-		"GameID":        true,               // Filter by game (CS2, Valorant)
-		"NetworkID":     true,               // Network/region identifier
-		"Status":        true,               // Match status
-		"Error":         shared.DENY,        // SECURITY: Internal error details
-		"MapName":       true,               // Map name for search
-		"ResourceOwner": true,               // Allow querying by owner
-		"CreatedAt":     true,               // Match creation timestamp
-		"UpdatedAt":     true,               // Last update timestamp
+		"ID":              true,               // Primary key
+		"GameID":          true,               // Filter by game (CS2, Valorant)
+		"NetworkID":       true,               // Network/region identifier
+		"Status":          true,               // Match status
+		"Error":           shared.DENY,        // SECURITY: Internal error details
+		"MapName":         true,               // Map name for search
+		"Duration":        true,               // Match duration in seconds
+		"Mode":            true,               // Game mode (competitive, casual)
+		"ServerName":      true,               // Server name from replay
+		"ResourceOwner":   true,               // Allow querying by owner
+		"ReplayFileID":    true,               // Link to source replay
+		"EventCount":      true,               // Number of events in match
+		"Scoreboard":      true,               // Match scoreboard data
+		"Teams":           true,               // Team information
+		"Visibility":      true,               // Match visibility setting
+		"ShareTokens":     true,               // Sharing tokens
+		"RegionID":        true,               // Region identifier
+		"VisibilityLevel": true,               // Visibility level
+		"VisibilityType":  true,               // Visibility type
+		"CreatedAt":       true,               // Match creation timestamp
+		"UpdatedAt":       true,               // Last update timestamp
 	}
 
 	// ReadableFields: Fields included in API responses
 	readableFields := map[string]bool{
-		"ID":            true,
-		"GameID":        true,
-		"NetworkID":     true,
-		"Status":        true,
-		"Error":         shared.DENY,        // SECURITY: Never expose error details
-		"MapName":       true,
-		"ResourceOwner": shared.DENY,        // SECURITY: Hide resource ownership
-		"CreatedAt":     true,
-		"UpdatedAt":     true,
+		"ID":              true,
+		"GameID":          true,
+		"NetworkID":       true,
+		"Status":          true,
+		"Error":           shared.DENY,        // SECURITY: Never expose error details
+		"MapName":         true,
+		"Duration":        true,               // Match duration in seconds
+		"Mode":            true,               // Game mode (competitive, casual)
+		"ServerName":      true,               // Server name from replay
+		"ResourceOwner":   shared.DENY,        // SECURITY: Hide resource ownership
+		"ReplayFileID":    true,               // Include replay file link
+		"EventCount":      true,               // Include event count
+		"Scoreboard":      true,               // Include scoreboard
+		"Teams":           true,               // Include team data
+		"Visibility":      true,               // Include visibility
+		"ShareTokens":     true,               // Include share tokens
+		"RegionID":        true,               // Include region
+		"VisibilityLevel": true,               // Include visibility level
+		"VisibilityType":  true,               // Include visibility type
+		"CreatedAt":       true,
+		"UpdatedAt":       true,
 	}
 
 	service := &shared.BaseQueryService[replay_entity.Match]{

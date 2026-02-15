@@ -10,9 +10,9 @@ import (
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	shared "github.com/resource-ownership/go-common/pkg/common"
 	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
 	squad_out "github.com/replay-api/replay-api/pkg/domain/squad/ports/out"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type PlayerProfileController struct {
@@ -55,7 +55,6 @@ func NewPlayerProfileController(container container.Container) *PlayerProfileCon
 
 func (ctrl *PlayerProfileController) CreatePlayerProfileHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "POST")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
@@ -79,7 +78,7 @@ func (ctrl *PlayerProfileController) CreatePlayerProfileHandler(apiContext conte
 				w.WriteHeader(http.StatusConflict)
 				errorJSON := map[string]string{
 					"code":  "CONFLICT",
-					"error": err.Error(),
+					"error": "A player profile with this identifier already exists",
 				}
 				_ = json.NewEncoder(w).Encode(errorJSON)
 			} else {

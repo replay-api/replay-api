@@ -9,9 +9,9 @@ import (
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	shared "github.com/resource-ownership/go-common/pkg/common"
 	challenge_entities "github.com/replay-api/replay-api/pkg/domain/challenge/entities"
 	challenge_in "github.com/replay-api/replay-api/pkg/domain/challenge/ports/in"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // ChallengeController handles challenge-related HTTP requests
@@ -139,7 +139,6 @@ func toChallengeResponse(c *challenge_entities.Challenge) ChallengeResponse {
 func (ctrl *ChallengeController) CreateChallengeHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
 
 		var req CreateChallengeRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -211,13 +210,7 @@ func (ctrl *ChallengeController) CreateChallengeHandler(apiContext context.Conte
 		challenge, err := ctrl.createChallengeHandler.Exec(ctx, cmd)
 		if err != nil {
 			slog.ErrorContext(ctx, "Failed to create challenge", "err", err)
-			statusCode := http.StatusBadRequest
-			if err.Error() == "Unauthorized" {
-				statusCode = http.StatusUnauthorized
-			} else if err.Error() == "Forbidden" {
-				statusCode = http.StatusForbidden
-			}
-			http.Error(w, err.Error(), statusCode)
+			http.Error(w, `{"success":false,"error":"Failed to create challenge"}`, http.StatusBadRequest)
 			return
 		}
 
@@ -231,7 +224,6 @@ func (ctrl *ChallengeController) CreateChallengeHandler(apiContext context.Conte
 func (ctrl *ChallengeController) GetChallengeHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
 
 		vars := mux.Vars(r)
 		challengeID, err := uuid.Parse(vars["id"])
@@ -267,7 +259,6 @@ func (ctrl *ChallengeController) GetChallengeHandler(apiContext context.Context)
 func (ctrl *ChallengeController) GetChallengesByMatchHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
 
 		vars := mux.Vars(r)
 		matchID, err := uuid.Parse(vars["match_id"])
@@ -303,7 +294,6 @@ func (ctrl *ChallengeController) GetChallengesByMatchHandler(apiContext context.
 func (ctrl *ChallengeController) AddEvidenceHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
 
 		vars := mux.Vars(r)
 		challengeID, err := uuid.Parse(vars["id"])
@@ -335,7 +325,7 @@ func (ctrl *ChallengeController) AddEvidenceHandler(apiContext context.Context) 
 		challenge, err := ctrl.addEvidenceHandler.Exec(r.Context(), cmd)
 		if err != nil {
 			slog.ErrorContext(apiContext, "Failed to add evidence", "err", err)
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, `{"success":false,"error":"Failed to add evidence"}`, http.StatusBadRequest)
 			return
 		}
 
@@ -347,7 +337,6 @@ func (ctrl *ChallengeController) AddEvidenceHandler(apiContext context.Context) 
 func (ctrl *ChallengeController) VoteHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
 
 		vars := mux.Vars(r)
 		challengeID, err := uuid.Parse(vars["id"])
@@ -385,7 +374,7 @@ func (ctrl *ChallengeController) VoteHandler(apiContext context.Context) http.Ha
 		challenge, err := ctrl.voteHandler.Exec(ctx, cmd)
 		if err != nil {
 			slog.ErrorContext(ctx, "Failed to vote", "err", err)
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, `{"success":false,"error":"Failed to submit vote"}`, http.StatusBadRequest)
 			return
 		}
 
@@ -397,7 +386,6 @@ func (ctrl *ChallengeController) VoteHandler(apiContext context.Context) http.Ha
 func (ctrl *ChallengeController) ResolveHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
 
 		vars := mux.Vars(r)
 		challengeID, err := uuid.Parse(vars["id"])
@@ -436,7 +424,7 @@ func (ctrl *ChallengeController) ResolveHandler(apiContext context.Context) http
 		challenge, err := ctrl.resolveHandler.Exec(ctx, cmd)
 		if err != nil {
 			slog.ErrorContext(ctx, "Failed to resolve challenge", "err", err)
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, `{"success":false,"error":"Failed to resolve challenge"}`, http.StatusBadRequest)
 			return
 		}
 
@@ -448,7 +436,6 @@ func (ctrl *ChallengeController) ResolveHandler(apiContext context.Context) http
 func (ctrl *ChallengeController) CancelHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
 
 		vars := mux.Vars(r)
 		challengeID, err := uuid.Parse(vars["id"])
@@ -482,7 +469,7 @@ func (ctrl *ChallengeController) CancelHandler(apiContext context.Context) http.
 		challenge, err := ctrl.cancelHandler.Exec(ctx, cmd)
 		if err != nil {
 			slog.ErrorContext(ctx, "Failed to cancel challenge", "err", err)
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, `{"success":false,"error":"Failed to cancel challenge"}`, http.StatusBadRequest)
 			return
 		}
 
@@ -494,7 +481,6 @@ func (ctrl *ChallengeController) CancelHandler(apiContext context.Context) http.
 func (ctrl *ChallengeController) GetPendingChallengesHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
 
 		if ctrl.queryService == nil {
 			http.Error(w, "query service not available", http.StatusServiceUnavailable)

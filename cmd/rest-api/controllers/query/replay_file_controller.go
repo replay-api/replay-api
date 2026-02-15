@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/golobby/container/v3"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	controllers "github.com/replay-api/replay-api/cmd/rest-api/controllers"
 	shared "github.com/resource-ownership/go-common/pkg/common"
@@ -174,4 +175,47 @@ func (c *ReplayFileQueryController) ListReplayFilesHandler(w http.ResponseWriter
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(results)
+}
+
+// GetReplayFileHandler handles GET /games/{game_id}/replays/{id}
+func (c *ReplayFileQueryController) GetReplayFileHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	replayFileIDStr := vars["id"]
+	gameID := vars["game_id"]
+
+	if replayFileIDStr == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "replay_file_id is required"})
+		return
+	}
+
+	replayFileID, err := uuid.Parse(replayFileIDStr)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid replay_file_id format"})
+		return
+	}
+
+	// Use Search with ID filter - simplified implementation
+	valueParams := []shared.SearchableValue{
+		{Field: "ID", Values: []interface{}{replayFileID}, Operator: shared.EqualsOperator},
+		{Field: "GameID", Values: []interface{}{gameID}, Operator: shared.EqualsOperator},
+	}
+
+	search := shared.NewSearchByValues(r.Context(), valueParams, shared.SearchResultOptions{Limit: 1}, shared.UserAudienceIDKey)
+	results, err := c.replayFileReader.Search(r.Context(), search)
+	if err != nil || len(results) == 0 {
+		slog.Error("GetReplayFileHandler: search failed", "error", err, "replayFileID", replayFileID)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"error": "replay not found"})
+		return
+	}
+
+	replayFile := &results[0]
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(replayFile)
 }

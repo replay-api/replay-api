@@ -30,22 +30,19 @@ const (
 
 // SquadInvitation represents an invitation to join a squad
 type SquadInvitation struct {
-	ID              uuid.UUID            `json:"id" bson:"_id"`
-	SquadID         uuid.UUID            `json:"squad_id" bson:"squad_id"`
-	SquadName       string               `json:"squad_name" bson:"squad_name"`
-	PlayerProfileID uuid.UUID            `json:"player_profile_id" bson:"player_profile_id"`
-	PlayerName      string               `json:"player_name" bson:"player_name"`
-	InviterID       uuid.UUID            `json:"inviter_id" bson:"inviter_id"`
-	InviterName     string               `json:"inviter_name" bson:"inviter_name"`
-	InvitationType  InvitationType       `json:"invitation_type" bson:"invitation_type"`
-	Status          InvitationStatus     `json:"status" bson:"status"`
-	Role            string               `json:"role" bson:"role"` // Proposed role in squad
-	Message         string               `json:"message,omitempty" bson:"message,omitempty"`
-	ExpiresAt       time.Time            `json:"expires_at" bson:"expires_at"`
-	RespondedAt     *time.Time           `json:"responded_at,omitempty" bson:"responded_at,omitempty"`
-	ResourceOwner   shared.ResourceOwner `json:"resource_owner" bson:"resource_owner"`
-	CreatedAt       time.Time            `json:"created_at" bson:"created_at"`
-	UpdatedAt       time.Time            `json:"updated_at" bson:"updated_at"`
+	shared.BaseEntity `json:",inline" bson:",inline"`
+	SquadID           uuid.UUID        `json:"squad_id" bson:"squad_id"`
+	SquadName         string           `json:"squad_name" bson:"squad_name"`
+	PlayerProfileID   uuid.UUID        `json:"player_profile_id" bson:"player_profile_id"`
+	PlayerName        string           `json:"player_name" bson:"player_name"`
+	InviterID         uuid.UUID        `json:"inviter_id" bson:"inviter_id"`
+	InviterName       string           `json:"inviter_name" bson:"inviter_name"`
+	InvitationType    InvitationType   `json:"invitation_type" bson:"invitation_type"`
+	Status            InvitationStatus `json:"status" bson:"status"`
+	Role              string           `json:"role" bson:"role"` // Proposed role in squad
+	Message           string           `json:"message,omitempty" bson:"message,omitempty"`
+	ExpiresAt         time.Time        `json:"expires_at" bson:"expires_at"`
+	RespondedAt       *time.Time       `json:"responded_at,omitempty" bson:"responded_at,omitempty"`
 }
 
 // NewSquadInvitation creates a new squad invitation
@@ -62,9 +59,9 @@ func NewSquadInvitation(
 	expirationDays int,
 	rxn shared.ResourceOwner,
 ) *SquadInvitation {
-	now := time.Now()
+	entity := shared.NewEntity(rxn)
 	return &SquadInvitation{
-		ID:              uuid.New(),
+		BaseEntity:      entity,
 		SquadID:         squadID,
 		SquadName:       squadName,
 		PlayerProfileID: playerProfileID,
@@ -75,10 +72,7 @@ func NewSquadInvitation(
 		Status:          InvitationStatusPending,
 		Role:            role,
 		Message:         message,
-		ExpiresAt:       now.AddDate(0, 0, expirationDays),
-		ResourceOwner:   rxn,
-		CreatedAt:       now,
-		UpdatedAt:       now,
+		ExpiresAt:       time.Now().AddDate(0, 0, expirationDays),
 	}
 }
 

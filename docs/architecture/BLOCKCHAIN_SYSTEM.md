@@ -5,7 +5,8 @@
 LeetGaming PRO implements a **banking-grade blockchain infrastructure** supporting multi-chain operations across Solana and EVM-compatible networks. The system is designed for high-value esports prize pools, real-time transaction processing, and institutional-level security.
 
 **Target Market Value Enablers:**
-- Non-custodial smart wallets with MPC security
+
+- DeFi Wallets with MPC security
 - Zero-gas transactions for users (paymaster sponsorship)
 - Immutable audit trail (blockchain ledger)
 - Multi-chain prize pool management
@@ -80,6 +81,7 @@ LeetGaming PRO implements a **banking-grade blockchain infrastructure** supporti
 **Purpose:** Banking-grade double-entry accounting on-chain.
 
 **Key Features:**
+
 - Append-only transaction recording
 - Merkle tree chain integrity verification
 - Batch recording for gas efficiency
@@ -103,6 +105,7 @@ generateEntryProof(entryIndex)
 **Purpose:** Secure prize pool management with escrow mechanism.
 
 **Key Features:**
+
 - Pool lifecycle: NotCreated → Accumulating → Locked → InEscrow → Distributed
 - Multi-token support (USDC, USDT)
 - Platform contribution per match
@@ -124,9 +127,10 @@ cancelPrizePool(matchId)
 
 ### 3. LeetSmartWallet - ERC-4337 Account Abstraction
 
-**Purpose:** Non-custodial smart wallets with MPC security.
+**Purpose:** DeFi Wallet with MPC security.
 
 **Key Features:**
+
 - ERC-4337 compliant (UserOperation validation)
 - MPC-derived owner (threshold signatures)
 - Social recovery with guardian system (up to 7 guardians)
@@ -166,6 +170,7 @@ revokeSessionKey(key)
 **Purpose:** Enable gasless transactions for users.
 
 **Key Features:**
+
 - Multiple payment modes:
   - **Sponsored:** Platform pays (for specific operations)
   - **GasCredits:** Pre-purchased gas credits
@@ -196,14 +201,14 @@ setTokenPrice(token, price)
 
 We use **CAIP-2** (Chain Agnostic Improvement Proposal) for chain identification:
 
-| Chain | CAIP-2 ID | Type | Primary Use |
-|-------|-----------|------|-------------|
-| Solana Mainnet | `solana:mainnet` | Solana | Low fees, fast finality |
-| Polygon | `eip155:137` | EVM | Primary EVM chain |
-| Base | `eip155:8453` | EVM (L2) | Low gas, Coinbase ecosystem |
-| Arbitrum | `eip155:42161` | EVM (L2) | Low gas, DeFi integration |
-| Ethereum | `eip155:1` | EVM | Settlement, high-value |
-| Optimism | `eip155:10` | EVM (L2) | OP Stack ecosystem |
+| Chain          | CAIP-2 ID        | Type     | Primary Use                 |
+| -------------- | ---------------- | -------- | --------------------------- |
+| Solana Mainnet | `solana:mainnet` | Solana   | Low fees, fast finality     |
+| Polygon        | `eip155:137`     | EVM      | Primary EVM chain           |
+| Base           | `eip155:8453`    | EVM (L2) | Low gas, Coinbase ecosystem |
+| Arbitrum       | `eip155:42161`   | EVM (L2) | Low gas, DeFi integration   |
+| Ethereum       | `eip155:1`       | EVM      | Settlement, high-value      |
+| Optimism       | `eip155:10`      | EVM (L2) | OP Stack ecosystem          |
 
 ### Asset Identification (CAIP-19)
 
@@ -242,10 +247,12 @@ Examples:
 ```
 
 **Supported MPC Schemes:**
+
 - **CMP (GG20)**: For secp256k1 (EVM chains) - Fast 2-of-3 threshold
 - **FROST-Ed25519**: For Ed25519 (Solana) - Schnorr-based threshold
 
 **Key Types:**
+
 - **Master Key**: Main transaction signing key
 - **Recovery Key**: Used only during social recovery
 - **Session Key**: Temporary delegated key for gaming sessions
@@ -270,6 +277,7 @@ Examples:
 **Problem:** Players want to prove their ranking without revealing exact stats.
 
 **Solution:**
+
 ```
 Prove: "My K/D ratio is in top 10%" without revealing: actual K/D value
 
@@ -284,11 +292,13 @@ Circuit:
 **Problem:** High gas costs for recording many ledger entries.
 
 **Solution:**
+
 - Batch 100+ transactions off-chain
 - Generate ZK proof of valid state transition
 - Submit single on-chain proof
 
 **Benefits:**
+
 - 100x gas reduction
 - Same security guarantees
 - Faster finality for users
@@ -298,6 +308,7 @@ Circuit:
 **Problem:** Players want to verify match results without revealing strategies.
 
 **Solution:**
+
 ```
 Prove: "Team A won with valid gameplay" without revealing: player positions, strategies
 
@@ -312,18 +323,19 @@ Circuit:
 **Problem:** Verify asset ownership across chains without bridging.
 
 **Solution:**
+
 - ZK proof of balance on source chain
 - Verify proof on destination chain
 - No actual token movement required
 
 ### Recommended ZKP Stack
 
-| Component | Technology | Purpose |
-|-----------|------------|---------|
-| Proving System | Groth16 / Plonk | Efficient verification |
-| Framework | Circom / Noir | Circuit development |
-| Prover | SnarkJS / Aztec | Proof generation |
-| Verifier | Solidity contract | On-chain verification |
+| Component      | Technology        | Purpose                |
+| -------------- | ----------------- | ---------------------- |
+| Proving System | Groth16 / Plonk   | Efficient verification |
+| Framework      | Circom / Noir     | Circuit development    |
+| Prover         | SnarkJS / Aztec   | Proof generation       |
+| Verifier       | Solidity contract | On-chain verification  |
 
 ---
 
@@ -394,32 +406,32 @@ sequenceDiagram
 
 ### Smart Contract Security
 
-| Control | Implementation |
-|---------|----------------|
-| Access Control | OpenZeppelin AccessControl roles |
-| Reentrancy | ReentrancyGuard on all external calls |
-| Pausability | Emergency pause on critical functions |
-| Upgradability | UUPS pattern with owner-only authorization |
-| Signature Validation | ECDSA + EIP-712 typed data |
+| Control              | Implementation                             |
+| -------------------- | ------------------------------------------ |
+| Access Control       | OpenZeppelin AccessControl roles           |
+| Reentrancy           | ReentrancyGuard on all external calls      |
+| Pausability          | Emergency pause on critical functions      |
+| Upgradability        | UUPS pattern with owner-only authorization |
+| Signature Validation | ECDSA + EIP-712 typed data                 |
 
 ### Custody Security
 
-| Control | Implementation |
-|---------|----------------|
-| Key Distribution | 2-of-3 MPC threshold signing |
-| Cold Storage | HSM for key share storage |
-| Session Limits | Time-bound session keys with spending caps |
-| Freeze Mechanism | Instant wallet freeze by owner or guardian |
-| Recovery Delay | Configurable delay before ownership transfer |
+| Control          | Implementation                               |
+| ---------------- | -------------------------------------------- |
+| Key Distribution | 2-of-3 MPC threshold signing                 |
+| Cold Storage     | HSM for key share storage                    |
+| Session Limits   | Time-bound session keys with spending caps   |
+| Freeze Mechanism | Instant wallet freeze by owner or guardian   |
+| Recovery Delay   | Configurable delay before ownership transfer |
 
 ### Compliance Targets
 
-| Standard | Status | Notes |
-|----------|--------|-------|
-| SOX | ✅ In Progress | Immutable ledger provides audit trail |
-| PCI-DSS | 🔄 Planned | Token handling requires encryption |
-| GDPR | 🔄 Planned | On-chain data minimization |
-| MiCA | 📋 Planned | EU crypto asset regulation |
+| Standard | Status         | Notes                                 |
+| -------- | -------------- | ------------------------------------- |
+| SOX      | ✅ In Progress | Immutable ledger provides audit trail |
+| PCI-DSS  | 🔄 Planned     | Token handling requires encryption    |
+| GDPR     | 🔄 Planned     | On-chain data minimization            |
+| MiCA     | 📋 Planned     | EU crypto asset regulation            |
 
 ---
 
@@ -448,12 +460,12 @@ Secondary Chains (Phase 2):
 
 ### Contract Addresses (Testnet)
 
-| Contract | Polygon Mumbai | Base Sepolia | Solana Devnet |
-|----------|----------------|--------------|---------------|
-| LeetLedger | TBD | TBD | TBD |
-| LeetVault | TBD | TBD | TBD |
-| LeetPaymaster | TBD | TBD | N/A |
-| EntryPoint | 0x5FF1... | 0x5FF1... | N/A |
+| Contract      | Polygon Mumbai | Base Sepolia | Solana Devnet |
+| ------------- | -------------- | ------------ | ------------- |
+| LeetLedger    | TBD            | TBD          | TBD           |
+| LeetVault     | TBD            | TBD          | TBD           |
+| LeetPaymaster | TBD            | TBD          | N/A           |
+| EntryPoint    | 0x5FF1...      | 0x5FF1...    | N/A           |
 
 ---
 
@@ -488,13 +500,13 @@ sdk.ledger.generateProof(entryIndex: number): Promise<EntryProof>
 
 ### Key Metrics
 
-| Metric | Description | Alert Threshold |
-|--------|-------------|-----------------|
-| `prize_pool_total_value` | Total USD in active pools | > $100K |
-| `ledger_entry_rate` | Entries per second | < 10/s for 5min |
-| `wallet_freeze_count` | Active frozen wallets | > 10 |
-| `gas_sponsorship_usage` | Daily sponsored gas | > 80% daily limit |
-| `recovery_initiated_count` | Active recovery requests | > 5 |
+| Metric                     | Description               | Alert Threshold   |
+| -------------------------- | ------------------------- | ----------------- |
+| `prize_pool_total_value`   | Total USD in active pools | > $100K           |
+| `ledger_entry_rate`        | Entries per second        | < 10/s for 5min   |
+| `wallet_freeze_count`      | Active frozen wallets     | > 10              |
+| `gas_sponsorship_usage`    | Daily sponsored gas       | > 80% daily limit |
+| `recovery_initiated_count` | Active recovery requests  | > 5               |
 
 ### Event Monitoring
 
@@ -516,17 +528,20 @@ listener.OnRecoveryInitiated(func(event RecoveryInitiatedEvent) {
 ## Future Roadmap
 
 ### Phase 1 (Q1 2025)
+
 - [x] EVM Smart Contracts (Complete)
 - [x] MPC Key Generation (Complete)
 - [ ] Solana Program Development
 - [ ] Frontend SDK v1.0
 
 ### Phase 2 (Q2 2025)
+
 - [ ] ZK-Rollup for Ledger batching
 - [ ] Cross-chain bridging (Polygon ↔ Solana)
 - [ ] Privacy-preserving leaderboards
 
 ### Phase 3 (Q3 2025)
+
 - [ ] Institutional custody integration
 - [ ] Fiat on/off ramp partnerships
 - [ ] Regulatory compliance (MiCA)
@@ -542,6 +557,5 @@ listener.OnRecoveryInitiated(func(event RecoveryInitiatedEvent) {
 
 ---
 
-*Last Updated: 2025-12-20*
-*Maintainer: LeetGaming PRO Engineering*
-
+_Last Updated: 2025-12-20_
+_Maintainer: LeetGaming PRO Engineering_

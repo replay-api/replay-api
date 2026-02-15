@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"time"
 
 	"github.com/google/uuid"
 	wallet_entities "github.com/replay-api/replay-api/pkg/domain/wallet/entities"
@@ -439,25 +438,5 @@ func (c *TransactionCoordinator) ExecutePrizeWinning(
 	return tempLedgerTxID, nil
 }
 
-// WalletTransaction represents a coordinated wallet transaction
-type WalletTransaction struct {
-	ID           uuid.UUID                    `json:"id"`
-	WalletID     uuid.UUID                    `json:"wallet_id"`
-	Type         string                       `json:"type"` // Deposit, Withdrawal, EntryFee, Prize
-	Status       TransactionStatus            `json:"status"`
-	LedgerTxID   *uuid.UUID                   `json:"ledger_tx_id,omitempty"`
-	StartedAt    time.Time                    `json:"started_at"`
-	CompletedAt  *time.Time                   `json:"completed_at,omitempty"`
-	ErrorMessage string                       `json:"error_message,omitempty"`
-	Metadata     map[string]interface{}       `json:"metadata"`
-}
-
-// TransactionStatus represents the status of a coordinated transaction
-type TransactionStatus string
-
-const (
-	TransactionStatusPending   TransactionStatus = "Pending"
-	TransactionStatusCompleted TransactionStatus = "Completed"
-	TransactionStatusFailed    TransactionStatus = "Failed"
-	TransactionStatusRolledBack TransactionStatus = "RolledBack"
-)
+// Note: WalletTransaction and TransactionStatus types are defined in
+// wallet_entities (wallet.go) — do not duplicate here

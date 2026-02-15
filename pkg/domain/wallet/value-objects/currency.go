@@ -11,6 +11,122 @@ const (
 	CurrencyUSDT Currency = "USDT" // Tether USD (ERC-20)
 )
 
+// ChainID represents a supported blockchain network
+type ChainID int
+
+const (
+	ChainIDNone            ChainID = 0     // Off-chain / fiat
+	ChainIDEthereumMainnet ChainID = 1     // Ethereum Mainnet
+	ChainIDPolygonMainnet  ChainID = 137   // Polygon PoS Mainnet
+	ChainIDPolygonAmoy     ChainID = 80002 // Polygon Amoy Testnet
+	ChainIDArbitrumOne     ChainID = 42161 // Arbitrum One
+	ChainIDBaseMainnet     ChainID = 8453  // Base Mainnet
+)
+
+// AllSupportedChains returns all chains we support for transactions
+func AllSupportedChains() []ChainID {
+	return []ChainID{
+		ChainIDPolygonMainnet,
+		ChainIDEthereumMainnet,
+		ChainIDArbitrumOne,
+		ChainIDBaseMainnet,
+	}
+}
+
+// IsValid checks if the chain ID is supported
+func (c ChainID) IsValid() bool {
+	switch c {
+	case ChainIDNone, ChainIDEthereumMainnet, ChainIDPolygonMainnet,
+		ChainIDPolygonAmoy, ChainIDArbitrumOne, ChainIDBaseMainnet:
+		return true
+	default:
+		return false
+	}
+}
+
+// String returns a human-readable chain name
+func (c ChainID) String() string {
+	switch c {
+	case ChainIDNone:
+		return "off-chain"
+	case ChainIDEthereumMainnet:
+		return "Ethereum"
+	case ChainIDPolygonMainnet:
+		return "Polygon"
+	case ChainIDPolygonAmoy:
+		return "Polygon Amoy (Testnet)"
+	case ChainIDArbitrumOne:
+		return "Arbitrum"
+	case ChainIDBaseMainnet:
+		return "Base"
+	default:
+		return fmt.Sprintf("chain-%d", int(c))
+	}
+}
+
+// ParseChainID parses an int into a ChainID
+func ParseChainID(id int) (ChainID, error) {
+	c := ChainID(id)
+	if !c.IsValid() {
+		return ChainIDNone, fmt.Errorf("unsupported chain ID: %d", id)
+	}
+	return c, nil
+}
+
+// PaymentMethod represents how a deposit/withdrawal is funded
+type PaymentMethod string
+
+const (
+	PaymentMethodCrypto     PaymentMethod = "crypto"      // On-chain stablecoin transfer
+	PaymentMethodCreditCard PaymentMethod = "credit_card"  // Stripe credit card
+	PaymentMethodPIX        PaymentMethod = "pix"          // PIX (Brazil)
+	PaymentMethodBankWire   PaymentMethod = "bank_transfer" // Bank wire
+)
+
+// IsValid checks if the payment method is supported
+func (p PaymentMethod) IsValid() bool {
+	switch p {
+	case PaymentMethodCrypto, PaymentMethodCreditCard, PaymentMethodPIX, PaymentMethodBankWire:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsFiat returns true if this is a fiat payment method
+func (p PaymentMethod) IsFiat() bool {
+	return p == PaymentMethodCreditCard || p == PaymentMethodPIX || p == PaymentMethodBankWire
+}
+
+// ChainContractAddress returns the ERC-20 contract address for a currency on a specific chain
+func ChainContractAddress(currency Currency, chain ChainID) (string, error) {
+	type key struct {
+		currency Currency
+		chain    ChainID
+	}
+	contracts := map[key]string{
+		// Polygon Mainnet
+		{CurrencyUSDC, ChainIDPolygonMainnet}: "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+		{CurrencyUSDT, ChainIDPolygonMainnet}: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
+		// Ethereum Mainnet
+		{CurrencyUSDC, ChainIDEthereumMainnet}: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+		{CurrencyUSDT, ChainIDEthereumMainnet}: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+		// Arbitrum One
+		{CurrencyUSDC, ChainIDArbitrumOne}: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+		{CurrencyUSDT, ChainIDArbitrumOne}: "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+		// Base Mainnet
+		{CurrencyUSDC, ChainIDBaseMainnet}: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+		// Polygon Amoy Testnet
+		{CurrencyUSDC, ChainIDPolygonAmoy}: "0x41E94Eb71898E8A6e13eF9F4D2cC53123F62C57C",
+	}
+
+	addr, ok := contracts[key{currency, chain}]
+	if !ok {
+		return "", fmt.Errorf("no contract for %s on %s", currency, chain)
+	}
+	return addr, nil
+}
+
 // AllCurrencies returns all supported currencies
 func AllCurrencies() []Currency {
 	return []Currency{CurrencyUSD, CurrencyUSDC, CurrencyUSDT}
@@ -56,18 +172,9 @@ func (c Currency) IsStablecoin() bool {
 }
 
 // ContractAddress returns the ERC-20 contract address for blockchain currencies
-// (Polygon Mumbai testnet addresses)
+// Defaults to Polygon Mainnet. Use ChainContractAddress for other chains.
 func (c Currency) ContractAddress() (string, error) {
-	switch c {
-	case CurrencyUSDC:
-		return "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174", nil // Polygon USDC
-	case CurrencyUSDT:
-		return "0xc2132D05D31c914a87C6611C10748AEb04B58e8F", nil // Polygon USDT
-	case CurrencyUSD:
-		return "", fmt.Errorf("USD is not a blockchain currency")
-	default:
-		return "", fmt.Errorf("unknown currency: %s", c)
-	}
+	return ChainContractAddress(c, ChainIDPolygonMainnet)
 }
 
 // Decimals returns the decimal places for the currency

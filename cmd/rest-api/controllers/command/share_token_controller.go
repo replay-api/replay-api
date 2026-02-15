@@ -75,14 +75,13 @@ func (c *ShareTokenController) CreateShareToken(ctx context.Context) http.Handle
 		// Generate URI for the shared resource
 		uri := generateShareURI(req.ResourceType, req.ResourceID)
 
-		token := &replay_entity.ShareToken{
-			ResourceID:    req.ResourceID,
-			ResourceType:  req.ResourceType,
-			Uri:           uri,
-			EntityType:    string(req.ResourceType),
-			Status:        replay_entity.ShareTokenStatusActive,
-			ResourceOwner: req.ResourceOwner,
+		expiresAt := time.Now().Add(24 * time.Hour) // Default 24 hours
+		if req.ExpiresAt != nil {
+			expiresAt = *req.ExpiresAt
 		}
+
+		token := replay_entity.NewShareToken(req.ResourceOwner, req.ResourceID, req.ResourceType, expiresAt)
+		token.Uri = uri
 
 		if req.ExpiresAt != nil {
 			token.ExpiresAt = *req.ExpiresAt

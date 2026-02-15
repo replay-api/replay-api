@@ -114,8 +114,12 @@ HTTP Request → Controller → Use Case → Repository → MongoDB
 | Squads | `GET/POST/PUT/DELETE /squads/*` | Yes |
 | Tournaments | `GET/POST/PUT/DELETE /tournaments/*` | Yes |
 | Matchmaking | `POST /matchmaking/*` | Yes |
-| Wallet | `GET /wallet/*`, `POST /payments/*` | Yes |
+| Wallet | `GET/POST /wallet/*` (9 endpoints) | Yes |
+| Payments | `GET/POST /payments/*` (7 endpoints) | Yes |
+| Billing | `GET/POST /subscriptions/*`, `/checkout`, `/plans/*` | Yes |
+| Prize Pools | `GET /prize-pools/*`, `/matches/*/prize-pool` | Yes |
 | Replays | `GET/POST /games/{game}/replays/*` | Partial |
+| Scores | `GET/POST/PUT /scores/match-results/*` | Yes |
 
 ### OpenAPI Documentation
 

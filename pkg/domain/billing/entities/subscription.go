@@ -19,7 +19,7 @@ const (
 )
 
 type Subscription struct {
-	shared.BaseEntity
+	shared.BaseEntity `bson:"baseentity"`
 	PlanID        uuid.UUID              `json:"plan_id" bson:"plan_id"`
 	BillingPeriod BillingPeriodType      `json:"billing_period" bson:"billing_period"`
 	StartAt       time.Time              `json:"start_at" bson:"start_at"`

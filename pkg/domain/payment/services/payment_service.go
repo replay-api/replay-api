@@ -7,11 +7,11 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	shared "github.com/resource-ownership/go-common/pkg/common"
 	payment_entities "github.com/replay-api/replay-api/pkg/domain/payment/entities"
 	payment_in "github.com/replay-api/replay-api/pkg/domain/payment/ports/in"
 	payment_out "github.com/replay-api/replay-api/pkg/domain/payment/ports/out"
 	wallet_in "github.com/replay-api/replay-api/pkg/domain/wallet/ports/in"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // PaymentService implements payment business logic
@@ -19,6 +19,7 @@ type PaymentService struct {
 	paymentRepo      payment_out.PaymentRepository
 	providerAdapters map[payment_entities.PaymentProvider]payment_out.PaymentProviderAdapter
 	walletService    wallet_in.WalletCommand
+	walletQuerySvc   wallet_in.WalletQuery
 }
 
 // NewPaymentService creates a new payment service
@@ -39,12 +40,41 @@ func NewPaymentService(
 	}
 }
 
+// SetWalletQueryService sets the wallet query service for ownership verification
+// This is set separately to avoid circular dependency issues during DI setup
+func (s *PaymentService) SetWalletQueryService(wqs wallet_in.WalletQuery) {
+	s.walletQuerySvc = wqs
+}
+
 // CreatePaymentIntent creates a new payment intent with the specified provider
 func (s *PaymentService) CreatePaymentIntent(ctx context.Context, cmd payment_in.CreatePaymentIntentCommand) (*payment_in.PaymentIntentResult, error) {
 	// Get the provider adapter
 	adapter, ok := s.providerAdapters[cmd.Provider]
 	if !ok {
 		return nil, fmt.Errorf("unsupported payment provider: %s", cmd.Provider)
+	}
+
+	// SECURITY: Verify wallet belongs to the authenticated user
+	if s.walletQuerySvc != nil {
+		wallet, err := s.walletQuerySvc.GetWalletByUserID(ctx, cmd.UserID)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to verify wallet ownership",
+				"user_id", cmd.UserID,
+				"wallet_id", cmd.WalletID,
+				"error", err)
+			return nil, fmt.Errorf("failed to verify wallet ownership")
+		}
+		if wallet == nil || wallet.ID != cmd.WalletID {
+			slog.WarnContext(ctx, "wallet ownership mismatch — possible tampering",
+				"user_id", cmd.UserID,
+				"provided_wallet_id", cmd.WalletID,
+				"actual_wallet_id", func() uuid.UUID { if wallet != nil { return wallet.ID }; return uuid.Nil }())
+			return nil, fmt.Errorf("wallet does not belong to user")
+		}
+	} else {
+		slog.WarnContext(ctx, "SECURITY WARNING: wallet query service not available, skipping wallet ownership verification",
+			"user_id", cmd.UserID,
+			"wallet_id", cmd.WalletID)
 	}
 
 	// Create payment entity

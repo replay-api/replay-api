@@ -41,3 +41,15 @@ type ShareTokenWriter interface {
 	Update(ctx context.Context, token *replay_entity.ShareToken) error
 	Delete(ctx context.Context, tokenID uuid.UUID) error
 }
+
+// ReplayEventPublisher publishes replay-related events to message broker (Kafka)
+type ReplayEventPublisher interface {
+	// PublishReplayUploaded publishes an event when a replay file is uploaded
+	PublishReplayUploaded(ctx context.Context, replayFile *replay_entity.ReplayFile) error
+	// PublishReplayProcessing publishes progress events during replay processing
+	PublishReplayProcessing(ctx context.Context, replayFileID uuid.UUID, stage string, progress int, eventCount int, playerCount int) error
+	// PublishReplayCompleted publishes an event when replay processing completes successfully
+	PublishReplayCompleted(ctx context.Context, replayFile *replay_entity.ReplayFile, matchID uuid.UUID, eventCount int, playerCount int, processingDurationMs int64) error
+	// PublishReplayFailed publishes an event when replay processing fails
+	PublishReplayFailed(ctx context.Context, replayFile *replay_entity.ReplayFile, stage string, errorType string, errorMessage string, retryable bool, retryCount int) error
+}

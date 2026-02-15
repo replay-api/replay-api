@@ -21,7 +21,7 @@ up: ## Start the complete development environment with seed data
 	@kubectl apply -f 'https://strimzi.io/install/latest?namespace=leetgaming' -n leetgaming 2>/dev/null || echo "Strimzi may already be installed"
 	@echo ""
 	@echo "$(CC)Step 3/10: Building API image...$(CEND)"
-	@docker build -t replay-api:latest -f cmd/rest-api/Dockerfile.rest-api . || { echo "$(CR)Failed to build API image$(CEND)"; exit 1; }
+	@cd .. && docker build -t replay-api:latest -f replay-api/cmd/rest-api/Dockerfile.rest-api . || { echo "$(CR)Failed to build API image$(CEND)"; exit 1; }
 	@kind load docker-image replay-api:latest --name=leetgaming-local
 	@echo ""
 	@echo "$(CC)Step 4/10: Building Web Frontend image...$(CEND)"
@@ -409,7 +409,7 @@ k8s-clean: ## Clean up Kubernetes resources
 	@echo "$(CG)cleaned$(CEND)"
 
 .PHONY: test
-test: k8s-test ## Run all tests
+test: test-coverage ## Run all tests
 
 #========================================
 # 🎮 Developer Experience (Award-Winning DX)

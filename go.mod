@@ -1,6 +1,6 @@
 module github.com/replay-api/replay-api
 
-go 1.25.4
+go 1.23.4
 
 require (
 	github.com/golang/geo v0.0.0-20230421003525-6adc56603217
@@ -20,7 +20,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/stripe/stripe-go/v76 v76.25.0
 	go.mongodb.org/mongo-driver v1.17.3
-	golang.org/x/crypto v0.45.0
+	golang.org/x/crypto v0.36.0
 	google.golang.org/grpc v1.58.3
 	google.golang.org/protobuf v1.36.10
 )
@@ -52,10 +52,10 @@ require (
 	github.com/xdg-go/stringprep v1.0.4 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa // indirect
-	golang.org/x/net v0.47.0 // indirect
-	golang.org/x/sync v0.18.0 // indirect
-	golang.org/x/sys v0.38.0 // indirect
-	golang.org/x/text v0.31.0 // indirect
+	golang.org/x/net v0.38.0 // indirect
+	golang.org/x/sync v0.12.0 // indirect
+	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/text v0.23.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230711160842-782d3b101e98 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

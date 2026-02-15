@@ -14,13 +14,26 @@ import (
 	wallet_vo "github.com/replay-api/replay-api/pkg/domain/wallet/value-objects"
 )
 
+// WalletEventPublisher defines the interface for publishing wallet events to Kafka
+// This is a domain-layer port to avoid importing infrastructure (kafka) package directly
+type WalletEventPublisher interface {
+	PublishWalletCreated(ctx context.Context, walletID, userID uuid.UUID) error
+	PublishWalletDeposit(ctx context.Context, walletID, userID uuid.UUID, amount float64, currency string, ledgerTxID uuid.UUID) error
+	PublishWalletWithdrawal(ctx context.Context, walletID, userID uuid.UUID, amount float64, currency string, toAddress string, ledgerTxID uuid.UUID) error
+	PublishWalletEntryFee(ctx context.Context, walletID, userID uuid.UUID, amount float64, currency string, matchID, tournamentID *uuid.UUID, ledgerTxID uuid.UUID) error
+	PublishWalletPrize(ctx context.Context, walletID, userID uuid.UUID, amount float64, currency string, matchID, tournamentID *uuid.UUID, ledgerTxID uuid.UUID) error
+	PublishWalletRefund(ctx context.Context, walletID, userID uuid.UUID, amount float64, currency string, reason string, ledgerTxID uuid.UUID) error
+}
+
 // WalletService implements wallet business logic with ledger integration
 // All wallet operations are recorded in an immutable ledger for audit compliance
 // Uses transaction coordinator for atomic operations with automatic rollback
+// Publishes Kafka events after successful mutations for downstream consumers
 type WalletService struct {
 	walletRepo     wallet_out.WalletRepository
 	walletQuerySvc *WalletQueryService
 	coordinator    *TransactionCoordinator
+	eventPublisher WalletEventPublisher // Optional — nil-safe for environments without Kafka
 }
 
 func NewWalletService(
@@ -32,6 +45,33 @@ func NewWalletService(
 		walletRepo:     walletRepo,
 		walletQuerySvc: walletQuerySvc,
 		coordinator:    coordinator,
+	}
+}
+
+// NewWalletServiceWithEvents creates a WalletService with Kafka event publishing
+func NewWalletServiceWithEvents(
+	walletRepo wallet_out.WalletRepository,
+	walletQuerySvc *WalletQueryService,
+	coordinator *TransactionCoordinator,
+	eventPublisher WalletEventPublisher,
+) wallet_in.WalletCommand {
+	return &WalletService{
+		walletRepo:     walletRepo,
+		walletQuerySvc: walletQuerySvc,
+		coordinator:    coordinator,
+		eventPublisher: eventPublisher,
+	}
+}
+
+// publishEvent is a nil-safe helper that publishes events without blocking the main flow
+func (s *WalletService) publishEvent(ctx context.Context, eventName string, fn func() error) {
+	if s.eventPublisher == nil {
+		return
+	}
+	if err := fn(); err != nil {
+		slog.WarnContext(ctx, "failed to publish wallet event (non-blocking)",
+			"event", eventName,
+			"error", err)
 	}
 }
 
@@ -50,6 +90,11 @@ func (s *WalletService) CreateWallet(ctx context.Context, cmd wallet_in.CreateWa
 	if err := s.walletRepo.Save(ctx, wallet); err != nil {
 		return nil, fmt.Errorf("failed to save wallet: %w", err)
 	}
+
+	// Publish wallet created event (non-blocking)
+	s.publishEvent(ctx, "wallet.created", func() error {
+		return s.eventPublisher.PublishWalletCreated(ctx, wallet.ID, resourceOwner.UserID)
+	})
 
 	return wallet, nil
 }
@@ -72,6 +117,13 @@ func (s *WalletService) Deposit(ctx context.Context, cmd wallet_in.DepositComman
 		return fmt.Errorf("invalid transaction hash: %w", err)
 	}
 
+	// Resolve contract address for on-chain tracking
+	var contractAddr string
+	if cmd.ChainID != 0 {
+		chainID, _ := wallet_vo.ParseChainID(cmd.ChainID)
+		contractAddr, _ = wallet_vo.ChainContractAddress(currency, chainID)
+	}
+
 	// Use transaction coordinator for atomic operation with automatic rollback
 	ledgerTxID, err := s.coordinator.ExecuteDeposit(
 		ctx,
@@ -79,7 +131,14 @@ func (s *WalletService) Deposit(ctx context.Context, cmd wallet_in.DepositComman
 		currency,
 		amount,
 		paymentID,
-		wallet_entities.LedgerMetadata{}, // TODO: Add request metadata
+		wallet_entities.LedgerMetadata{
+			OperationType:   "Deposit",
+			ChainID:         cmd.ChainID,
+			PaymentMethod:   cmd.PaymentMethod,
+			ContractAddress: contractAddr,
+			SourceIP:        cmd.SourceIP,
+			UserAgent:       cmd.UserAgent,
+		},
 	)
 	if err != nil {
 		slog.ErrorContext(ctx, "deposit transaction failed",
@@ -89,13 +148,18 @@ func (s *WalletService) Deposit(ctx context.Context, cmd wallet_in.DepositComman
 		return fmt.Errorf("deposit failed: %w", err)
 	}
 
-	wallet.AddPendingTransaction(paymentID)
+	wallet.AddPendingTransaction(paymentID) //nolint:errcheck // non-critical tracking
 
 	slog.InfoContext(ctx, "deposit completed successfully",
 		"wallet_id", wallet.ID,
 		"amount", amount.String(),
 		"currency", currency,
 		"ledger_tx_id", ledgerTxID)
+
+	// Publish deposit event (non-blocking)
+	s.publishEvent(ctx, "wallet.deposit", func() error {
+		return s.eventPublisher.PublishWalletDeposit(ctx, wallet.ID, cmd.UserID, cmd.Amount, cmd.Currency, ledgerTxID)
+	})
 
 	return nil
 }
@@ -113,6 +177,13 @@ func (s *WalletService) Withdraw(ctx context.Context, cmd wallet_in.WithdrawComm
 
 	amount := wallet_vo.NewAmount(cmd.Amount)
 
+	// Resolve contract address for on-chain tracking
+	var contractAddr string
+	if cmd.ChainID != 0 {
+		chainID, _ := wallet_vo.ParseChainID(cmd.ChainID)
+		contractAddr, _ = wallet_vo.ChainContractAddress(currency, chainID)
+	}
+
 	// Use transaction coordinator for atomic operation
 	ledgerTxID, err := s.coordinator.ExecuteWithdrawal(
 		ctx,
@@ -120,7 +191,14 @@ func (s *WalletService) Withdraw(ctx context.Context, cmd wallet_in.WithdrawComm
 		currency,
 		amount,
 		cmd.ToAddress,
-		wallet_entities.LedgerMetadata{},
+		wallet_entities.LedgerMetadata{
+			OperationType:   "Withdrawal",
+			ChainID:         cmd.ChainID,
+			PaymentMethod:   cmd.PaymentMethod,
+			ContractAddress: contractAddr,
+			SourceIP:        cmd.SourceIP,
+			UserAgent:       cmd.UserAgent,
+		},
 	)
 	if err != nil {
 		slog.ErrorContext(ctx, "withdrawal transaction failed",
@@ -136,6 +214,11 @@ func (s *WalletService) Withdraw(ctx context.Context, cmd wallet_in.WithdrawComm
 		"currency", currency,
 		"to_address", cmd.ToAddress,
 		"ledger_tx_id", ledgerTxID)
+
+	// Publish withdrawal event (non-blocking)
+	s.publishEvent(ctx, "wallet.withdrawal", func() error {
+		return s.eventPublisher.PublishWalletWithdrawal(ctx, wallet.ID, cmd.UserID, cmd.Amount, cmd.Currency, cmd.ToAddress, ledgerTxID)
+	})
 
 	return nil
 }
@@ -159,9 +242,13 @@ func (s *WalletService) DeductEntryFee(ctx context.Context, cmd wallet_in.Deduct
 		wallet,
 		currency,
 		amount,
-		nil, // TODO: Add matchID to command
-		nil, // TODO: Add tournamentID to command
-		wallet_entities.LedgerMetadata{},
+		cmd.MatchID,
+		cmd.TournamentID,
+		wallet_entities.LedgerMetadata{
+			OperationType: "EntryFee",
+			MatchID:       cmd.MatchID,
+			TournamentID:  cmd.TournamentID,
+		},
 	)
 	if err != nil {
 		slog.ErrorContext(ctx, "entry fee transaction failed",
@@ -176,6 +263,11 @@ func (s *WalletService) DeductEntryFee(ctx context.Context, cmd wallet_in.Deduct
 		"amount", amount.String(),
 		"currency", currency,
 		"ledger_tx_id", ledgerTxID)
+
+	// Publish entry fee event (non-blocking)
+	s.publishEvent(ctx, "wallet.entry_fee", func() error {
+		return s.eventPublisher.PublishWalletEntryFee(ctx, wallet.ID, cmd.UserID, cmd.Amount, cmd.Currency, cmd.MatchID, cmd.TournamentID, ledgerTxID)
+	})
 
 	return nil
 }
@@ -200,10 +292,14 @@ func (s *WalletService) AddPrize(ctx context.Context, cmd wallet_in.AddPrizeComm
 		wallet,
 		currency,
 		amount,
-		nil, // TODO: Add matchID to command
-		nil, // TODO: Add tournamentID to command
+		cmd.MatchID,
+		cmd.TournamentID,
 		maxDailyWinnings,
-		wallet_entities.LedgerMetadata{},
+		wallet_entities.LedgerMetadata{
+			OperationType: "PrizeWinning",
+			MatchID:       cmd.MatchID,
+			TournamentID:  cmd.TournamentID,
+		},
 	)
 	if err != nil {
 		slog.ErrorContext(ctx, "prize transaction failed",
@@ -218,6 +314,11 @@ func (s *WalletService) AddPrize(ctx context.Context, cmd wallet_in.AddPrizeComm
 		"amount", amount.String(),
 		"currency", currency,
 		"ledger_tx_id", ledgerTxID)
+
+	// Publish prize event (non-blocking)
+	s.publishEvent(ctx, "wallet.prize", func() error {
+		return s.eventPublisher.PublishWalletPrize(ctx, wallet.ID, cmd.UserID, cmd.Amount, cmd.Currency, cmd.MatchID, cmd.TournamentID, ledgerTxID)
+	})
 
 	return nil
 }
@@ -235,11 +336,10 @@ func (s *WalletService) Refund(ctx context.Context, cmd wallet_in.RefundCommand)
 
 	amount := wallet_vo.NewAmount(cmd.Amount)
 
-	// TODO: RefundCommand should include original transaction ID
-	// For now, record refund as a new deposit with refund metadata
-	// Ideally: s.coordinator.ExecuteRefund(ctx, originalTxID, cmd.Reason)
-
 	// Record refund as deposit using transaction coordinator
+	// NOTE: ExecuteDeposit already updates the wallet balance and persists it
+	// via the saga pattern (ledger → wallet.Deposit → walletRepo.Update)
+	// Do NOT call wallet.Deposit or walletRepo.Update again — that would double-credit.
 	refundPaymentID := uuid.New()
 	ledgerTxID, err := s.coordinator.ExecuteDeposit(
 		ctx,
@@ -253,21 +353,7 @@ func (s *WalletService) Refund(ctx context.Context, cmd wallet_in.RefundCommand)
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("failed to record refund in ledger: %w", err)
-	}
-
-	// Update wallet balance
-	if err := wallet.Deposit(currency, amount); err != nil {
-		slog.ErrorContext(ctx, "wallet refund failed after ledger write",
-			"wallet_id", wallet.ID,
-			"ledger_tx_id", ledgerTxID,
-			"error", err)
-		// TODO: Implement automatic reversal
-		return fmt.Errorf("refund failed: %w", err)
-	}
-
-	if err := s.walletRepo.Update(ctx, wallet); err != nil {
-		return fmt.Errorf("failed to update wallet: %w", err)
+		return fmt.Errorf("failed to process refund: %w", err)
 	}
 
 	slog.InfoContext(ctx, "refund completed successfully",
@@ -276,6 +362,11 @@ func (s *WalletService) Refund(ctx context.Context, cmd wallet_in.RefundCommand)
 		"currency", currency,
 		"reason", cmd.Reason,
 		"ledger_tx_id", ledgerTxID)
+
+	// Publish refund event (non-blocking)
+	s.publishEvent(ctx, "wallet.refund", func() error {
+		return s.eventPublisher.PublishWalletRefund(ctx, wallet.ID, cmd.UserID, cmd.Amount, cmd.Currency, cmd.Reason, ledgerTxID)
+	})
 
 	return nil
 }

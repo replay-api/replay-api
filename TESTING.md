@@ -104,7 +104,7 @@ Tests read MongoDB connection from environment variables:
 ### Test Failures
 
 If integration tests fail due to missing infrastructure:
-1. **Start the required services** (MongoDB, Redis, etc.)
+1. **Start the required services** (MongoDB, Dragonfly, etc.)
 2. **Do NOT mock the dependency**
 3. **Fix the test infrastructure setup**
 

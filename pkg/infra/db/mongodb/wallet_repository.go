@@ -22,8 +22,14 @@ func NewMongoWalletRepository(mongoClient *mongo.Client, dbName string) wallet_o
 	entityType := wallet_entities.UserWallet{}
 	repo := mongodb.NewMongoDBRepository[wallet_entities.UserWallet](mongoClient, dbName, entityType, "wallets", "UserWallet")
 
+	// Note: DO NOT include both "ResourceOwner" and its sub-fields (UserID, TenantID, etc.)
+	// in queryable fields - this causes MongoDB projection path collisions.
+	// The resource_owner data is populated through the individual field projections.
 	repo.InitQueryableFields(map[string]bool{
 		"ID":                  true,
+		"BaseEntityID":        true, // Explicitly include baseentity._id
+		"VisibilityLevel":     true,
+		"VisibilityType":      true,
 		"EVMAddress":          true,
 		"Balances":            true,
 		"PendingTransactions": true,
@@ -36,8 +42,16 @@ func NewMongoWalletRepository(mongoClient *mongo.Client, dbName string) wallet_o
 		"LockReason":          true,
 		"CreatedAt":           true,
 		"UpdatedAt":           true,
+		// Resource ownership fields for RLS queries
+		"UserID":   true,
+		"TenantID": true,
+		"GroupID":  true,
+		"ClientID": true,
 	}, map[string]string{
-		"ID":                  "_id",
+		"ID":                  "baseentity._id",
+		"BaseEntityID":        "baseentity._id",
+		"VisibilityLevel":     "baseentity.visibility_level",
+		"VisibilityType":      "baseentity.visibility_type",
 		"EVMAddress":          "evm_address",
 		"Balances":            "balances",
 		"PendingTransactions": "pending_transactions",
@@ -48,8 +62,13 @@ func NewMongoWalletRepository(mongoClient *mongo.Client, dbName string) wallet_o
 		"LastPrizeWinDate":    "last_prize_win_date",
 		"IsLocked":            "is_locked",
 		"LockReason":          "lock_reason",
-		"CreatedAt":           "created_at",
-		"UpdatedAt":           "updated_at",
+		"CreatedAt":           "baseentity.created_at",
+		"UpdatedAt":           "baseentity.updated_at",
+		// Resource ownership field mappings for queries
+		"UserID":   "baseentity.resource_owner.user_id",
+		"TenantID": "baseentity.resource_owner.tenant_id",
+		"GroupID":  "baseentity.resource_owner.group_id",
+		"ClientID": "baseentity.resource_owner.client_id",
 	})
 
 	return &MongoWalletRepository{
@@ -81,7 +100,8 @@ func (r *MongoWalletRepository) FindByID(ctx context.Context, id uuid.UUID) (*wa
 func (r *MongoWalletRepository) FindByUserID(ctx context.Context, userID uuid.UUID) (*wallet_entities.UserWallet, error) {
 	var wallet wallet_entities.UserWallet
 
-	filter := bson.M{"resource_owner.user_id": userID}
+	// Use the correct field path that matches BaseEntity BSON structure
+	filter := bson.M{"baseentity.resource_owner.user_id": userID}
 	err := r.MongoDBRepository.FindOneWithRLS(ctx, filter).Decode(&wallet)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
@@ -108,6 +128,20 @@ func (r *MongoWalletRepository) FindByEVMAddress(ctx context.Context, evmAddress
 	}
 
 	return &wallet, nil
+}
+
+func (r *MongoWalletRepository) ExistsByUserID(ctx context.Context, userID uuid.UUID) (bool, error) {
+	filter := bson.M{"baseentity.resource_owner.user_id": userID}
+	var result bson.M
+	err := r.MongoDBRepository.FindOneWithRLS(ctx, filter).Decode(&result)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return false, nil
+		}
+		slog.ErrorContext(ctx, "failed to check wallet existence by user ID", "user_id", userID, "error", err)
+		return false, fmt.Errorf("failed to check wallet existence: %w", err)
+	}
+	return true, nil
 }
 
 func (r *MongoWalletRepository) Update(ctx context.Context, wallet *wallet_entities.UserWallet) error {

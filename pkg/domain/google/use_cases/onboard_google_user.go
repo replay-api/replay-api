@@ -102,18 +102,19 @@ func (usecase *OnboardGoogleUserUseCase) Exec(ctx context.Context, googleUser *g
 
 	if len(googleUserResult) == 0 {
 		slog.InfoContext(ctx, fmt.Sprintf("attempt to create google user: %v", googleUser))
-		googleUser, err = usecase.GoogleUserWriter.Create(ctx, googleUser)
+		createdUser, err := usecase.GoogleUserWriter.Create(ctx, googleUser)
 
 		if err != nil {
 			slog.ErrorContext(ctx, "error creating google user: error", "err", err)
-			return nil, nil, google.NewGoogleUserCreationError(fmt.Sprintf("error creating google user: %v", googleUser.ID))
+			return nil, nil, google.NewGoogleUserCreationError(fmt.Sprintf("error creating google user: %v", googleUser.Email))
 		}
 
-		if googleUser == nil {
-			slog.ErrorContext(ctx, "error creating google user: user is nil", "err",
-				err)
-			return nil, nil, google.NewGoogleUserCreationError(fmt.Sprintf("unable to create google user: %v", googleUser))
+		if createdUser == nil {
+			slog.ErrorContext(ctx, "error creating google user: user is nil")
+			return nil, nil, google.NewGoogleUserCreationError(fmt.Sprintf("unable to create google user: %v", googleUser.Email))
 		}
+
+		googleUser = createdUser
 	}
 
 	// TODO: update user profileMap googleID (futuramente conseguir unir as contas) // talvez bater email

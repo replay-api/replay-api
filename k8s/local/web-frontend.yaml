@@ -29,6 +29,8 @@ spec:
           env:
             - name: NODE_ENV
               value: "production"
+            - name: NODE_OPTIONS
+              value: "--max-old-space-size=4096"
             - name: PORT
               value: "3030"
             # Server-side API URL (internal K8s service)

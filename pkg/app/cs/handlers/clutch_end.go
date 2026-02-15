@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"strconv"
+
 	"github.com/google/uuid"
 	dem "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs"
 	csinfo "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs/common"
@@ -45,6 +47,19 @@ func ClutchEnd(p dem.Parser, matchContext *state.CS2MatchContext, out chan *e.Ga
 
 		matchContext = matchContext.UpdateClutchState(roundIndex, result, remainingOpponents)
 
+		// Track clutch stats in accumulator
+		if matchContext.StatsAccumulator != nil {
+			steamID := strconv.FormatUint(playerInClutch.SteamID64, 10)
+			team := "CT"
+			if playerInClutch.Team == 2 {
+				team = "T"
+			}
+			
+			if isWinner {
+				matchContext.StatsAccumulator.RecordClutchWin(steamID, playerInClutch.Name, team)
+			}
+		}
+
 		b := builders.NewCSMatchStatsBuilder(p, matchContext).WithRoundsStats(matchContext.RoundContexts)
 
 		out <- &e.GameEvent{
@@ -53,7 +68,7 @@ func ClutchEnd(p dem.Parser, matchContext *state.CS2MatchContext, out chan *e.Ga
 			Type:          fps_events.Event_ClutchEndID,
 			Payload:       b.Build(),
 			GameTime:      p.CurrentTime(),
-			ResourceOwner: matchContext.ResourceOwner, // TODO: remover daqui ou do matchContext, esta redundante
+			ResourceOwner: matchContext.ResourceOwner,
 		}
 
 		return nil

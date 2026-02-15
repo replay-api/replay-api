@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/golobby/container/v3"
 	google_entity "github.com/replay-api/replay-api/pkg/domain/google/entities"
@@ -87,7 +88,7 @@ func (c *GoogleController) OnboardGoogleUser(apiContext context.Context) http.Ha
 
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set(ResourceOwnerIDHeaderKey, ridToken.GetID().String())
-		w.Header().Set(ResourceOwnerAudTypeHeaderKey, string(ridToken.IntendedAudience))
+		w.Header().Set(ResourceOwnerAudTypeHeaderKey, strconv.FormatUint(uint64(ridToken.IntendedAudience), 10))
 		w.WriteHeader(http.StatusCreated)
 		_ = json.NewEncoder(w).Encode(googleUser)
 	}

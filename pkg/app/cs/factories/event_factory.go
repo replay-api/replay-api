@@ -50,7 +50,7 @@ func NewGameEvent[T any](eventType fps_events.EventIDKey, matchContext *state.CS
 	// // 	// TODO: gerar Stats default (Players, Round etc para todos os eventos com entidade)
 	// // }
 
-	return replay_entity.NewGameEvent(matchContext.MatchID, tickID, gameTime, eventType, payload, entities, stats, matchContext.ResourceOwner), nil
+	return replay_entity.NewGameEvent(matchContext.MatchID, tickID, gameTime, eventType, payload, entities, stats, matchContext.ResourceOwner, roundIndex+1), nil
 }
 
 // func NewEconomyGameEvent(matchID uuid.UUID, ) {

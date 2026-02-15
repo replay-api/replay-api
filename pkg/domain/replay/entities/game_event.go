@@ -35,6 +35,6 @@ const (
 )
 
 // Helper function to create GameEvent using replay-common
-func NewGameEvent[T any](matchID uuid.UUID, tickID replay_common.TickIDType, gameTime time.Duration, eventType fps_events.EventIDKey, payload T, entities map[shared.ResourceType][]interface{}, stats map[replay_common.StatType][]interface{}, res shared.ResourceOwner) *replay_entities.GameEvent {
-	return replay_entities.NewGameEvent(matchID, tickID, gameTime, eventType, payload, entities, stats, res)
+func NewGameEvent[T any](matchID uuid.UUID, tickID replay_common.TickIDType, gameTime time.Duration, eventType fps_events.EventIDKey, payload T, entities map[shared.ResourceType][]interface{}, stats map[replay_common.StatType][]interface{}, res shared.ResourceOwner, roundNumber int) *replay_entities.GameEvent {
+	return replay_entities.NewGameEvent(matchID, tickID, gameTime, eventType, payload, entities, stats, res, roundNumber)
 }

@@ -24,12 +24,20 @@ func NewMatchMetadataRepository(client *mongo.Client, dbName string, entityType 
 		"ReplayFileID":                   true,
 		"GameID":                         true,
 		"MapName":                        true, // Added for search
-		"GameMode":                       true, // Added for search
+		"Duration":                       true, // Match duration in seconds
+		"Mode":                           true, // Game mode (competitive, casual)
+		"GameMode":                       true, // Added for search (legacy)
 		"Status":                         true, // Added for search
+		"ServerName":                     true, // Server name from replay
 		"Visibility":                     true,
+		"VisibilityLevel":                true,
+		"VisibilityType":                 true,
 		"ResourceOwner":                  true,
 		"CreatedAt":                      true,
 		"UpdatedAt":                      true,
+		"EventCount":                     true, // Number of events in match
+		"RegionID":                       true, // Region identifier
+		"Teams":                          true, // Team data
 		"Scoreboard":                     true,
 		"Events":                         true,
 		"ShareTokens.*":                  true,
@@ -45,12 +53,20 @@ func NewMatchMetadataRepository(client *mongo.Client, dbName string, entityType 
 		"ReplayFileID":                   "replay_file_id",
 		"GameID":                         "game_id",
 		"MapName":                        "map_name",
+		"Duration":                       "duration",
+		"Mode":                           "mode",
 		"GameMode":                       "game_mode",
 		"Status":                         "status",
+		"ServerName":                     "server_name",
 		"Visibility":                     "visibility",
+		"VisibilityLevel":                "visibility_level",
+		"VisibilityType":                 "visibility_type",
 		"ResourceOwner":                  "resource_owner",
 		"CreatedAt":                      "created_at",
 		"UpdatedAt":                      "updated_at",
+		"EventCount":                     "event_count",
+		"RegionID":                       "region_id",
+		"Teams":                          "teams",
 		"Scoreboard":                     "scoreboard",
 		"Events":                         "game_events",
 		"ShareTokens":                    "share_tokens",

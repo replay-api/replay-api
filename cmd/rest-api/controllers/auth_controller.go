@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/golobby/container/v3"
@@ -186,7 +187,7 @@ func (c *AuthController) RefreshToken(apiContext context.Context) http.HandlerFu
 
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set(ResourceOwnerIDHeaderKey, newToken.ID.String())
-		w.Header().Set(ResourceOwnerAudTypeHeaderKey, string(newToken.IntendedAudience))
+		w.Header().Set(ResourceOwnerAudTypeHeaderKey, strconv.FormatUint(uint64(newToken.IntendedAudience), 10))
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(RefreshTokenResponse{
 			Success: true,
@@ -358,7 +359,7 @@ func (c *AuthController) CreateGuestToken(apiContext context.Context) http.Handl
 
 		// Set headers for the new token
 		w.Header().Set(ResourceOwnerIDHeaderKey, ridToken.GetID().String())
-		w.Header().Set(ResourceOwnerAudTypeHeaderKey, string(ridToken.IntendedAudience))
+		w.Header().Set(ResourceOwnerAudTypeHeaderKey, strconv.FormatUint(uint64(ridToken.IntendedAudience), 10))
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		_ = json.NewEncoder(w).Encode(GuestTokenResponse{

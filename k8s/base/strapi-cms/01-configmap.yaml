@@ -8,6 +8,7 @@ metadata:
 data:
   # Application Settings
   NODE_ENV: "production"
+  NODE_OPTIONS: "--max-old-space-size=4096"
   HOST: "0.0.0.0"
   PORT: "1337"
   APP_NAME: "LeetGaming CMS"

@@ -15,6 +15,8 @@ type EventsByGameReader interface {
 
 type GameEventReader interface {
 	shared.Searchable[replay_entity.GameEvent]
+	GetMatchEvents(ctx context.Context, gameID string, matchID uuid.UUID, limit, offset int, eventType string) ([]replay_entity.GameEvent, error)
+	GetMatchEventsWithCount(ctx context.Context, gameID string, matchID uuid.UUID, limit, offset int, eventTypes []string) ([]replay_entity.GameEvent, int64, error)
 }
 
 type MatchMetadataReader interface {
@@ -24,6 +26,9 @@ type MatchMetadataReader interface {
 type ReplayFileMetadataReader interface {
 	shared.Searchable[replay_entity.ReplayFile]
 	GetByID(ctx context.Context, replayFileID uuid.UUID) (*replay_entity.ReplayFile, error)
+	// FindByContentHash finds a replay file by its content hash (SHA256)
+	// Used for deduplication - returns nil if no matching hash found
+	FindByContentHash(ctx context.Context, contentHash string) (*replay_entity.ReplayFile, error)
 }
 
 type ReplayFileContentReader interface {

@@ -61,7 +61,7 @@ func ClutchProgress(p dem.Parser, matchContext *state.CS2MatchContext, out chan 
 			Type:          fps_events.Event_ClutchProgressID,
 			Payload:       b.Build(),
 			GameTime:      p.CurrentTime(),
-			ResourceOwner: matchContext.ResourceOwner, // TODO: remover daqui ou do matchContext, esta redundante
+			ResourceOwner: matchContext.ResourceOwner,
 		}
 	}
 }

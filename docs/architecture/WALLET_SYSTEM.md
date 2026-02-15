@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the financial-grade wallet infrastructure for the LeetGaming platform. The system implements double-entry accounting with immutable ledger, supporting multiple asset types (Fiat, Crypto, NFTs, Game Credits) with complete audit compliance.
+This document describes the financial-grade wallet infrastructure for the LeetGaming platform. The system implements double-entry accounting with immutable ledger, supporting multiple asset types (Fiat, Crypto, NFTs, Game Credits) with complete audit compliance, multi-chain support, and financial-grade Kafka event streaming.
 
 ## Architecture
 
@@ -11,45 +11,54 @@ This document describes the financial-grade wallet infrastructure for the LeetGa
 1. **Financial Integrity First**: Every transaction creates immutable ledger entries
 2. **Double-Entry Accounting**: Accounting equation always balances (Assets = Liabilities + Equity)
 3. **Atomic Operations**: Saga pattern with automatic rollback on failure
-4. **Zero Mocks**: E2E tests use real MongoDB and Hardhat EVM
-5. **Production-Ready**: Ready for regulatory compliance (SOX, PCI-DSS)
+4. **Event-Driven Architecture**: All wallet mutations publish Kafka events for downstream consumers
+5. **Multi-Chain Support**: Polygon, Ethereum, Arbitrum, Base, with real mainnet contract addresses
+6. **Production-Ready**: Ready for regulatory compliance (SOX, PCI-DSS)
 
 ### System Components
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    Wallet Service                        │
-│  (Orchestrates wallet operations with transaction       │
-│   coordinator for atomic execution)                     │
-└──────────────────┬──────────────────────────────────────┘
-                   │
-    ┌──────────────┴──────────────┐
-    │                             │
-┌───▼──────────────┐    ┌────────▼─────────────┐
-│   Transaction    │    │   Reconciliation     │
-│   Coordinator    │    │      Service         │
-│  (Saga Pattern)  │    │  (Balance Verify)    │
-└───┬──────────────┘    └──────────────────────┘
-    │
-    │  Atomic Execution
-    │
-┌───▼──────────────────────────────────────────────┐
-│           Ledger Service                         │
-│  (Double-Entry Accounting Logic)                 │
-│  • RecordDeposit                                 │
-│  • RecordWithdrawal                              │
-│  • RecordEntryFee                                │
-│  • RecordPrizeWinning                            │
-│  • RecordRefund                                  │
-└───┬──────────────────────────────────────────────┘
-    │
-    │  Persistence
-    │
-┌───▼──────────────┐    ┌──────────────────┐
-│  Ledger          │    │  Idempotency     │
-│  Repository      │    │  Repository      │
-│  (MongoDB)       │    │  (MongoDB TTL)   │
-└──────────────────┘    └──────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│                         HTTP Command Controller                          │
+│  (Wallet mutations: deposit, withdraw, entry_fee, prize, refund)         │
+│  (Auth, idempotency key, IP/UA tracking, chain_id, payment_method)       │
+└──────────────────────┬───────────────────────────────────────────────────┘
+                       │
+┌──────────────────────▼───────────────────────────────────────────────────┐
+│                         Wallet Service                                    │
+│  (Orchestrates wallet operations, publishes Kafka events)                 │
+│  Implements: WalletCommand port                                           │
+│  Dependencies: WalletRepository, WalletQueryService,                      │
+│                TransactionCoordinator, WalletEventPublisher               │
+└──────────────────────┬──────────────────────────┬────────────────────────┘
+                       │                          │
+    ┌──────────────────▼──────────┐   ┌───────────▼────────────┐
+    │   Transaction Coordinator   │   │  Kafka Event Publisher  │
+    │   (Saga Pattern - 3 steps)  │   │  (Non-blocking publish) │
+    │                             │   │                         │
+    │   Step 1: Record Ledger     │   │  Topics:                │
+    │   Step 2: Update Wallet     │   │  • wallet.created       │
+    │   Step 3: Persist Wallet    │   │  • wallet.deposit       │
+    │   ↻ Auto-rollback on fail   │   │  • wallet.withdrawal    │
+    └──────────────────┬──────────┘   │  • wallet.entry_fee     │
+                       │              │  • wallet.prize         │
+    ┌──────────────────▼───────┐      │  • wallet.refund        │
+    │     Ledger Service       │      │  • wallet.locked        │
+    │  (Double-Entry Engine)   │      │  • wallet.unlocked      │
+    │  • SHA-256 hash chain    │      │  • wallet.dlq           │
+    │  • 20 system accounts    │      └───────────┬─────────────┘
+    │  • Trial balance verify  │                  │
+    └──────────────┬───────────┘     ┌────────────▼──────────────┐
+                   │                 │     Wallet Consumer       │
+    ┌──────────────▼──────────┐     │  (Kafka consumer group)   │
+    │  LedgerService          │     │  • [AUDIT] logging        │
+    │  Repository (MongoDB)   │     │  • [FRAUD_CHECK] > $1000  │
+    │                         │     │  • [SECURITY] lock/unlock │
+    │  Collections:           │     └───────────────────────────┘
+    │  • ledger_accounts      │
+    │  • ledger_journals      │
+    │  • ledger_wallets       │
+    └─────────────────────────┘
 ```
 
 ## Double-Entry Accounting
@@ -57,6 +66,7 @@ This document describes the financial-grade wallet infrastructure for the LeetGa
 ### Transaction Types
 
 #### 1. Deposit (User receives money)
+
 ```
 Entry 1: DEBIT  User's Asset Account    (+$100)
 Entry 2: CREDIT Platform Liability      (+$100)
@@ -65,6 +75,7 @@ Effect: User has more money, platform owes user more
 ```
 
 #### 2. Withdrawal (User withdraws money)
+
 ```
 Entry 1: CREDIT User's Asset Account    (-$50)
 Entry 2: DEBIT  Platform Liability      (-$50)
@@ -73,6 +84,7 @@ Effect: User has less money, platform owes user less
 ```
 
 #### 3. Entry Fee (User pays to join match/tournament)
+
 ```
 Entry 1: CREDIT User's Asset Account    (-$10)
 Entry 2: DEBIT  Platform Revenue        (+$10)
@@ -81,6 +93,7 @@ Effect: User pays fee, platform earns revenue
 ```
 
 #### 4. Prize Winning (User wins prize)
+
 ```
 Entry 1: DEBIT  User's Asset Account    (+$50)
 Entry 2: CREDIT Platform Expense        (+$50)
@@ -89,6 +102,7 @@ Effect: User receives prize, platform incurs expense
 ```
 
 #### 5. Refund (Reverse original transaction)
+
 ```
 Creates opposite entries of the original transaction
 Marks original entries as reversed
@@ -97,10 +111,123 @@ Marks original entries as reversed
 ### System Accounts
 
 ```go
+// Standard Chart of Accounts (20 accounts across 5 types)
 SystemLiabilityAccountID = "00000000-0000-0000-0000-000000000001"  // Platform owes users
 SystemRevenueAccountID   = "00000000-0000-0000-0000-000000000002"  // Platform earnings
 SystemExpenseAccountID   = "00000000-0000-0000-0000-000000000003"  // Platform costs
+
+// Full chart: Assets (1001-1004), Liabilities (2001-2005),
+//             Equity (3001-3002), Revenue (4001-4003), Expenses (5001-5004)
 ```
+
+## Multi-Chain Support
+
+### Supported Chains
+
+| Chain | ChainID | Status | Contract Addresses |
+|-------|---------|--------|--------------------|
+| Polygon Mainnet | 137 | ✅ Production | USDC: `0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359` / USDT: `0xc2132D05D31c914a87C6611C10748AEb04B58e8F` |
+| Ethereum Mainnet | 1 | ✅ Production | USDC: `0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48` / USDT: `0xdAC17F958D2ee523a2206206994597C13D831ec7` |
+| Arbitrum One | 42161 | ✅ Production | USDC: `0xaf88d065e77c8cC2239327C5EDb3A432268e5831` / USDT: `0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9` |
+| Base | 8453 | ✅ Production | USDC: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` |
+| Polygon Amoy | 80002 | ✅ Testnet | USDC: `0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582` |
+
+### Payment Methods
+
+| Method | Type | Use Cases |
+|--------|------|-----------|
+| `crypto` | On-chain | USDC/USDT deposits via EVM chains |
+| `credit_card` | Fiat | Stripe-powered card payments |
+| `pix` | Fiat | Brazilian instant payment (BR market) |
+| `bank_transfer` | Fiat | Wire transfers |
+
+### Chain-Aware Operations
+
+```go
+// Deposit command with multi-chain support
+type DepositCommand struct {
+    UserID        uuid.UUID
+    Amount        float64
+    Currency      string    // "USD", "USDC", "USDT"
+    ChainID       int       // 137 (Polygon), 1 (Ethereum), etc.
+    PaymentMethod string    // "crypto", "credit_card", "pix"
+    TxHash        string    // On-chain tx hash or payment ID
+    EVMAddress    string    // Required for crypto deposits
+    SourceIP      string    // Fraud tracking
+    UserAgent     string    // Fraud tracking
+}
+```
+
+## Kafka Event Streaming (Financial-Grade)
+
+### Wallet Topics (10 total)
+
+| Topic | Purpose | Ack Mode |
+|-------|---------|----------|
+| `wallet.created` | New wallet creation | RequireAll |
+| `wallet.deposit` | Deposit processed | RequireAll |
+| `wallet.withdrawal` | Withdrawal processed | RequireAll |
+| `wallet.withdrawal.pending` | Withdrawal pending review | RequireAll |
+| `wallet.entry_fee` | Match/tournament entry fee deducted | RequireAll |
+| `wallet.prize` | Prize winnings credited | RequireAll |
+| `wallet.refund` | Refund processed | RequireAll |
+| `wallet.locked` | Wallet locked (security) | RequireAll |
+| `wallet.unlocked` | Wallet unlocked | RequireAll |
+| `wallet.dlq` | Dead letter queue for failed events | RequireAll |
+
+### Event Publishing Architecture
+
+```go
+// WalletEventPublisher domain port (clean architecture)
+type WalletEventPublisher interface {
+    PublishWalletCreated(ctx, walletID, userID)
+    PublishWalletDeposit(ctx, walletID, userID, amount, currency, ledgerTxID)
+    PublishWalletWithdrawal(ctx, walletID, userID, amount, currency, toAddr, ledgerTxID)
+    PublishWalletEntryFee(ctx, walletID, userID, amount, currency, matchID, tournamentID, ledgerTxID)
+    PublishWalletPrize(ctx, walletID, userID, amount, currency, matchID, tournamentID, ledgerTxID)
+    PublishWalletRefund(ctx, walletID, userID, amount, currency, reason, ledgerTxID)
+}
+
+// Infrastructure adapter bridges domain → Kafka
+type WalletEventPublisherAdapter struct { publisher *EventPublisher }
+```
+
+### Event Flow
+
+```
+User → HTTP Controller → WalletService
+                              │
+                    ┌─────────▼──────────┐
+                    │ TransactionCoordinator │
+                    │  (Saga: 3 steps)      │
+                    └─────────┬──────────┘
+                              │ Success
+                    ┌─────────▼──────────┐
+                    │  Publish Kafka Event│ ← Non-blocking (warn on failure)
+                    └─────────┬──────────┘
+                              │
+                    ┌─────────▼──────────┐
+                    │  WalletConsumer     │ ← Separate consumer group
+                    │  • [AUDIT] logging  │
+                    │  • [FRAUD_CHECK]    │
+                    │  • [SECURITY] events│
+                    └────────────────────┘
+```
+
+### Consumer Groups
+
+| Consumer | Group ID | Topics | Purpose |
+|----------|----------|--------|---------|
+| `BillingConsumer` | `billing-consumer-group` | 7 billing topics | Subscription lifecycle |
+| `WalletConsumer` | `wallet-consumer-group` | 9 wallet topics | Financial audit trail, fraud detection |
+| `WebSocketBridge` | configurable | queue/match events | Real-time UI updates |
+
+### Kafka Security
+
+- **Protocol**: SASL/SCRAM-SHA-512 + TLS (`SASL_SSL`)
+- **Ack Mode**: `RequireAll` (all ISRs must acknowledge)
+- **Balancer**: `LeastBytes` for even partition distribution
+- **Region Header**: All messages carry region metadata
 
 ## Transaction Coordinator (Saga Pattern)
 
@@ -145,6 +272,7 @@ ledgerTxID, err := coordinator.ExecuteDeposit(...)
 ### Implementation
 
 Every transaction has a unique idempotency key:
+
 ```go
 idempotencyKey := fmt.Sprintf("deposit_%s_%s", paymentID.String(), walletID.String())
 ```
@@ -216,7 +344,7 @@ reconciliationService.AutoCorrectWallet(ctx, walletID, approverID)
 
 ## MongoDB Schema
 
-### Ledger Entries Collection
+### Ledger Entries Collection (`ledger_entries`)
 
 ```javascript
 {
@@ -236,6 +364,9 @@ reconciliationService.AutoCorrectWallet(ctx, walletID, approverID)
   is_reversed: false,
   metadata: {
     operation_type: "Deposit",
+    chain_id: 137,               // Polygon
+    payment_method: "crypto",
+    contract_address: "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
     payment_id: UUID,
     source_ip: "192.168.1.1",
     risk_score: 0.05,
@@ -244,24 +375,88 @@ reconciliationService.AutoCorrectWallet(ctx, walletID, approverID)
 }
 ```
 
+### Ledger Accounts Collection (`ledger_accounts`)
+
+```javascript
+{
+  _id: UUID,
+  code: "1001",                   // Chart of accounts code
+  name: "Operating Cash",
+  type: "ASSET",                  // ASSET|LIABILITY|EQUITY|REVENUE|EXPENSE
+  currency: "USD",
+  balance: NumberDecimal("10000.00"),
+  available_balance: NumberDecimal("9500.00"),
+  held_balance: NumberDecimal("500.00"),
+  user_id: UUID,                  // null for system accounts
+  is_active: true,
+  version: 5,                    // Optimistic locking
+  created_at: ISODate(),
+  updated_at: ISODate()
+}
+// Index: { code: 1 } (unique)
+// Index: { user_id: 1, currency: 1 }
+```
+
+### Ledger Journals Collection (`ledger_journals`)
+
+```javascript
+{
+  _id: UUID,
+  transaction_type: "DEPOSIT",
+  reference: "DEP-abc123",
+  description: "User deposit of $100.00 USD",
+  entries: [...],                 // Embedded ledger entries
+  total_debit: NumberDecimal("100.00"),
+  total_credit: NumberDecimal("100.00"),
+  currency: "USD",
+  status: "POSTED",              // DRAFT→PENDING→APPROVED→POSTED
+  hash: "sha256...",             // Hash chain integrity
+  previous_hash: "sha256...",
+  created_by: UUID,
+  created_at: ISODate(),
+  posted_at: ISODate()
+}
+// Index: { reference: 1 }
+// Index: { status: 1 }
+// Index: { created_at: -1 }
+```
+
+### Ledger Wallets Collection (`ledger_wallets`)
+
+```javascript
+{
+  _id: UUID,
+  user_id: UUID,
+  ledger_account_id: UUID,
+  currency: "USD",
+  balance: NumberDecimal("150.00"),
+  available_balance: NumberDecimal("140.00"),
+  held_balance: NumberDecimal("10.00"),
+  version: 12,                   // Optimistic locking
+  created_at: ISODate(),
+  updated_at: ISODate()
+}
+// Index: { user_id: 1, currency: 1 } (unique)
+```
+
 ### Critical Indexes
 
 ```javascript
 // Prevent duplicate transactions
-db.ledger_entries.createIndex({ idempotency_key: 1 }, { unique: true })
+db.ledger_entries.createIndex({ idempotency_key: 1 }, { unique: true });
 
 // Fast account history queries
-db.ledger_entries.createIndex({ account_id: 1, created_at: -1 })
+db.ledger_entries.createIndex({ account_id: 1, created_at: -1 });
 
 // Transaction lookup
-db.ledger_entries.createIndex({ transaction_id: 1 })
+db.ledger_entries.createIndex({ transaction_id: 1 });
 
 // Balance calculation
-db.ledger_entries.createIndex({ account_id: 1, currency: 1 })
+db.ledger_entries.createIndex({ account_id: 1, currency: 1 });
 
 // Fraud detection
-db.ledger_entries.createIndex({ created_at: 1 })
-db.ledger_entries.createIndex({ "metadata.source_ip": 1, created_at: -1 })
+db.ledger_entries.createIndex({ created_at: 1 });
+db.ledger_entries.createIndex({ "metadata.source_ip": 1, created_at: -1 });
 ```
 
 ### Idempotency Collection
@@ -320,15 +515,18 @@ make -f Makefile.test test-ci
 ### Smart Contracts for Testing
 
 #### MockUSDC (ERC-20)
+
 - 6 decimals (matches real USDC)
 - Faucet for easy testing
 - Owner can mint
 
 #### MockUSDT (ERC-20)
+
 - 6 decimals (matches real USDT)
 - Same interface as USDC
 
 #### GameNFT (ERC-721)
+
 - Rarity levels (Common, Rare, Epic, Legendary)
 - Metadata URIs
 - Batch minting support
@@ -424,13 +622,18 @@ BenchmarkDeposit-8    500 ops    2847 ns/op    1456 B/op    23 allocs/op
 - **Checksums**: SHA-256 for ledger entry verification
 - **Reconciliation**: Automated daily verification
 
-## Banking-Grade Custody Infrastructure
+## Banking-Grade Wallet Infrastructure
 
 ### Overview
 
-The platform implements professional-grade custodial wallet infrastructure with:
-- **MPC (Multi-Party Computation)** for secure key management
-- **Account Abstraction (ERC-4337)** for smart contract wallets
+The platform implements professional-grade wallet infrastructure with three tiers:
+
+- **Leet Wallet** - Platform-managed custodial wallet
+- **Leet Wallet Pro** - MPC (Multi-Party Computation) for shared key management
+- **DeFi Wallet** - Non-custodial with Account Abstraction (ERC-4337)
+
+Additional features include:
+
 - **Solana Program** for native Solana smart wallets
 - **Social Recovery** for trustless wallet recovery
 - **Fee Sponsorship** via Paymaster for gasless transactions
@@ -477,11 +680,13 @@ The platform implements professional-grade custodial wallet infrastructure with:
 | Lindell17 | secp256k1 | 2-party ECDSA |
 
 **Threshold Configurations:**
+
 - Personal Wallets: 2-of-3 (user device + platform + backup)
 - Business Wallets: 3-of-5 (multi-approver)
 - Treasury: 4-of-7 (governance + cold storage)
 
 **Key Storage Locations:**
+
 - HSM (AWS CloudHSM, Azure HSM, Thales Luna)
 - Secure Enclaves (AWS Nitro, Azure SGX)
 - Cloud KMS (wrapped keys)
@@ -491,6 +696,7 @@ The platform implements professional-grade custodial wallet infrastructure with:
 ### Smart Wallet Contracts
 
 #### Solana Smart Wallet (Rust/Anchor)
+
 Location: `programs/solana-wallet/src/lib.rs`
 
 ```rust
@@ -513,9 +719,11 @@ pub fn execute_recovery(ctx: Context<ExecuteRecovery>) -> Result<()>
 ```
 
 #### ERC-4337 Smart Wallet (Solidity)
+
 Location: `test/blockchain/contracts/aa/LeetSmartWallet.sol`
 
 Features:
+
 - ERC-4337 compliant (validateUserOp)
 - Social recovery with time-locked execution
 - Session keys for delegated signing
@@ -540,9 +748,11 @@ function executeBatch(
 ```
 
 #### Paymaster (Gas Sponsorship)
+
 Location: `test/blockchain/contracts/paymaster/LeetPaymaster.sol`
 
 Payment Modes:
+
 1. **Sponsored**: Platform-sponsored (whitelisted wallets)
 2. **GasCredits**: Pre-purchased gas credits
 3. **TokenPayment**: Pay in USDC/USDT
@@ -576,6 +786,7 @@ Guardian                    Smart Wallet                Platform
 ```
 
 Guardian Types:
+
 - **Wallet**: Another blockchain address
 - **Email**: Verified email (hash-derived address)
 - **Phone**: Verified phone (hash-derived address)
@@ -585,13 +796,16 @@ Guardian Types:
 ### Custody Service Architecture
 
 **Value Objects** (`pkg/domain/custody/value-objects/`):
+
 - `chain.go`: CAIP-standard chain IDs, Solana-first multichain support
 - `mpc.go`: MPC schemes, key curves, threshold configs, HSM/enclave configs
 
 **Entities** (`pkg/domain/custody/entities/`):
+
 - `smart_wallet.go`: SmartWallet with MPC keys, AA config, recovery, limits
 
 **Ports** (`pkg/domain/custody/ports/`):
+
 - `out/mpc_provider.go`: MPC key generation and signing interface
 - `out/hsm_provider.go`: HSM and Secure Enclave operations
 - `out/chain_client.go`: Multi-chain blockchain client interface
@@ -601,18 +815,19 @@ Guardian Types:
 - `in/recovery_service.go`: Social recovery interface
 
 **Services** (`pkg/domain/custody/services/`):
+
 - `wallet_orchestrator.go`: Multi-chain wallet coordination
 - `recovery_service.go`: Social recovery implementation
 
 ### Chain Support Matrix
 
-| Chain | Primary | MPC Scheme | Wallet Type | Features |
-|-------|---------|------------|-------------|----------|
-| Solana | ✅ | FROST-Ed25519 | PDA Program | SPL tokens, Priority fees |
-| Polygon | ✅ | CMP | ERC-4337 | Paymaster, Session keys |
-| Base | ✅ | CMP | ERC-4337 | Paymaster, Session keys |
-| Arbitrum | ✅ | CMP | ERC-4337 | Paymaster, Session keys |
-| Ethereum | - | CMP | ERC-4337 | High-value only |
+| Chain    | Primary | MPC Scheme    | Wallet Type | Features                  |
+| -------- | ------- | ------------- | ----------- | ------------------------- |
+| Solana   | ✅      | FROST-Ed25519 | PDA Program | SPL tokens, Priority fees |
+| Polygon  | ✅      | CMP           | ERC-4337    | Paymaster, Session keys   |
+| Base     | ✅      | CMP           | ERC-4337    | Paymaster, Session keys   |
+| Arbitrum | ✅      | CMP           | ERC-4337    | Paymaster, Session keys   |
+| Ethereum | -       | CMP           | ERC-4337    | High-value only           |
 
 ### Transaction Limits
 
@@ -627,6 +842,7 @@ type TransactionLimits struct {
 ```
 
 Default Limits (Personal Wallet):
+
 - Daily: $10,000
 - Weekly: $50,000
 - Monthly: $100,000
@@ -634,16 +850,17 @@ Default Limits (Personal Wallet):
 
 ### Security Levels
 
-| Level | MPC Config | Features |
-|-------|------------|----------|
-| Basic | 2-of-3 | Single approval |
-| Standard | 2-of-3 | Time delay for large tx |
-| High | 3-of-5 | Multi-party + HSM |
-| Critical | 4-of-7 | Governance + cold storage |
+| Level    | MPC Config | Features                  |
+| -------- | ---------- | ------------------------- |
+| Basic    | 2-of-3     | Single approval           |
+| Standard | 2-of-3     | Time delay for large tx   |
+| High     | 3-of-5     | Multi-party + HSM         |
+| Critical | 4-of-7     | Governance + cold storage |
 
 ### API Examples
 
 **Create Wallet:**
+
 ```go
 result, err := walletService.CreateWallet(ctx, &custody_in.CreateWalletRequest{
     UserID:       userID,
@@ -656,6 +873,7 @@ result, err := walletService.CreateWallet(ctx, &custody_in.CreateWalletRequest{
 ```
 
 **Transfer:**
+
 ```go
 result, err := walletService.Transfer(ctx, &custody_in.TransferRequest{
     WalletID: walletID,
@@ -666,6 +884,7 @@ result, err := walletService.Transfer(ctx, &custody_in.TransferRequest{
 ```
 
 **Add Guardian:**
+
 ```go
 result, err := recoveryService.AddGuardian(ctx, &custody_in.AddGuardianRequest{
     WalletID:     walletID,

@@ -147,9 +147,6 @@ func (ctrl *EmailVerificationController) VerifyEmail(ctx context.Context) http.H
 			return
 		}
 
-		// TODO: Update email user's EmailVerified field to true
-		// This would require looking up the verification to get the user ID
-
 		writeJSON(w, http.StatusOK, result)
 	}
 }
