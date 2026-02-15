@@ -1364,6 +1364,22 @@ func (b *ContainerBuilder) WithEventPublisher() *ContainerBuilder {
 		panic(err)
 	}
 
+	// MatchmakingProducer - publishes PlayerQueued/MatchCompleted via canonical protobuf/CloudEvents schema (#16/#17)
+	err = c.Singleton(func() (*kafka.MatchmakingProducer, error) {
+		cfg := kafka.DefaultMatchmakingProducerConfig()
+
+		// If Kafka is not configured (local dev), create producer with nil client — it will return ErrProducerDisabled
+		var client *kafka.Client
+		_ = c.Resolve(&client) // best-effort; client may not be registered in local dev
+
+		return kafka.NewMatchmakingProducer(client, cfg), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load *kafka.MatchmakingProducer.", "err", err)
+		panic(err)
+	}
+
 	return b
 }
 
@@ -3212,6 +3228,7 @@ func InjectMongoDB(c container.Container) error {
 		var billableOperationHandler billing_in.BillableOperationCommandHandler
 		var sessionRepo matchmaking_out.MatchmakingSessionRepository
 		var eventPublisher *kafka.EventPublisher
+		var matchmakingProducer *kafka.MatchmakingProducer
 
 		if err := c.Resolve(&billableOperationHandler); err != nil {
 			slog.Error("Failed to resolve BillableOperationCommandHandler for JoinMatchmakingQueueUseCase.", "err", err)
@@ -3225,8 +3242,12 @@ func InjectMongoDB(c container.Container) error {
 			slog.Error("Failed to resolve EventPublisher for JoinMatchmakingQueueUseCase.", "err", err)
 			return nil, err
 		}
+		if err := c.Resolve(&matchmakingProducer); err != nil {
+			slog.Error("Failed to resolve MatchmakingProducer for JoinMatchmakingQueueUseCase.", "err", err)
+			return nil, err
+		}
 
-		return matchmaking_usecases.NewJoinMatchmakingQueueUseCase(billableOperationHandler, sessionRepo, eventPublisher), nil
+		return matchmaking_usecases.NewJoinMatchmakingQueueUseCase(billableOperationHandler, sessionRepo, eventPublisher, matchmakingProducer), nil
 	})
 	if err != nil {
 		slog.Error("Failed to load JoinMatchmakingQueueCommandHandler.", "err", err)

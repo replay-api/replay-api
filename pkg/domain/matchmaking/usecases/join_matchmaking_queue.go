@@ -42,11 +42,13 @@ import (
 // Dependencies:
 //   - BillableOperationCommandHandler: Validates/tracks usage against subscription limits
 //   - MatchmakingSessionRepository: Session persistence
-//   - EventPublisher: Publishes matchmaking events to Kafka
+//   - EventPublisher: Publishes matchmaking events to Kafka (legacy)
+//   - MatchmakingProducer: Publishes PlayerQueued events using canonical protobuf/CloudEvents schema (#16/#17)
 type JoinMatchmakingQueueUseCase struct {
 	billableOperationHandler billing_in.BillableOperationCommandHandler
 	sessionRepository        matchmaking_out.MatchmakingSessionRepository
 	eventPublisher           *kafka.EventPublisher
+	matchmakingProducer      *kafka.MatchmakingProducer
 }
 
 // NewJoinMatchmakingQueueUseCase creates a new join queue usecase
@@ -54,11 +56,13 @@ func NewJoinMatchmakingQueueUseCase(
 	billableOperationHandler billing_in.BillableOperationCommandHandler,
 	sessionRepository matchmaking_out.MatchmakingSessionRepository,
 	eventPublisher *kafka.EventPublisher,
+	matchmakingProducer *kafka.MatchmakingProducer,
 ) matchmaking_in.JoinMatchmakingQueueCommandHandler {
 	return &JoinMatchmakingQueueUseCase{
 		billableOperationHandler: billableOperationHandler,
 		sessionRepository:        sessionRepository,
 		eventPublisher:           eventPublisher,
+		matchmakingProducer:      matchmakingProducer,
 	}
 }
 
@@ -163,27 +167,37 @@ func (uc *JoinMatchmakingQueueUseCase) Exec(ctx context.Context, cmd matchmaking
 		return nil, fmt.Errorf("failed to save matchmaking session")
 	}
 
-	// publish queue joined event
-	if uc.eventPublisher != nil {
-		queueEvent := &kafka.QueueEvent{
-			PlayerID:  cmd.PlayerID,
-			GameType:  cmd.GameID,
-			Region:    cmd.Region,
-			MMR:       cmd.PlayerMMR,
-			EventType: kafka.EventTypeQueueJoined,
-			Metadata: map[string]string{
-				"session_id":   session.ID.String(),
-				"game_mode":   cmd.GameMode,
-				"team_format": string(cmd.TeamFormat),
-				"squad_id":    cmd.SquadID.String(),
-			},
-		}
-		if cmd.PlayerRole != nil {
-			queueEvent.Metadata["player_role"] = *cmd.PlayerRole
+	// publish PlayerQueued event via canonical protobuf/CloudEvents schema (#16/#17)
+	if uc.matchmakingProducer != nil {
+		producerInput := &kafka.PlayerQueuedInput{
+			PlayerID:        cmd.PlayerID.String(),
+			GameID:          cmd.GameID,
+			Region:          cmd.Region,
+			TenantID:        resourceOwner.TenantID.String(),
+			ClientID:        resourceOwner.ClientID.String(),
+			ResourceOwnerID: resourceOwner.UserID.String(),
+			CorrelationID:   session.ID.String(),
 		}
 
-		if err := uc.eventPublisher.PublishQueueEvent(ctx, queueEvent); err != nil {
-			slog.WarnContext(ctx, "failed to publish queue joined event", "error", err, "player_id", cmd.PlayerID)
+		// Map skill range from player MMR (±200 range for matching)
+		if cmd.PlayerMMR > 0 {
+			minMMR := int32(cmd.PlayerMMR - 200)
+			if minMMR < 0 {
+				minMMR = 0
+			}
+			maxMMR := int32(cmd.PlayerMMR + 200)
+			producerInput.MinMMR = &minMMR
+			producerInput.MaxMMR = &maxMMR
+		}
+
+		// Map priority boost
+		if cmd.PriorityBoost {
+			boost := int32(1)
+			producerInput.PriorityBoost = &boost
+		}
+
+		if err := uc.matchmakingProducer.PublishPlayerQueued(ctx, producerInput); err != nil {
+			slog.WarnContext(ctx, "failed to publish PlayerQueued event", "error", err, "player_id", cmd.PlayerID)
 		}
 	}
 
