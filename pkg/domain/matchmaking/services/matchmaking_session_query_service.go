@@ -71,8 +71,11 @@ func (s *MatchmakingSessionQueryService) FindByPlayerID(ctx context.Context, pla
 			WithValueParam("Status", matchmaking_entities.StatusQueued, matchmaking_entities.StatusSearching).
 			Build()).
 		WithSort("QueuedAt", shared.AscendingIDKey).
-		WithVisibilityFromContext(ctx, shared.UserAudienceIDKey).
 		Build()
+	search.VisibilityOptions = shared.SearchVisibilityOptions{
+		RequestSource:    shared.GetResourceOwner(ctx),
+		IntendedAudience: shared.UserAudienceIDKey,
+	}
 
 	entities, err := s.reader.Search(ctx, search)
 	if err != nil {
@@ -128,8 +131,7 @@ func (s *MatchmakingSessionQueryService) FindActiveSessions(ctx context.Context,
 
 	builder := shared.NewSearchBuilder().
 		WithAggregation(aggBuilder.Build()).
-		WithSort("QueuedAt", shared.AscendingIDKey).
-		WithVisibilityFromContext(ctx, shared.UserAudienceIDKey)
+		WithSort("QueuedAt", shared.AscendingIDKey)
 
 	if limit > 0 {
 		builder.WithLimit(uint(limit))
@@ -139,6 +141,10 @@ func (s *MatchmakingSessionQueryService) FindActiveSessions(ctx context.Context,
 	}
 
 	search := builder.Build()
+	search.VisibilityOptions = shared.SearchVisibilityOptions{
+		RequestSource:    shared.GetResourceOwner(ctx),
+		IntendedAudience: shared.UserAudienceIDKey,
+	}
 
 	entities, err := s.reader.Search(ctx, search)
 	if err != nil {
@@ -165,8 +171,11 @@ func (s *MatchmakingSessionQueryService) FindExpiredSessions(ctx context.Context
 			Build()).
 		WithSort("ExpiresAt", shared.AscendingIDKey).
 		WithLimit(uint(limit)).
-		WithVisibilityFromContext(ctx, shared.TenantAudienceIDKey). // Tenant-level for background job
 		Build()
+	search.VisibilityOptions = shared.SearchVisibilityOptions{
+		RequestSource:    shared.GetResourceOwner(ctx),
+		IntendedAudience: shared.TenantAudienceIDKey, // Tenant-level for background job
+	}
 
 	entities, err := s.reader.Search(ctx, search)
 	if err != nil {

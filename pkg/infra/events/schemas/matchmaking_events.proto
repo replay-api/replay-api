@@ -1,0 +1,103 @@
+syntax = "proto3";
+
+package matchmaking.events.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/replay-api/replay-api/pkg/infra/events/schemas;schemas";
+
+// EventEnvelope follows CloudEvents 1.0 spec (https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md).
+// Ensures replay-api and match-making-api agree on payload structure.
+message EventEnvelope {
+  string id = 1;           // CloudEvents: id (required) - uniquely identifies the event
+  string type = 2;         // CloudEvents: type (required) - e.g. "PlayerQueued", "MatchCompleted"
+  string source = 3;        // CloudEvents: source (required) - e.g. "replay-api", "match-making-api"
+  string specversion = 4;   // CloudEvents: specversion (required) - e.g. "1.0"
+  google.protobuf.Timestamp time = 5;  // CloudEvents: time (optional) - when the event occurred
+  string subject = 6;      // CloudEvents: subject (optional) - e.g. player_id, match_id
+  // Extension attributes
+  string resource_owner_id = 7;  // RID or owner identifier for multi-tenancy/authorization
+  string correlation_id = 8;    // For distributed tracing
+  int32 dataschema_version = 9; // Payload schema version for evolution; consumers can handle multiple versions
+}
+
+// MatchmakingEvent is the top-level message for Kafka. Combines envelope + typed data (CloudEvents: data).
+message MatchmakingEvent {
+  EventEnvelope envelope = 1;
+  oneof data {
+    PlayerQueuedPayload player_queued = 10;
+    MatchCreatedPayload match_created = 11;
+    MatchCompletedPayload match_completed = 12;
+    RatingsUpdatedPayload ratings_updated = 13;
+  }
+}
+
+// --- PlayerQueued (replay-api → match-making-api) ---
+
+message PlayerQueuedPayload {
+  string player_id = 1;
+  string game_id = 2;
+  string region = 3;
+  optional SkillRange skill_range = 4;  // Optional: min/max MMR or similar.
+  optional int32 priority_boost = 5;    // Optional: queue priority.
+  string tenant_id = 6;
+  string client_id = 7;
+  repeated string resource_permissions = 8;  // Optional: e.g. ["read", "write"].
+}
+
+message SkillRange {
+  int32 min_mmr = 1;
+  int32 max_mmr = 2;
+}
+
+// --- MatchCreated (match-making-api → replay-api) ---
+
+message MatchCreatedPayload {
+  string match_id = 1;
+  repeated MatchPlayer players = 2;
+  GameServer game_server = 3;
+  string lobby_id = 4;
+  string tenant_id = 5;
+  string client_id = 6;
+}
+
+message MatchPlayer {
+  string player_id = 1;
+  string party_id = 2;  // Empty if solo.
+  repeated string resource_permissions = 3;
+}
+
+message GameServer {
+  string server_id = 1;
+  string region = 2;
+  string resource_owner_id = 3;
+}
+
+// --- MatchCompleted (optional, for producer work 2501-003) ---
+
+message MatchCompletedPayload {
+  string match_id = 1;
+  repeated string player_ids = 2;
+  string winner_team_id = 3;  // Empty if draw.
+  bool is_draw = 4;
+  int64 completed_at_epoch_ms = 5;
+  string tenant_id = 6;
+  string client_id = 7;
+}
+
+// --- RatingsUpdated (optional, placeholder for epic) ---
+
+message RatingsUpdatedPayload {
+  string match_id = 1;
+  repeated PlayerRatingDelta deltas = 2;
+  int64 updated_at_epoch_ms = 3;
+  string tenant_id = 4;
+  string client_id = 5;
+}
+
+message PlayerRatingDelta {
+  string player_id = 1;
+  int32 mmr_before = 2;
+  int32 mmr_after = 3;
+  int32 delta = 4;
+}

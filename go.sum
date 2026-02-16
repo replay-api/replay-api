@@ -64,6 +64,12 @@ github.com/prometheus/common v0.48.0 h1:QO8U2CdOzSn1BBsmXJXduaaW+dY/5QLjfB8svtSz
 github.com/prometheus/common v0.48.0/go.mod h1:0/KsvlIEfPQCQ5I2iNSAWKPZziNCvRs5EC6ILDTlAPc=
 github.com/prometheus/procfs v0.12.0 h1:jluTpSng7V9hY0O2R9DzzJHYb2xULk9VTR1V1R/k6Bo=
 github.com/prometheus/procfs v0.12.0/go.mod h1:pcuDEFsWDnvcgNzo4EEweacyhjeA9Zk3cnaOZAZEfOo=
+github.com/replay-api/replay-common v0.0.0-20260105132037-5c54623d9838 h1:FSY5lx7lMhPtS+5eTfXbvqio4/xa8P1Xn1Bk541QcZM=
+github.com/replay-api/replay-common v0.0.0-20260105132037-5c54623d9838/go.mod h1:YUuQSHWT5f2V2sx4zkrt/3S8iyUWmiL6kCZJ4YSdjdc=
+github.com/resource-ownership/go-common v0.0.0-20260108121510-f5e4801eff59 h1:2ijbL0BXLVrWbV9yOGn7xCKPwPMsP9rDJ6qCYYgE0EI=
+github.com/resource-ownership/go-common v0.0.0-20260108121510-f5e4801eff59/go.mod h1:fCeWSBylE327BwlGH7NV7Y9c/jTXg5W5nQ1LA89Dv1I=
+github.com/resource-ownership/go-mongodb v0.0.0-20260108121442-6391fd0a2895 h1:28B2xjN9l8bV8aWDt/qfo0fPEyo2XLf7v2UQhfpSoeI=
+github.com/resource-ownership/go-mongodb v0.0.0-20260108121442-6391fd0a2895/go.mod h1:yNnwViENEOjRz7qHszBpwyUPGdGj//0fiikqGOaSCtM=
 github.com/rogpeppe/go-internal v1.12.0 h1:exVL4IDcn6na9z1rAb56Vxr+CgyK3nn3O+epU5NdKM8=
 github.com/rogpeppe/go-internal v1.12.0/go.mod h1:E+RYuTGaKKdloAfM02xzb0FW3Paa99yedzYV+kq4uf4=
 github.com/samber/lo v1.38.1 h1:j2XEAqXKb09Am4ebOg31SpvzUTTs6EN3VfgeLUhPdXM=
