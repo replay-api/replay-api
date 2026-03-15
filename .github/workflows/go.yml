@@ -16,6 +16,13 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Prepare local module dependencies
+      run: |
+        mkdir -p ../resource-ownership
+        git clone --depth 1 https://github.com/replay-api/replay-common.git ../replay-common
+        git clone --depth 1 https://github.com/resource-ownership/go-common.git ../resource-ownership/go-common
+        git clone --depth 1 https://github.com/resource-ownership/go-mongodb.git ../resource-ownership/go-mongodb
+
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
