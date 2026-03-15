@@ -314,6 +314,119 @@ func (t *Tournament) Cancel(reason string) error {
 	return nil
 }
 
+// CheckIn marks a registered player as checked in
+func (t *Tournament) CheckIn(playerID uuid.UUID) error {
+	if t.Status != TournamentStatusRegistration && t.Status != TournamentStatusReady {
+		return fmt.Errorf("check-in not available in status: %s", t.Status)
+	}
+
+	if !t.Rules.CheckInRequired {
+		return fmt.Errorf("check-in is not required for this tournament")
+	}
+
+	for i, p := range t.Participants {
+		if p.PlayerID == playerID {
+			if p.Status == "checked_in" {
+				return fmt.Errorf("player already checked in")
+			}
+			t.Participants[i].Status = "checked_in"
+			t.UpdatedAt = time.Now()
+			return nil
+		}
+	}
+
+	return fmt.Errorf("player not found in participants")
+}
+
+// RecordMatchResult records the winner of a tournament match
+func (t *Tournament) RecordMatchResult(matchID uuid.UUID, winnerID uuid.UUID) error {
+	if t.Status != TournamentStatusInProgress {
+		return fmt.Errorf("can only record results for in_progress tournaments, current: %s", t.Status)
+	}
+
+	for i, m := range t.Matches {
+		if m.MatchID == matchID {
+			if m.Status == MatchStatusCompleted {
+				return fmt.Errorf("match already completed")
+			}
+
+			// Validate winner is one of the players
+			if winnerID != m.Player1ID && winnerID != m.Player2ID {
+				return fmt.Errorf("winner must be one of the match players")
+			}
+
+			now := time.Now()
+			t.Matches[i].WinnerID = &winnerID
+			t.Matches[i].CompletedAt = &now
+			t.Matches[i].Status = MatchStatusCompleted
+			t.UpdatedAt = now
+			return nil
+		}
+	}
+
+	return fmt.Errorf("match not found: %s", matchID)
+}
+
+// AdvanceBracket generates next round matches from completed current round matches
+// Returns the new matches created, or nil if all matches are done
+func (t *Tournament) AdvanceBracket() ([]TournamentMatch, error) {
+	if t.Status != TournamentStatusInProgress {
+		return nil, fmt.Errorf("can only advance bracket for in_progress tournaments, current: %s", t.Status)
+	}
+
+	// Find the current round (highest round number with matches)
+	currentRound := 0
+	for _, m := range t.Matches {
+		if m.Round > currentRound {
+			currentRound = m.Round
+		}
+	}
+
+	// Check all matches in current round are completed
+	var completedMatches []TournamentMatch
+	for _, m := range t.Matches {
+		if m.Round == currentRound {
+			if m.Status != MatchStatusCompleted {
+				return nil, fmt.Errorf("not all matches in round %d are completed", currentRound)
+			}
+			completedMatches = append(completedMatches, m)
+		}
+	}
+
+	// If only 1 match and it's completed, tournament is done
+	if len(completedMatches) <= 1 {
+		return nil, nil // No more rounds to generate
+	}
+
+	// Generate next round matches by pairing winners
+	nextRound := currentRound + 1
+	var newMatches []TournamentMatch
+
+	for i := 0; i < len(completedMatches); i += 2 {
+		if i+1 >= len(completedMatches) {
+			// Bye: winner advances automatically
+			break
+		}
+
+		match := TournamentMatch{
+			MatchID:     uuid.New(),
+			Round:       nextRound,
+			BracketPos:  fmt.Sprintf("r%d_m%d", nextRound, i/2),
+			Player1ID:   *completedMatches[i].WinnerID,
+			Player2ID:   *completedMatches[i+1].WinnerID,
+			ScheduledAt: time.Now().Add(time.Duration(30*(i/2)) * time.Minute),
+			Status:      MatchStatusScheduled,
+		}
+
+		newMatches = append(newMatches, match)
+	}
+
+	t.Matches = append(t.Matches, newMatches...)
+	t.UpdatedAt = time.Now()
+
+	return newMatches, nil
+}
+
 // GetParticipantCount returns the current number of registered players
 func (t *Tournament) GetParticipantCount() int {
 	return len(t.Participants)

@@ -11,7 +11,7 @@ type SteamUserRepository struct {
 }
 
 func NewSteamUserMongoDBRepository(client *mongo.Client, dbName string, entityType steam_entity.SteamUser, collectionName string) *SteamUserRepository {
-	repo := mongodb.NewMongoDBRepository[steam_entity.SteamUser](client, dbName, entityType, collectionName, "SteamUser")
+	repo := mongodb.NewMongoDBRepository(client, dbName, entityType, collectionName, "SteamUser")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":          true,

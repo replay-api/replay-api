@@ -16,7 +16,7 @@ type SquadHistoryRepository struct {
 }
 
 func NewSquadHistoryRepository(client *mongo.Client, dbName string, entityType squad_entities.SquadHistory, collectionName string) *SquadHistoryRepository {
-	repo := mongodb.NewMongoDBRepository[squad_entities.SquadHistory](client, dbName, entityType, collectionName, "SquadHistory")
+	repo := mongodb.NewMongoDBRepository(client, dbName, entityType, collectionName, "SquadHistory")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":            true,

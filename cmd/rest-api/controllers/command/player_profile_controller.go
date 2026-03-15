@@ -72,17 +72,33 @@ func (ctrl *PlayerProfileController) CreatePlayerProfileHandler(apiContext conte
 				"error", err,
 				"nickname", createPlayerCommand.Nickname,
 				"game_id", createPlayerCommand.GameID)
+
+			w.Header().Set("Content-Type", "application/json")
+
 			if err.Error() == "Unauthorized" {
 				w.WriteHeader(http.StatusUnauthorized)
+				_ = json.NewEncoder(w).Encode(map[string]string{
+					"code":    "UNAUTHORIZED",
+					"message": "Authentication required to create a player profile",
+				})
 			} else if strings.Contains(err.Error(), "already exists") {
 				w.WriteHeader(http.StatusConflict)
-				errorJSON := map[string]string{
-					"code":  "CONFLICT",
-					"error": "A player profile with this identifier already exists",
-				}
-				_ = json.NewEncoder(w).Encode(errorJSON)
+				_ = json.NewEncoder(w).Encode(map[string]string{
+					"code":    "CONFLICT",
+					"message": "A player profile with this identifier already exists",
+				})
+			} else if strings.Contains(err.Error(), "exceeds the limit") {
+				w.WriteHeader(http.StatusForbidden)
+				_ = json.NewEncoder(w).Encode(map[string]string{
+					"code":    "PLAN_LIMIT_EXCEEDED",
+					"message": "You have reached the player profile limit for your current plan. Please upgrade your plan to create more profiles.",
+				})
 			} else {
 				w.WriteHeader(http.StatusInternalServerError)
+				_ = json.NewEncoder(w).Encode(map[string]string{
+					"code":    "INTERNAL_ERROR",
+					"message": "Something went wrong on our end. Please try again later.",
+				})
 			}
 			return
 		}

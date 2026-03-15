@@ -378,6 +378,65 @@ var (
 	)
 
 	// ============================================
+	// View Analytics & Engagement Metrics
+	// ============================================
+
+	// EntityViewsRecordedTotal counts total view events recorded
+	EntityViewsRecordedTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "entity_views_recorded_total",
+			Help: "Total entity view events recorded",
+		},
+		[]string{"entity_type", "referrer_type"},
+	)
+
+	// EntityUniqueViewersTotal counts unique authenticated viewer events
+	EntityUniqueViewersTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "entity_unique_viewers_total",
+			Help: "Total unique authenticated viewer events (approximate)",
+		},
+		[]string{"entity_type"},
+	)
+
+	// ProfileImpressionsTotal counts profile page impressions
+	ProfileImpressionsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "profile_impressions_total",
+			Help: "Total profile page impressions",
+		},
+		[]string{"profile_type"},
+	)
+
+	// AnalyticsEventsProcessedTotal tracks Kafka consumer processing
+	AnalyticsEventsProcessedTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "analytics_events_processed_total",
+			Help: "Total analytics events processed by Kafka consumer",
+		},
+		[]string{"status", "entity_type"},
+	)
+
+	// AnalyticsEventProcessingDuration tracks per-event processing latency
+	AnalyticsEventProcessingDuration = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "analytics_event_processing_duration_seconds",
+			Help:    "Duration of analytics event processing in seconds",
+			Buckets: []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1},
+		},
+		[]string{"entity_type"},
+	)
+
+	// ViewStatisticsAggregationsTotal tracks aggregation upserts
+	ViewStatisticsAggregationsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "view_statistics_aggregations_total",
+			Help: "Total view statistics aggregation operations",
+		},
+		[]string{"entity_type", "operation"},
+	)
+
+	// ============================================
 	// Wallet & Billing Metrics
 	// ============================================
 
@@ -747,4 +806,38 @@ func RecordLedgerEntry(balanced bool) {
 	if balanced {
 		LeetgamingLedgerBalancedTotal.Inc()
 	}
+}
+
+// ============================================
+// View Analytics Metric Recording Functions
+// ============================================
+
+// RecordEntityView records an entity view event
+func RecordEntityView(entityType, referrerType string) {
+	EntityViewsRecordedTotal.WithLabelValues(entityType, referrerType).Inc()
+}
+
+// RecordUniqueViewer records a unique authenticated viewer
+func RecordUniqueViewer(entityType string) {
+	EntityUniqueViewersTotal.WithLabelValues(entityType).Inc()
+}
+
+// RecordProfileImpression records a profile page impression
+func RecordProfileImpression(profileType string) {
+	ProfileImpressionsTotal.WithLabelValues(profileType).Inc()
+}
+
+// RecordAnalyticsEventProcessed records a processed analytics event
+func RecordAnalyticsEventProcessed(status, entityType string) {
+	AnalyticsEventsProcessedTotal.WithLabelValues(status, entityType).Inc()
+}
+
+// RecordAnalyticsProcessingDuration records analytics event processing time
+func RecordAnalyticsProcessingDuration(entityType string, duration time.Duration) {
+	AnalyticsEventProcessingDuration.WithLabelValues(entityType).Observe(duration.Seconds())
+}
+
+// RecordViewStatisticsAggregation records a view statistics aggregation operation
+func RecordViewStatisticsAggregation(entityType, operation string) {
+	ViewStatisticsAggregationsTotal.WithLabelValues(entityType, operation).Inc()
 }

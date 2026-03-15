@@ -5,6 +5,7 @@ package main
 
 import (
 	"log"
+	"log/slog"
 	"net"
 	"os"
 
@@ -22,7 +23,21 @@ func main() {
 
 	builder := ioc.NewContainerBuilder()
 
-	c := builder.WithEnvFile().WithKafka().With(ioc.InjectMongoDB).WithSquadAPI().WithInboundPorts().Build()
+	// Build container with env file and Kafka (no-op for local)
+	c := builder.WithEnvFile().WithKafka().Build()
+
+	// Inject MongoDB services DIRECTLY (must be called before WithInboundPorts/WithSquadAPI)
+	// With(InjectMongoDB) registers it as a lazy singleton that never executes.
+	if err := ioc.InjectMongoDB(c); err != nil {
+		slog.Error("Failed to inject MongoDB services", "error", err)
+		panic(err)
+	}
+
+	// Register inbound ports and squad API (depend on MongoDB repositories)
+	builder.WithInboundPorts()
+	builder.WithSquadAPI()
+
+	defer builder.Close(c)
 
 	rpcPort := os.Getenv("GRPC_API_PORT")
 

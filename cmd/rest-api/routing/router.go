@@ -12,9 +12,12 @@ import (
 	query_controllers "github.com/replay-api/replay-api/cmd/rest-api/controllers/query"
 	websocket_controllers "github.com/replay-api/replay-api/cmd/rest-api/controllers/websocket"
 	"github.com/replay-api/replay-api/cmd/rest-api/middlewares"
+	common "github.com/replay-api/replay-api/pkg/domain"
+	analytics_entities "github.com/replay-api/replay-api/pkg/domain/analytics/entities"
 	matchmaking_in "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/in"
 	"github.com/replay-api/replay-api/pkg/infra/metrics"
 	websocket "github.com/replay-api/replay-api/pkg/infra/websocket"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 const (
@@ -55,10 +58,60 @@ const (
 	RoundHeatmap       string = "/games/{game_id}/matches/{match_id}/rounds/{round_number}/heatmap"
 
 	// Notifications
-	Notifications       string = "/notifications"
-	NotificationDetail  string = "/notifications/{notification_id}"
-	NotificationRead    string = "/notifications/{notification_id}/read"
-	NotificationsReadAll string = "/notifications/read-all"
+	Notifications             string = "/notifications"
+	NotificationDetail        string = "/notifications/{notification_id}"
+	NotificationRead          string = "/notifications/{notification_id}/read"
+	NotificationsReadAll      string = "/notifications/read-all"
+	NotificationsUnreadCount  string = "/notifications/unread-count"
+	NotificationsSeed         string = "/notifications/seed"
+
+	// Messaging - Match Comments
+	MatchComments       string = "/matches/{match_id}/comments"
+	MatchCommentDetail  string = "/matches/{match_id}/comments/{comment_id}"
+	MatchCommentReplies string = "/matches/{match_id}/comments/{comment_id}/replies"
+	MatchCommentReact   string = "/matches/{match_id}/comments/{comment_id}/reactions"
+
+	// Messaging - Direct Messages
+	Conversations       string = "/messages/conversations"
+	ConversationDetail  string = "/messages/conversations/{user_id}"
+	ConversationRead    string = "/messages/conversations/{user_id}/read"
+	DirectMessages      string = "/messages/{user_id}"
+	DirectMessageDelete string = "/messages/{message_id}/delete"
+
+	// Messaging - Team Messages
+	TeamMessages string = "/teams/{team_id}/messages"
+	TeamChannels string = "/teams/{team_id}/channels"
+
+	// Messaging WebSocket
+	MessagingWS string = "/ws/messaging"
+
+	// Predictions - Markets
+	PredictionMarkets       string = "/predictions/markets"
+	PredictionMarketDetail  string = "/predictions/markets/{market_id}"
+	PredictionMarketLock    string = "/predictions/markets/{market_id}/lock"
+	PredictionMarketResolve string = "/predictions/markets/{market_id}/resolve"
+	PredictionMarketCancel  string = "/predictions/markets/{market_id}/cancel"
+	PredictionMarketBets    string = "/predictions/markets/{market_id}/bets"
+	PredictionMarketSummary string = "/predictions/markets/{market_id}/summary"
+	PredictionMatchMarkets  string = "/predictions/matches/{match_id}/markets"
+
+	// Predictions - Bets & Leaderboard
+	PredictionUserBets   string = "/predictions/bets/me"
+	PredictionLeaderboard string = "/predictions/leaderboard"
+
+	// View Analytics
+	PlayerViews        string = "/players/{id}/views"
+	PlayerViewStats    string = "/players/{id}/views/stats"
+	PlayerViewInsights string = "/players/{id}/views/insights"
+	TeamViews          string = "/teams/{id}/views"
+	TeamViewStats      string = "/teams/{id}/views/stats"
+	TeamViewInsights   string = "/teams/{id}/views/insights"
+	MatchViews         string = "/games/{game_id}/matches/{match_id}/views"
+	MatchViewStats     string = "/games/{game_id}/matches/{match_id}/views/stats"
+	ReplayViews        string = "/games/{game_id}/replays/{replay_id}/views"
+	ReplayViewStats    string = "/games/{game_id}/replays/{replay_id}/views/stats"
+	MyAnalyticsViews   string = "/me/analytics/views"
+	MyViewPrivacy      string = "/me/settings/view-privacy"
 )
 
 func NewRouter(ctx context.Context, container container.Container) http.Handler {
@@ -96,6 +149,9 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	// Checkout controller (payment → subscription activation)
 	checkoutController := cmd_controllers.NewCheckoutController(container)
 
+	// Exchange controller (buy/sell BTC, quotes, rates, orders, fees)
+	exchangeController := cmd_controllers.NewExchangeController(container)
+
 	// Prize pool matchmaking controllers
 	var lobbyCommand matchmaking_in.LobbyCommand
 	if err := container.Resolve(&lobbyCommand); err != nil {
@@ -107,6 +163,20 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	}
 	lobbyController := cmd_controllers.NewLobbyController(container, lobbyCommand)
 	lobbyWebSocketHandler := websocket_controllers.NewLobbyWebSocketHandler(container, wsHub)
+	notificationWebSocketHandler := websocket_controllers.NewNotificationWebSocketHandler(container, wsHub)
+
+	// Messaging controllers
+	messagingCommandController := cmd_controllers.NewMessagingCommandController(container)
+	messagingQueryController := query_controllers.NewMessagingQueryController(container)
+	messagingWSHandler := websocket_controllers.NewMessagingWebSocketHandler(container, wsHub)
+
+	// Prediction controllers
+	predictionCommandController := cmd_controllers.NewPredictionCommandController(container)
+	predictionQueryController := query_controllers.NewPredictionQueryController(container)
+
+	// View Analytics controllers
+	viewAnalyticsCmdCtrl := cmd_controllers.NewViewAnalyticsCommandController(container)
+	viewAnalyticsQueryCtrl := query_controllers.NewViewAnalyticsQueryController(container)
 
 	// search controllers
 	searchMux := query_controllers.NewSearchMux(&container)
@@ -124,10 +194,12 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 			origin = "http://localhost:3030"
 		}
 		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Vary", "Origin")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Resource-Owner-ID, X-Intended-Audience, X-Request-ID, X-Search, x-search")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Resource-Owner-ID, X-Intended-Audience, X-Request-ID, X-Search, x-search, X-API-Key")
 		w.Header().Set("Access-Control-Expose-Headers", "X-Resource-Owner-ID, X-Intended-Audience")
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Max-Age", "86400")
 		w.WriteHeader(http.StatusOK)
 	}).Methods("OPTIONS")
 
@@ -324,6 +396,9 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	// WebSocket for real-time lobby updates
 	r.HandleFunc("/ws/lobby/{lobby_id}", lobbyWebSocketHandler.UpgradeConnection(ctx)).Methods("GET")
 
+	// WebSocket for real-time user notifications
+	r.HandleFunc("/ws/notifications", notificationWebSocketHandler.UpgradeConnection(ctx)).Methods("GET")
+
 	// Prize Pool API
 	r.HandleFunc("/prize-pools/{id}", prizePoolQueryController.GetPrizePoolHandler).Methods("GET")
 	r.HandleFunc("/prize-pools/{id}/history", prizePoolQueryController.GetPrizePoolHistoryHandler).Methods("GET")
@@ -357,6 +432,48 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	r.HandleFunc("/scores/tournaments/{tournamentId}/results", matchResultQueryController.GetTournamentResultsHandler).Methods("GET")
 	r.HandleFunc("/scores/tournaments/{tournamentId}/results", OptionsHandler).Methods("OPTIONS")
 
+	// ========================
+	// Oracle API
+	// ========================
+	oracleCommandController := cmd_controllers.NewOracleCommandController(container)
+	oracleQueryController := query_controllers.NewOracleQueryController(container)
+	gameImportController := cmd_controllers.NewGameImportController(container)
+
+	// SECURITY: Oracle write endpoints require API-key or authenticated session.
+	// This prevents unauthenticated access to oracle import/command operations.
+	apiKeyMiddleware := middlewares.NewAPIKeyMiddleware()
+
+	// Game Import endpoints (discovery → oracle → match result pipeline) — require API key or auth
+	r.Handle("/oracle/import", apiKeyMiddleware.RequireAPIKeyOrAuth(gameImportController.ImportDiscoveredMatchHandler(ctx))).Methods("POST")
+	r.HandleFunc("/oracle/import", OptionsHandler).Methods("OPTIONS")
+	r.Handle("/oracle/import/youtube", apiKeyMiddleware.RequireAPIKeyOrAuth(gameImportController.ImportFromYouTubeVODHandler(ctx))).Methods("POST")
+	r.HandleFunc("/oracle/import/youtube", OptionsHandler).Methods("OPTIONS")
+	r.Handle("/oracle/results/{id}/bridge", apiKeyMiddleware.RequireAPIKeyOrAuth(gameImportController.BridgeOracleToMatchResultHandler(ctx))).Methods("POST")
+	r.HandleFunc("/oracle/results/{id}/bridge", OptionsHandler).Methods("OPTIONS")
+
+	// Oracle Command endpoints (write operations) — require API key or auth
+	r.Handle("/oracle/results", apiKeyMiddleware.RequireAPIKeyOrAuth(oracleCommandController.CreateExternalMatchOracleHandler(ctx))).Methods("POST")
+	r.HandleFunc("/oracle/results", OptionsHandler).Methods("OPTIONS")
+	r.Handle("/oracle/results/{id}/ingest", apiKeyMiddleware.RequireAPIKeyOrAuth(oracleCommandController.IngestExternalScoreHandler(ctx))).Methods("POST")
+	r.HandleFunc("/oracle/results/{id}/ingest", OptionsHandler).Methods("OPTIONS")
+	r.Handle("/oracle/results/{id}/publish", apiKeyMiddleware.RequireAPIKeyOrAuth(oracleCommandController.PublishToChainHandler(ctx))).Methods("POST")
+	r.HandleFunc("/oracle/results/{id}/publish", OptionsHandler).Methods("OPTIONS")
+	r.Handle("/oracle/results/{id}/dispute", apiKeyMiddleware.RequireAPIKeyOrAuth(oracleCommandController.DisputeEscalationHandler(ctx))).Methods("POST")
+	r.HandleFunc("/oracle/results/{id}/dispute", OptionsHandler).Methods("OPTIONS")
+	r.Handle("/oracle/results/trigger-ingestion", apiKeyMiddleware.RequireAPIKeyOrAuth(oracleCommandController.TriggerIngestionHandler(ctx))).Methods("POST")
+	r.HandleFunc("/oracle/results/trigger-ingestion", OptionsHandler).Methods("OPTIONS")
+
+	// Oracle Query endpoints (read operations)
+	r.HandleFunc("/oracle/results", oracleQueryController.ListOracleResultsHandler).Methods("GET")
+	r.HandleFunc("/oracle/results/{id}", oracleQueryController.GetOracleResultHandler).Methods("GET")
+	r.HandleFunc("/oracle/results/{id}", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/oracle/results/by-match/{matchId}", oracleQueryController.GetOracleResultByMatchHandler).Methods("GET")
+	r.HandleFunc("/oracle/results/by-match/{matchId}", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/oracle/results/{id}/submissions", oracleQueryController.GetSubmissionsHandler).Methods("GET")
+	r.HandleFunc("/oracle/results/{id}/submissions", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/oracle/results/{id}/publications", oracleQueryController.GetPublicationStatusHandler).Methods("GET")
+	r.HandleFunc("/oracle/results/{id}/publications", OptionsHandler).Methods("OPTIONS")
+
 	// Tournament API
 	r.HandleFunc("/tournaments", tournamentCommandController.CreateTournamentHandler(ctx)).Methods("POST")
 	r.HandleFunc("/tournaments", tournamentQueryController.ListTournamentsHandler).Methods("GET")
@@ -366,7 +483,21 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	r.HandleFunc("/tournaments/{id}", tournamentCommandController.DeleteTournamentHandler(ctx)).Methods("DELETE")
 	r.HandleFunc("/tournaments/{id}/register", tournamentCommandController.RegisterPlayerHandler(ctx)).Methods("POST")
 	r.HandleFunc("/tournaments/{id}/register", tournamentCommandController.UnregisterPlayerHandler(ctx)).Methods("DELETE")
+	r.HandleFunc("/tournaments/{id}/registration/open", tournamentCommandController.OpenRegistrationHandler(ctx)).Methods("POST")
+	r.HandleFunc("/tournaments/{id}/registration/open", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/tournaments/{id}/registration/close", tournamentCommandController.CloseRegistrationHandler(ctx)).Methods("POST")
+	r.HandleFunc("/tournaments/{id}/registration/close", OptionsHandler).Methods("OPTIONS")
 	r.HandleFunc("/tournaments/{id}/start", tournamentCommandController.StartTournamentHandler(ctx)).Methods("POST")
+	r.HandleFunc("/tournaments/{id}/complete", tournamentCommandController.CompleteTournamentHandler(ctx)).Methods("POST")
+	r.HandleFunc("/tournaments/{id}/complete", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/tournaments/{id}/cancel", tournamentCommandController.CancelTournamentHandler(ctx)).Methods("POST")
+	r.HandleFunc("/tournaments/{id}/cancel", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/tournaments/{id}/check-in", tournamentCommandController.CheckInHandler(ctx)).Methods("POST")
+	r.HandleFunc("/tournaments/{id}/check-in", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/tournaments/{id}/matches/{match_id}/result", tournamentCommandController.RecordMatchResultHandler(ctx)).Methods("POST")
+	r.HandleFunc("/tournaments/{id}/matches/{match_id}/result", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/tournaments/{id}/advance-bracket", tournamentCommandController.AdvanceBracketHandler(ctx)).Methods("POST")
+	r.HandleFunc("/tournaments/{id}/advance-bracket", OptionsHandler).Methods("OPTIONS")
 	r.HandleFunc("/players/{player_id}/tournaments", tournamentQueryController.GetPlayerTournamentsHandler).Methods("GET")
 	r.HandleFunc("/organizers/{organizer_id}/tournaments", tournamentQueryController.GetOrganizerTournamentsHandler).Methods("GET")
 
@@ -392,6 +523,73 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	r.HandleFunc("/wallet/debit", walletCommandController.DebitWalletHandler(ctx)).Methods("POST")
 	r.HandleFunc("/wallet/debit", OptionsHandler).Methods("OPTIONS")
 
+	// Team Vault API - Controllers
+	vaultCommandController := cmd_controllers.NewVaultCommandController(container)
+	vaultQueryController := query_controllers.NewVaultQueryController(container)
+
+	// Team Vault API - Query endpoints
+	r.HandleFunc("/squads/{squad_id}/vault", vaultQueryController.GetVaultHandler).Methods("GET")
+	r.HandleFunc("/squads/{squad_id}/vault", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/squads/{squad_id}/vault/balance", vaultQueryController.GetVaultBalanceHandler).Methods("GET")
+	r.HandleFunc("/squads/{squad_id}/vault/balance", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/squads/{squad_id}/vault/proposals", vaultQueryController.GetVaultProposalsHandler).Methods("GET")
+	r.HandleFunc("/squads/{squad_id}/vault/proposals/{proposal_id}", vaultQueryController.GetVaultProposalByIDHandler).Methods("GET")
+	r.HandleFunc("/squads/{squad_id}/vault/proposals/{proposal_id}", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/squads/{squad_id}/vault/activity", vaultQueryController.GetVaultActivityHandler).Methods("GET")
+	r.HandleFunc("/squads/{squad_id}/vault/activity", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/squads/{squad_id}/vault/analytics", vaultQueryController.GetVaultAnalyticsHandler).Methods("GET")
+	r.HandleFunc("/squads/{squad_id}/vault/analytics", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/squads/{squad_id}/vault/inventory", vaultQueryController.GetVaultInventoryHandler).Methods("GET")
+
+	// Team Vault API - Command endpoints
+	r.HandleFunc("/squads/{squad_id}/vault", vaultCommandController.CreateVaultHandler(ctx)).Methods("POST")
+	r.HandleFunc("/squads/{squad_id}/vault/deposit", vaultCommandController.DepositToVaultHandler(ctx)).Methods("POST")
+	r.HandleFunc("/squads/{squad_id}/vault/deposit", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/squads/{squad_id}/vault/proposals", vaultCommandController.ProposeTransactionHandler(ctx)).Methods("POST")
+	r.HandleFunc("/squads/{squad_id}/vault/proposals", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/squads/{squad_id}/vault/proposals/{proposal_id}/approve", vaultCommandController.ApproveProposalHandler(ctx)).Methods("POST")
+	r.HandleFunc("/squads/{squad_id}/vault/proposals/{proposal_id}/approve", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/squads/{squad_id}/vault/proposals/{proposal_id}/reject", vaultCommandController.RejectProposalHandler(ctx)).Methods("POST")
+	r.HandleFunc("/squads/{squad_id}/vault/proposals/{proposal_id}/reject", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/squads/{squad_id}/vault/proposals/{proposal_id}/cancel", vaultCommandController.CancelProposalHandler(ctx)).Methods("POST")
+	r.HandleFunc("/squads/{squad_id}/vault/proposals/{proposal_id}/cancel", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/squads/{squad_id}/vault/settings", vaultCommandController.UpdateVaultSettingsHandler(ctx)).Methods("PUT")
+	r.HandleFunc("/squads/{squad_id}/vault/settings", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/squads/{squad_id}/vault/inventory", vaultCommandController.DepositItemHandler(ctx)).Methods("POST")
+	r.HandleFunc("/squads/{squad_id}/vault/inventory", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/squads/{squad_id}/vault/inventory/transfer", vaultCommandController.ProposeItemTransferHandler(ctx)).Methods("POST")
+	r.HandleFunc("/squads/{squad_id}/vault/inventory/transfer", OptionsHandler).Methods("OPTIONS")
+
+	// Exchange API - Buy/Sell BTC, Quotes, Rates, Orders, Fees
+	r.HandleFunc("/v1/exchange/buy", exchangeController.PostBuyBitcoin(ctx)).Methods("POST")
+	r.HandleFunc("/v1/exchange/buy", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/v1/exchange/sell", exchangeController.PostSellBitcoin(ctx)).Methods("POST")
+	r.HandleFunc("/v1/exchange/sell", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/v1/exchange/quote", exchangeController.GetQuote(ctx)).Methods("POST")
+	r.HandleFunc("/v1/exchange/quote", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/v1/exchange/rates", exchangeController.GetExchangeRates(ctx)).Methods("GET")
+	r.HandleFunc("/v1/exchange/rates", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/v1/exchange/orders", exchangeController.GetOrderHistory(ctx)).Methods("GET")
+	r.HandleFunc("/v1/exchange/orders", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/v1/exchange/orders/{id}", exchangeController.GetOrderByID(ctx)).Methods("GET")
+	r.HandleFunc("/v1/exchange/orders/{id}", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/v1/exchange/orders/{id}/cancel", exchangeController.PostCancelOrder(ctx)).Methods("POST")
+	r.HandleFunc("/v1/exchange/orders/{id}/cancel", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/v1/exchange/fees", exchangeController.GetFeeSchedule(ctx)).Methods("GET")
+	r.HandleFunc("/v1/exchange/fees", OptionsHandler).Methods("OPTIONS")
+
+	// Plan API (both /plans and /subscriptions/plans for SDK compatibility)
+	// NOTE: These must be registered BEFORE /subscriptions/{subscription_id} to avoid
+	// gorilla/mux matching "plans" as a subscription_id parameter
+	r.HandleFunc("/plans", planQueryController.ListAvailablePlansHandler).Methods("GET")
+	r.HandleFunc("/plans", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/plans/{plan_id}", planQueryController.GetPlanByIDHandler).Methods("GET")
+	r.HandleFunc("/plans/{plan_id}", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/subscriptions/plans", planQueryController.ListAvailablePlansHandler).Methods("GET")
+	r.HandleFunc("/subscriptions/plans", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/subscriptions/plans/{plan_id}", planQueryController.GetPlanByIDHandler).Methods("GET")
+	r.HandleFunc("/subscriptions/plans/{plan_id}", OptionsHandler).Methods("OPTIONS")
+
 	// Subscription API
 	r.HandleFunc("/subscriptions/current", subscriptionQueryController.GetCurrentSubscriptionHandler).Methods("GET")
 	r.HandleFunc("/subscriptions/current", OptionsHandler).Methods("OPTIONS")
@@ -407,16 +605,6 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	// Checkout API (payment → subscription activation)
 	r.HandleFunc("/checkout", checkoutController.CheckoutHandler(ctx)).Methods("POST")
 	r.HandleFunc("/checkout", OptionsHandler).Methods("OPTIONS")
-
-	// Plan API (both /plans and /subscriptions/plans for SDK compatibility)
-	r.HandleFunc("/plans", planQueryController.ListAvailablePlansHandler).Methods("GET")
-	r.HandleFunc("/plans", OptionsHandler).Methods("OPTIONS")
-	r.HandleFunc("/plans/{plan_id}", planQueryController.GetPlanByIDHandler).Methods("GET")
-	r.HandleFunc("/plans/{plan_id}", OptionsHandler).Methods("OPTIONS")
-	r.HandleFunc("/subscriptions/plans", planQueryController.ListAvailablePlansHandler).Methods("GET")
-	r.HandleFunc("/subscriptions/plans", OptionsHandler).Methods("OPTIONS")
-	r.HandleFunc("/subscriptions/plans/{plan_id}", planQueryController.GetPlanByIDHandler).Methods("GET")
-	r.HandleFunc("/subscriptions/plans/{plan_id}", OptionsHandler).Methods("OPTIONS")
 
 	// Payment API
 	paymentController := cmd_controllers.NewPaymentController(container)
@@ -446,16 +634,128 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	r.HandleFunc(RoundHeatmap, matchAnalyticsController.GetRoundHeatmapHandler).Methods("GET")
 	r.HandleFunc(RoundHeatmap, OptionsHandler).Methods("OPTIONS")
 
-	// Notifications API (stub - returns empty for now)
-	notificationHandler := NewNotificationStubHandler()
+	// Notifications API (MongoDB-backed CRUD)
+	var mongoClient *mongo.Client
+	if err := container.Resolve(&mongoClient); err != nil {
+		slog.ErrorContext(ctx, "Failed to resolve mongo.Client for NotificationHandler", "error", err)
+	}
+	var cfg common.Config
+	if err := container.Resolve(&cfg); err != nil {
+		slog.ErrorContext(ctx, "Failed to resolve config for NotificationHandler", "error", err)
+	}
+	notificationHandler := NewNotificationHandler(mongoClient, cfg.MongoDB.DBName)
+
+	// NOTE: Static routes MUST be registered BEFORE parameterized routes
+	// to prevent gorilla/mux from matching "read-all", "unread-count", "seed" as {notification_id}
+	r.HandleFunc(NotificationsReadAll, notificationHandler.MarkAllAsRead).Methods("PUT", "POST")
+	r.HandleFunc(NotificationsReadAll, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(NotificationsUnreadCount, notificationHandler.GetUnreadCount).Methods("GET")
+	r.HandleFunc(NotificationsUnreadCount, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(NotificationsSeed, notificationHandler.SeedNotifications).Methods("POST")
+	r.HandleFunc(NotificationsSeed, OptionsHandler).Methods("OPTIONS")
 	r.HandleFunc(Notifications, notificationHandler.ListNotifications).Methods("GET")
+	r.HandleFunc(Notifications, notificationHandler.DeleteAllNotifications).Methods("DELETE")
 	r.HandleFunc(Notifications, OptionsHandler).Methods("OPTIONS")
 	r.HandleFunc(NotificationDetail, notificationHandler.GetNotification).Methods("GET")
+	r.HandleFunc(NotificationDetail, notificationHandler.DeleteNotification).Methods("DELETE")
 	r.HandleFunc(NotificationDetail, OptionsHandler).Methods("OPTIONS")
 	r.HandleFunc(NotificationRead, notificationHandler.MarkAsRead).Methods("PUT", "POST")
 	r.HandleFunc(NotificationRead, OptionsHandler).Methods("OPTIONS")
-	r.HandleFunc(NotificationsReadAll, notificationHandler.MarkAllAsRead).Methods("PUT", "POST")
-	r.HandleFunc(NotificationsReadAll, OptionsHandler).Methods("OPTIONS")
+
+	// Messaging - Match Comments API
+	r.HandleFunc(MatchComments, messagingQueryController.ListMatchCommentsHandler).Methods("GET")
+	r.HandleFunc(MatchComments, messagingCommandController.CreateCommentHandler(ctx)).Methods("POST")
+	r.HandleFunc(MatchComments, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(MatchCommentDetail, messagingQueryController.GetCommentHandler).Methods("GET")
+	r.HandleFunc(MatchCommentDetail, messagingCommandController.EditCommentHandler(ctx)).Methods("PUT")
+	r.HandleFunc(MatchCommentDetail, messagingCommandController.DeleteCommentHandler(ctx)).Methods("DELETE")
+	r.HandleFunc(MatchCommentDetail, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(MatchCommentReplies, messagingQueryController.GetCommentRepliesHandler).Methods("GET")
+	r.HandleFunc(MatchCommentReplies, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(MatchCommentReact, messagingCommandController.ReactToCommentHandler(ctx)).Methods("POST")
+	r.HandleFunc(MatchCommentReact, OptionsHandler).Methods("OPTIONS")
+
+	// Messaging - Direct Messages API
+	r.HandleFunc(Conversations, messagingQueryController.ListConversationsHandler).Methods("GET")
+	r.HandleFunc(Conversations, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(ConversationDetail, messagingQueryController.GetConversationHandler).Methods("GET")
+	r.HandleFunc(ConversationDetail, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(ConversationRead, messagingCommandController.MarkConversationReadHandler(ctx)).Methods("PUT", "POST")
+	r.HandleFunc(ConversationRead, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(DirectMessages, messagingCommandController.SendDirectMessageHandler(ctx)).Methods("POST")
+	r.HandleFunc(DirectMessages, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(DirectMessageDelete, messagingCommandController.DeleteDirectMessageHandler(ctx)).Methods("DELETE")
+	r.HandleFunc(DirectMessageDelete, OptionsHandler).Methods("OPTIONS")
+
+	// Messaging - Team Messages API
+	r.HandleFunc(TeamMessages, messagingQueryController.ListTeamMessagesHandler).Methods("GET")
+	r.HandleFunc(TeamMessages, messagingCommandController.SendTeamMessageHandler(ctx)).Methods("POST")
+	r.HandleFunc(TeamMessages, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(TeamChannels, messagingQueryController.ListTeamChannelsHandler).Methods("GET")
+	r.HandleFunc(TeamChannels, OptionsHandler).Methods("OPTIONS")
+
+	// Messaging WebSocket
+	r.HandleFunc(MessagingWS, messagingWSHandler.UpgradeConnection(ctx)).Methods("GET")
+
+	// View Analytics API - Player Views
+	r.HandleFunc(PlayerViews, viewAnalyticsCmdCtrl.RecordViewHandler(analytics_entities.EntityTypePlayer)(ctx)).Methods("POST")
+	r.HandleFunc(PlayerViews, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(PlayerViewStats, viewAnalyticsQueryCtrl.GetViewStatisticsHandler(analytics_entities.EntityTypePlayer)(ctx)).Methods("GET")
+	r.HandleFunc(PlayerViewStats, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(PlayerViewInsights, viewAnalyticsQueryCtrl.GetViewInsightsHandler(analytics_entities.EntityTypePlayer)(ctx)).Methods("GET")
+	r.HandleFunc(PlayerViewInsights, OptionsHandler).Methods("OPTIONS")
+
+	// View Analytics API - Team Views
+	r.HandleFunc(TeamViews, viewAnalyticsCmdCtrl.RecordViewHandler(analytics_entities.EntityTypeTeam)(ctx)).Methods("POST")
+	r.HandleFunc(TeamViews, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(TeamViewStats, viewAnalyticsQueryCtrl.GetViewStatisticsHandler(analytics_entities.EntityTypeTeam)(ctx)).Methods("GET")
+	r.HandleFunc(TeamViewStats, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(TeamViewInsights, viewAnalyticsQueryCtrl.GetViewInsightsHandler(analytics_entities.EntityTypeTeam)(ctx)).Methods("GET")
+	r.HandleFunc(TeamViewInsights, OptionsHandler).Methods("OPTIONS")
+
+	// View Analytics API - Match Views
+	r.HandleFunc(MatchViews, viewAnalyticsCmdCtrl.RecordViewHandler(analytics_entities.EntityTypeMatch)(ctx)).Methods("POST")
+	r.HandleFunc(MatchViews, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(MatchViewStats, viewAnalyticsQueryCtrl.GetViewStatisticsHandler(analytics_entities.EntityTypeMatch)(ctx)).Methods("GET")
+	r.HandleFunc(MatchViewStats, OptionsHandler).Methods("OPTIONS")
+
+	// View Analytics API - Replay Views
+	r.HandleFunc(ReplayViews, viewAnalyticsCmdCtrl.RecordViewHandler(analytics_entities.EntityTypeReplay)(ctx)).Methods("POST")
+	r.HandleFunc(ReplayViews, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(ReplayViewStats, viewAnalyticsQueryCtrl.GetViewStatisticsHandler(analytics_entities.EntityTypeReplay)(ctx)).Methods("GET")
+	r.HandleFunc(ReplayViewStats, OptionsHandler).Methods("OPTIONS")
+
+	// View Analytics API - My Analytics & Privacy
+	r.HandleFunc(MyAnalyticsViews, viewAnalyticsQueryCtrl.GetMyAnalyticsHandler(ctx)).Methods("GET")
+	r.HandleFunc(MyAnalyticsViews, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(MyViewPrivacy, viewAnalyticsQueryCtrl.GetViewPrivacyHandler(ctx)).Methods("GET")
+	r.HandleFunc(MyViewPrivacy, viewAnalyticsCmdCtrl.UpdateViewPrivacyHandler(ctx)).Methods("PUT")
+	r.HandleFunc(MyViewPrivacy, OptionsHandler).Methods("OPTIONS")
+
+	// Predictions - Markets API
+	r.HandleFunc(PredictionMarkets, predictionCommandController.CreateMarketHandler(ctx)).Methods("POST")
+	r.HandleFunc(PredictionMarkets, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(PredictionMarketDetail, predictionQueryController.GetMarketHandler).Methods("GET")
+	r.HandleFunc(PredictionMarketDetail, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(PredictionMarketLock, predictionCommandController.LockMarketHandler(ctx)).Methods("POST")
+	r.HandleFunc(PredictionMarketLock, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(PredictionMarketResolve, predictionCommandController.ResolveMarketHandler(ctx)).Methods("POST")
+	r.HandleFunc(PredictionMarketResolve, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(PredictionMarketCancel, predictionCommandController.CancelMarketHandler(ctx)).Methods("POST")
+	r.HandleFunc(PredictionMarketCancel, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(PredictionMatchMarkets, predictionQueryController.ListMatchMarketsHandler).Methods("GET")
+	r.HandleFunc(PredictionMatchMarkets, OptionsHandler).Methods("OPTIONS")
+
+	// Predictions - Bets API
+	r.HandleFunc(PredictionMarketBets, predictionQueryController.GetMarketBetsHandler).Methods("GET")
+	r.HandleFunc(PredictionMarketBets, predictionCommandController.PlaceBetHandler(ctx)).Methods("POST")
+	r.HandleFunc(PredictionMarketBets, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(PredictionMarketSummary, predictionQueryController.GetUserBetSummaryHandler).Methods("GET")
+	r.HandleFunc(PredictionMarketSummary, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(PredictionUserBets, predictionQueryController.GetUserBetsHandler).Methods("GET")
+	r.HandleFunc(PredictionUserBets, OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc(PredictionLeaderboard, predictionQueryController.GetLeaderboardHandler).Methods("GET")
+	r.HandleFunc(PredictionLeaderboard, OptionsHandler).Methods("OPTIONS")
 
 	// Add NotFound handler with CORS headers
 	r.NotFoundHandler = corsMiddleware.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

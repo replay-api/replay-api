@@ -21,7 +21,7 @@ type SquadInvitationMongoDBRepository struct {
 }
 
 func NewSquadInvitationMongoDBRepository(client *mongo.Client, dbName string) squad_out.SquadInvitationWriter {
-	repo := mongodb.NewMongoDBRepository[squad_entities.SquadInvitation](client, dbName, squad_entities.SquadInvitation{}, squadInvitationCollectionName, "SquadInvitation")
+	repo := mongodb.NewMongoDBRepository(client, dbName, squad_entities.SquadInvitation{}, squadInvitationCollectionName, "SquadInvitation")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":              true,
@@ -146,7 +146,7 @@ type SquadInvitationReaderRepository struct {
 }
 
 func NewSquadInvitationReaderRepository(client *mongo.Client, dbName string) squad_out.SquadInvitationReader {
-	repo := mongodb.NewMongoDBRepository[squad_entities.SquadInvitation](client, dbName, squad_entities.SquadInvitation{}, squadInvitationCollectionName, "SquadInvitation")
+	repo := mongodb.NewMongoDBRepository(client, dbName, squad_entities.SquadInvitation{}, squadInvitationCollectionName, "SquadInvitation")
 	return &SquadInvitationReaderRepository{
 		MongoDBRepository: *repo,
 	}

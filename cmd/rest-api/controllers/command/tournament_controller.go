@@ -3,6 +3,7 @@ package cmd_controllers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -323,6 +324,293 @@ func (c *TournamentCommandController) StartTournamentHandler(apiContext context.
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]string{"status": "started"})
 	}
+}
+
+// OpenRegistrationHandler handles POST /tournaments/:id/registration/open
+func (c *TournamentCommandController) OpenRegistrationHandler(apiContext context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		tournamentIDStr := vars["id"]
+
+		tournamentID, err := uuid.Parse(tournamentIDStr)
+		if err != nil {
+			http.Error(w, "invalid tournament id", http.StatusBadRequest)
+			return
+		}
+
+		if err := c.tournamentCommand.OpenRegistration(r.Context(), tournamentID); err != nil {
+			slog.ErrorContext(r.Context(), "failed to open registration", "error", err)
+			http.Error(w, sanitizeTournamentError(err, "Failed to open registration"), http.StatusBadRequest)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "registration_open"})
+	}
+}
+
+// CloseRegistrationHandler handles POST /tournaments/:id/registration/close
+func (c *TournamentCommandController) CloseRegistrationHandler(apiContext context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		tournamentIDStr := vars["id"]
+
+		tournamentID, err := uuid.Parse(tournamentIDStr)
+		if err != nil {
+			http.Error(w, "invalid tournament id", http.StatusBadRequest)
+			return
+		}
+
+		if err := c.tournamentCommand.CloseRegistration(r.Context(), tournamentID); err != nil {
+			slog.ErrorContext(r.Context(), "failed to close registration", "error", err)
+			http.Error(w, sanitizeTournamentError(err, "Failed to close registration"), http.StatusBadRequest)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "registration_closed"})
+	}
+}
+
+// CompleteTournamentHandler handles POST /tournaments/:id/complete
+func (c *TournamentCommandController) CompleteTournamentHandler(apiContext context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		tournamentIDStr := vars["id"]
+
+		tournamentID, err := uuid.Parse(tournamentIDStr)
+		if err != nil {
+			http.Error(w, "invalid tournament id", http.StatusBadRequest)
+			return
+		}
+
+		var req struct {
+			Winners []struct {
+				PlayerID  string  `json:"player_id"`
+				Placement int     `json:"placement"`
+				Prize     float64 `json:"prize"`
+			} `json:"winners"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		winners := make([]tournament_entities.TournamentWinner, 0, len(req.Winners))
+		for _, wr := range req.Winners {
+			playerID, err := uuid.Parse(wr.PlayerID)
+			if err != nil {
+				http.Error(w, "invalid player_id in winners", http.StatusBadRequest)
+				return
+			}
+			winners = append(winners, tournament_entities.TournamentWinner{
+				PlayerID:  playerID,
+				Placement: wr.Placement,
+				Prize:     wallet_vo.NewAmount(wr.Prize),
+			})
+		}
+
+		cmd := tournament_in.CompleteTournamentCommand{
+			TournamentID: tournamentID,
+			Winners:      winners,
+		}
+
+		if err := c.tournamentCommand.CompleteTournament(r.Context(), cmd); err != nil {
+			slog.ErrorContext(r.Context(), "failed to complete tournament", "error", err)
+			http.Error(w, sanitizeTournamentError(err, "Failed to complete tournament"), http.StatusBadRequest)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "completed"})
+	}
+}
+
+// CancelTournamentHandler handles POST /tournaments/:id/cancel
+func (c *TournamentCommandController) CancelTournamentHandler(apiContext context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		tournamentIDStr := vars["id"]
+
+		tournamentID, err := uuid.Parse(tournamentIDStr)
+		if err != nil {
+			http.Error(w, "invalid tournament id", http.StatusBadRequest)
+			return
+		}
+
+		var req struct {
+			Reason string `json:"reason"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		cmd := tournament_in.CancelTournamentCommand{
+			TournamentID: tournamentID,
+			Reason:       req.Reason,
+		}
+
+		if err := c.tournamentCommand.CancelTournament(r.Context(), cmd); err != nil {
+			slog.ErrorContext(r.Context(), "failed to cancel tournament", "error", err)
+			http.Error(w, sanitizeTournamentError(err, "Failed to cancel tournament"), http.StatusBadRequest)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "cancelled"})
+	}
+}
+
+// CheckInHandler handles POST /tournaments/:id/check-in
+func (c *TournamentCommandController) CheckInHandler(apiContext context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		tournamentIDStr := vars["id"]
+
+		tournamentID, err := uuid.Parse(tournamentIDStr)
+		if err != nil {
+			http.Error(w, "invalid tournament id", http.StatusBadRequest)
+			return
+		}
+
+		var req struct {
+			PlayerID string `json:"player_id"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		playerID, err := uuid.Parse(req.PlayerID)
+		if err != nil {
+			http.Error(w, "invalid player_id", http.StatusBadRequest)
+			return
+		}
+
+		if err := c.tournamentCommand.CheckIn(r.Context(), tournamentID, playerID); err != nil {
+			slog.ErrorContext(r.Context(), "failed to check in player", "error", err)
+			http.Error(w, sanitizeTournamentError(err, "Failed to check in"), http.StatusBadRequest)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "checked_in"})
+	}
+}
+
+// RecordMatchResultHandler handles POST /tournaments/:id/matches/:match_id/result
+func (c *TournamentCommandController) RecordMatchResultHandler(apiContext context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		tournamentIDStr := vars["id"]
+		matchIDStr := vars["match_id"]
+
+		tournamentID, err := uuid.Parse(tournamentIDStr)
+		if err != nil {
+			http.Error(w, "invalid tournament id", http.StatusBadRequest)
+			return
+		}
+
+		matchID, err := uuid.Parse(matchIDStr)
+		if err != nil {
+			http.Error(w, "invalid match id", http.StatusBadRequest)
+			return
+		}
+
+		var req struct {
+			WinnerID string `json:"winner_id"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		winnerID, err := uuid.Parse(req.WinnerID)
+		if err != nil {
+			http.Error(w, "invalid winner_id", http.StatusBadRequest)
+			return
+		}
+
+		if err := c.tournamentCommand.RecordMatchResult(r.Context(), tournamentID, matchID, winnerID); err != nil {
+			slog.ErrorContext(r.Context(), "failed to record match result", "error", err)
+			http.Error(w, sanitizeTournamentError(err, "Failed to record match result"), http.StatusBadRequest)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "result_recorded"})
+	}
+}
+
+// AdvanceBracketHandler handles POST /tournaments/:id/advance-bracket
+func (c *TournamentCommandController) AdvanceBracketHandler(apiContext context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		tournamentIDStr := vars["id"]
+
+		tournamentID, err := uuid.Parse(tournamentIDStr)
+		if err != nil {
+			http.Error(w, "invalid tournament id", http.StatusBadRequest)
+			return
+		}
+
+		if err := c.tournamentCommand.AdvanceBracket(r.Context(), tournamentID); err != nil {
+			slog.ErrorContext(r.Context(), "failed to advance bracket", "error", err)
+			http.Error(w, sanitizeTournamentError(err, "Failed to advance bracket"), http.StatusBadRequest)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "bracket_advanced"})
+	}
+}
+
+// sanitizeTournamentError sanitizes error messages for external consumption (financial-grade security)
+func sanitizeTournamentError(err error, fallback string) string {
+	msg := err.Error()
+	// Allow domain-level validation errors through (safe for users)
+	safePatterns := []string{
+		"not open", "not enough", "already registered", "tournament is full",
+		"registration", "status", "cannot", "must be", "not found",
+		"player not found", "check-in", "match not found", "winner",
+	}
+	for _, pattern := range safePatterns {
+		if containsInsensitive(msg, pattern) {
+			return fmt.Sprintf(`{"success":false,"error":"%s"}`, msg)
+		}
+	}
+	// Default: generic error to avoid leaking internal details
+	return fmt.Sprintf(`{"success":false,"error":"%s"}`, fallback)
+}
+
+func containsInsensitive(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsLower(toLower(s), toLower(substr)))
+}
+
+func toLower(s string) string {
+	b := make([]byte, len(s))
+	for i := range s {
+		c := s[i]
+		if c >= 'A' && c <= 'Z' {
+			c += 'a' - 'A'
+		}
+		b[i] = c
+	}
+	return string(b)
+}
+
+func containsLower(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }
 
 // Helper function to parse RFC3339 timestamps

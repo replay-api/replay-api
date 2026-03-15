@@ -21,7 +21,7 @@ type MFAMongoDBRepository struct {
 }
 
 func NewMFAMongoDBRepository(client *mongo.Client, dbName string) auth_out.MFARepository {
-	repo := mongodb.NewMongoDBRepository[auth_entities.UserMFA](client, dbName, auth_entities.UserMFA{}, mfaCollectionName, "UserMFA")
+	repo := mongodb.NewMongoDBRepository(client, dbName, auth_entities.UserMFA{}, mfaCollectionName, "UserMFA")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":              true,

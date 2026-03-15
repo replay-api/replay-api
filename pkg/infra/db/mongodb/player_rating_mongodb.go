@@ -23,7 +23,7 @@ type PlayerRatingMongoDBRepository struct {
 
 // NewPlayerRatingMongoDBRepository creates a new PlayerRatingMongoDBRepository
 func NewPlayerRatingMongoDBRepository(client *mongo.Client, dbName string) matchmaking_out.PlayerRatingRepository {
-	repo := mongodb.NewMongoDBRepository[*matchmaking_entities.PlayerRating](client, dbName, &matchmaking_entities.PlayerRating{}, "player_ratings", "PlayerRating")
+	repo := mongodb.NewMongoDBRepository(client, dbName, &matchmaking_entities.PlayerRating{}, "player_ratings", "PlayerRating")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":              true,

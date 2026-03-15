@@ -72,6 +72,14 @@ func (m *MockTournamentRepository) FindPlayerTournaments(ctx context.Context, pl
 	return args.Get(0).([]*tournament_entities.Tournament), args.Error(1)
 }
 
+func (m *MockTournamentRepository) FindByMatchID(ctx context.Context, matchID uuid.UUID) (*tournament_entities.Tournament, error) {
+	args := m.Called(ctx, matchID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*tournament_entities.Tournament), args.Error(1)
+}
+
 func (m *MockTournamentRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	args := m.Called(ctx, id)
 	return args.Error(0)

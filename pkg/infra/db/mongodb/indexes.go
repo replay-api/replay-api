@@ -465,6 +465,42 @@ func GetAllIndexes() []IndexDefinition {
 			},
 			Options: options.Index(),
 		},
+		// Index for slug-based match reconciliation (unique, sparse)
+		{
+			Collection: "match_metadata",
+			Name:       "idx_match_metadata_slug",
+			Keys: bson.D{
+				{Key: "slug", Value: 1},
+			},
+			Options: options.Index().SetSparse(true).SetUnique(true),
+		},
+		// Index for external_match_id lookups (unique to prevent duplicate imports)
+		{
+			Collection: "match_metadata",
+			Name:       "idx_match_metadata_external_match_id",
+			Keys: bson.D{
+				{Key: "external_match_id", Value: 1},
+			},
+			Options: options.Index().SetSparse(true).SetUnique(true),
+		},
+		// Index for source-based filtering
+		{
+			Collection: "match_metadata",
+			Name:       "idx_match_metadata_source",
+			Keys: bson.D{
+				{Key: "source", Value: 1},
+			},
+			Options: options.Index(),
+		},
+		// Index for matches needing manual review (conflict detection)
+		{
+			Collection: "match_metadata",
+			Name:       "idx_match_metadata_needs_review",
+			Keys: bson.D{
+				{Key: "needs_review", Value: 1},
+			},
+			Options: options.Index().SetSparse(true),
+		},
 
 		// Player Metadata Indexes - For player profile lookups
 		{
@@ -501,6 +537,161 @@ func GetAllIndexes() []IndexDefinition {
 			Name:       "idx_rid_tokens_user",
 			Keys: bson.D{
 				{Key: "resource_owner.user_id", Value: 1},
+			},
+			Options: options.Index(),
+		},
+
+		// Match Comments Indexes
+		{
+			Collection: "match_comments",
+			Name:       "idx_comments_match_created",
+			Keys: bson.D{
+				{Key: "match_id", Value: 1},
+				{Key: "created_at", Value: -1},
+			},
+			Options: options.Index(),
+		},
+		{
+			Collection: "match_comments",
+			Name:       "idx_comments_author",
+			Keys: bson.D{
+				{Key: "author.id", Value: 1},
+			},
+			Options: options.Index(),
+		},
+		{
+			Collection: "match_comments",
+			Name:       "idx_comments_parent",
+			Keys: bson.D{
+				{Key: "parent_id", Value: 1},
+				{Key: "created_at", Value: 1},
+			},
+			Options: options.Index(),
+		},
+		{
+			Collection: "match_comments",
+			Name:       "idx_comments_status",
+			Keys: bson.D{
+				{Key: "match_id", Value: 1},
+				{Key: "status", Value: 1},
+				{Key: "created_at", Value: -1},
+			},
+			Options: options.Index(),
+		},
+
+		// Direct Messages Indexes
+		{
+			Collection: "direct_messages",
+			Name:       "idx_dm_conversation_created",
+			Keys: bson.D{
+				{Key: "conversation_id", Value: 1},
+				{Key: "created_at", Value: -1},
+			},
+			Options: options.Index(),
+		},
+		{
+			Collection: "direct_messages",
+			Name:       "idx_dm_sender",
+			Keys: bson.D{
+				{Key: "sender_id", Value: 1},
+				{Key: "created_at", Value: -1},
+			},
+			Options: options.Index(),
+		},
+		{
+			Collection: "direct_messages",
+			Name:       "idx_dm_recipient_unread",
+			Keys: bson.D{
+				{Key: "recipient_id", Value: 1},
+				{Key: "read_at", Value: 1},
+			},
+			Options: options.Index(),
+		},
+
+		// Team Messages Indexes
+		{
+			Collection: "team_messages",
+			Name:       "idx_team_msg_team_channel_created",
+			Keys: bson.D{
+				{Key: "team_id", Value: 1},
+				{Key: "channel", Value: 1},
+				{Key: "created_at", Value: -1},
+			},
+			Options: options.Index(),
+		},
+		{
+			Collection: "team_messages",
+			Name:       "idx_team_msg_sender",
+			Keys: bson.D{
+				{Key: "sender_id", Value: 1},
+			},
+			Options: options.Index(),
+		},
+
+		// Prediction Markets Indexes
+		{
+			Collection: "prediction_markets",
+			Name:       "idx_markets_match_status_created",
+			Keys: bson.D{
+				{Key: "match_id", Value: 1},
+				{Key: "status", Value: 1},
+				{Key: "created_at", Value: -1},
+			},
+			Options: options.Index(),
+		},
+		{
+			Collection: "prediction_markets",
+			Name:       "idx_markets_game_id",
+			Keys: bson.D{
+				{Key: "game_id", Value: 1},
+				{Key: "created_at", Value: -1},
+			},
+			Options: options.Index(),
+		},
+		{
+			Collection: "prediction_markets",
+			Name:       "idx_markets_status",
+			Keys: bson.D{
+				{Key: "status", Value: 1},
+			},
+			Options: options.Index(),
+		},
+
+		// Bets Indexes
+		{
+			Collection: "bets",
+			Name:       "idx_bets_market_created",
+			Keys: bson.D{
+				{Key: "market_id", Value: 1},
+				{Key: "created_at", Value: -1},
+			},
+			Options: options.Index(),
+		},
+		{
+			Collection: "bets",
+			Name:       "idx_bets_user_status",
+			Keys: bson.D{
+				{Key: "user_id", Value: 1},
+				{Key: "status", Value: 1},
+				{Key: "created_at", Value: -1},
+			},
+			Options: options.Index(),
+		},
+		{
+			Collection: "bets",
+			Name:       "idx_bets_market_user",
+			Keys: bson.D{
+				{Key: "market_id", Value: 1},
+				{Key: "user_id", Value: 1},
+			},
+			Options: options.Index(),
+		},
+		{
+			Collection: "bets",
+			Name:       "idx_bets_market_status",
+			Keys: bson.D{
+				{Key: "market_id", Value: 1},
+				{Key: "status", Value: 1},
 			},
 			Options: options.Index(),
 		},

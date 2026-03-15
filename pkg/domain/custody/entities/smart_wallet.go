@@ -66,6 +66,7 @@ const (
 	WalletTypeOperations WalletType = "Operations" // Platform operations (hot wallet)
 	WalletTypeTreasury   WalletType = "Treasury"   // Cold storage treasury
 	WalletTypeEscrow     WalletType = "Escrow"     // Prize pool escrow
+	WalletTypeTeam       WalletType = "Team"       // Team/squad shared vault (multisig)
 )
 
 // WalletStatus represents the wallet state

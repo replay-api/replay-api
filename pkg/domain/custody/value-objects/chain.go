@@ -35,9 +35,17 @@ const (
 	ChainPolygonMumbai  ChainID = "eip155:80001"
 	ChainBaseSepolia    ChainID = "eip155:84532"
 
+	// Bitcoin Networks (BIP-122 CAIP-2)
+	ChainBitcoinMainnet ChainID = "bip122:000000000019d6689c085ae165831e93"
+	ChainBitcoinTestnet ChainID = "bip122:000000000933ea01ad0ee984209779ba"
+	ChainBitcoinSignet  ChainID = "bip122:00000008819873e925422c1ff0f99f7c"
+	ChainLightning      ChainID = "lightning:mainnet"
+	ChainLightningTestnet ChainID = "lightning:testnet"
+
 	// Local
-	ChainLocalSolana ChainID = "solana:localnet"
-	ChainLocalEVM    ChainID = "eip155:31337"
+	ChainLocalSolana  ChainID = "solana:localnet"
+	ChainLocalEVM     ChainID = "eip155:31337"
+	ChainLocalBitcoin ChainID = "bip122:regtest"
 )
 
 // ChainConfig holds comprehensive chain configuration
@@ -69,6 +77,8 @@ func SupportedChains() []ChainID {
 		ChainBase,
 		ChainArbitrum,
 		ChainEthereumMainnet,
+		ChainBitcoinMainnet,
+		ChainLightning,
 	}
 }
 
@@ -82,9 +92,23 @@ func (c ChainID) GetChainType() ChainType {
 	switch c {
 	case ChainSolanaMainnet, ChainSolanaDevnet, ChainSolanaTestnet, ChainLocalSolana:
 		return ChainTypeSolana
+	case ChainBitcoinMainnet, ChainBitcoinTestnet, ChainBitcoinSignet, ChainLocalBitcoin:
+		return ChainTypeBitcoin
+	case ChainLightning, ChainLightningTestnet:
+		return ChainTypeBitcoin
 	default:
 		return ChainTypeEVM
 	}
+}
+
+// IsBitcoin checks if chain is Bitcoin-based (includes Lightning)
+func (c ChainID) IsBitcoin() bool {
+	return c.GetChainType() == ChainTypeBitcoin
+}
+
+// IsLightning checks if chain is Lightning Network
+func (c ChainID) IsLightning() bool {
+	return c == ChainLightning || c == ChainLightningTestnet
 }
 
 // IsSolana checks if chain is Solana-based
@@ -110,13 +134,18 @@ func (c ChainID) GetEVMChainID() (uint64, error) {
 // String returns chain name
 func (c ChainID) String() string {
 	names := map[ChainID]string{
-		ChainSolanaMainnet:   "Solana Mainnet",
-		ChainSolanaDevnet:    "Solana Devnet",
-		ChainEthereumMainnet: "Ethereum",
-		ChainPolygon:         "Polygon",
-		ChainBase:            "Base",
-		ChainArbitrum:        "Arbitrum One",
-		ChainOptimism:        "Optimism",
+		ChainSolanaMainnet:    "Solana Mainnet",
+		ChainSolanaDevnet:     "Solana Devnet",
+		ChainEthereumMainnet:  "Ethereum",
+		ChainPolygon:          "Polygon",
+		ChainBase:             "Base",
+		ChainArbitrum:         "Arbitrum One",
+		ChainOptimism:         "Optimism",
+		ChainBitcoinMainnet:   "Bitcoin Mainnet",
+		ChainBitcoinTestnet:   "Bitcoin Testnet",
+		ChainBitcoinSignet:    "Bitcoin Signet",
+		ChainLightning:        "Lightning Network",
+		ChainLightningTestnet: "Lightning Testnet",
 	}
 	if name, ok := names[c]; ok {
 		return name

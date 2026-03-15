@@ -212,6 +212,15 @@ type TournamentCommand interface {
 
 	// CancelTournament cancels the tournament
 	CancelTournament(ctx context.Context, cmd CancelTournamentCommand) error
+
+	// CheckIn marks a player as checked in for a tournament
+	CheckIn(ctx context.Context, tournamentID uuid.UUID, playerID uuid.UUID) error
+
+	// RecordMatchResult records the winner of a tournament match and advances the bracket
+	RecordMatchResult(ctx context.Context, tournamentID uuid.UUID, matchID uuid.UUID, winnerID uuid.UUID) error
+
+	// AdvanceBracket generates next round matches from completed matches
+	AdvanceBracket(ctx context.Context, tournamentID uuid.UUID) error
 }
 
 // TournamentReader defines query operations for tournaments

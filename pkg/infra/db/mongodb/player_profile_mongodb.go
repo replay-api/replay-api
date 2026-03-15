@@ -17,7 +17,7 @@ type PlayerProfileRepository struct {
 }
 
 func NewPlayerProfileRepository(client *mongo.Client, dbName string, entityType squad_entities.PlayerProfile, collectionName string) *PlayerProfileRepository {
-	repo := mongodb.NewMongoDBRepository[squad_entities.PlayerProfile](client, dbName, entityType, collectionName, "PlayerProfile")
+	repo := mongodb.NewMongoDBRepository(client, dbName, entityType, collectionName, "PlayerProfile")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":              true,

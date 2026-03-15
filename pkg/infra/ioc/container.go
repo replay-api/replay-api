@@ -62,10 +62,28 @@ import (
 	scores_usecases "github.com/replay-api/replay-api/pkg/domain/scores/usecases"
 	scores_adapter "github.com/replay-api/replay-api/pkg/infra/adapters/scores"
 
+	oracle_in "github.com/replay-api/replay-api/pkg/domain/oracle/ports/in"
+	oracle_out "github.com/replay-api/replay-api/pkg/domain/oracle/ports/out"
+	oracle_services "github.com/replay-api/replay-api/pkg/domain/oracle/services"
+	oracle_usecases "github.com/replay-api/replay-api/pkg/domain/oracle/usecases"
+	oracle_vo "github.com/replay-api/replay-api/pkg/domain/oracle/value-objects"
+	oracle_chain "github.com/replay-api/replay-api/pkg/infra/adapters/oracle/chain"
+	oracle_ocr "github.com/replay-api/replay-api/pkg/infra/adapters/oracle/ocr"
+	oracle_providers "github.com/replay-api/replay-api/pkg/infra/adapters/oracle/providers"
+
+	messaging_in "github.com/replay-api/replay-api/pkg/domain/messaging/ports/in"
+	messaging_out "github.com/replay-api/replay-api/pkg/domain/messaging/ports/out"
+	messaging_usecases "github.com/replay-api/replay-api/pkg/domain/messaging/usecases"
+
+	prediction_in "github.com/replay-api/replay-api/pkg/domain/prediction/ports/in"
+	prediction_out "github.com/replay-api/replay-api/pkg/domain/prediction/ports/out"
+	prediction_usecases "github.com/replay-api/replay-api/pkg/domain/prediction/usecases"
+
 	tournament_in "github.com/replay-api/replay-api/pkg/domain/tournament/ports/in"
 	tournament_out "github.com/replay-api/replay-api/pkg/domain/tournament/ports/out"
 	tournament_services "github.com/replay-api/replay-api/pkg/domain/tournament/services"
 	tournament_usecases "github.com/replay-api/replay-api/pkg/domain/tournament/usecases"
+	tournament_adapters "github.com/replay-api/replay-api/pkg/infra/adapters/tournaments"
 
 	wallet_entities "github.com/replay-api/replay-api/pkg/domain/wallet/entities"
 	wallet_in "github.com/replay-api/replay-api/pkg/domain/wallet/ports/in"
@@ -85,6 +103,20 @@ import (
 	payment_usecases "github.com/replay-api/replay-api/pkg/domain/payment/usecases"
 
 	stripe_adapter "github.com/replay-api/replay-api/pkg/infra/adapters/stripe"
+
+	exchange_out "github.com/replay-api/replay-api/pkg/domain/exchange/ports/out"
+	exchange_services "github.com/replay-api/replay-api/pkg/domain/exchange/services"
+	exchange_usecases "github.com/replay-api/replay-api/pkg/domain/exchange/usecases"
+
+	analytics_in "github.com/replay-api/replay-api/pkg/domain/analytics/ports/in"
+	analytics_out "github.com/replay-api/replay-api/pkg/domain/analytics/ports/out"
+	analytics_usecases "github.com/replay-api/replay-api/pkg/domain/analytics/usecases"
+
+	pricefeed "github.com/replay-api/replay-api/pkg/infra/adapters/pricefeed"
+	coinbase "github.com/replay-api/replay-api/pkg/infra/adapters/coinbase"
+	kraken "github.com/replay-api/replay-api/pkg/infra/adapters/kraken"
+
+	shared "github.com/resource-ownership/go-common/pkg/common"
 
 	media_out "github.com/replay-api/replay-api/pkg/domain/media/ports/out"
 	media_adapter "github.com/replay-api/replay-api/pkg/infra/adapters/media"
@@ -2899,6 +2931,214 @@ func InjectMongoDB(c container.Container) error {
 		panic(err)
 	}
 
+	// ═══════════════════════════════════════════════════════════════════════════════
+	// TEAM VAULT (Multisig) SERVICES
+	// ═══════════════════════════════════════════════════════════════════════════════
+
+	// Team Vault Repository
+	err = c.Singleton(func() (wallet_out.TeamVaultRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve mongo.Client for TeamVaultRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for TeamVaultRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewMongoTeamVaultRepository(client, config.MongoDB.DBName), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load wallet_out.TeamVaultRepository.", "err", err)
+		panic(err)
+	}
+
+	// Vault Proposal Repository
+	err = c.Singleton(func() (wallet_out.VaultProposalRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve mongo.Client for VaultProposalRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for VaultProposalRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewMongoVaultProposalRepository(client, config.MongoDB.DBName), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load wallet_out.VaultProposalRepository.", "err", err)
+		panic(err)
+	}
+
+	// Vault Activity Repository
+	err = c.Singleton(func() (wallet_out.VaultActivityRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve mongo.Client for VaultActivityRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for VaultActivityRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewMongoVaultActivityRepository(client, config.MongoDB.DBName), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load wallet_out.VaultActivityRepository.", "err", err)
+		panic(err)
+	}
+
+	// Inventory Item Repository
+	err = c.Singleton(func() (wallet_out.InventoryItemRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve mongo.Client for InventoryItemRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for InventoryItemRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewMongoInventoryItemRepository(client, config.MongoDB.DBName), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load wallet_out.InventoryItemRepository.", "err", err)
+		panic(err)
+	}
+
+	// SquadRepository (needed by VaultService - may also be registered in WithSquadAPI)
+	_ = c.Singleton(func() (*db.SquadRepository, error) {
+		var client *mongo.Client
+		err := c.Resolve(&client)
+		if err != nil {
+			slog.Error("Failed to resolve mongo.Client for SquadRepository (InjectMongoDB).", "err", err)
+			return &db.SquadRepository{}, err
+		}
+
+		var config common.Config
+		err = c.Resolve(&config)
+		if err != nil {
+			slog.Error("Failed to resolve config for SquadRepository (InjectMongoDB).", "err", err)
+			return nil, err
+		}
+
+		repo := db.NewSquadRepository(client, config.MongoDB.DBName, squad_entities.Squad{}, "squads")
+		return repo, nil
+	})
+
+	// squad_out.SquadReader (needed by VaultService - may also be registered in WithSquadAPI)
+	_ = c.Singleton(func() (squad_out.SquadReader, error) {
+		var repo *db.SquadRepository
+		err := c.Resolve(&repo)
+		if err != nil {
+			slog.Error("Failed to resolve SquadRepository for squad_out.SquadReader (InjectMongoDB).", "err", err)
+			return nil, err
+		}
+		return repo, nil
+	})
+
+	// Team Vault Command Service (implements both TeamVaultCommand and TeamVaultQuery)
+	err = c.Singleton(func() (*wallet_usecases.VaultService, error) {
+		var vaultRepo wallet_out.TeamVaultRepository
+		var proposalRepo wallet_out.VaultProposalRepository
+		var activityRepo wallet_out.VaultActivityRepository
+		var inventoryRepo wallet_out.InventoryItemRepository
+		var walletRepo wallet_out.WalletRepository
+		var squadReader squad_out.SquadReader
+
+		if err := c.Resolve(&vaultRepo); err != nil {
+			slog.Error("Failed to resolve TeamVaultRepository for VaultService.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&proposalRepo); err != nil {
+			slog.Error("Failed to resolve VaultProposalRepository for VaultService.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&activityRepo); err != nil {
+			slog.Error("Failed to resolve VaultActivityRepository for VaultService.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&inventoryRepo); err != nil {
+			slog.Error("Failed to resolve InventoryItemRepository for VaultService.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&walletRepo); err != nil {
+			slog.Error("Failed to resolve WalletRepository for VaultService.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&squadReader); err != nil {
+			slog.Error("Failed to resolve SquadReader for VaultService.", "err", err)
+			return nil, err
+		}
+
+		return wallet_usecases.NewVaultService(vaultRepo, proposalRepo, activityRepo, inventoryRepo, walletRepo, squadReader), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load *wallet_usecases.VaultService.", "err", err)
+		panic(err)
+	}
+
+	// TeamVaultCommand interface binding
+	err = c.Singleton(func() (wallet_in.TeamVaultCommand, error) {
+		var vaultService *wallet_usecases.VaultService
+
+		if err := c.Resolve(&vaultService); err != nil {
+			slog.Error("Failed to resolve VaultService for TeamVaultCommand.", "err", err)
+			return nil, err
+		}
+
+		return vaultService, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load wallet_in.TeamVaultCommand.", "err", err)
+		panic(err)
+	}
+
+	// TeamVaultQuery interface binding
+	err = c.Singleton(func() (wallet_in.TeamVaultQuery, error) {
+		var vaultService *wallet_usecases.VaultService
+
+		if err := c.Resolve(&vaultService); err != nil {
+			slog.Error("Failed to resolve VaultService for TeamVaultQuery.", "err", err)
+			return nil, err
+		}
+
+		return vaultService, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load wallet_in.TeamVaultQuery.", "err", err)
+		panic(err)
+	}
+
 	// Media Writer (no-op for now)
 	err = c.Singleton(func() (media_out.MediaWriter, error) {
 		return media_adapter.NewNoopMediaAdapter(), nil
@@ -3368,6 +3608,273 @@ func InjectMongoDB(c container.Container) error {
 	// 	panic(err)
 	// }
 
+	// ===== Exchange Domain =====
+
+	// Price Feed Providers
+	err = c.Singleton(func() ([]exchange_out.PriceFeedProvider, error) {
+		var providers []exchange_out.PriceFeedProvider
+		providers = append(providers, pricefeed.NewCoinGeckoAdapter(os.Getenv("COINGECKO_API_KEY")))
+		providers = append(providers, pricefeed.NewCoinbasePriceAdapter())
+		providers = append(providers, pricefeed.NewKrakenPriceAdapter())
+		return providers, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load []exchange_out.PriceFeedProvider.", "err", err)
+		panic(err)
+	}
+
+	// Exchange Adapters (Coinbase + Kraken)
+	err = c.Singleton(func() ([]exchange_out.ExchangeAdapter, error) {
+		var adapters []exchange_out.ExchangeAdapter
+		if key := os.Getenv("COINBASE_API_KEY"); key != "" {
+			adapters = append(adapters, coinbase.NewCoinbaseAdapter(key, os.Getenv("COINBASE_API_SECRET")))
+		}
+		if key := os.Getenv("KRAKEN_API_KEY"); key != "" {
+			adapters = append(adapters, kraken.NewKrakenAdapter(key, os.Getenv("KRAKEN_API_SECRET")))
+		}
+		return adapters, nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load []exchange_out.ExchangeAdapter.", "err", err)
+		panic(err)
+	}
+
+	// Exchange - Kafka Event Publisher (if kafka client available)
+	err = c.Singleton(func() (exchange_out.ExchangeEventPublisher, error) {
+		var kafkaClient *kafka.Client
+		if err := c.Resolve(&kafkaClient); err != nil {
+			slog.Warn("Kafka client not available for ExchangeEventPublisher — exchange events will not be published", "err", err)
+			return nil, nil
+		}
+		return kafka.NewExchangeEventPublisherAdapter(kafkaClient), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load exchange_out.ExchangeEventPublisher.", "err", err)
+		panic(err)
+	}
+
+	// Exchange - MongoDB Repositories
+	err = c.Singleton(func() (exchange_out.OrderRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve mongo.Client for ExchangeOrderRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for ExchangeOrderRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewExchangeOrderRepository(client, config.MongoDB.DBName), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load exchange_out.OrderRepository.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (exchange_out.QuoteRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve mongo.Client for ExchangeQuoteRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for ExchangeQuoteRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewExchangeQuoteRepository(client, config.MongoDB.DBName), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load exchange_out.QuoteRepository.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (exchange_out.ExchangeRateRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve mongo.Client for ExchangeRateRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for ExchangeRateRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewExchangeRateRepository(client, config.MongoDB.DBName), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load exchange_out.ExchangeRateRepository.", "err", err)
+		panic(err)
+	}
+
+	// Exchange Services
+	err = c.Singleton(func() (*exchange_services.PricingService, error) {
+		var providers []exchange_out.PriceFeedProvider
+		if err := c.Resolve(&providers); err != nil {
+			slog.Error("Failed to resolve []exchange_out.PriceFeedProvider for PricingService.", "err", err)
+			return nil, err
+		}
+
+		var rateRepo exchange_out.ExchangeRateRepository
+		if err := c.Resolve(&rateRepo); err != nil {
+			slog.Error("Failed to resolve exchange_out.ExchangeRateRepository for PricingService.", "err", err)
+			return nil, err
+		}
+
+		// RateCache is optional (Dragonfly/Redis)
+		var rateCache exchange_out.RateCache
+		if err := c.Resolve(&rateCache); err != nil {
+			slog.Info("RateCache not available for PricingService — caching disabled", "err", err)
+		}
+
+		resourceOwner := shared.ResourceOwner{} // platform-level (system) resource owner
+		return exchange_services.NewPricingService(providers, rateCache, rateRepo, resourceOwner), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load *exchange_services.PricingService.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (*exchange_services.FeeService, error) {
+		// TODO: wire SubscriptionPlanResolver when available
+		return exchange_services.NewFeeService(nil), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load *exchange_services.FeeService.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (*exchange_services.SmartRouter, error) {
+		var adapters []exchange_out.ExchangeAdapter
+		if err := c.Resolve(&adapters); err != nil {
+			slog.Error("Failed to resolve []exchange_out.ExchangeAdapter for SmartRouter.", "err", err)
+			return nil, err
+		}
+
+		return exchange_services.NewSmartRouter(adapters), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load *exchange_services.SmartRouter.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (*exchange_services.OrderService, error) {
+		var orderRepo exchange_out.OrderRepository
+		var quoteRepo exchange_out.QuoteRepository
+		var router *exchange_services.SmartRouter
+		var pricing *exchange_services.PricingService
+		var fees *exchange_services.FeeService
+
+		if err := c.Resolve(&orderRepo); err != nil {
+			slog.Error("Failed to resolve exchange_out.OrderRepository for OrderService.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&quoteRepo); err != nil {
+			slog.Error("Failed to resolve exchange_out.QuoteRepository for OrderService.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&router); err != nil {
+			slog.Error("Failed to resolve *exchange_services.SmartRouter for OrderService.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&pricing); err != nil {
+			slog.Error("Failed to resolve *exchange_services.PricingService for OrderService.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&fees); err != nil {
+			slog.Error("Failed to resolve *exchange_services.FeeService for OrderService.", "err", err)
+			return nil, err
+		}
+
+		var eventPublisher exchange_out.ExchangeEventPublisher
+		if err := c.Resolve(&eventPublisher); err != nil {
+			slog.Warn("ExchangeEventPublisher not available for OrderService — events will not be published", "err", err)
+		}
+
+		resourceOwner := shared.ResourceOwner{} // platform-level (system) resource owner
+		// Wallet and Stripe ops - these are interface adapters
+		// TODO: wire concrete implementations
+		return exchange_services.NewOrderService(orderRepo, quoteRepo, router, pricing, fees, nil, nil, eventPublisher, resourceOwner), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load *exchange_services.OrderService.", "err", err)
+		panic(err)
+	}
+
+	// Exchange Use Cases
+	err = c.Singleton(func() (*exchange_usecases.GetQuoteUseCase, error) {
+		var pricing *exchange_services.PricingService
+		var fees *exchange_services.FeeService
+		var quoteRepo exchange_out.QuoteRepository
+
+		if err := c.Resolve(&pricing); err != nil {
+			slog.Error("Failed to resolve *exchange_services.PricingService for GetQuoteUseCase.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&fees); err != nil {
+			slog.Error("Failed to resolve *exchange_services.FeeService for GetQuoteUseCase.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&quoteRepo); err != nil {
+			slog.Error("Failed to resolve exchange_out.QuoteRepository for GetQuoteUseCase.", "err", err)
+			return nil, err
+		}
+
+		var eventPublisher exchange_out.ExchangeEventPublisher
+		if err := c.Resolve(&eventPublisher); err != nil {
+			slog.Warn("ExchangeEventPublisher not available for GetQuoteUseCase — events will not be published", "err", err)
+		}
+
+		resourceOwner := shared.ResourceOwner{} // platform-level (system) resource owner
+		return exchange_usecases.NewGetQuoteUseCase(pricing, fees, quoteRepo, eventPublisher, resourceOwner), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load *exchange_usecases.GetQuoteUseCase.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (*exchange_usecases.GetExchangeRatesUseCase, error) {
+		var pricing *exchange_services.PricingService
+		if err := c.Resolve(&pricing); err != nil {
+			slog.Error("Failed to resolve *exchange_services.PricingService for GetExchangeRatesUseCase.", "err", err)
+			return nil, err
+		}
+
+		return exchange_usecases.NewGetExchangeRatesUseCase(pricing), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load *exchange_usecases.GetExchangeRatesUseCase.", "err", err)
+		panic(err)
+	}
+
 	// Matchmaking Session Repository
 	err = c.Singleton(func() (matchmaking_out.MatchmakingSessionRepository, error) {
 		var client *mongo.Client
@@ -3553,11 +4060,105 @@ func InjectMongoDB(c container.Container) error {
 		panic(err)
 	}
 
+	// PlayerProfileRepository (needed by tournament use cases - may also be registered in WithSquadAPI)
+	// This ensures it's available before tournament use cases are eagerly resolved
+	err = c.Singleton(func() (*db.PlayerProfileRepository, error) {
+		var client *mongo.Client
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve mongo.Client for PlayerProfileRepository (tournament dependency).", "err", err)
+			return nil, err
+		}
+
+		var config common.Config
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve config for PlayerProfileRepository (tournament dependency).", "err", err)
+			return nil, err
+		}
+
+		return db.NewPlayerProfileRepository(client, config.MongoDB.DBName, squad_entities.PlayerProfile{}, "player_profiles"), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load PlayerProfileRepository (tournament dependency).", "err", err)
+		panic(err)
+	}
+
+	// squad_in.PlayerProfileReader (needed by RegisterForTournamentUseCase - may also be registered in WithSquadAPI)
+	err = c.Singleton(func() (squad_in.PlayerProfileReader, error) {
+		var repo *db.PlayerProfileRepository
+		if err := c.Resolve(&repo); err != nil {
+			slog.Error("Failed to resolve PlayerProfileRepository for squad_in.PlayerProfileReader (tournament dependency).", "err", err)
+			return nil, err
+		}
+
+		return repo, nil
+	})
+	if err != nil {
+		slog.Error("Failed to load squad_in.PlayerProfileReader (tournament dependency).", "err", err)
+		panic(err)
+	}
+
+	// GenerateBracketsUseCase (must be registered before TournamentService which depends on it)
+	err = c.Singleton(func() (*tournament_usecases.GenerateBracketsUseCase, error) {
+		var billableOperationHandler billing_in.BillableOperationCommandHandler
+		var tournamentRepo tournament_out.TournamentRepository
+
+		if err := c.Resolve(&billableOperationHandler); err != nil {
+			slog.Error("Failed to resolve BillableOperationCommandHandler for GenerateBracketsUseCase.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&tournamentRepo); err != nil {
+			slog.Error("Failed to resolve TournamentRepository for GenerateBracketsUseCase.", "err", err)
+			return nil, err
+		}
+
+		return tournament_usecases.NewGenerateBracketsUseCase(billableOperationHandler, tournamentRepo), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load GenerateBracketsUseCase.", "err", err)
+		panic(err)
+	}
+
+	// Tournament Command Service
+	// Tournament Authorization Adapter
+	err = c.Singleton(func() (tournament_out.TournamentAuthorization, error) {
+		var tournamentRepo tournament_out.TournamentRepository
+
+		if err := c.Resolve(&tournamentRepo); err != nil {
+			slog.Error("Failed to resolve TournamentRepository for TournamentAuthorization.", "err", err)
+			return nil, err
+		}
+
+		return tournament_adapters.NewTournamentAuthorizationAdapter(tournamentRepo), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load tournament_out.TournamentAuthorization.", "err", err)
+		panic(err)
+	}
+
+	// Tournament Event Publisher
+	err = c.Singleton(func() (tournament_out.TournamentEventPublisher, error) {
+		var eventPub *kafka.EventPublisher
+
+		if err := c.Resolve(&eventPub); err != nil {
+			slog.Warn("EventPublisher not available for TournamentEventPublisher", "err", err)
+			return nil, nil
+		}
+
+		return kafka.NewTournamentEventPublisherAdapter(eventPub), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load tournament_out.TournamentEventPublisher.", "err", err)
+		panic(err)
+	}
+
 	// Tournament Command Service
 	err = c.Singleton(func() (tournament_in.TournamentCommand, error) {
 		var tournamentRepo tournament_out.TournamentRepository
 		var walletCmd wallet_in.WalletCommand
 		var bracketGenerator *tournament_usecases.GenerateBracketsUseCase
+		var authorization tournament_out.TournamentAuthorization
+		var eventPublisher tournament_out.TournamentEventPublisher
 
 		if err := c.Resolve(&tournamentRepo); err != nil {
 			slog.Error("Failed to resolve tournament_out.TournamentRepository for TournamentService.", "err", err)
@@ -3574,7 +4175,15 @@ func InjectMongoDB(c container.Container) error {
 			return nil, err
 		}
 
-		return tournament_services.NewTournamentService(tournamentRepo, walletCmd, bracketGenerator), nil
+		if err := c.Resolve(&authorization); err != nil {
+			slog.Warn("TournamentAuthorization not available, proceeding without RBAC", "err", err)
+		}
+
+		if err := c.Resolve(&eventPublisher); err != nil {
+			slog.Warn("TournamentEventPublisher not available, proceeding without events", "err", err)
+		}
+
+		return tournament_services.NewTournamentService(tournamentRepo, walletCmd, bracketGenerator, authorization, eventPublisher), nil
 	})
 
 	if err != nil {
@@ -3602,13 +4211,19 @@ func InjectMongoDB(c container.Container) error {
 	// Tournament Reader Service
 	err = c.Singleton(func() (tournament_in.TournamentReader, error) {
 		var tournamentQuerySvc *tournament_services.TournamentQueryService
+		var tournamentRepo tournament_out.TournamentRepository
 
 		if err := c.Resolve(&tournamentQuerySvc); err != nil {
 			slog.Error("Failed to resolve TournamentQueryService for TournamentReaderService.", "err", err)
 			return nil, err
 		}
 
-		return tournament_services.NewTournamentReaderService(tournamentQuerySvc), nil
+		if err := c.Resolve(&tournamentRepo); err != nil {
+			slog.Error("Failed to resolve TournamentRepository for TournamentReaderService.", "err", err)
+			return nil, err
+		}
+
+		return tournament_services.NewTournamentReaderService(tournamentQuerySvc, tournamentRepo), nil
 	})
 
 	if err != nil {
@@ -3713,26 +4328,6 @@ func InjectMongoDB(c container.Container) error {
 		panic(err)
 	}
 
-	err = c.Singleton(func() (*tournament_usecases.GenerateBracketsUseCase, error) {
-		var billableOperationHandler billing_in.BillableOperationCommandHandler
-		var tournamentRepo tournament_out.TournamentRepository
-
-		if err := c.Resolve(&billableOperationHandler); err != nil {
-			slog.Error("Failed to resolve BillableOperationCommandHandler for GenerateBracketsUseCase.", "err", err)
-			return nil, err
-		}
-		if err := c.Resolve(&tournamentRepo); err != nil {
-			slog.Error("Failed to resolve TournamentRepository for GenerateBracketsUseCase.", "err", err)
-			return nil, err
-		}
-
-		return tournament_usecases.NewGenerateBracketsUseCase(billableOperationHandler, tournamentRepo), nil
-	})
-	if err != nil {
-		slog.Error("Failed to load GenerateBracketsUseCase.", "err", err)
-		panic(err)
-	}
-
 	// -----
 
 	// Scores Domain - Match Result Repository
@@ -3801,6 +4396,8 @@ func InjectMongoDB(c container.Container) error {
 		var repo scores_out.MatchResultRepository
 		var eventPub scores_out.ScoreEventPublisher
 		var prizeGateway scores_out.PrizeDistributionGateway
+		var tournamentRepo tournament_out.TournamentRepository
+		var tournamentCmd tournament_in.TournamentCommand
 
 		if err := c.Resolve(&repo); err != nil {
 			slog.Error("Failed to resolve MatchResultRepository for MatchResultCommandHandler.", "err", err)
@@ -3813,8 +4410,22 @@ func InjectMongoDB(c container.Container) error {
 		if err := c.Resolve(&prizeGateway); err != nil {
 			slog.Warn("PrizeDistributionGateway not available for MatchResultCommandHandler", "err", err)
 		}
+		if err := c.Resolve(&tournamentRepo); err != nil {
+			slog.Warn("TournamentRepository not available for ScoreAuthorization", "err", err)
+		}
 
-		return scores_usecases.NewMatchResultCommandHandler(repo, eventPub, prizeGateway), nil
+		// Create authorization adapter with tournament and match result repos
+		authorization := scores_adapter.NewScoreAuthorizationAdapter(tournamentRepo, repo)
+
+		// Create tournament match callback (score → tournament domain bridge)
+		var tournamentCallback scores_out.TournamentMatchCallback
+		if err := c.Resolve(&tournamentCmd); err != nil {
+			slog.Warn("TournamentCommand not available for TournamentMatchCallback", "err", err)
+		} else {
+			tournamentCallback = scores_adapter.NewTournamentMatchCallbackAdapter(tournamentCmd)
+		}
+
+		return scores_usecases.NewMatchResultCommandHandler(repo, eventPub, prizeGateway, authorization, tournamentCallback), nil
 	})
 	if err != nil {
 		slog.Error("Failed to load scores_in.MatchResultCommandHandler.", "err", err)
@@ -3834,6 +4445,949 @@ func InjectMongoDB(c container.Container) error {
 	})
 	if err != nil {
 		slog.Error("Failed to load scores_in.MatchResultQueryHandler.", "err", err)
+		panic(err)
+	}
+
+	// ========================
+	// Oracle Domain
+	// ========================
+
+	// Oracle Domain - Result Repository
+	err = c.Singleton(func() (oracle_out.OracleResultRepository, error) {
+		var mongoClient *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&mongoClient); err != nil {
+			slog.Error("Failed to resolve mongo.Client for OracleResultRepository.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve Config for OracleResultRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewMongoOracleResultRepository(mongoClient, config.MongoDB.DBName), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load oracle_out.OracleResultRepository.", "err", err)
+		panic(err)
+	}
+
+	// Oracle Domain - Event Publisher Adapter
+	err = c.Singleton(func() (oracle_out.OracleEventPublisher, error) {
+		var eventPublisher *kafka.EventPublisher
+
+		if err := c.Resolve(&eventPublisher); err != nil {
+			slog.Warn("EventPublisher not available for OracleEventPublisher, using nil-safe adapter", "err", err)
+			return kafka.NewOracleEventPublisherAdapter(nil), nil
+		}
+
+		return kafka.NewOracleEventPublisherAdapter(eventPublisher), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load oracle_out.OracleEventPublisher.", "err", err)
+		panic(err)
+	}
+
+	// Oracle Domain - Chain Score Gateway
+	err = c.Singleton(func() (oracle_out.ChainScoreGateway, error) {
+		chainConfig := oracle_chain.EVMChainScoreGatewayConfig{
+			PolygonRPCURL:       os.Getenv("POLYGON_RPC_URL"),
+			PolygonContractAddr: os.Getenv("POLYGON_ORACLE_CONTRACT"),
+			AmoyRPCURL:          os.Getenv("POLYGON_AMOY_RPC_URL"),
+			AmoyContractAddr:    os.Getenv("POLYGON_AMOY_ORACLE_CONTRACT"),
+			PrivateKey:          os.Getenv("ORACLE_PRIVATE_KEY"),
+		}
+
+		return oracle_chain.NewEVMChainScoreGateway(chainConfig), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load oracle_out.ChainScoreGateway.", "err", err)
+		panic(err)
+	}
+
+	// Oracle Domain - External Score Providers
+	err = c.Singleton(func() ([]oracle_out.ExternalScorePort, error) {
+		providers := make([]oracle_out.ExternalScorePort, 0)
+
+		pandaScoreKey := os.Getenv("PANDASCORE_API_KEY")
+		if pandaScoreKey != "" {
+			providers = append(providers, oracle_providers.NewPandaScoreAdapter(pandaScoreKey))
+			slog.Info("PandaScore provider registered")
+		}
+
+		steamKey := os.Getenv("STEAM_WEB_API_KEY")
+		if steamKey != "" {
+			providers = append(providers, oracle_providers.NewSteamWebAPIAdapter(steamKey))
+			slog.Info("Steam Web API provider registered")
+		}
+
+		faceitKey := os.Getenv("FACEIT_API_KEY")
+		if faceitKey != "" {
+			providers = append(providers, oracle_providers.NewFACEITAdapter(faceitKey))
+			slog.Info("FACEIT provider registered")
+		}
+
+		slog.Info("Oracle providers registered", "count", len(providers))
+		return providers, nil
+	})
+	if err != nil {
+		slog.Error("Failed to load oracle ExternalScorePort providers.", "err", err)
+		panic(err)
+	}
+
+	// Oracle Domain - Consensus Engine
+	err = c.Singleton(func() (*oracle_services.ConsensusEngine, error) {
+		tracker := oracle_services.NewProviderReliabilityTracker()
+		return oracle_services.NewConsensusEngine(tracker), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load oracle ConsensusEngine.", "err", err)
+		panic(err)
+	}
+
+	// Oracle Domain - Command Handler
+	err = c.Singleton(func() (oracle_in.OracleCommandHandler, error) {
+		var repo oracle_out.OracleResultRepository
+		var eventPub oracle_out.OracleEventPublisher
+		var chainGateway oracle_out.ChainScoreGateway
+		var providers []oracle_out.ExternalScorePort
+		var consensusEngine *oracle_services.ConsensusEngine
+
+		if err := c.Resolve(&repo); err != nil {
+			slog.Error("Failed to resolve OracleResultRepository for OracleCommandHandler.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&eventPub); err != nil {
+			slog.Error("Failed to resolve OracleEventPublisher for OracleCommandHandler.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&chainGateway); err != nil {
+			slog.Error("Failed to resolve ChainScoreGateway for OracleCommandHandler.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&providers); err != nil {
+			slog.Warn("ExternalScorePort providers not available for OracleCommandHandler", "err", err)
+			providers = []oracle_out.ExternalScorePort{}
+		}
+		if err := c.Resolve(&consensusEngine); err != nil {
+			slog.Error("Failed to resolve ConsensusEngine for OracleCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		policy := oracle_vo.StandardPolicy()
+
+		return oracle_usecases.NewOracleCommandHandler(repo, eventPub, providers, consensusEngine, chainGateway, policy), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load oracle_in.OracleCommandHandler.", "err", err)
+		panic(err)
+	}
+
+	// Oracle Domain - Query Handler
+	err = c.Singleton(func() (oracle_in.OracleQueryHandler, error) {
+		var repo oracle_out.OracleResultRepository
+
+		if err := c.Resolve(&repo); err != nil {
+			slog.Error("Failed to resolve OracleResultRepository for OracleQueryHandler.", "err", err)
+			return nil, err
+		}
+
+		return oracle_usecases.NewOracleQueryHandler(repo), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load oracle_in.OracleQueryHandler.", "err", err)
+		panic(err)
+	}
+
+	// Oracle Domain - OCR Stream Config Repository
+	err = c.Singleton(func() (oracle_out.OCRStreamConfigRepository, error) {
+		var mongoClient *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&mongoClient); err != nil {
+			slog.Error("Failed to resolve mongo.Client for OCRStreamConfigRepository.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve Config for OCRStreamConfigRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewMongoOCRStreamConfigRepository(mongoClient, config.MongoDB.DBName), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load oracle_out.OCRStreamConfigRepository.", "err", err)
+		panic(err)
+	}
+
+	// Oracle Domain - Match Reconciliation Service (MUST be registered before GameImportCommandHandler)
+	err = c.Singleton(func() (*metadata.MatchReconciliationService, error) {
+		var matchReader replay_out.MatchMetadataReader
+		var matchWriter replay_out.MatchMetadataWriter
+
+		if err := c.Resolve(&matchReader); err != nil {
+			slog.Error("Failed to resolve MatchMetadataReader for MatchReconciliationService.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&matchWriter); err != nil {
+			slog.Error("Failed to resolve MatchMetadataWriter for MatchReconciliationService.", "err", err)
+			return nil, err
+		}
+
+		return metadata.NewMatchReconciliationService(matchReader, matchWriter), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load metadata.MatchReconciliationService.", "err", err)
+		panic(err)
+	}
+
+	// Oracle Domain - Game Import Command Handler
+	err = c.Singleton(func() (oracle_in.GameImportCommandHandler, error) {
+		var oracleCommandHandler oracle_in.OracleCommandHandler
+		var oracleResultRepo oracle_out.OracleResultRepository
+		var streamConfigRepo oracle_out.OCRStreamConfigRepository
+		var reconciliationService *metadata.MatchReconciliationService
+		var matchResultRepo scores_out.MatchResultRepository
+		var eventPublisher oracle_out.OracleEventPublisher
+
+		if err := c.Resolve(&oracleCommandHandler); err != nil {
+			slog.Error("Failed to resolve OracleCommandHandler for GameImportCommandHandler.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&oracleResultRepo); err != nil {
+			slog.Error("Failed to resolve OracleResultRepository for GameImportCommandHandler.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&streamConfigRepo); err != nil {
+			slog.Error("Failed to resolve OCRStreamConfigRepository for GameImportCommandHandler.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&reconciliationService); err != nil {
+			slog.Error("Failed to resolve MatchReconciliationService for GameImportCommandHandler.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&matchResultRepo); err != nil {
+			slog.Error("Failed to resolve MatchResultRepository for GameImportCommandHandler.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&eventPublisher); err != nil {
+			slog.Error("Failed to resolve OracleEventPublisher for GameImportCommandHandler.", "err", err)
+			return nil, err
+		}
+
+		return oracle_usecases.NewGameImportCommandHandler(
+			oracleCommandHandler,
+			oracleResultRepo,
+			streamConfigRepo,
+			reconciliationService,
+			matchResultRepo,
+			eventPublisher,
+		), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load oracle_in.GameImportCommandHandler.", "err", err)
+		panic(err)
+	}
+
+	// Oracle Domain - Game Discovery Service
+	err = c.Singleton(func() (*oracle_services.GameDiscoveryService, error) {
+		var providers []oracle_out.ExternalScorePort
+		var oracleResultRepo oracle_out.OracleResultRepository
+		var streamConfigRepo oracle_out.OCRStreamConfigRepository
+		var eventPublisher oracle_out.OracleEventPublisher
+
+		if err := c.Resolve(&providers); err != nil {
+			slog.Error("Failed to resolve ExternalScorePort providers for GameDiscoveryService.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&oracleResultRepo); err != nil {
+			slog.Error("Failed to resolve OracleResultRepository for GameDiscoveryService.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&streamConfigRepo); err != nil {
+			slog.Error("Failed to resolve OCRStreamConfigRepository for GameDiscoveryService.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&eventPublisher); err != nil {
+			slog.Error("Failed to resolve OracleEventPublisher for GameDiscoveryService.", "err", err)
+			return nil, err
+		}
+
+		config := oracle_services.DefaultGameDiscoveryConfig()
+		return oracle_services.NewGameDiscoveryService(providers, oracleResultRepo, streamConfigRepo, eventPublisher, config), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load GameDiscoveryService.", "err", err)
+		panic(err)
+	}
+
+	// ========================
+	// Oracle OCR Domain
+	// ========================
+
+	// OCR Score Parser
+	err = c.Singleton(func() (*oracle_services.OCRScoreParser, error) {
+		return oracle_services.NewOCRScoreParser(), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load OCRScoreParser.", "err", err)
+		panic(err)
+	}
+
+	// OCR Stream Capture Port (streamlink + ffmpeg)
+	err = c.Singleton(func() (oracle_out.StreamCapturePort, error) {
+		quality := os.Getenv("STREAM_QUALITY")
+		return oracle_ocr.NewStreamlinkCapture(quality), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load StreamCapturePort.", "err", err)
+		panic(err)
+	}
+
+	// OCR Engine Port (PaddleOCR)
+	err = c.Singleton(func() (oracle_out.OCREnginePort, error) {
+		pythonPath := os.Getenv("PADDLEOCR_PYTHON_PATH")
+		scriptPath := os.Getenv("PADDLEOCR_SCRIPT_PATH")
+		useGPU := os.Getenv("PADDLEOCR_USE_GPU") == "true"
+		if scriptPath == "" {
+			scriptPath = "/app/scripts/paddleocr_wrapper.py"
+		}
+		return oracle_ocr.NewPaddleOCRAdapter(pythonPath, scriptPath, useGPU), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load OCREnginePort.", "err", err)
+		panic(err)
+	}
+
+	// Team Name Resolver (MongoDB-backed)
+	err = c.Singleton(func() (oracle_out.TeamResolverPort, error) {
+		var mongoClient *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&mongoClient); err != nil {
+			slog.Warn("MongoDB not available for TeamNameResolver", "err", err)
+			return nil, nil
+		}
+		if err := c.Resolve(&config); err != nil {
+			slog.Warn("Config not available for TeamNameResolver", "err", err)
+			return nil, nil
+		}
+
+		db := mongoClient.Database(config.MongoDB.DBName)
+		return oracle_ocr.NewTeamNameResolver(db), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load TeamResolverPort.", "err", err)
+		panic(err)
+	}
+
+	// Stream Monitor
+	err = c.Singleton(func() (*oracle_services.StreamMonitor, error) {
+		var streamCapture oracle_out.StreamCapturePort
+		var ocrEngine oracle_out.OCREnginePort
+		var teamResolver oracle_out.TeamResolverPort
+		var scoreParser *oracle_services.OCRScoreParser
+		var commandHandler oracle_in.OracleCommandHandler
+
+		if err := c.Resolve(&streamCapture); err != nil {
+			slog.Error("Failed to resolve StreamCapturePort for StreamMonitor.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&ocrEngine); err != nil {
+			slog.Error("Failed to resolve OCREnginePort for StreamMonitor.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&teamResolver); err != nil {
+			slog.Warn("TeamResolverPort not available for StreamMonitor", "err", err)
+		}
+		if err := c.Resolve(&scoreParser); err != nil {
+			slog.Error("Failed to resolve OCRScoreParser for StreamMonitor.", "err", err)
+			return nil, err
+		}
+		if err := c.Resolve(&commandHandler); err != nil {
+			slog.Error("Failed to resolve OracleCommandHandler for StreamMonitor.", "err", err)
+			return nil, err
+		}
+
+		return oracle_services.NewStreamMonitor(streamCapture, ocrEngine, teamResolver, scoreParser, commandHandler), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load StreamMonitor.", "err", err)
+		panic(err)
+	}
+
+	// ========================
+	// Messaging Domain
+	// ========================
+
+	// Comment Repository
+	err = c.Singleton(func() (messaging_out.CommentRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve *mongo.Client for CommentRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for CommentRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewCommentMongoRepository(client.Database(config.MongoDB.DBName)), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load messaging_out.CommentRepository.", "err", err)
+		panic(err)
+	}
+
+	// Direct Message Repository
+	err = c.Singleton(func() (messaging_out.DirectMessageRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve *mongo.Client for DirectMessageRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for DirectMessageRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewDirectMessageMongoRepository(client.Database(config.MongoDB.DBName)), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load messaging_out.DirectMessageRepository.", "err", err)
+		panic(err)
+	}
+
+	// Team Message Repository
+	err = c.Singleton(func() (messaging_out.TeamMessageRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve *mongo.Client for TeamMessageRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for TeamMessageRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewTeamMessageMongoRepository(client.Database(config.MongoDB.DBName)), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load messaging_out.TeamMessageRepository.", "err", err)
+		panic(err)
+	}
+
+	// Messaging Event Publisher
+	err = c.Singleton(func() (messaging_out.MessagingEventPublisher, error) {
+		var kafkaClient *kafka.Client
+		err := c.Resolve(&kafkaClient)
+		if err != nil || kafkaClient == nil {
+			slog.Warn("Kafka client not available for MessagingEventPublisher, messaging events will not be published.", "err", err)
+			return nil, nil
+		}
+
+		return kafka.NewMessagingEventPublisherAdapter(kafkaClient), nil
+	})
+	if err != nil {
+		slog.Warn("Failed to load messaging_out.MessagingEventPublisher — messaging events disabled.", "err", err)
+	}
+
+	// Comment Command Use Case
+	err = c.Singleton(func() (messaging_in.CommentCommand, error) {
+		var commentRepo messaging_out.CommentRepository
+		var eventPublisher messaging_out.MessagingEventPublisher
+
+		if err := c.Resolve(&commentRepo); err != nil {
+			slog.Error("Failed to resolve CommentRepository for CommentCommandUseCase.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&eventPublisher); err != nil {
+			slog.Warn("MessagingEventPublisher not available, comments will work without events.", "err", err)
+		}
+
+		return messaging_usecases.NewCommentCommandUseCase(commentRepo, eventPublisher), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load messaging_in.CommentCommand.", "err", err)
+		panic(err)
+	}
+
+	// Comment Query Use Case
+	err = c.Singleton(func() (messaging_in.CommentQuery, error) {
+		var commentRepo messaging_out.CommentRepository
+
+		if err := c.Resolve(&commentRepo); err != nil {
+			slog.Error("Failed to resolve CommentRepository for CommentQueryUseCase.", "err", err)
+			return nil, err
+		}
+
+		return messaging_usecases.NewCommentQueryUseCase(commentRepo), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load messaging_in.CommentQuery.", "err", err)
+		panic(err)
+	}
+
+	// Direct Message Command Use Case
+	err = c.Singleton(func() (messaging_in.DirectMessageCommand, error) {
+		var dmRepo messaging_out.DirectMessageRepository
+		var eventPublisher messaging_out.MessagingEventPublisher
+
+		if err := c.Resolve(&dmRepo); err != nil {
+			slog.Error("Failed to resolve DirectMessageRepository for DirectMessageCommandUseCase.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&eventPublisher); err != nil {
+			slog.Warn("MessagingEventPublisher not available for DMs.", "err", err)
+		}
+
+		return messaging_usecases.NewDirectMessageCommandUseCase(dmRepo, eventPublisher), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load messaging_in.DirectMessageCommand.", "err", err)
+		panic(err)
+	}
+
+	// Direct Message Query Use Case
+	err = c.Singleton(func() (messaging_in.DirectMessageQuery, error) {
+		var dmRepo messaging_out.DirectMessageRepository
+
+		if err := c.Resolve(&dmRepo); err != nil {
+			slog.Error("Failed to resolve DirectMessageRepository for DirectMessageQueryUseCase.", "err", err)
+			return nil, err
+		}
+
+		return messaging_usecases.NewDirectMessageQueryUseCase(dmRepo), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load messaging_in.DirectMessageQuery.", "err", err)
+		panic(err)
+	}
+
+	// squad_in.SquadReader (needed by TeamMessageCommandUseCase - may also be registered in WithSquadAPI)
+	_ = c.Singleton(func() (squad_in.SquadReader, error) {
+		var squadReader squad_out.SquadReader
+		err := c.Resolve(&squadReader)
+		if err != nil {
+			slog.Error("Failed to resolve squad_out.SquadReader for squad_in.SquadReader (InjectMongoDB).", "err", err)
+			return nil, err
+		}
+		return squad_services.NewSquadQueryService(squadReader), nil
+	})
+
+	// Team Message Command Use Case
+	err = c.Singleton(func() (messaging_in.TeamMessageCommand, error) {
+		var teamMsgRepo messaging_out.TeamMessageRepository
+		var squadReader squad_in.SquadReader
+		var eventPublisher messaging_out.MessagingEventPublisher
+
+		if err := c.Resolve(&teamMsgRepo); err != nil {
+			slog.Error("Failed to resolve TeamMessageRepository for TeamMessageCommandUseCase.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&squadReader); err != nil {
+			slog.Error("Failed to resolve SquadReader for TeamMessageCommandUseCase.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&eventPublisher); err != nil {
+			slog.Warn("MessagingEventPublisher not available for team messages.", "err", err)
+		}
+
+		return messaging_usecases.NewTeamMessageCommandUseCase(teamMsgRepo, squadReader, eventPublisher), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load messaging_in.TeamMessageCommand.", "err", err)
+		panic(err)
+	}
+
+	// Team Message Query Use Case
+	err = c.Singleton(func() (messaging_in.TeamMessageQuery, error) {
+		var teamMsgRepo messaging_out.TeamMessageRepository
+
+		if err := c.Resolve(&teamMsgRepo); err != nil {
+			slog.Error("Failed to resolve TeamMessageRepository for TeamMessageQueryUseCase.", "err", err)
+			return nil, err
+		}
+
+		return messaging_usecases.NewTeamMessageQueryUseCase(teamMsgRepo), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load messaging_in.TeamMessageQuery.", "err", err)
+		panic(err)
+	}
+
+	// ========================
+	// Prediction Domain
+	// ========================
+
+	// Market Repository
+	err = c.Singleton(func() (prediction_out.MarketRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve *mongo.Client for MarketRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for MarketRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewMarketMongoRepository(client.Database(config.MongoDB.DBName)), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load prediction_out.MarketRepository.", "err", err)
+		panic(err)
+	}
+
+	// Bet Repository
+	err = c.Singleton(func() (prediction_out.BetRepository, error) {
+		var client *mongo.Client
+		var config common.Config
+
+		if err := c.Resolve(&client); err != nil {
+			slog.Error("Failed to resolve *mongo.Client for BetRepository.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve common.Config for BetRepository.", "err", err)
+			return nil, err
+		}
+
+		return db.NewBetMongoRepository(client.Database(config.MongoDB.DBName)), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load prediction_out.BetRepository.", "err", err)
+		panic(err)
+	}
+
+	// Prediction Event Publisher
+	err = c.Singleton(func() (prediction_out.PredictionEventPublisher, error) {
+		var kafkaClient *kafka.Client
+		err := c.Resolve(&kafkaClient)
+		if err != nil || kafkaClient == nil {
+			slog.Warn("Kafka client not available for PredictionEventPublisher, prediction events will not be published.", "err", err)
+			return nil, nil
+		}
+
+		return kafka.NewPredictionEventPublisherAdapter(kafkaClient), nil
+	})
+	if err != nil {
+		slog.Warn("Failed to load prediction_out.PredictionEventPublisher — prediction events disabled.", "err", err)
+	}
+
+	// Market Command Use Case
+	err = c.Singleton(func() (prediction_in.MarketCommand, error) {
+		var marketRepo prediction_out.MarketRepository
+		var betRepo prediction_out.BetRepository
+		var eventPublisher prediction_out.PredictionEventPublisher
+
+		if err := c.Resolve(&marketRepo); err != nil {
+			slog.Error("Failed to resolve MarketRepository for MarketCommandUseCase.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&betRepo); err != nil {
+			slog.Error("Failed to resolve BetRepository for MarketCommandUseCase.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&eventPublisher); err != nil {
+			slog.Warn("PredictionEventPublisher not available for markets.", "err", err)
+		}
+
+		return prediction_usecases.NewMarketCommandUseCase(marketRepo, betRepo, eventPublisher), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load prediction_in.MarketCommand.", "err", err)
+		panic(err)
+	}
+
+	// Market Query Use Case
+	err = c.Singleton(func() (prediction_in.MarketQuery, error) {
+		var marketRepo prediction_out.MarketRepository
+
+		if err := c.Resolve(&marketRepo); err != nil {
+			slog.Error("Failed to resolve MarketRepository for MarketQueryUseCase.", "err", err)
+			return nil, err
+		}
+
+		return prediction_usecases.NewMarketQueryUseCase(marketRepo), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load prediction_in.MarketQuery.", "err", err)
+		panic(err)
+	}
+
+	// Bet Command Use Case
+	err = c.Singleton(func() (prediction_in.BetCommand, error) {
+		var betRepo prediction_out.BetRepository
+		var marketRepo prediction_out.MarketRepository
+		var eventPublisher prediction_out.PredictionEventPublisher
+
+		if err := c.Resolve(&betRepo); err != nil {
+			slog.Error("Failed to resolve BetRepository for BetCommandUseCase.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&marketRepo); err != nil {
+			slog.Error("Failed to resolve MarketRepository for BetCommandUseCase.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&eventPublisher); err != nil {
+			slog.Warn("PredictionEventPublisher not available for bets.", "err", err)
+		}
+
+		return prediction_usecases.NewBetCommandUseCase(betRepo, marketRepo, eventPublisher), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load prediction_in.BetCommand.", "err", err)
+		panic(err)
+	}
+
+	// Bet Query Use Case
+	err = c.Singleton(func() (prediction_in.BetQuery, error) {
+		var betRepo prediction_out.BetRepository
+		var marketRepo prediction_out.MarketRepository
+
+		if err := c.Resolve(&betRepo); err != nil {
+			slog.Error("Failed to resolve BetRepository for BetQueryUseCase.", "err", err)
+			return nil, err
+		}
+
+		if err := c.Resolve(&marketRepo); err != nil {
+			slog.Error("Failed to resolve MarketRepository for BetQueryUseCase.", "err", err)
+			return nil, err
+		}
+
+		return prediction_usecases.NewBetQueryUseCase(betRepo, marketRepo), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load prediction_in.BetQuery.", "err", err)
+		panic(err)
+	}
+
+	// =============================================
+	// Analytics - View Tracking & Insights
+	// =============================================
+
+	// Entity View Repository (implements EntityViewWriter + EntityViewReader)
+	err = c.Singleton(func() (*db.EntityViewRepository, error) {
+		var mongoClient *mongo.Client
+		if err := c.Resolve(&mongoClient); err != nil {
+			slog.Error("Failed to resolve mongo.Client for EntityViewRepository.", "err", err)
+			return nil, err
+		}
+		var config common.Config
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve config for EntityViewRepository.", "err", err)
+			return nil, err
+		}
+		return db.NewEntityViewRepository(mongoClient, config.MongoDB.DBName), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load EntityViewRepository.", "err", err)
+		panic(err)
+	}
+
+	// View Statistics Repository
+	err = c.Singleton(func() (*db.ViewStatisticsRepository, error) {
+		var mongoClient *mongo.Client
+		if err := c.Resolve(&mongoClient); err != nil {
+			slog.Error("Failed to resolve mongo.Client for ViewStatisticsRepository.", "err", err)
+			return nil, err
+		}
+		var config common.Config
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve config for ViewStatisticsRepository.", "err", err)
+			return nil, err
+		}
+		return db.NewViewStatisticsRepository(mongoClient, config.MongoDB.DBName), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load ViewStatisticsRepository.", "err", err)
+		panic(err)
+	}
+
+	// Viewer Insight Repository
+	err = c.Singleton(func() (*db.ViewerInsightRepository, error) {
+		var mongoClient *mongo.Client
+		if err := c.Resolve(&mongoClient); err != nil {
+			slog.Error("Failed to resolve mongo.Client for ViewerInsightRepository.", "err", err)
+			return nil, err
+		}
+		var config common.Config
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve config for ViewerInsightRepository.", "err", err)
+			return nil, err
+		}
+		return db.NewViewerInsightRepository(mongoClient, config.MongoDB.DBName), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load ViewerInsightRepository.", "err", err)
+		panic(err)
+	}
+
+	// View Privacy Repository
+	err = c.Singleton(func() (*db.ViewPrivacyRepository, error) {
+		var mongoClient *mongo.Client
+		if err := c.Resolve(&mongoClient); err != nil {
+			slog.Error("Failed to resolve mongo.Client for ViewPrivacyRepository.", "err", err)
+			return nil, err
+		}
+		var config common.Config
+		if err := c.Resolve(&config); err != nil {
+			slog.Error("Failed to resolve config for ViewPrivacyRepository.", "err", err)
+			return nil, err
+		}
+		return db.NewViewPrivacyRepository(mongoClient, config.MongoDB.DBName), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load ViewPrivacyRepository.", "err", err)
+		panic(err)
+	}
+
+	// View Event Publisher (Kafka)
+	err = c.Singleton(func() (analytics_out.ViewEventPublisher, error) {
+		var eventPublisher *kafka.EventPublisher
+		if err := c.Resolve(&eventPublisher); err != nil {
+			slog.Error("Failed to resolve EventPublisher for ViewEventPublisherAdapter.", "err", err)
+			return nil, err
+		}
+		return kafka.NewViewEventPublisherAdapter(eventPublisher), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load ViewEventPublisher.", "err", err)
+		panic(err)
+	}
+
+	// RecordViewCommandHandler use case
+	err = c.Singleton(func() (analytics_in.RecordViewCommandHandler, error) {
+		var entityViewRepo *db.EntityViewRepository
+		if err := c.Resolve(&entityViewRepo); err != nil {
+			slog.Error("Failed to resolve EntityViewRepository for RecordEntityViewUseCase.", "err", err)
+			return nil, err
+		}
+		var viewEventPublisher analytics_out.ViewEventPublisher
+		if err := c.Resolve(&viewEventPublisher); err != nil {
+			slog.Error("Failed to resolve ViewEventPublisher for RecordEntityViewUseCase.", "err", err)
+			return nil, err
+		}
+		var viewPrivacyRepo *db.ViewPrivacyRepository
+		if err := c.Resolve(&viewPrivacyRepo); err != nil {
+			slog.Error("Failed to resolve ViewPrivacyRepository for RecordEntityViewUseCase.", "err", err)
+			return nil, err
+		}
+		return analytics_usecases.NewRecordEntityViewUseCase(entityViewRepo, entityViewRepo, viewEventPublisher, viewPrivacyRepo), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load RecordViewCommandHandler.", "err", err)
+		panic(err)
+	}
+
+	// ViewStatisticsQueryHandler use case
+	err = c.Singleton(func() (analytics_in.ViewStatisticsQueryHandler, error) {
+		var viewStatsRepo *db.ViewStatisticsRepository
+		if err := c.Resolve(&viewStatsRepo); err != nil {
+			slog.Error("Failed to resolve ViewStatisticsRepository for GetViewStatisticsUseCase.", "err", err)
+			return nil, err
+		}
+		return analytics_usecases.NewGetViewStatisticsUseCase(viewStatsRepo), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load ViewStatisticsQueryHandler.", "err", err)
+		panic(err)
+	}
+
+	// ViewInsightsQueryHandler use case
+	err = c.Singleton(func() (analytics_in.ViewInsightsQueryHandler, error) {
+		var viewerInsightRepo *db.ViewerInsightRepository
+		if err := c.Resolve(&viewerInsightRepo); err != nil {
+			slog.Error("Failed to resolve ViewerInsightRepository for GetViewInsightsUseCase.", "err", err)
+			return nil, err
+		}
+		var viewPrivacyRepo *db.ViewPrivacyRepository
+		if err := c.Resolve(&viewPrivacyRepo); err != nil {
+			slog.Error("Failed to resolve ViewPrivacyRepository for GetViewInsightsUseCase.", "err", err)
+			return nil, err
+		}
+		return analytics_usecases.NewGetViewInsightsUseCase(viewerInsightRepo, viewPrivacyRepo), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load ViewInsightsQueryHandler.", "err", err)
+		panic(err)
+	}
+
+	// MyAnalyticsQueryHandler use case
+	err = c.Singleton(func() (analytics_in.MyAnalyticsQueryHandler, error) {
+		var viewStatsRepo *db.ViewStatisticsRepository
+		if err := c.Resolve(&viewStatsRepo); err != nil {
+			slog.Error("Failed to resolve ViewStatisticsRepository for GetMyAnalyticsUseCase.", "err", err)
+			return nil, err
+		}
+		return analytics_usecases.NewGetMyAnalyticsUseCase(viewStatsRepo), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load MyAnalyticsQueryHandler.", "err", err)
+		panic(err)
+	}
+
+	// UpdateViewPrivacyCommandHandler use case
+	err = c.Singleton(func() (analytics_in.UpdateViewPrivacyCommandHandler, error) {
+		var viewPrivacyRepo *db.ViewPrivacyRepository
+		if err := c.Resolve(&viewPrivacyRepo); err != nil {
+			slog.Error("Failed to resolve ViewPrivacyRepository for UpdateViewPrivacyUseCase.", "err", err)
+			return nil, err
+		}
+		return analytics_usecases.NewUpdateViewPrivacyUseCase(viewPrivacyRepo, viewPrivacyRepo), nil
+	})
+	if err != nil {
+		slog.Error("Failed to load UpdateViewPrivacyCommandHandler.", "err", err)
+		panic(err)
+	}
+
+	// AnalyticsEventConsumer — Kafka consumer factory
+	// This registers a factory function that the replay-worker can resolve
+	// to instantiate the analytics consumer with a running Kafka client.
+	err = c.Singleton(func() (*kafka.AnalyticsEventConsumerConfig, error) {
+		var viewStatsRepo *db.ViewStatisticsRepository
+		if err := c.Resolve(&viewStatsRepo); err != nil {
+			slog.Error("Failed to resolve ViewStatisticsRepository for AnalyticsEventConsumer.", "err", err)
+			return nil, err
+		}
+		var viewerInsightRepo *db.ViewerInsightRepository
+		if err := c.Resolve(&viewerInsightRepo); err != nil {
+			slog.Error("Failed to resolve ViewerInsightRepository for AnalyticsEventConsumer.", "err", err)
+			return nil, err
+		}
+		return &kafka.AnalyticsEventConsumerConfig{
+			GroupID:       "analytics-aggregation-group",
+			StatsWriter:   viewStatsRepo,
+			StatsReader:   viewStatsRepo,
+			InsightWriter: viewerInsightRepo,
+			InsightReader: viewerInsightRepo,
+		}, nil
+	})
+	if err != nil {
+		slog.Error("Failed to load AnalyticsEventConsumerConfig.", "err", err)
 		panic(err)
 	}
 

@@ -12,7 +12,7 @@ type GroupRepository struct {
 }
 
 func NewGroupRepository(client *mongo.Client, dbName string, entityType *iam_entities.Group, collectionName string) *GroupRepository {
-	repo := mongodb.NewMongoDBRepository[iam_entities.Group](client, dbName, *entityType, collectionName, "Group")
+	repo := mongodb.NewMongoDBRepository(client, dbName, *entityType, collectionName, "Group")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":            true,

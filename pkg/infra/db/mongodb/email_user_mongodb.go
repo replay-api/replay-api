@@ -16,12 +16,13 @@ type EmailUserRepository struct {
 }
 
 func NewEmailUserMongoDBRepository(client *mongo.Client, dbName string, entityType email_entities.EmailUser, collectionName string) *EmailUserRepository {
-	repo := mongodb.NewMongoDBRepository[email_entities.EmailUser](client, dbName, entityType, collectionName, "EmailUser")
+	repo := mongodb.NewMongoDBRepository(client, dbName, entityType, collectionName, "EmailUser")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":            true,
 		"VHash":         true,
 		"Email":         true,
+		"PasswordHash":  true,
 		"EmailVerified": true,
 		"DisplayName":   true,
 		"ResourceOwner": true,
@@ -31,6 +32,7 @@ func NewEmailUserMongoDBRepository(client *mongo.Client, dbName string, entityTy
 		"ID":            "_id",
 		"VHash":         "v_hash",
 		"Email":         "email",
+		"PasswordHash":  "password_hash",
 		"EmailVerified": "email_verified",
 		"DisplayName":   "display_name",
 		"ResourceOwner": "resource_owner",

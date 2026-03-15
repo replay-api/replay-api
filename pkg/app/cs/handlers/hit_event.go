@@ -7,9 +7,9 @@ import (
 	dem "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs"
 	evt "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs/events"
 	state "github.com/replay-api/replay-api/pkg/app/cs/state"
+	"github.com/replay-api/replay-api/pkg/domain/replay/entities"
 	replay_common "github.com/replay-api/replay-common/pkg/replay"
 	fps_events "github.com/replay-api/replay-common/pkg/replay/events/game/fps"
-	"github.com/replay-api/replay-api/pkg/domain/replay/entities"
 
 	// replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 
@@ -45,9 +45,10 @@ func HitEvent(p dem.Parser, matchContext *state.CS2MatchContext, out chan *entit
 		if event.Attacker != nil {
 			attackerSteamID = strconv.FormatUint(event.Attacker.SteamID64, 10)
 			attackerName = event.Attacker.Name
-			if event.Attacker.Team == 3 {
+			switch event.Attacker.Team {
+			case 3:
 				attackerTeam = "CT"
-			} else if event.Attacker.Team == 2 {
+			case 2:
 				attackerTeam = "T"
 			}
 		}
@@ -57,9 +58,10 @@ func HitEvent(p dem.Parser, matchContext *state.CS2MatchContext, out chan *entit
 		victimTeam := ""
 		if event.Player != nil {
 			victimSteamID = strconv.FormatUint(event.Player.SteamID64, 10)
-			if event.Player.Team == 3 {
+			switch event.Player.Team {
+			case 3:
 				victimTeam = "CT"
-			} else if event.Player.Team == 2 {
+			case 2:
 				victimTeam = "T"
 			}
 		}

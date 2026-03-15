@@ -21,7 +21,7 @@ type MongoLobbyRepository struct {
 
 func NewMongoLobbyRepository(mongoClient *mongo.Client, dbName string) matchmaking_out.LobbyRepository {
 	entityType := matchmaking_entities.MatchmakingLobby{}
-	repo := mongodb.NewMongoDBRepository[matchmaking_entities.MatchmakingLobby](mongoClient, dbName, entityType, "lobbies", "MatchmakingLobby")
+	repo := mongodb.NewMongoDBRepository(mongoClient, dbName, entityType, "lobbies", "MatchmakingLobby")
 
 	// Define BSON field mappings
 	bsonFieldMappings := map[string]string{

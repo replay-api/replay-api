@@ -23,7 +23,7 @@ type MongoPaymentRepository struct {
 // NewPaymentRepository creates a new MongoDB payment repository
 func NewPaymentRepository(mongoClient *mongo.Client, dbName string) payment_out.PaymentRepository {
 	entityType := &payment_entities.Payment{}
-	repo := mongodb.NewMongoDBRepository[*payment_entities.Payment](mongoClient, dbName, entityType, "payments", "Payment")
+	repo := mongodb.NewMongoDBRepository(mongoClient, dbName, entityType, "payments", "Payment")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":                       true,

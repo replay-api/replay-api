@@ -12,7 +12,7 @@ type MembershipRepository struct {
 }
 
 func NewMembershipRepository(client *mongo.Client, dbName string, entityType *iam_entities.Membership, collectionName string) *MembershipRepository {
-	repo := mongodb.NewMongoDBRepository[iam_entities.Membership](client, dbName, *entityType, collectionName, "Membership")
+	repo := mongodb.NewMongoDBRepository(client, dbName, *entityType, collectionName, "Membership")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":            true,

@@ -22,7 +22,7 @@ func NewMongoPrizePoolRepository(mongoClient *mongo.Client, dbName string) match
 	entityType := matchmaking_entities.PrizePool{}
 	collectionName := "prize_pools"
 
-	repo := mongodb.NewMongoDBRepository[matchmaking_entities.PrizePool](mongoClient, dbName, entityType, collectionName, "PrizePool")
+	repo := mongodb.NewMongoDBRepository(mongoClient, dbName, entityType, collectionName, "PrizePool")
 
 	// Define BSON field mappings
 	bsonFieldMappings := map[string]string{

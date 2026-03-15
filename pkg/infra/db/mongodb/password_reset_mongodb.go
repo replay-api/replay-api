@@ -25,7 +25,7 @@ func NewPasswordResetMongoDBRepository(client *mongo.Client, dbName string) *Pas
 	entityType := auth_entities.PasswordReset{}
 	collectionName := "password_resets"
 
-	repo := mongodb.NewMongoDBRepository[auth_entities.PasswordReset](client, dbName, entityType, collectionName, "PasswordReset")
+	repo := mongodb.NewMongoDBRepository(client, dbName, entityType, collectionName, "PasswordReset")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":        true,

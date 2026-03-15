@@ -21,7 +21,7 @@ type MongoTournamentRepository struct {
 
 func NewMongoTournamentRepository(mongoClient *mongo.Client, dbName string) tournament_out.TournamentRepository {
 	entityType := tournament_entities.Tournament{}
-	repo := mongodb.NewMongoDBRepository[tournament_entities.Tournament](mongoClient, dbName, entityType, "tournaments", "Tournament")
+	repo := mongodb.NewMongoDBRepository(mongoClient, dbName, entityType, "tournaments", "Tournament")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":                true,
@@ -307,6 +307,24 @@ func (r *MongoTournamentRepository) FindPlayerTournaments(ctx context.Context, p
 
 	slog.InfoContext(ctx, "found player tournaments", "player_id", playerID, "count", len(tournaments))
 	return tournaments, nil
+}
+
+func (r *MongoTournamentRepository) FindByMatchID(ctx context.Context, matchID uuid.UUID) (*tournament_entities.Tournament, error) {
+	filter := bson.M{
+		"matches.match_id": matchID,
+	}
+
+	var tournament tournament_entities.Tournament
+	err := r.MongoDBRepository.Collection().FindOne(ctx, filter).Decode(&tournament)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, fmt.Errorf("tournament not found for match: %s", matchID)
+		}
+		slog.ErrorContext(ctx, "failed to find tournament by match ID", "match_id", matchID, "error", err)
+		return nil, fmt.Errorf("failed to find tournament by match: %w", err)
+	}
+
+	return &tournament, nil
 }
 
 // Ensure MongoTournamentRepository implements TournamentRepository interface

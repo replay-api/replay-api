@@ -9,9 +9,9 @@ import (
 	evt "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs/events"
 	event_factory "github.com/replay-api/replay-api/pkg/app/cs/factories"
 	"github.com/replay-api/replay-api/pkg/app/cs/state"
+	"github.com/replay-api/replay-api/pkg/domain/replay/entities"
 	replay_common "github.com/replay-api/replay-common/pkg/replay"
 	fps_events "github.com/replay-api/replay-common/pkg/replay/events/game/fps"
-	"github.com/replay-api/replay-api/pkg/domain/replay/entities"
 )
 
 // GrenadeEventPayload contains data for grenade explosion events
@@ -62,9 +62,10 @@ func HeGrenadeExplode(p dem.Parser, matchContext *state.CS2MatchContext, out cha
 			throwerName = event.Thrower.Name
 			throwerSteamID = strconv.FormatUint(event.Thrower.SteamID64, 10)
 			
-			if event.Thrower.Team == 2 {
+			switch event.Thrower.Team {
+			case 2:
 				throwerTeam = "T"
-			} else if event.Thrower.Team == 3 {
+			case 3:
 				throwerTeam = "CT"
 			}
 			
@@ -138,9 +139,10 @@ func FlashExplode(p dem.Parser, matchContext *state.CS2MatchContext, out chan *e
 			throwerName = event.Thrower.Name
 			throwerSteamID = strconv.FormatUint(event.Thrower.SteamID64, 10)
 			
-			if event.Thrower.Team == 2 {
+			switch event.Thrower.Team {
+			case 2:
 				throwerTeam = "T"
-			} else if event.Thrower.Team == 3 {
+			case 3:
 				throwerTeam = "CT"
 			}
 			
@@ -214,9 +216,10 @@ func SmokeStart(p dem.Parser, matchContext *state.CS2MatchContext, out chan *ent
 			throwerName = event.Thrower.Name
 			throwerSteamID = strconv.FormatUint(event.Thrower.SteamID64, 10)
 			
-			if event.Thrower.Team == 2 {
+			switch event.Thrower.Team {
+			case 2:
 				throwerTeam = "T"
-			} else if event.Thrower.Team == 3 {
+			case 3:
 				throwerTeam = "CT"
 			}
 			
@@ -289,9 +292,10 @@ func InfernoStart(p dem.Parser, matchContext *state.CS2MatchContext, out chan *e
 			throwerName = thrower.Name
 			throwerSteamID = strconv.FormatUint(thrower.SteamID64, 10)
 			
-			if thrower.Team == 2 {
+			switch thrower.Team {
+			case 2:
 				throwerTeam = "T"
-			} else if thrower.Team == 3 {
+			case 3:
 				throwerTeam = "CT"
 			}
 			
@@ -387,9 +391,10 @@ func DecoyStart(p dem.Parser, matchContext *state.CS2MatchContext, out chan *ent
 			throwerName = event.Thrower.Name
 			throwerSteamID = strconv.FormatUint(event.Thrower.SteamID64, 10)
 			
-			if event.Thrower.Team == 2 {
+			switch event.Thrower.Team {
+			case 2:
 				throwerTeam = "T"
-			} else if event.Thrower.Team == 3 {
+			case 3:
 				throwerTeam = "CT"
 			}
 			
@@ -488,9 +493,10 @@ func GrenadeProjectileDestroy(p dem.Parser, matchContext *state.CS2MatchContext,
 			throwerName = event.Projectile.Thrower.Name
 			throwerSteamID = strconv.FormatUint(event.Projectile.Thrower.SteamID64, 10)
 			
-			if event.Projectile.Thrower.Team == 2 {
+			switch event.Projectile.Thrower.Team {
+			case 2:
 				throwerTeam = "T"
-			} else if event.Projectile.Thrower.Team == 3 {
+			case 3:
 				throwerTeam = "CT"
 			}
 			

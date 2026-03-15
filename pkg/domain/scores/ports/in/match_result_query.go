@@ -108,6 +108,9 @@ type MatchResultDTO struct {
 	WasAdjusted          bool                           `json:"was_adjusted"`
 	FinalizedAt          *time.Time                     `json:"finalized_at,omitempty"`
 	PrizeDistributionID  *uuid.UUID                     `json:"prize_distribution_id,omitempty"`
+	CancelledBy          *uuid.UUID                     `json:"cancelled_by,omitempty"`
+	CancelledAt          *time.Time                     `json:"cancelled_at,omitempty"`
+	CancelReason         string                         `json:"cancel_reason,omitempty"`
 	PlayedAt             time.Time                      `json:"played_at"`
 	Duration             time.Duration                  `json:"duration"`
 	CreatedAt            time.Time                      `json:"created_at"`
@@ -169,6 +172,9 @@ func MatchResultToDTO(m *scores_entities.MatchResult) MatchResultDTO {
 		WasAdjusted:          m.WasAdjusted(),
 		FinalizedAt:          m.FinalizedAt,
 		PrizeDistributionID:  m.PrizeDistributionID,
+		CancelledBy:          m.CancelledBy,
+		CancelledAt:          m.CancelledAt,
+		CancelReason:         m.CancelReason,
 		PlayedAt:             m.PlayedAt,
 		Duration:             m.Duration,
 		CreatedAt:            m.CreatedAt,

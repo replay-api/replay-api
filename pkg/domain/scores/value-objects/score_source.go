@@ -17,12 +17,18 @@ const (
 
 	// ScoreSourceConsensus indicates scores were agreed upon by participating teams
 	ScoreSourceConsensus ScoreSource = "consensus"
+
+	// ScoreSourceMatchmaking indicates scores originated from the matchmaking system
+	ScoreSourceMatchmaking ScoreSource = "matchmaking"
+
+	// ScoreSourceOracle indicates scores were produced by the oracle consensus system (OCR + external APIs)
+	ScoreSourceOracle ScoreSource = "oracle"
 )
 
 // IsValid returns true if the source is a known valid value
 func (s ScoreSource) IsValid() bool {
 	switch s {
-	case ScoreSourceReplayFile, ScoreSourceTournamentAdmin, ScoreSourceExternalAPI, ScoreSourceConsensus:
+	case ScoreSourceReplayFile, ScoreSourceTournamentAdmin, ScoreSourceExternalAPI, ScoreSourceConsensus, ScoreSourceMatchmaking, ScoreSourceOracle:
 		return true
 	default:
 		return false
@@ -50,7 +56,7 @@ func (s ScoreSource) RequiresManualVerification() bool {
 
 // IsAutomated returns true if the source is programmatic rather than human-submitted
 func (s ScoreSource) IsAutomated() bool {
-	return s == ScoreSourceReplayFile || s == ScoreSourceExternalAPI
+	return s == ScoreSourceReplayFile || s == ScoreSourceExternalAPI || s == ScoreSourceMatchmaking || s == ScoreSourceOracle
 }
 
 // Validate returns an error if the score source is invalid

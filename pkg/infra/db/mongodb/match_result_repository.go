@@ -27,7 +27,7 @@ var _ scores_out.MatchResultRepository = (*MongoMatchResultRepository)(nil)
 // NewMongoMatchResultRepository creates a new MongoDB-backed match result repository
 func NewMongoMatchResultRepository(mongoClient *mongo.Client, dbName string) scores_out.MatchResultRepository {
 	entityType := scores_entities.MatchResult{}
-	repo := mongodb.NewMongoDBRepository[scores_entities.MatchResult](mongoClient, dbName, entityType, "match_results", "MatchResult")
+	repo := mongodb.NewMongoDBRepository(mongoClient, dbName, entityType, "match_results", "MatchResult")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":                   true,
@@ -104,7 +104,21 @@ func (r *MongoMatchResultRepository) Save(ctx context.Context, result *scores_en
 }
 
 func (r *MongoMatchResultRepository) FindByID(ctx context.Context, id uuid.UUID) (*scores_entities.MatchResult, error) {
-	return r.MongoDBRepository.GetByID(ctx, id)
+	// BaseEntity is nested under "baseentity" in BSON (not inlined).
+	// The UUID lives at baseentity._id, not top-level _id.
+	var result scores_entities.MatchResult
+	filter := bson.M{"baseentity._id": id}
+
+	err := r.MongoDBRepository.FindOneWithRLS(ctx, filter).Decode(&result)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, fmt.Errorf("match result not found: %s", id)
+		}
+		slog.ErrorContext(ctx, "failed to find match result by ID", "id", id, "error", err)
+		return nil, err
+	}
+
+	return &result, nil
 }
 
 func (r *MongoMatchResultRepository) FindByMatchID(ctx context.Context, matchID uuid.UUID) (*scores_entities.MatchResult, error) {
@@ -194,13 +208,24 @@ func (r *MongoMatchResultRepository) Update(ctx context.Context, result *scores_
 
 	result.UpdatedAt = time.Now().UTC()
 
-	_, err := r.MongoDBRepository.Update(ctx, result)
+	// BaseEntity is nested under "baseentity" in BSON (not inlined).
+	// Must filter by baseentity._id for the update to match.
+	filter := bson.M{"baseentity._id": result.GetID()}
+
+	updateResult, err := r.MongoDBRepository.Collection().ReplaceOne(ctx, filter, result)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update match result",
 			slog.String("match_result_id", result.ID.String()),
 			slog.String("error", err.Error()),
 		)
 		return fmt.Errorf("failed to update match result: %w", err)
+	}
+
+	if updateResult.MatchedCount == 0 {
+		slog.WarnContext(ctx, "match result not found for update",
+			slog.String("match_result_id", result.ID.String()),
+		)
+		return fmt.Errorf("match result not found for update: %s", result.ID)
 	}
 
 	return nil

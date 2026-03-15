@@ -25,7 +25,7 @@ func NewEmailVerificationMongoDBRepository(client *mongo.Client, dbName string) 
 	entityType := auth_entities.EmailVerification{}
 	collectionName := "email_verifications"
 
-	repo := mongodb.NewMongoDBRepository[auth_entities.EmailVerification](client, dbName, entityType, collectionName, "EmailVerification")
+	repo := mongodb.NewMongoDBRepository(client, dbName, entityType, collectionName, "EmailVerification")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":        true,

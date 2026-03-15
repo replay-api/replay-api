@@ -19,7 +19,7 @@ type PlanRepository struct {
 }
 
 func NewPlanRepository(client *mongo.Client, dbName string, entityType billing_entities.Plan, collectionName string) *PlanRepository {
-	repo := mongodb.NewMongoDBRepository[billing_entities.Plan](client, dbName, entityType, collectionName, "Plan")
+	repo := mongodb.NewMongoDBRepository(client, dbName, entityType, collectionName, "Plan")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":                   true,

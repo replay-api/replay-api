@@ -21,6 +21,8 @@ type GameEventReader interface {
 
 type MatchMetadataReader interface {
 	shared.Searchable[replay_entity.Match]
+	FindBySlug(ctx context.Context, slug string) (*replay_entity.Match, error)
+	FindByExternalMatchID(ctx context.Context, externalMatchID string) (*replay_entity.Match, error)
 }
 
 type ReplayFileMetadataReader interface {

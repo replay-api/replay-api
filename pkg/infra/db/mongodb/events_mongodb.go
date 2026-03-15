@@ -19,7 +19,7 @@ type EventsRepository struct {
 }
 
 func NewEventsRepository(client *mongo.Client, dbName string, entityType *replay_entity.GameEvent, collectionName string) *EventsRepository {
-	repo := mongodb.NewMongoDBRepository[replay_entity.GameEvent](client, dbName, *entityType, collectionName, "GameEvent")
+	repo := mongodb.NewMongoDBRepository(client, dbName, *entityType, collectionName, "GameEvent")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":              true,

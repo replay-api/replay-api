@@ -23,7 +23,7 @@ type WithdrawalMongoDBRepository struct {
 
 // NewWithdrawalMongoDBRepository creates a new WithdrawalMongoDBRepository
 func NewWithdrawalMongoDBRepository(client *mongo.Client, dbName string) billing_out.WithdrawalRepository {
-	repo := mongodb.NewMongoDBRepository[*billing_entities.Withdrawal](client, dbName, &billing_entities.Withdrawal{}, withdrawalCollection, "Withdrawal")
+	repo := mongodb.NewMongoDBRepository(client, dbName, &billing_entities.Withdrawal{}, withdrawalCollection, "Withdrawal")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":                true,

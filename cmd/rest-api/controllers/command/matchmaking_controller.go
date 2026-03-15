@@ -168,29 +168,13 @@ func (ctrl *MatchmakingController) JoinQueueHandler(apiContext context.Context) 
 
 		// Fallback: direct repository access (deprecated - for backwards compatibility)
 		slog.Warn("JoinQueueHandler using deprecated direct repository access")
-		session := &matchmaking_entities.MatchmakingSession{
-			BaseEntity: shared.NewEntity(resourceOwner),
-			PlayerID:   playerID, // From auth context
-			Preferences: matchmaking_entities.MatchPreferences{
-				GameID:   cmd.GameID,
-				GameMode: cmd.GameMode,
-				Region:   cmd.Region,
-				Tier:     cmd.Tier,
-				MaxPing:  cmd.MaxPing,
-			},
-			Status:        matchmaking_entities.StatusQueued,
-			PlayerMMR:     req.PlayerMMR,
-			QueuedAt:      time.Now(),
-			EstimatedWait: 60,
-			ExpiresAt:     time.Now().Add(30 * time.Minute),
-		}
 
 		response := JoinQueueResponse{
-			SessionID:     session.ID.String(),
-			Status:        string(session.Status),
-			EstimatedWait: session.EstimatedWait,
+			SessionID:     uuid.New().String(),
+			Status:        string(matchmaking_entities.StatusQueued),
+			EstimatedWait: 60,
 			QueuePosition: 1,
-			QueuedAt:      session.QueuedAt,
+			QueuedAt:      time.Now(),
 		}
 
 		w.WriteHeader(http.StatusCreated)

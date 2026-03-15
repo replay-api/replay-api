@@ -16,7 +16,7 @@ type ProfileRepository struct {
 }
 
 func NewProfileRepository(client *mongo.Client, dbName string, entityType iam_entities.Profile, collectionName string) *ProfileRepository {
-	repo := mongodb.NewMongoDBRepository[iam_entities.Profile](client, dbName, entityType, collectionName, "Profile")
+	repo := mongodb.NewMongoDBRepository(client, dbName, entityType, collectionName, "Profile")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":            true,

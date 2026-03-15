@@ -9,9 +9,9 @@ import (
 	evt "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs/events"
 	event_factory "github.com/replay-api/replay-api/pkg/app/cs/factories"
 	"github.com/replay-api/replay-api/pkg/app/cs/state"
+	"github.com/replay-api/replay-api/pkg/domain/replay/entities"
 	replay_common "github.com/replay-api/replay-common/pkg/replay"
 	fps_events "github.com/replay-api/replay-common/pkg/replay/events/game/fps"
-	"github.com/replay-api/replay-api/pkg/domain/replay/entities"
 )
 
 // Position3D represents a 3D coordinate in the game world
@@ -64,9 +64,10 @@ func Kill(p dem.Parser, matchContext *state.CS2MatchContext, out chan *entities.
 		if event.Killer != nil {
 			killerName = event.Killer.Name
 			killerSteamID = strconv.FormatUint(event.Killer.SteamID64, 10)
-			if event.Killer.Team == 3 {
+			switch event.Killer.Team {
+			case 3:
 				killerTeam = "CT"
-			} else if event.Killer.Team == 2 {
+			case 2:
 				killerTeam = "T"
 			}
 		}
@@ -78,9 +79,10 @@ func Kill(p dem.Parser, matchContext *state.CS2MatchContext, out chan *entities.
 		if event.Victim != nil {
 			victimName = event.Victim.Name
 			victimSteamID = strconv.FormatUint(event.Victim.SteamID64, 10)
-			if event.Victim.Team == 3 {
+			switch event.Victim.Team {
+			case 3:
 				victimTeam = "CT"
-			} else if event.Victim.Team == 2 {
+			case 2:
 				victimTeam = "T"
 			}
 		}
@@ -92,9 +94,10 @@ func Kill(p dem.Parser, matchContext *state.CS2MatchContext, out chan *entities.
 		if event.Assister != nil {
 			assisterName = event.Assister.Name
 			assisterSteamID = strconv.FormatUint(event.Assister.SteamID64, 10)
-			if event.Assister.Team == 3 {
+			switch event.Assister.Team {
+			case 3:
 				assisterTeam = "CT"
-			} else if event.Assister.Team == 2 {
+			case 2:
 				assisterTeam = "T"
 			}
 		}

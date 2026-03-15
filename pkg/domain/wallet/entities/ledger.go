@@ -48,6 +48,10 @@ const (
 	TxTypeAdjustment        TransactionType = "ADJUSTMENT"
 	TxTypeHold              TransactionType = "HOLD"
 	TxTypeRelease           TransactionType = "RELEASE"
+	TxTypeVaultDeposit      TransactionType = "VAULT_DEPOSIT"
+	TxTypeVaultWithdrawal   TransactionType = "VAULT_WITHDRAWAL"
+	TxTypeVaultTransfer     TransactionType = "VAULT_TRANSFER"
+	TxTypeVaultItemTransfer TransactionType = "VAULT_ITEM_TRANSFER"
 )
 
 // AssetType defines the type of asset being transacted
@@ -654,6 +658,8 @@ var StandardChartOfAccounts = []struct {
 	{"1003", "Crypto Custody Account", AccountTypeAsset},
 	{"1004", "Accounts Receivable", AccountTypeAsset},
 	{"1005", "Held Funds Account", AccountTypeAsset},
+	{"1006", "Bitcoin Holdings", AccountTypeAsset},
+	{"1007", "Lightning Channel Balance", AccountTypeAsset},
 
 	// Liabilities (2xxx)
 	{"2001", "User Wallet Balances", AccountTypeLiability},
@@ -671,13 +677,26 @@ var StandardChartOfAccounts = []struct {
 	{"4002", "Subscription Revenue", AccountTypeRevenue},
 	{"4003", "Premium Feature Revenue", AccountTypeRevenue},
 	{"4004", "Marketplace Commissions", AccountTypeRevenue},
+	{"4005", "Bitcoin Trading Fees", AccountTypeRevenue},
+	{"4006", "Bitcoin Spread Revenue", AccountTypeRevenue},
 
 	// Expenses (5xxx)
 	{"5001", "Payment Processing Fees", AccountTypeExpense},
 	{"5002", "Refunds Expense", AccountTypeExpense},
 	{"5003", "Promotional Credits", AccountTypeExpense},
 	{"5004", "Prize Pool Contributions", AccountTypeExpense},
+	{"5005", "Exchange Trading Fees", AccountTypeExpense},
 }
+
+// Bitcoin/Exchange transaction types
+const (
+	TxTypeBTCBuy        TransactionType = "BTC_BUY"
+	TxTypeBTCSell       TransactionType = "BTC_SELL"
+	TxTypeBTCWithdrawal TransactionType = "BTC_WITHDRAWAL"
+	TxTypeBTCDeposit    TransactionType = "BTC_DEPOSIT"
+	TxTypeLightning     TransactionType = "LIGHTNING_PAYMENT"
+	TxTypeExchangeFee   TransactionType = "EXCHANGE_FEE"
+)
 
 // Helper function to convert big.Float to float64
 func floatFromBig(f *big.Float) float64 {

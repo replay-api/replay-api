@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/google/uuid"
 	scores_entities "github.com/replay-api/replay-api/pkg/domain/scores/entities"
@@ -13,11 +14,18 @@ import (
 	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
+// DisputeWindowDuration is the minimum time after verification (or conciliation) during which
+// non-admin users cannot finalize the result, ensuring participants have time to dispute.
+// This mirrors the 72-hour escrow period used by the auto-finalization worker.
+const DisputeWindowDuration = 72 * time.Hour
+
 // matchResultCommandHandler implements scores_in.MatchResultCommandHandler
 type matchResultCommandHandler struct {
-	repository              scores_out.MatchResultRepository
-	eventPublisher          scores_out.ScoreEventPublisher
+	repository               scores_out.MatchResultRepository
+	eventPublisher           scores_out.ScoreEventPublisher
 	prizeDistributionGateway scores_out.PrizeDistributionGateway
+	authorization            scores_out.ScoreAuthorization
+	tournamentCallback       scores_out.TournamentMatchCallback
 }
 
 // NewSubmitMatchResultUseCase creates a basic command handler for submitting match results
@@ -36,15 +44,20 @@ func NewMatchResultCommandHandler(
 	repository scores_out.MatchResultRepository,
 	eventPublisher scores_out.ScoreEventPublisher,
 	prizeDistributionGateway scores_out.PrizeDistributionGateway,
+	authorization scores_out.ScoreAuthorization,
+	tournamentCallback scores_out.TournamentMatchCallback,
 ) scores_in.MatchResultCommandHandler {
 	return &matchResultCommandHandler{
-		repository:              repository,
-		eventPublisher:          eventPublisher,
+		repository:               repository,
+		eventPublisher:           eventPublisher,
 		prizeDistributionGateway: prizeDistributionGateway,
+		authorization:            authorization,
+		tournamentCallback:       tournamentCallback,
 	}
 }
 
 // SubmitMatchResult handles manual score submission (from tournament admin or external sources)
+// Permission: tournament_admin source requires organizer/admin role; other sources require admin
 func (h *matchResultCommandHandler) SubmitMatchResult(ctx context.Context, cmd scores_in.SubmitMatchResultCommand) (*scores_entities.MatchResult, error) {
 	if err := cmd.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid command: %w", err)
@@ -52,6 +65,13 @@ func (h *matchResultCommandHandler) SubmitMatchResult(ctx context.Context, cmd s
 
 	// Get resource owner from context
 	resourceOwner := shared.GetResourceOwner(ctx)
+
+	// --- RBAC: Enforce submission permissions ---
+	if h.authorization != nil {
+		if err := h.authorizeSubmission(ctx, resourceOwner.UserID, cmd); err != nil {
+			return nil, err
+		}
+	}
 
 	// Check for idempotency — don't allow duplicate results for the same match
 	existing, _ := h.repository.FindByMatchID(ctx, cmd.MatchID)
@@ -208,6 +228,7 @@ func (h *matchResultCommandHandler) SubmitMatchResultFromReplay(ctx context.Cont
 }
 
 // VerifyMatchResult manually verifies a submitted match result
+// Permission: tournament organizer (for tournament scores) OR platform admin
 func (h *matchResultCommandHandler) VerifyMatchResult(ctx context.Context, cmd scores_in.VerifyMatchResultCommand) error {
 	if err := cmd.Validate(); err != nil {
 		return fmt.Errorf("invalid command: %w", err)
@@ -220,6 +241,13 @@ func (h *matchResultCommandHandler) VerifyMatchResult(ctx context.Context, cmd s
 
 	resourceOwner := shared.GetResourceOwner(ctx)
 	verifierID := resourceOwner.UserID
+
+	// --- RBAC: Only tournament organizer or admin can verify ---
+	if h.authorization != nil {
+		if err := h.authorizeAdminAction(ctx, resourceOwner.UserID, result, "verify"); err != nil {
+			return err
+		}
+	}
 
 	if err := result.Verify(cmd.VerificationMethod, &verifierID); err != nil {
 		return fmt.Errorf("failed to verify match result: %w", err)
@@ -243,6 +271,7 @@ func (h *matchResultCommandHandler) VerifyMatchResult(ctx context.Context, cmd s
 }
 
 // DisputeMatchResult registers a dispute against a verified match result
+// Permission: match participant (player in team or player_results) OR platform admin
 func (h *matchResultCommandHandler) DisputeMatchResult(ctx context.Context, cmd scores_in.DisputeMatchResultCommand) error {
 	if err := cmd.Validate(); err != nil {
 		return fmt.Errorf("invalid command: %w", err)
@@ -254,6 +283,13 @@ func (h *matchResultCommandHandler) DisputeMatchResult(ctx context.Context, cmd 
 	}
 
 	resourceOwner := shared.GetResourceOwner(ctx)
+
+	// --- RBAC: Only match participants or admin can dispute ---
+	if h.authorization != nil {
+		if err := h.authorizeDisputeAction(ctx, resourceOwner.UserID, result); err != nil {
+			return err
+		}
+	}
 
 	if err := result.Dispute(cmd.Reason, resourceOwner.UserID); err != nil {
 		return fmt.Errorf("failed to dispute match result: %w", err)
@@ -277,6 +313,7 @@ func (h *matchResultCommandHandler) DisputeMatchResult(ctx context.Context, cmd 
 }
 
 // ConciliateMatchResult resolves a dispute with optional score adjustments
+// Permission: tournament organizer (for tournament scores) OR platform admin
 func (h *matchResultCommandHandler) ConciliateMatchResult(ctx context.Context, cmd scores_in.ConciliateMatchResultCommand) error {
 	if err := cmd.Validate(); err != nil {
 		return fmt.Errorf("invalid command: %w", err)
@@ -288,6 +325,13 @@ func (h *matchResultCommandHandler) ConciliateMatchResult(ctx context.Context, c
 	}
 
 	resourceOwner := shared.GetResourceOwner(ctx)
+
+	// --- RBAC: Only tournament organizer or admin can conciliate ---
+	if h.authorization != nil {
+		if err := h.authorizeAdminAction(ctx, resourceOwner.UserID, result, "conciliate"); err != nil {
+			return err
+		}
+	}
 
 	if err := result.Conciliate(resourceOwner.UserID, cmd.Notes, cmd.AdjustedTeamResults); err != nil {
 		return fmt.Errorf("failed to conciliate match result: %w", err)
@@ -311,6 +355,7 @@ func (h *matchResultCommandHandler) ConciliateMatchResult(ctx context.Context, c
 }
 
 // FinalizeMatchResult finalizes a match result and triggers prize distribution
+// Permission: tournament organizer (for tournament scores) OR platform admin
 func (h *matchResultCommandHandler) FinalizeMatchResult(ctx context.Context, cmd scores_in.FinalizeMatchResultCommand) error {
 	if err := cmd.Validate(); err != nil {
 		return fmt.Errorf("invalid command: %w", err)
@@ -319,6 +364,33 @@ func (h *matchResultCommandHandler) FinalizeMatchResult(ctx context.Context, cmd
 	result, err := h.repository.FindByID(ctx, cmd.MatchResultID)
 	if err != nil {
 		return fmt.Errorf("match result not found: %w", err)
+	}
+
+	// --- RBAC: Only tournament organizer or admin can finalize ---
+	isPlatformAdmin := false
+	if h.authorization != nil {
+		resourceOwner := shared.GetResourceOwner(ctx)
+		if err := h.authorizeAdminAction(ctx, resourceOwner.UserID, result, "finalize"); err != nil {
+			return err
+		}
+		isPlatformAdmin = h.authorization.IsPlatformAdmin(ctx)
+	}
+
+	// --- Dispute Window Guard (Financial-Grade) ---
+	// Non-admin users must wait for the dispute window to elapse before finalizing.
+	// Only platform admins can force-finalize before the window expires.
+	if !isPlatformAdmin {
+		var referenceTime *time.Time
+		if result.ConciliatedAt != nil {
+			referenceTime = result.ConciliatedAt
+		} else if result.VerifiedAt != nil {
+			referenceTime = result.VerifiedAt
+		}
+
+		if referenceTime != nil && time.Since(*referenceTime) < DisputeWindowDuration {
+			return fmt.Errorf("cannot finalize: dispute window has not elapsed (%.0f hours remaining); only platform admins can force-finalize",
+				(DisputeWindowDuration - time.Since(*referenceTime)).Hours())
+		}
 	}
 
 	if err := result.Finalize(); err != nil {
@@ -372,6 +444,21 @@ func (h *matchResultCommandHandler) FinalizeMatchResult(ctx context.Context, cmd
 		slog.ErrorContext(ctx, "failed to publish finalized event", slog.String("error", err.Error()))
 	}
 
+	// --- Tournament Bracket Advancement Callback ---
+	// After full finalization (dispute window passed, prizes distributed, event published),
+	// notify the tournament domain so it can record the result and advance the bracket.
+	if h.tournamentCallback != nil && result.TournamentID != nil && result.WinnerTeamID != nil {
+		if err := h.tournamentCallback.OnMatchResultFinalized(ctx, *result.TournamentID, result.MatchID, *result.WinnerTeamID); err != nil {
+			slog.ErrorContext(ctx, "tournament match callback failed (non-fatal)",
+				slog.String("match_result_id", result.ID.String()),
+				slog.String("tournament_id", result.TournamentID.String()),
+				slog.String("match_id", result.MatchID.String()),
+				slog.String("error", err.Error()),
+			)
+			// Non-fatal: tournament state can be reconciled later via event replay
+		}
+	}
+
 	slog.InfoContext(ctx, "match result finalized",
 		slog.String("match_result_id", result.ID.String()),
 		slog.String("match_id", result.MatchID.String()),
@@ -382,6 +469,7 @@ func (h *matchResultCommandHandler) FinalizeMatchResult(ctx context.Context, cmd
 }
 
 // CancelMatchResult cancels/voids a match result
+// Permission: tournament organizer (for tournament scores) OR platform admin
 func (h *matchResultCommandHandler) CancelMatchResult(ctx context.Context, cmd scores_in.CancelMatchResultCommand) error {
 	if err := cmd.Validate(); err != nil {
 		return fmt.Errorf("invalid command: %w", err)
@@ -392,7 +480,15 @@ func (h *matchResultCommandHandler) CancelMatchResult(ctx context.Context, cmd s
 		return fmt.Errorf("match result not found: %w", err)
 	}
 
-	if err := result.Cancel(cmd.Reason); err != nil {
+	// --- RBAC: Only tournament organizer or admin can cancel ---
+	resourceOwner := shared.GetResourceOwner(ctx)
+	if h.authorization != nil {
+		if err := h.authorizeAdminAction(ctx, resourceOwner.UserID, result, "cancel"); err != nil {
+			return err
+		}
+	}
+
+	if err := result.Cancel(cmd.Reason, resourceOwner.UserID); err != nil {
 		return fmt.Errorf("failed to cancel match result: %w", err)
 	}
 
@@ -408,6 +504,122 @@ func (h *matchResultCommandHandler) CancelMatchResult(ctx context.Context, cmd s
 		slog.String("match_result_id", result.ID.String()),
 		slog.String("reason", cmd.Reason),
 	)
+
+	return nil
+}
+
+// --- Private RBAC Helper Methods (Financial-Grade Authorization) ---
+
+// authorizeSubmission enforces permission checks for manual score submission.
+// - tournament_admin source: user must be tournament organizer or platform admin
+// - external_api / consensus: requires platform admin
+// - replay_file: only allowed via SubmitMatchResultFromReplay (system pipeline)
+func (h *matchResultCommandHandler) authorizeSubmission(ctx context.Context, userID uuid.UUID, cmd scores_in.SubmitMatchResultCommand) error {
+	// Platform admin can always submit
+	if h.authorization.IsPlatformAdmin(ctx) {
+		return nil
+	}
+
+	switch cmd.Source {
+	case scores_vo.ScoreSourceTournamentAdmin:
+		// Tournament admin source: must be the tournament organizer
+		if cmd.TournamentID == nil {
+			return fmt.Errorf("forbidden: tournament_admin source requires a tournament_id")
+		}
+		isOrganizer, err := h.authorization.IsTournamentOrganizer(ctx, userID, *cmd.TournamentID)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to check tournament organizer status",
+				slog.String("user_id", userID.String()),
+				slog.String("error", err.Error()),
+			)
+			return fmt.Errorf("authorization check failed: %w", err)
+		}
+		if !isOrganizer {
+			return fmt.Errorf("forbidden: only the tournament organizer can submit scores for this tournament")
+		}
+		return nil
+
+	case scores_vo.ScoreSourceExternalAPI, scores_vo.ScoreSourceConsensus:
+		// External API and consensus sources require admin
+		return fmt.Errorf("forbidden: %s source requires platform admin privileges", cmd.Source)
+
+	case scores_vo.ScoreSourceReplayFile:
+		// Replay file submissions should go through SubmitMatchResultFromReplay
+		return fmt.Errorf("forbidden: replay_file source must use the replay processing pipeline")
+
+	case scores_vo.ScoreSourceMatchmaking:
+		// Matchmaking source: only accepted from the matchmaking pipeline (admin/system)
+		return fmt.Errorf("forbidden: matchmaking source requires platform admin privileges")
+
+	default:
+		return fmt.Errorf("forbidden: unknown score source %s", cmd.Source)
+	}
+}
+
+// authorizeAdminAction enforces permission checks for admin-level score operations
+// (verify, conciliate, finalize, cancel). Requires tournament organizer or platform admin.
+func (h *matchResultCommandHandler) authorizeAdminAction(ctx context.Context, userID uuid.UUID, result *scores_entities.MatchResult, action string) error {
+	// Platform admin can always perform admin actions
+	if h.authorization.IsPlatformAdmin(ctx) {
+		return nil
+	}
+
+	// If this result belongs to a tournament, check if user is the organizer
+	if result.TournamentID != nil {
+		isOrganizer, err := h.authorization.IsTournamentOrganizer(ctx, userID, *result.TournamentID)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to check tournament organizer status for "+action,
+				slog.String("user_id", userID.String()),
+				slog.String("match_result_id", result.ID.String()),
+				slog.String("error", err.Error()),
+			)
+			return fmt.Errorf("authorization check failed: %w", err)
+		}
+		if isOrganizer {
+			return nil
+		}
+	}
+
+	// For matchmaking results, only platform admin can perform admin actions
+	// (they don't have a tournament organizer)
+	return fmt.Errorf("forbidden: insufficient permissions to %s this match result", action)
+}
+
+// authorizeDisputeAction enforces permission checks for dispute operations.
+// Only match participants (players in team_results.players or player_results) or admin can dispute.
+func (h *matchResultCommandHandler) authorizeDisputeAction(ctx context.Context, userID uuid.UUID, result *scores_entities.MatchResult) error {
+	// Platform admin can always dispute
+	if h.authorization.IsPlatformAdmin(ctx) {
+		return nil
+	}
+
+	// Check if user is a tournament organizer
+	if result.TournamentID != nil {
+		isOrganizer, err := h.authorization.IsTournamentOrganizer(ctx, userID, *result.TournamentID)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to check tournament organizer status for dispute",
+				slog.String("user_id", userID.String()),
+				slog.String("error", err.Error()),
+			)
+		}
+		if isOrganizer {
+			return nil
+		}
+	}
+
+	// Check if user is a match participant
+	isParticipant, err := h.authorization.IsMatchParticipant(ctx, userID, result.ID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check match participant status",
+			slog.String("user_id", userID.String()),
+			slog.String("match_result_id", result.ID.String()),
+			slog.String("error", err.Error()),
+		)
+		return fmt.Errorf("authorization check failed: %w", err)
+	}
+	if !isParticipant {
+		return fmt.Errorf("forbidden: only match participants can dispute a match result")
+	}
 
 	return nil
 }

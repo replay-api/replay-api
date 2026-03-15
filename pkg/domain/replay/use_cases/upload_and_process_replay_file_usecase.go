@@ -7,6 +7,7 @@ import (
 
 	replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 	replay_in "github.com/replay-api/replay-api/pkg/domain/replay/ports/in"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 type UploadAndProcessReplayFileUseCase struct {
@@ -42,22 +43,35 @@ func (usecase *UploadAndProcessReplayFileUseCase) ExecWithOptions(ctx context.Co
 	}
 
 	// Start processing asynchronously
-	// go func() {
-	// 	ctx := context.Background() // New context for background processing
-	// 	match, err := usecase.ProcessCommand.Exec(ctx, replayFile.ID)
-	// 	if err != nil {
-	// 		slog.ErrorContext(ctx, "error processing replay file", "err", err)
-	// 		return
-	// 	}
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("recovered from panic in replay processing goroutine", "replayFileID", replayFile.ID, "panic", r)
+			}
+		}()
 
-	// 	_, err = usecase.UpdateHeaderCommand.Exec(ctx, replayFile.ID)
-	// 	if err != nil {
-	// 		slog.ErrorContext(ctx, "UploadAndProcessReplayFileUseCase failed to update replay file HEADER", "err", err)
-	// 		return
-	// 	}
+		// Create a new background context with resource owner info from the request
+		bgCtx := context.Background()
+		bgCtx = context.WithValue(bgCtx, shared.TenantIDKey, ctx.Value(shared.TenantIDKey))
+		bgCtx = context.WithValue(bgCtx, shared.ClientIDKey, ctx.Value(shared.ClientIDKey))
+		bgCtx = context.WithValue(bgCtx, shared.GroupIDKey, ctx.Value(shared.GroupIDKey))
+		bgCtx = context.WithValue(bgCtx, shared.UserIDKey, ctx.Value(shared.UserIDKey))
+		bgCtx = context.WithValue(bgCtx, shared.AuthenticatedKey, ctx.Value(shared.AuthenticatedKey))
 
-	// 	slog.InfoContext(ctx, "completed processing replay file", "match", match.ID)
-	// }()
+		match, err := usecase.ProcessCommand.Exec(bgCtx, replayFile.ID)
+		if err != nil {
+			slog.ErrorContext(bgCtx, "error processing replay file", "replayFileID", replayFile.ID, "err", err)
+			return
+		}
+
+		_, err = usecase.UpdateHeaderCommand.Exec(bgCtx, replayFile.ID)
+		if err != nil {
+			slog.ErrorContext(bgCtx, "UploadAndProcessReplayFileUseCase failed to update replay file HEADER", "replayFileID", replayFile.ID, "err", err)
+			return
+		}
+
+		slog.InfoContext(bgCtx, "completed processing replay file", "matchID", match.ID, "replayFileID", replayFile.ID)
+	}()
 
 	return replayFile, nil
 }

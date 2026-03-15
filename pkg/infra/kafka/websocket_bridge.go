@@ -29,7 +29,7 @@ type WebSocketBridge struct {
 // NewWebSocketBridge creates a new bridge between Kafka and WebSocket
 func NewWebSocketBridge(client *Client, broadcaster WebSocketBroadcaster, instanceID string, sessionRepo matchmaking_out.MatchmakingSessionRepository) *WebSocketBridge {
 	groupID := "websocket-service-" + instanceID
-	config := DefaultConsumerConfig(groupID, []string{TopicWebSocketBroadcast, TopicLobbyEvents, TopicMatchesCreated})
+	config := DefaultConsumerConfig(groupID, []string{TopicWebSocketBroadcast, TopicLobbyEvents, TopicMatchesCreated, TopicReadyCheck})
 	consumer := NewConsumer(client, config)
 
 	bridge := &WebSocketBridge{
@@ -43,6 +43,7 @@ func NewWebSocketBridge(client *Client, broadcaster WebSocketBroadcaster, instan
 	consumer.RegisterHandler(TopicWebSocketBroadcast, bridge.handleWebSocketBroadcast)
 	consumer.RegisterHandler(TopicLobbyEvents, bridge.handleLobbyEvent)
 	consumer.RegisterHandler(TopicMatchesCreated, bridge.handleMatchCreated)
+	consumer.RegisterHandler(TopicReadyCheck, bridge.handleReadyCheckEvent)
 
 	return bridge
 }
@@ -110,6 +111,39 @@ func (b *WebSocketBridge) handleMatchCreated(ctx context.Context, msg *kafka.Mes
 	payload, err := json.Marshal(event)
 	if err != nil {
 		slog.Error("Failed to marshal match created event", "error", err)
+		return err
+	}
+
+	b.broadcaster.BroadcastFromKafka(event.EventType, &event.LobbyID, payload)
+	return nil
+}
+
+func (b *WebSocketBridge) handleReadyCheckEvent(ctx context.Context, msg *kafka.Message) error {
+	var event ReadyCheckEvent
+	if err := json.Unmarshal(msg.Value, &event); err != nil {
+		slog.Error("Failed to unmarshal ready check event", "error", err)
+		return err
+	}
+
+	// Update matchmaking session status based on event type
+	switch event.EventType {
+	case EventTypeReadyCheckStarted:
+		for _, playerID := range event.PlayerIDs {
+			if err := b.updateSessionStatus(ctx, playerID, matchmaking_entities.StatusMatched); err != nil {
+				slog.Warn("Failed to update session status for player", "player_id", playerID, "error", err)
+			}
+		}
+	case EventTypeAllPlayersReady:
+		for _, playerID := range event.PlayerIDs {
+			if err := b.updateSessionStatus(ctx, playerID, matchmaking_entities.StatusMatched); err != nil {
+				slog.Warn("Failed to update session status for player", "player_id", playerID, "error", err)
+			}
+		}
+	}
+
+	payload, err := json.Marshal(event)
+	if err != nil {
+		slog.Error("Failed to marshal ready check event", "error", err)
 		return err
 	}
 

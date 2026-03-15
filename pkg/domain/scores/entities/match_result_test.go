@@ -228,7 +228,7 @@ func TestInvalidTransitions(t *testing.T) {
 	assert.Error(t, err)
 
 	// Cannot cancel finalized
-	err = result.Cancel("reason")
+	err = result.Cancel("reason", uuid.New())
 	assert.Error(t, err)
 }
 

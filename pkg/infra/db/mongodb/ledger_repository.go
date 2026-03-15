@@ -28,7 +28,7 @@ type LedgerRepository struct {
 
 // NewLedgerRepository creates a new MongoDB ledger repository
 func NewLedgerRepository(client *mongo.Client, dbName string) wallet_out.LedgerRepository {
-	repo := mongodb.NewMongoDBRepository[*wallet_entities.LedgerEntry](client, dbName, &wallet_entities.LedgerEntry{}, ledgerEntriesCollection, "LedgerEntry")
+	repo := mongodb.NewMongoDBRepository(client, dbName, &wallet_entities.LedgerEntry{}, ledgerEntriesCollection, "LedgerEntry")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":             true,

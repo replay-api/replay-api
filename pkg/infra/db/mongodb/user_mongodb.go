@@ -16,7 +16,7 @@ type UserRepository struct {
 }
 
 func NewUserRepository(client *mongo.Client, dbName string, entityType *iam_entities.User, collectionName string) *UserRepository {
-	repo := mongodb.NewMongoDBRepository[iam_entities.User](client, dbName, *entityType, collectionName, "User")
+	repo := mongodb.NewMongoDBRepository(client, dbName, *entityType, collectionName, "User")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":            true,

@@ -25,6 +25,64 @@ func NewFileController(container container.Container) *FileController {
 	return &FileController{container: container}
 }
 
+// resolveMatchByReplayID finds match_metadata for a replay ID, falling back
+// to original_replay_id for reference replays (dedup matches from different users).
+// This ensures scoreboard/timeline/events work for both original and reference replays.
+func (ctlr *FileController) resolveMatchByReplayID(r *http.Request, matchReader replay_in.MatchReader, replayID uuid.UUID) ([]replay_entity.Match, error) {
+	// Try direct lookup first (match_metadata with replay_file_id = replayID)
+	valueParams := []shared.SearchableValue{
+		{Field: "ReplayFileID", Values: []interface{}{replayID}, Operator: shared.EqualsOperator},
+	}
+	search := shared.NewSearchByValues(r.Context(), valueParams, shared.SearchResultOptions{Limit: 1}, shared.UserAudienceIDKey)
+	results, err := matchReader.Search(r.Context(), search)
+	if err != nil {
+		slog.WarnContext(r.Context(), "resolveMatchByReplayID: direct lookup error", "replayID", replayID, "err", err)
+	}
+	if len(results) > 0 {
+		return results, nil
+	}
+
+	// Fallback: check if this is a reference replay with original_replay_id
+	var replayFileReader replay_in.ReplayFileReader
+	if err := ctlr.container.Resolve(&replayFileReader); err != nil {
+		slog.WarnContext(r.Context(), "resolveMatchByReplayID: cannot resolve replayFileReader", "err", err)
+		return results, nil
+	}
+
+	replayParams := []shared.SearchableValue{
+		{Field: "ID", Values: []interface{}{replayID}, Operator: shared.EqualsOperator},
+	}
+	// Use ClientApplicationAudienceIDKey — the scoreboard viewer may be a different
+	// user than the uploader (e.g., anonymous/guest sessions get different user_ids)
+	replaySearch := shared.NewSearchByValues(r.Context(), replayParams, shared.SearchResultOptions{Limit: 1}, shared.ClientApplicationAudienceIDKey)
+	replays, err := replayFileReader.Search(r.Context(), replaySearch)
+	if err != nil {
+		slog.WarnContext(r.Context(), "resolveMatchByReplayID: replay file lookup error", "replayID", replayID, "err", err)
+		return results, nil
+	}
+	if len(replays) == 0 {
+		return results, nil
+	}
+
+	replay := replays[0]
+	if replay.OriginalReplayID != nil && *replay.OriginalReplayID != uuid.Nil {
+		originalParams := []shared.SearchableValue{
+			{Field: "ReplayFileID", Values: []interface{}{*replay.OriginalReplayID}, Operator: shared.EqualsOperator},
+		}
+		// Use ClientApplicationAudienceIDKey for cross-user access — match_metadata
+		// may belong to a different user who uploaded the original replay
+		originalSearch := shared.NewSearchByValues(r.Context(), originalParams, shared.SearchResultOptions{Limit: 1}, shared.ClientApplicationAudienceIDKey)
+		origResults, origErr := matchReader.Search(r.Context(), originalSearch)
+		if origErr != nil {
+			slog.WarnContext(r.Context(), "resolveMatchByReplayID: original match lookup error", "originalReplayID", *replay.OriginalReplayID, "err", origErr)
+			return results, nil
+		}
+		return origResults, nil
+	}
+
+	return results, nil
+}
+
 func (ctlr *FileController) UploadHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// CORS headers are handled by middleware - don't override them here
@@ -112,14 +170,14 @@ func (ctlr *FileController) UploadHandler(apiContext context.Context) http.Handl
 			return
 		}
 
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Location", r.URL.Path+"/"+replayFile.ID.String())
+		w.WriteHeader(http.StatusCreated)
+
 		err = json.NewEncoder(w).Encode(replayFile)
 		if err != nil {
 			slog.ErrorContext(reqContext, "Failed to encode response", "err", err, "replayFile", replayFile)
-			w.WriteHeader(http.StatusBadGateway)
 		}
-
-		w.Header().Set("Location", r.URL.Path+"/"+replayFile.ID.String())
-		w.WriteHeader(http.StatusCreated)
 	}
 }
 
@@ -336,9 +394,9 @@ func (ctlr *FileController) requireReplayOwnership(w http.ResponseWriter, r *htt
 func (ctlr *FileController) DownloadReplayFile(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		vars := r.URL.Query()
-		replayIDStr := vars.Get("id")
-		shareToken := vars.Get("token") // Optional share token for private replays
+		pathVars := mux.Vars(r)
+		replayIDStr := pathVars["id"]
+		shareToken := r.URL.Query().Get("token") // Optional share token for private replays
 
 		if replayIDStr == "" {
 			http.Error(w, `{"error":"replay_id is required"}`, http.StatusBadRequest)
@@ -676,12 +734,7 @@ func (ctlr *FileController) GetReplayEvents(apiContext context.Context) http.Han
 			return
 		}
 
-		valueParams := []shared.SearchableValue{
-			{Field: "ReplayFileID", Values: []interface{}{idUUID}, Operator: shared.EqualsOperator},
-		}
-
-		search := shared.NewSearchByValues(r.Context(), valueParams, shared.SearchResultOptions{Limit: 1}, shared.UserAudienceIDKey)
-		results, err := matchReader.Search(r.Context(), search)
+		results, err := ctlr.resolveMatchByReplayID(r, matchReader, idUUID)
 		if err != nil {
 			http.Error(w, "error fetching match", http.StatusInternalServerError)
 			return
@@ -768,8 +821,8 @@ func (ctlr *FileController) GetReplayEvents(apiContext context.Context) http.Han
 // GetReplayScoreboard handles GET /games/{game_id}/replays/{id}/scoreboard
 func (ctlr *FileController) GetReplayScoreboard(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		vars := r.URL.Query()
-		replayID := vars.Get("id")
+		pathVars := mux.Vars(r)
+		replayID := pathVars["id"]
 
 		if replayID == "" {
 			http.Error(w, "replay_id is required", http.StatusBadRequest)
@@ -789,12 +842,7 @@ func (ctlr *FileController) GetReplayScoreboard(apiContext context.Context) http
 			return
 		}
 
-		valueParams := []shared.SearchableValue{
-			{Field: "replay_file_id", Values: []interface{}{idUUID}, Operator: shared.EqualsOperator},
-		}
-
-		search := shared.NewSearchByValues(r.Context(), valueParams, shared.SearchResultOptions{Limit: 1}, shared.UserAudienceIDKey)
-		results, err := matchReader.Search(r.Context(), search)
+		results, err := ctlr.resolveMatchByReplayID(r, matchReader, idUUID)
 		if err != nil {
 			http.Error(w, "error fetching match", http.StatusInternalServerError)
 			return
@@ -823,8 +871,8 @@ func (ctlr *FileController) GetReplayScoreboard(apiContext context.Context) http
 // GetReplayTimeline handles GET /games/{game_id}/replays/{id}/timeline
 func (ctlr *FileController) GetReplayTimeline(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		vars := r.URL.Query()
-		replayID := vars.Get("id")
+		pathVars := mux.Vars(r)
+		replayID := pathVars["id"]
 
 		if replayID == "" {
 			http.Error(w, "replay_id is required", http.StatusBadRequest)
@@ -844,12 +892,7 @@ func (ctlr *FileController) GetReplayTimeline(apiContext context.Context) http.H
 			return
 		}
 
-		valueParams := []shared.SearchableValue{
-			{Field: "replay_file_id", Values: []interface{}{idUUID}, Operator: shared.EqualsOperator},
-		}
-
-		search := shared.NewSearchByValues(r.Context(), valueParams, shared.SearchResultOptions{Limit: 1}, shared.UserAudienceIDKey)
-		results, err := matchReader.Search(r.Context(), search)
+		results, err := ctlr.resolveMatchByReplayID(r, matchReader, idUUID)
 		if err != nil {
 			http.Error(w, "error fetching match", http.StatusInternalServerError)
 			return

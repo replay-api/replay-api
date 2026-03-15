@@ -6,19 +6,23 @@ import (
 	"github.com/google/uuid"
 	tournament_entities "github.com/replay-api/replay-api/pkg/domain/tournament/entities"
 	tournament_in "github.com/replay-api/replay-api/pkg/domain/tournament/ports/in"
+	tournament_out "github.com/replay-api/replay-api/pkg/domain/tournament/ports/out"
 )
 
 // TournamentReaderService implements tournament query operations
 type TournamentReaderService struct {
 	tournamentQueryService *TournamentQueryService
+	tournamentRepo         tournament_out.TournamentRepository
 }
 
 // NewTournamentReaderService creates a new tournament reader service
 func NewTournamentReaderService(
 	tournamentQueryService *TournamentQueryService,
+	tournamentRepo tournament_out.TournamentRepository,
 ) tournament_in.TournamentReader {
 	return &TournamentReaderService{
 		tournamentQueryService: tournamentQueryService,
+		tournamentRepo:         tournamentRepo,
 	}
 }
 
@@ -39,9 +43,7 @@ func (s *TournamentReaderService) GetUpcomingTournaments(ctx context.Context, ga
 
 // GetPlayerTournaments retrieves tournaments a player is registered in
 func (s *TournamentReaderService) GetPlayerTournaments(ctx context.Context, playerID uuid.UUID) ([]*tournament_entities.Tournament, error) {
-	// This would need a more complex query involving tournament registrations
-	// For now, return empty slice as this requires additional domain modeling
-	return []*tournament_entities.Tournament{}, nil
+	return s.tournamentRepo.FindPlayerTournaments(ctx, playerID, nil)
 }
 
 // GetOrganizerTournaments retrieves tournaments created by a specific organizer

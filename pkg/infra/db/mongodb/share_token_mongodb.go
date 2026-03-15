@@ -18,7 +18,7 @@ type ShareTokenRepository struct {
 }
 
 func NewShareTokenRepository(client *mongo.Client, dbName string, entityType replay_entity.ShareToken, collectionName string) *ShareTokenRepository {
-	repo := mongodb.NewMongoDBRepository[replay_entity.ShareToken](client, dbName, entityType, collectionName, "ShareToken")
+	repo := mongodb.NewMongoDBRepository(client, dbName, entityType, collectionName, "ShareToken")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":            true,

@@ -17,7 +17,7 @@ type SquadRepository struct {
 }
 
 func NewSquadRepository(client *mongo.Client, dbName string, entityType squad_entities.Squad, collectionName string) *SquadRepository {
-	repo := mongodb.NewMongoDBRepository[squad_entities.Squad](client, dbName, entityType, collectionName, "Squad")
+	repo := mongodb.NewMongoDBRepository(client, dbName, entityType, collectionName, "Squad")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":              true,

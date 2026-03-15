@@ -9,9 +9,9 @@ import (
 	"github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs/msg"
 	event_factory "github.com/replay-api/replay-api/pkg/app/cs/factories"
 	"github.com/replay-api/replay-api/pkg/app/cs/state"
+	"github.com/replay-api/replay-api/pkg/domain/replay/entities"
 	replay_common "github.com/replay-api/replay-common/pkg/replay"
 	fps_events "github.com/replay-api/replay-common/pkg/replay/events/game/fps"
-	"github.com/replay-api/replay-api/pkg/domain/replay/entities"
 )
 
 // CS2GrenadeEventPayload contains data for CS2 grenade events extracted from GenericGameEvent
@@ -114,9 +114,10 @@ func handleCS2GrenadeEventDirect(
 			if player != nil && player.UserID == userID {
 				throwerName = player.Name
 				throwerSteamID = strconv.FormatUint(player.SteamID64, 10)
-				if player.Team == 2 {
+				switch player.Team {
+				case 2:
 					throwerTeam = "T"
-				} else if player.Team == 3 {
+				case 3:
 					throwerTeam = "CT"
 				}
 				pos := player.LastAlivePosition

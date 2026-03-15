@@ -24,7 +24,7 @@ type ChallengeRepository struct {
 
 // NewChallengeRepository creates a new challenge repository
 func NewChallengeRepository(client *mongo.Client, dbName string) challenge_out.ChallengeRepository {
-	repo := mongodb.NewMongoDBRepository[*challenge_entities.Challenge](client, dbName, &challenge_entities.Challenge{}, challengeCollectionName, "Challenge")
+	repo := mongodb.NewMongoDBRepository(client, dbName, &challenge_entities.Challenge{}, challengeCollectionName, "Challenge")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":             true,

@@ -58,6 +58,11 @@ type MatchResult struct {
 	FinalizedAt         *time.Time `json:"finalized_at,omitempty" bson:"finalized_at,omitempty"`
 	PrizeDistributionID *uuid.UUID `json:"prize_distribution_id,omitempty" bson:"prize_distribution_id,omitempty"`
 
+	// Cancellation (separate from conciliation for audit trail)
+	CancelledBy    *uuid.UUID `json:"cancelled_by,omitempty" bson:"cancelled_by,omitempty"`
+	CancelledAt    *time.Time `json:"cancelled_at,omitempty" bson:"cancelled_at,omitempty"`
+	CancelReason   string     `json:"cancel_reason,omitempty" bson:"cancel_reason,omitempty"`
+
 	// Match Metadata
 	PlayedAt time.Time     `json:"played_at" bson:"played_at"`
 	Duration time.Duration `json:"duration" bson:"duration"`
@@ -177,6 +182,30 @@ func NewMatchResultFromAdmin(
 	return result, nil
 }
 
+// NewMatchResultFromOracle creates a MatchResult from an oracle consensus outcome.
+// This bridges the oracle domain (ConsensusOutcome) into the scores domain (MatchResult).
+func NewMatchResultFromOracle(
+	resourceOwner shared.ResourceOwner,
+	matchID uuid.UUID,
+	gameID replay_common.GameIDKey,
+	mapName string,
+	mode string,
+	teamResults []TeamResult,
+	playerResults []PlayerResult,
+	playedAt time.Time,
+	duration time.Duration,
+) (*MatchResult, error) {
+	result, err := NewMatchResult(
+		resourceOwner, matchID, gameID, mapName, mode,
+		scores_vo.ScoreSourceOracle, resourceOwner.UserID,
+		teamResults, playerResults, playedAt, duration,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
 // SetMatchmakingContext sets the matchmaking session context for this result
 func (m *MatchResult) SetMatchmakingContext(sessionID uuid.UUID) {
 	m.MatchmakingSessionID = &sessionID
@@ -219,6 +248,10 @@ func (m *MatchResult) AutoVerify() error {
 	return m.Verify(scores_vo.VerificationMethodAutomatic, nil)
 }
 
+// MaxDisputeCount is the maximum number of times a match result can be disputed.
+// This prevents infinite dispute-conciliate cycles and ensures financial finality.
+const MaxDisputeCount = 3
+
 // Dispute marks the result as disputed
 func (m *MatchResult) Dispute(reason string, disputedBy uuid.UUID) error {
 	if !m.Status.IsDisputable() {
@@ -227,6 +260,10 @@ func (m *MatchResult) Dispute(reason string, disputedBy uuid.UUID) error {
 
 	if reason == "" {
 		return fmt.Errorf("dispute reason is required")
+	}
+
+	if m.DisputeCount >= MaxDisputeCount {
+		return fmt.Errorf("maximum dispute limit reached (%d); result must be escalated to platform support", MaxDisputeCount)
 	}
 
 	now := time.Now().UTC()
@@ -281,14 +318,17 @@ func (m *MatchResult) Finalize() error {
 }
 
 // Cancel voids the result entirely
-func (m *MatchResult) Cancel(reason string) error {
+func (m *MatchResult) Cancel(reason string, cancelledBy uuid.UUID) error {
 	if err := m.Status.ValidateTransition(scores_vo.ResultStatusCancelled); err != nil {
 		return err
 	}
 
+	now := time.Now().UTC()
 	m.Status = scores_vo.ResultStatusCancelled
-	m.ConciliationNotes = reason
-	m.UpdatedAt = time.Now().UTC()
+	m.CancelReason = reason
+	m.CancelledBy = &cancelledBy
+	m.CancelledAt = &now
+	m.UpdatedAt = now
 	return nil
 }
 
@@ -478,6 +518,30 @@ func (m *MatchResult) Validate() error {
 
 	if m.PlayedAt.IsZero() {
 		return fmt.Errorf("played_at is required")
+	}
+
+	// Financial-grade: PlayedAt must not be in the future (with 5-minute clock skew tolerance)
+	if m.PlayedAt.After(time.Now().UTC().Add(5 * time.Minute)) {
+		return fmt.Errorf("played_at cannot be in the future")
+	}
+
+	// Duration must be non-negative
+	if m.Duration < 0 {
+		return fmt.Errorf("duration must be non-negative")
+	}
+
+	// Team scores must be non-negative
+	for _, tr := range m.TeamResults {
+		if tr.Score < 0 {
+			return fmt.Errorf("team %s score must be non-negative (got %d)", tr.TeamID, tr.Score)
+		}
+	}
+
+	// Player scores/stats must be non-negative
+	for _, pr := range m.PlayerResults {
+		if pr.Kills < 0 || pr.Deaths < 0 || pr.Assists < 0 {
+			return fmt.Errorf("player %s stats must be non-negative", pr.PlayerID)
+		}
 	}
 
 	return nil

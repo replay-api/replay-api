@@ -11,6 +11,7 @@ import (
 	tournament_out "github.com/replay-api/replay-api/pkg/domain/tournament/ports/out"
 	tournament_usecases "github.com/replay-api/replay-api/pkg/domain/tournament/usecases"
 	wallet_in "github.com/replay-api/replay-api/pkg/domain/wallet/ports/in"
+	shared "github.com/resource-ownership/go-common/pkg/common"
 )
 
 // TournamentService implements tournament management business logic
@@ -18,6 +19,8 @@ type TournamentService struct {
 	tournamentRepo   tournament_out.TournamentRepository
 	walletCommand    wallet_in.WalletCommand
 	bracketGenerator *tournament_usecases.GenerateBracketsUseCase
+	authorization    tournament_out.TournamentAuthorization
+	eventPublisher   tournament_out.TournamentEventPublisher
 }
 
 // NewTournamentService creates a new tournament service
@@ -25,12 +28,48 @@ func NewTournamentService(
 	tournamentRepo tournament_out.TournamentRepository,
 	walletCommand wallet_in.WalletCommand,
 	bracketGenerator *tournament_usecases.GenerateBracketsUseCase,
+	authorization tournament_out.TournamentAuthorization,
+	eventPublisher tournament_out.TournamentEventPublisher,
 ) tournament_in.TournamentCommand {
 	return &TournamentService{
 		tournamentRepo:   tournamentRepo,
 		walletCommand:    walletCommand,
 		bracketGenerator: bracketGenerator,
+		authorization:    authorization,
+		eventPublisher:   eventPublisher,
 	}
+}
+
+// authorizeOrganizer validates that the current user is the tournament organizer or a platform admin.
+// Returns nil if authorized, error if not.
+func (s *TournamentService) authorizeOrganizer(ctx context.Context, tournamentID uuid.UUID, action string) error {
+	if s.authorization == nil {
+		return nil // Authorization not configured (backward compatibility)
+	}
+
+	resourceOwner := shared.GetResourceOwner(ctx)
+	userID := resourceOwner.UserID
+
+	if s.authorization.IsPlatformAdmin(ctx) {
+		slog.InfoContext(ctx, "platform admin authorized for tournament action",
+			"action", action, "tournament_id", tournamentID, "user_id", userID)
+		return nil
+	}
+
+	isOrganizer, err := s.authorization.IsOrganizer(ctx, userID, tournamentID)
+	if err != nil {
+		slog.ErrorContext(ctx, "authorization check failed",
+			"action", action, "tournament_id", tournamentID, "error", err)
+		return fmt.Errorf("authorization check failed")
+	}
+
+	if !isOrganizer {
+		slog.WarnContext(ctx, "unauthorized tournament action attempted",
+			"action", action, "tournament_id", tournamentID, "user_id", userID)
+		return fmt.Errorf("forbidden: only the tournament organizer or platform admin can %s", action)
+	}
+
+	return nil
 }
 
 // CreateTournament creates a new tournament
@@ -73,6 +112,13 @@ func (s *TournamentService) CreateTournament(ctx context.Context, cmd tournament
 		return nil, fmt.Errorf("failed to save tournament: %w", err)
 	}
 
+	// Publish creation event (non-fatal)
+	if s.eventPublisher != nil {
+		if err := s.eventPublisher.PublishTournamentCreated(ctx, tournament); err != nil {
+			slog.ErrorContext(ctx, "failed to publish tournament created event", "error", err.Error())
+		}
+	}
+
 	slog.InfoContext(ctx, "tournament created successfully", "tournament_id", tournament.ID, "name", tournament.Name)
 	return tournament, nil
 }
@@ -80,6 +126,11 @@ func (s *TournamentService) CreateTournament(ctx context.Context, cmd tournament
 // UpdateTournament updates tournament details (only before start)
 func (s *TournamentService) UpdateTournament(ctx context.Context, cmd tournament_in.UpdateTournamentCommand) (*tournament_entities.Tournament, error) {
 	slog.InfoContext(ctx, "updating tournament", "tournament_id", cmd.TournamentID)
+
+	// --- RBAC: Only organizer or admin can update ---
+	if err := s.authorizeOrganizer(ctx, cmd.TournamentID, "update tournament"); err != nil {
+		return nil, err
+	}
 
 	// Fetch existing tournament
 	tournament, err := s.tournamentRepo.FindByID(ctx, cmd.TournamentID)
@@ -133,6 +184,11 @@ func (s *TournamentService) UpdateTournament(ctx context.Context, cmd tournament
 // DeleteTournament removes a tournament (only in draft/registration)
 func (s *TournamentService) DeleteTournament(ctx context.Context, tournamentID uuid.UUID) error {
 	slog.InfoContext(ctx, "deleting tournament", "tournament_id", tournamentID)
+
+	// --- RBAC: Only organizer or admin can delete ---
+	if err := s.authorizeOrganizer(ctx, tournamentID, "delete tournament"); err != nil {
+		return err
+	}
 
 	// Fetch tournament
 	tournament, err := s.tournamentRepo.FindByID(ctx, tournamentID)
@@ -245,6 +301,13 @@ func (s *TournamentService) RegisterPlayer(ctx context.Context, cmd tournament_i
 		return fmt.Errorf("failed to save registration: %w", err)
 	}
 
+	// Publish registration event (non-fatal)
+	if s.eventPublisher != nil {
+		if err := s.eventPublisher.PublishPlayerRegistered(ctx, tournament, cmd.PlayerID); err != nil {
+			slog.ErrorContext(ctx, "failed to publish player registered event", "error", err.Error())
+		}
+	}
+
 	slog.InfoContext(ctx, "player registered successfully",
 		"tournament_id", cmd.TournamentID,
 		"player_id", cmd.PlayerID,
@@ -296,6 +359,13 @@ func (s *TournamentService) UnregisterPlayer(ctx context.Context, cmd tournament
 		return fmt.Errorf("failed to save unregistration: %w", err)
 	}
 
+	// Publish unregistration event (non-fatal)
+	if s.eventPublisher != nil {
+		if err := s.eventPublisher.PublishPlayerUnregistered(ctx, tournament, cmd.PlayerID); err != nil {
+			slog.ErrorContext(ctx, "failed to publish player unregistered event", "error", err.Error())
+		}
+	}
+
 	slog.InfoContext(ctx, "player unregistered successfully",
 		"tournament_id", cmd.TournamentID,
 		"player_id", cmd.PlayerID)
@@ -306,6 +376,11 @@ func (s *TournamentService) UnregisterPlayer(ctx context.Context, cmd tournament
 // OpenRegistration opens the tournament for player registration
 func (s *TournamentService) OpenRegistration(ctx context.Context, tournamentID uuid.UUID) error {
 	slog.InfoContext(ctx, "opening tournament registration", "tournament_id", tournamentID)
+
+	// --- RBAC: Only organizer or admin can open registration ---
+	if err := s.authorizeOrganizer(ctx, tournamentID, "open registration"); err != nil {
+		return err
+	}
 
 	tournament, err := s.tournamentRepo.FindByID(ctx, tournamentID)
 	if err != nil {
@@ -320,6 +395,13 @@ func (s *TournamentService) OpenRegistration(ctx context.Context, tournamentID u
 		return fmt.Errorf("failed to save tournament: %w", err)
 	}
 
+	// Publish event (non-fatal)
+	if s.eventPublisher != nil {
+		if err := s.eventPublisher.PublishRegistrationOpened(ctx, tournament); err != nil {
+			slog.ErrorContext(ctx, "failed to publish registration opened event", "error", err.Error())
+		}
+	}
+
 	slog.InfoContext(ctx, "registration opened", "tournament_id", tournamentID)
 	return nil
 }
@@ -327,6 +409,11 @@ func (s *TournamentService) OpenRegistration(ctx context.Context, tournamentID u
 // CloseRegistration closes player registration
 func (s *TournamentService) CloseRegistration(ctx context.Context, tournamentID uuid.UUID) error {
 	slog.InfoContext(ctx, "closing tournament registration", "tournament_id", tournamentID)
+
+	// --- RBAC: Only organizer or admin can close registration ---
+	if err := s.authorizeOrganizer(ctx, tournamentID, "close registration"); err != nil {
+		return err
+	}
 
 	tournament, err := s.tournamentRepo.FindByID(ctx, tournamentID)
 	if err != nil {
@@ -341,6 +428,13 @@ func (s *TournamentService) CloseRegistration(ctx context.Context, tournamentID 
 		return fmt.Errorf("failed to save tournament: %w", err)
 	}
 
+	// Publish event (non-fatal)
+	if s.eventPublisher != nil {
+		if err := s.eventPublisher.PublishRegistrationClosed(ctx, tournament); err != nil {
+			slog.ErrorContext(ctx, "failed to publish registration closed event", "error", err.Error())
+		}
+	}
+
 	slog.InfoContext(ctx, "registration closed", "tournament_id", tournamentID, "participants", len(tournament.Participants))
 	return nil
 }
@@ -348,6 +442,11 @@ func (s *TournamentService) CloseRegistration(ctx context.Context, tournamentID 
 // StartTournament begins the tournament
 func (s *TournamentService) StartTournament(ctx context.Context, tournamentID uuid.UUID) error {
 	slog.InfoContext(ctx, "starting tournament", "tournament_id", tournamentID)
+
+	// --- RBAC: Only organizer or admin can start tournament ---
+	if err := s.authorizeOrganizer(ctx, tournamentID, "start tournament"); err != nil {
+		return err
+	}
 
 	// Generate bracket matches before starting (tournament must be in ready status)
 	if err := s.bracketGenerator.Exec(ctx, tournamentID); err != nil {
@@ -368,6 +467,13 @@ func (s *TournamentService) StartTournament(ctx context.Context, tournamentID uu
 		return fmt.Errorf("failed to save tournament: %w", err)
 	}
 
+	// Publish event (non-fatal)
+	if s.eventPublisher != nil {
+		if err := s.eventPublisher.PublishTournamentStarted(ctx, tournament); err != nil {
+			slog.ErrorContext(ctx, "failed to publish tournament started event", "error", err.Error())
+		}
+	}
+
 	slog.InfoContext(ctx, "tournament started", "tournament_id", tournamentID)
 	return nil
 }
@@ -375,6 +481,11 @@ func (s *TournamentService) StartTournament(ctx context.Context, tournamentID uu
 // CompleteTournament marks tournament as completed with winners
 func (s *TournamentService) CompleteTournament(ctx context.Context, cmd tournament_in.CompleteTournamentCommand) error {
 	slog.InfoContext(ctx, "completing tournament", "tournament_id", cmd.TournamentID)
+
+	// --- RBAC: Only organizer or admin can complete tournament ---
+	if err := s.authorizeOrganizer(ctx, cmd.TournamentID, "complete tournament"); err != nil {
+		return err
+	}
 
 	tournament, err := s.tournamentRepo.FindByID(ctx, cmd.TournamentID)
 	if err != nil {
@@ -413,6 +524,13 @@ func (s *TournamentService) CompleteTournament(ctx context.Context, cmd tourname
 		return fmt.Errorf("failed to save tournament: %w", err)
 	}
 
+	// Publish event (non-fatal)
+	if s.eventPublisher != nil {
+		if err := s.eventPublisher.PublishTournamentCompleted(ctx, tournament); err != nil {
+			slog.ErrorContext(ctx, "failed to publish tournament completed event", "error", err.Error())
+		}
+	}
+
 	slog.InfoContext(ctx, "tournament completed", "tournament_id", cmd.TournamentID, "winners", len(cmd.Winners))
 	return nil
 }
@@ -420,6 +538,11 @@ func (s *TournamentService) CompleteTournament(ctx context.Context, cmd tourname
 // CancelTournament cancels the tournament
 func (s *TournamentService) CancelTournament(ctx context.Context, cmd tournament_in.CancelTournamentCommand) error {
 	slog.InfoContext(ctx, "cancelling tournament", "tournament_id", cmd.TournamentID, "reason", cmd.Reason)
+
+	// --- RBAC: Only organizer or admin can cancel tournament ---
+	if err := s.authorizeOrganizer(ctx, cmd.TournamentID, "cancel tournament"); err != nil {
+		return err
+	}
 
 	tournament, err := s.tournamentRepo.FindByID(ctx, cmd.TournamentID)
 	if err != nil {
@@ -457,7 +580,111 @@ func (s *TournamentService) CancelTournament(ctx context.Context, cmd tournament
 		return fmt.Errorf("failed to save tournament: %w", err)
 	}
 
+	// Publish event (non-fatal)
+	if s.eventPublisher != nil {
+		if err := s.eventPublisher.PublishTournamentCancelled(ctx, tournament); err != nil {
+			slog.ErrorContext(ctx, "failed to publish tournament cancelled event", "error", err.Error())
+		}
+	}
+
 	slog.InfoContext(ctx, "tournament cancelled", "tournament_id", cmd.TournamentID)
+	return nil
+}
+
+// CheckIn marks a player as checked in for a tournament
+func (s *TournamentService) CheckIn(ctx context.Context, tournamentID uuid.UUID, playerID uuid.UUID) error {
+	slog.InfoContext(ctx, "player checking in", "tournament_id", tournamentID, "player_id", playerID)
+
+	tournament, err := s.tournamentRepo.FindByID(ctx, tournamentID)
+	if err != nil {
+		return fmt.Errorf("tournament not found: %w", err)
+	}
+
+	if err := tournament.CheckIn(playerID); err != nil {
+		return fmt.Errorf("check-in failed: %w", err)
+	}
+
+	if err := s.tournamentRepo.Update(ctx, tournament); err != nil {
+		return fmt.Errorf("failed to save check-in: %w", err)
+	}
+
+	slog.InfoContext(ctx, "player checked in successfully",
+		"tournament_id", tournamentID, "player_id", playerID)
+	return nil
+}
+
+// RecordMatchResult records the winner of a tournament match and persists the update
+func (s *TournamentService) RecordMatchResult(ctx context.Context, tournamentID uuid.UUID, matchID uuid.UUID, winnerID uuid.UUID) error {
+	slog.InfoContext(ctx, "recording match result",
+		"tournament_id", tournamentID, "match_id", matchID, "winner_id", winnerID)
+
+	// --- RBAC: Only organizer or admin can record match results ---
+	if err := s.authorizeOrganizer(ctx, tournamentID, "record match result"); err != nil {
+		return err
+	}
+
+	tournament, err := s.tournamentRepo.FindByID(ctx, tournamentID)
+	if err != nil {
+		return fmt.Errorf("tournament not found: %w", err)
+	}
+
+	if err := tournament.RecordMatchResult(matchID, winnerID); err != nil {
+		return fmt.Errorf("failed to record match result: %w", err)
+	}
+
+	if err := s.tournamentRepo.Update(ctx, tournament); err != nil {
+		return fmt.Errorf("failed to save match result: %w", err)
+	}
+
+	// Publish event (non-fatal)
+	if s.eventPublisher != nil {
+		if err := s.eventPublisher.PublishMatchResultRecorded(ctx, tournament, matchID, winnerID); err != nil {
+			slog.ErrorContext(ctx, "failed to publish match result recorded event", "error", err.Error())
+		}
+	}
+
+	slog.InfoContext(ctx, "match result recorded",
+		"tournament_id", tournamentID, "match_id", matchID, "winner_id", winnerID)
+	return nil
+}
+
+// AdvanceBracket generates next round matches from completed matches
+func (s *TournamentService) AdvanceBracket(ctx context.Context, tournamentID uuid.UUID) error {
+	slog.InfoContext(ctx, "advancing bracket", "tournament_id", tournamentID)
+
+	// --- RBAC: Only organizer or admin can advance bracket ---
+	if err := s.authorizeOrganizer(ctx, tournamentID, "advance bracket"); err != nil {
+		return err
+	}
+
+	tournament, err := s.tournamentRepo.FindByID(ctx, tournamentID)
+	if err != nil {
+		return fmt.Errorf("tournament not found: %w", err)
+	}
+
+	newMatches, err := tournament.AdvanceBracket()
+	if err != nil {
+		return fmt.Errorf("failed to advance bracket: %w", err)
+	}
+
+	if newMatches == nil {
+		slog.InfoContext(ctx, "no more rounds to generate, tournament may be complete", "tournament_id", tournamentID)
+		return nil
+	}
+
+	if err := s.tournamentRepo.Update(ctx, tournament); err != nil {
+		return fmt.Errorf("failed to save advanced bracket: %w", err)
+	}
+
+	// Publish event (non-fatal)
+	if s.eventPublisher != nil {
+		if err := s.eventPublisher.PublishBracketAdvanced(ctx, tournament, newMatches); err != nil {
+			slog.ErrorContext(ctx, "failed to publish bracket advanced event", "error", err.Error())
+		}
+	}
+
+	slog.InfoContext(ctx, "bracket advanced",
+		"tournament_id", tournamentID, "new_matches", len(newMatches))
 	return nil
 }
 

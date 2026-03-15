@@ -48,7 +48,10 @@ func (am *AuthMiddleware) isPublicPostPath(path string) bool {
 	if strings.Contains(path, "/games/") && strings.Contains(path, "/replays") && !strings.Contains(path, "/replays/") {
 		return true
 	}
-	
+
+	// SECURITY: Oracle endpoints require API-key or authenticated session.
+	// No blanket bypass — oracle write operations are protected.
+
 	return publicPostPaths[path]
 }
 
@@ -68,6 +71,7 @@ func (am *AuthMiddleware) isPublicPath(path string) bool {
 		"/games/",               // Allow public access to game-related endpoints (matches, replays, etc.)
 		"/plans",                // Plans listing is public
 		"/subscriptions/plans",  // Plans listing via subscriptions path is public
+		"/scores/",              // Scores browsing is public (GET); write operations enforced by RBAC at use case level
 	}
 
 	for _, prefix := range publicPrefixes {

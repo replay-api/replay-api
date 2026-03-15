@@ -9,6 +9,7 @@ const (
 	CurrencyUSD  Currency = "USD"  // Fiat USD (internal accounting)
 	CurrencyUSDC Currency = "USDC" // USD Coin (ERC-20)
 	CurrencyUSDT Currency = "USDT" // Tether USD (ERC-20)
+	CurrencyBTC  Currency = "BTC"  // Bitcoin (native asset)
 )
 
 // ChainID represents a supported blockchain network
@@ -129,7 +130,7 @@ func ChainContractAddress(currency Currency, chain ChainID) (string, error) {
 
 // AllCurrencies returns all supported currencies
 func AllCurrencies() []Currency {
-	return []Currency{CurrencyUSD, CurrencyUSDC, CurrencyUSDT}
+	return []Currency{CurrencyUSD, CurrencyUSDC, CurrencyUSDT, CurrencyBTC}
 }
 
 // ParseCurrency parses a string into a Currency
@@ -144,7 +145,7 @@ func ParseCurrency(s string) (Currency, error) {
 // IsValid checks if the currency is supported
 func (c Currency) IsValid() bool {
 	switch c {
-	case CurrencyUSD, CurrencyUSDC, CurrencyUSDT:
+	case CurrencyUSD, CurrencyUSDC, CurrencyUSDT, CurrencyBTC:
 		return true
 	default:
 		return false
@@ -161,6 +162,8 @@ func (c Currency) Symbol() string {
 	switch c {
 	case CurrencyUSD, CurrencyUSDC, CurrencyUSDT:
 		return "$"
+	case CurrencyBTC:
+		return "₿"
 	default:
 		return ""
 	}
@@ -169,6 +172,16 @@ func (c Currency) Symbol() string {
 // IsStablecoin checks if the currency is a blockchain stablecoin
 func (c Currency) IsStablecoin() bool {
 	return c == CurrencyUSDC || c == CurrencyUSDT
+}
+
+// IsVolatile returns true if the currency has a floating exchange rate
+func (c Currency) IsVolatile() bool {
+	return c == CurrencyBTC
+}
+
+// IsNativeAsset returns true if the currency is a native blockchain asset (not an ERC-20 token)
+func (c Currency) IsNativeAsset() bool {
+	return c == CurrencyBTC || c == CurrencyUSD
 }
 
 // ContractAddress returns the ERC-20 contract address for blockchain currencies
@@ -184,6 +197,8 @@ func (c Currency) Decimals() int {
 		return 6 // USDC and USDT use 6 decimals
 	case CurrencyUSD:
 		return 2 // Fiat USD uses 2 decimals
+	case CurrencyBTC:
+		return 8 // Bitcoin uses 8 decimals (satoshis)
 	default:
 		return 2
 	}

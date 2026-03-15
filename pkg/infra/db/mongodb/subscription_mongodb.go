@@ -18,7 +18,7 @@ type SubscriptionRepository struct {
 }
 
 func NewSubscriptionRepository(client *mongo.Client, dbName string, entityType billing_entities.Subscription, collectionName string) *SubscriptionRepository {
-	repo := mongodb.NewMongoDBRepository[billing_entities.Subscription](client, dbName, entityType, collectionName, "Subscription")
+	repo := mongodb.NewMongoDBRepository(client, dbName, entityType, collectionName, "Subscription")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":              true,

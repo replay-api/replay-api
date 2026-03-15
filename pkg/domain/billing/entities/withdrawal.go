@@ -54,6 +54,8 @@ type Withdrawal struct {
 	shared.BaseEntity     `json:",inline" bson:",inline"`
 	UserID                uuid.UUID            `json:"user_id" bson:"user_id"`
 	WalletID             uuid.UUID            `json:"wallet_id" bson:"wallet_id"`
+	// TODO(security): Migrate Amount, Fee, NetAmount to int64 cents to avoid
+	// floating-point precision errors. Requires MongoDB migration. See C-04.
 	Amount               float64              `json:"amount" bson:"amount"`
 	Currency             string               `json:"currency" bson:"currency"`
 	Method               WithdrawalMethod     `json:"method" bson:"method"`

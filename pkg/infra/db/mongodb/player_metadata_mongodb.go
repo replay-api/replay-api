@@ -18,7 +18,7 @@ type PlayerMetadataRepository struct {
 }
 
 func NewPlayerMetadataRepository(client *mongo.Client, dbName string, entityType replay_entity.PlayerMetadata, collectionName string) *PlayerMetadataRepository {
-	repo := mongodb.NewMongoDBRepository[replay_entity.PlayerMetadata](client, dbName, entityType, collectionName, "PlayerMetadata")
+	repo := mongodb.NewMongoDBRepository(client, dbName, entityType, collectionName, "PlayerMetadata")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":                 true,

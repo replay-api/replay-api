@@ -49,9 +49,10 @@ func TestRateLimitMiddleware_RateLimitsGETRequests(t *testing.T) {
 		
 		handler.ServeHTTP(rec, req)
 		
-		if rec.Code == http.StatusOK {
+		switch rec.Code {
+		case http.StatusOK:
 			successCount++
-		} else if rec.Code == http.StatusTooManyRequests {
+		case http.StatusTooManyRequests:
 			rateLimitedCount++
 		}
 	}

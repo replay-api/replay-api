@@ -126,6 +126,14 @@ func (uc *LoginEmailUserUseCase) newSearchByEmail(ctx context.Context, emailStri
 	result := shared.SearchResultOptions{
 		Skip:  0,
 		Limit: 1,
+		// Explicitly request PasswordHash in the projection so bcrypt verification works.
+		// The default projection from QueryableFields should include it, but due to a
+		// framework-level projection bug, it may be omitted without PickFields.
+		PickFields: []string{
+			"ID", "Email", "PasswordHash", "VHash",
+			"ResourceOwner", "DisplayName", "EmailVerified",
+			"CreatedAt", "UpdatedAt",
+		},
 	}
 
 	return shared.Search{

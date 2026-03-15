@@ -317,6 +317,7 @@ type BillableItem struct {
 }
 
 type Price struct {
+	// TODO(security): Migrate to int64 cents. See C-04 in security audit.
 	Amount        float64 `json:"amount" bson:"amount"`
 	Currency      string  `json:"currency" bson:"currency"`
 	TotalDiscount float64 `json:"total_discount" bson:"total_discount"`

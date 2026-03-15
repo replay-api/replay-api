@@ -56,6 +56,7 @@ func (c *ReplayFileQueryController) ListReplayFilesHandler(w http.ResponseWriter
 	query := r.URL.Query()
 	searchTerm := query.Get("q")
 	searchFieldsParam := query.Get("search_fields")
+	idParam := query.Get("ID")
 	playerID := query.Get("player_id")
 	squadID := query.Get("squad_id")
 	status := query.Get("status")
@@ -81,6 +82,18 @@ func (c *ReplayFileQueryController) ListReplayFilesHandler(w http.ResponseWriter
 
 	// Build value parameters for search
 	var valueParams []shared.SearchableValue
+
+	// Filter by ID if provided (exact match)
+	if idParam != "" {
+		idUUID, err := uuid.Parse(idParam)
+		if err == nil {
+			valueParams = append(valueParams, shared.SearchableValue{
+				Field:    "ID",
+				Values:   []interface{}{idUUID},
+				Operator: shared.EqualsOperator,
+			})
+		}
+	}
 
 	// Always filter by game_id if provided
 	if gameID != "" {

@@ -18,6 +18,8 @@ const (
 	TopicPlayerStatus      = "matchmaking.player-status"
 	TopicWebSocketBroadcast = "websocket.broadcasts"
 	TopicDLQ               = "matchmaking.dlq"
+	TopicReadyCheck         = "matchmaking.ready-check"
+	TopicNotificationDelivery = "notifications.delivery"
 )
 
 // Replay processing topics
@@ -55,6 +57,25 @@ const (
 	TopicWalletDLQ               = "wallet.dlq"
 )
 
+// Messaging topics
+const (
+	TopicCommentCreated        = "messaging.comment.created"
+	TopicCommentEdited         = "messaging.comment.edited"
+	TopicCommentDeleted        = "messaging.comment.deleted"
+	TopicCommentReaction       = "messaging.comment.reaction"
+	TopicDirectMessageSent     = "messaging.dm.sent"
+	TopicTeamMessageSent       = "messaging.team.sent"
+	TopicMentionNotification   = "messaging.mention.notification"
+	TopicMessagingDLQ          = "messaging.dlq"
+)
+
+// Prediction topics
+const (
+	TopicPredictionPlaced   = "prediction.placed"
+	TopicPredictionResolved = "prediction.resolved"
+	TopicPredictionDLQ      = "prediction.dlq"
+)
+
 // Event types
 const (
 	EventTypeQueueJoined        = "QUEUE_JOINED"
@@ -72,6 +93,14 @@ const (
 	EventTypeMatchStarted       = "MATCH_STARTED"
 	EventTypeMatchCompleted     = "MATCH_COMPLETED"
 	EventTypeMatchCancelled     = "MATCH_CANCELLED"
+
+	// Ready check event types
+	EventTypeReadyCheckStarted       = "READY_CHECK_STARTED"
+	EventTypeReadinessConfirmed      = "READINESS_CONFIRMED"
+	EventTypeReadinessDeclined       = "READINESS_DECLINED"
+	EventTypeReadyCheckTimeout       = "READY_CHECK_TIMEOUT"
+	EventTypeAllPlayersReady         = "ALL_PLAYERS_READY"
+	EventTypeGameConnectionDelivered = "GAME_CONNECTION_DELIVERED"
 )
 
 // Replay event types
@@ -105,6 +134,67 @@ const (
 	EventTypeWalletRefund            = "WALLET_REFUND"
 	EventTypeWalletLocked            = "WALLET_LOCKED"
 	EventTypeWalletUnlocked          = "WALLET_UNLOCKED"
+)
+
+// Messaging event types
+const (
+	EventTypeCommentCreated      = "COMMENT_CREATED"
+	EventTypeCommentEdited       = "COMMENT_EDITED"
+	EventTypeCommentDeleted      = "COMMENT_DELETED"
+	EventTypeCommentReaction     = "COMMENT_REACTION"
+	EventTypeDirectMessageSent   = "DIRECT_MESSAGE_SENT"
+	EventTypeTeamMessageSent     = "TEAM_MESSAGE_SENT"
+	EventTypeMentionNotification = "MENTION_NOTIFICATION"
+)
+
+// Prediction event types
+const (
+	EventTypePredictionPlaced   = "PREDICTION_PLACED"
+	EventTypePredictionResolved = "PREDICTION_RESOLVED"
+)
+
+// Vault topics
+const (
+	TopicVaultCreated           = "vault.created"
+	TopicVaultDeposit           = "vault.deposit"
+	TopicVaultWithdrawal        = "vault.withdrawal"
+	TopicVaultProposalCreated   = "vault.proposal.created"
+	TopicVaultProposalApproved  = "vault.proposal.approved"
+	TopicVaultProposalRejected  = "vault.proposal.rejected"
+	TopicVaultProposalExecuted  = "vault.proposal.executed"
+	TopicVaultProposalCancelled = "vault.proposal.cancelled"
+	TopicVaultSettingsUpdated   = "vault.settings.updated"
+	TopicVaultItemDeposited     = "vault.item.deposited"
+	TopicVaultItemTransferred   = "vault.item.transferred"
+	TopicVaultDLQ               = "vault.dlq"
+)
+
+// Vault event types
+const (
+	EventTypeVaultCreated           = "VAULT_CREATED"
+	EventTypeVaultDeposit           = "VAULT_DEPOSIT"
+	EventTypeVaultWithdrawal        = "VAULT_WITHDRAWAL"
+	EventTypeVaultProposalCreated   = "VAULT_PROPOSAL_CREATED"
+	EventTypeVaultProposalApproved  = "VAULT_PROPOSAL_APPROVED"
+	EventTypeVaultProposalRejected  = "VAULT_PROPOSAL_REJECTED"
+	EventTypeVaultProposalExecuted  = "VAULT_PROPOSAL_EXECUTED"
+	EventTypeVaultProposalCancelled = "VAULT_PROPOSAL_CANCELLED"
+	EventTypeVaultSettingsUpdated   = "VAULT_SETTINGS_UPDATED"
+	EventTypeVaultItemDeposited     = "VAULT_ITEM_DEPOSITED"
+	EventTypeVaultItemTransferred   = "VAULT_ITEM_TRANSFERRED"
+)
+
+// Analytics topics
+const (
+	TopicAnalyticsEntityViewed  = "analytics.entity.viewed"
+	TopicAnalyticsStatsComputed = "analytics.stats.computed"
+	TopicAnalyticsDLQ           = "analytics.dlq"
+)
+
+// Analytics event types
+const (
+	EventTypeEntityViewed  = "ENTITY_VIEWED"
+	EventTypeStatsComputed = "STATS_COMPUTED"
 )
 
 // EventPublisher publishes domain events to Kafka topics
@@ -313,6 +403,41 @@ type WebSocketBroadcastEvent struct {
 	TargetIDs []uuid.UUID `json:"target_ids,omitempty"` // specific user IDs, nil for broadcast
 	Payload   interface{} `json:"payload"`
 	Timestamp int64       `json:"timestamp"`
+}
+
+// ReadyCheckEvent represents a readiness confirmation lifecycle event
+type ReadyCheckEvent struct {
+	EventID            uuid.UUID              `json:"event_id"`
+	LobbyID            uuid.UUID              `json:"lobby_id"`
+	PlayerID           *uuid.UUID             `json:"player_id,omitempty"`
+	EventType          string                 `json:"event_type"`
+	PlayerIDs          []uuid.UUID            `json:"player_ids,omitempty"`
+	Summary            interface{}            `json:"summary,omitempty"`
+	GameConnectionInfo interface{}            `json:"game_connection_info,omitempty"`
+	Timestamp          int64                  `json:"timestamp"`
+	Metadata           map[string]string      `json:"metadata,omitempty"`
+}
+
+// PublishReadyCheckEvent publishes a ready check lifecycle event
+func (p *EventPublisher) PublishReadyCheckEvent(ctx context.Context, event *ReadyCheckEvent) error {
+	event.EventID = uuid.New()
+	if event.Timestamp == 0 {
+		event.Timestamp = time.Now().UnixMilli()
+	}
+
+	key := event.LobbyID.String()
+
+	msg := &Message{
+		Key:       key,
+		Value:     event,
+		Timestamp: time.Now(),
+		Headers: map[string]string{
+			"event_type": event.EventType,
+			"lobby_id":   event.LobbyID.String(),
+		},
+	}
+
+	return p.client.Publish(ctx, TopicReadyCheck, msg)
 }
 
 // PublishWebSocketBroadcast publishes an event for WebSocket broadcast
@@ -1037,6 +1162,155 @@ func GetAllWalletTopics() []string {
 	}
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// VAULT EVENTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// VaultEvent represents a team vault event
+type VaultEvent struct {
+	EventID       uuid.UUID         `json:"event_id"`
+	VaultID       uuid.UUID         `json:"vault_id"`
+	SquadID       uuid.UUID         `json:"squad_id"`
+	ActorID       uuid.UUID         `json:"actor_id"`
+	EventType     string            `json:"event_type"`
+	Amount        float64           `json:"amount,omitempty"`
+	Currency      string            `json:"currency,omitempty"`
+	ProposalID    *uuid.UUID        `json:"proposal_id,omitempty"`
+	ProposalType  string            `json:"proposal_type,omitempty"`
+	ItemID        *uuid.UUID        `json:"item_id,omitempty"`
+	Description   string            `json:"description,omitempty"`
+	TxHash        string            `json:"tx_hash,omitempty"`
+	Timestamp     int64             `json:"timestamp"`
+	Metadata      map[string]string `json:"metadata,omitempty"`
+}
+
+// PublishVaultCreated publishes a vault created event
+func (p *EventPublisher) PublishVaultCreated(ctx context.Context, event *VaultEvent) error {
+	if p.client == nil {
+		return nil
+	}
+	event.EventID = uuid.New()
+	event.EventType = EventTypeVaultCreated
+	if event.Timestamp == 0 {
+		event.Timestamp = time.Now().UnixMilli()
+	}
+	msg := &Message{
+		Key:       event.VaultID.String(),
+		Value:     event,
+		Timestamp: time.Now(),
+		Headers: map[string]string{
+			"event_type": event.EventType,
+			"squad_id":   event.SquadID.String(),
+		},
+	}
+	return p.client.Publish(ctx, TopicVaultCreated, msg)
+}
+
+// PublishVaultDeposit publishes a vault deposit event
+func (p *EventPublisher) PublishVaultDeposit(ctx context.Context, event *VaultEvent) error {
+	if p.client == nil {
+		return nil
+	}
+	event.EventID = uuid.New()
+	event.EventType = EventTypeVaultDeposit
+	if event.Timestamp == 0 {
+		event.Timestamp = time.Now().UnixMilli()
+	}
+	msg := &Message{
+		Key:       event.VaultID.String(),
+		Value:     event,
+		Timestamp: time.Now(),
+		Headers: map[string]string{
+			"event_type": event.EventType,
+			"squad_id":   event.SquadID.String(),
+		},
+	}
+	return p.client.Publish(ctx, TopicVaultDeposit, msg)
+}
+
+// PublishVaultProposalCreated publishes a vault proposal created event
+func (p *EventPublisher) PublishVaultProposalCreated(ctx context.Context, event *VaultEvent) error {
+	if p.client == nil {
+		return nil
+	}
+	event.EventID = uuid.New()
+	event.EventType = EventTypeVaultProposalCreated
+	if event.Timestamp == 0 {
+		event.Timestamp = time.Now().UnixMilli()
+	}
+	msg := &Message{
+		Key:       event.VaultID.String(),
+		Value:     event,
+		Timestamp: time.Now(),
+		Headers: map[string]string{
+			"event_type": event.EventType,
+			"squad_id":   event.SquadID.String(),
+		},
+	}
+	return p.client.Publish(ctx, TopicVaultProposalCreated, msg)
+}
+
+// PublishVaultProposalApproved publishes a vault proposal approved event
+func (p *EventPublisher) PublishVaultProposalApproved(ctx context.Context, event *VaultEvent) error {
+	if p.client == nil {
+		return nil
+	}
+	event.EventID = uuid.New()
+	event.EventType = EventTypeVaultProposalApproved
+	if event.Timestamp == 0 {
+		event.Timestamp = time.Now().UnixMilli()
+	}
+	msg := &Message{
+		Key:       event.VaultID.String(),
+		Value:     event,
+		Timestamp: time.Now(),
+		Headers: map[string]string{
+			"event_type": event.EventType,
+			"squad_id":   event.SquadID.String(),
+		},
+	}
+	return p.client.Publish(ctx, TopicVaultProposalApproved, msg)
+}
+
+// PublishVaultProposalExecuted publishes a vault proposal executed event
+func (p *EventPublisher) PublishVaultProposalExecuted(ctx context.Context, event *VaultEvent) error {
+	if p.client == nil {
+		return nil
+	}
+	event.EventID = uuid.New()
+	event.EventType = EventTypeVaultProposalExecuted
+	if event.Timestamp == 0 {
+		event.Timestamp = time.Now().UnixMilli()
+	}
+	msg := &Message{
+		Key:       event.VaultID.String(),
+		Value:     event,
+		Timestamp: time.Now(),
+		Headers: map[string]string{
+			"event_type": event.EventType,
+			"squad_id":   event.SquadID.String(),
+		},
+	}
+	return p.client.Publish(ctx, TopicVaultProposalExecuted, msg)
+}
+
+// GetAllVaultTopics returns all vault-related topics
+func GetAllVaultTopics() []string {
+	return []string{
+		TopicVaultCreated,
+		TopicVaultDeposit,
+		TopicVaultWithdrawal,
+		TopicVaultProposalCreated,
+		TopicVaultProposalApproved,
+		TopicVaultProposalRejected,
+		TopicVaultProposalExecuted,
+		TopicVaultProposalCancelled,
+		TopicVaultSettingsUpdated,
+		TopicVaultItemDeposited,
+		TopicVaultItemTransferred,
+	}
+}
+
 // --- Scores Domain Events ---
 
 // Score topics
@@ -1253,4 +1527,112 @@ func GetAllScoreTopics() []string {
 		TopicScoreFinalized,
 		TopicScoreCancelled,
 	}
+}
+
+// --- Oracle Domain Events ---
+
+// Game import topics
+const (
+	TopicGameImportDiscovered = "game-import.discovered"
+	TopicGameImportProcessed  = "game-import.processed"
+	TopicGameImportCompleted  = "game-import.completed"
+	TopicGameImportFailed     = "game-import.failed"
+	TopicGameImportDLQ        = "game-import.dlq"
+)
+
+// Game import event types
+const (
+	EventTypeGameImportDiscovered = "GAME_IMPORT_DISCOVERED"
+	EventTypeGameImportProcessed  = "GAME_IMPORT_PROCESSED"
+	EventTypeGameImportCompleted  = "GAME_IMPORT_COMPLETED"
+	EventTypeGameImportFailed     = "GAME_IMPORT_FAILED"
+)
+
+// GetAllGameImportTopics returns all game-import related topics
+func GetAllGameImportTopics() []string {
+	return []string{
+		TopicGameImportDiscovered,
+		TopicGameImportProcessed,
+		TopicGameImportCompleted,
+		TopicGameImportFailed,
+	}
+}
+
+// Oracle topics
+const (
+	TopicOracleConsensusReached = "oracle.consensus.reached"
+	TopicOraclePublished        = "oracle.published"
+	TopicOracleFinalized        = "oracle.finalized"
+	TopicOracleDisputed         = "oracle.disputed"
+	TopicOracleExternalIngested = "oracle.external.ingested"
+	TopicOracleDLQ              = "oracle.dlq"
+)
+
+// Oracle event types
+const (
+	EventTypeOracleConsensusReached = "ORACLE_CONSENSUS_REACHED"
+	EventTypeOraclePublished        = "ORACLE_PUBLISHED"
+	EventTypeOracleFinalized        = "ORACLE_FINALIZED"
+	EventTypeOracleDisputed         = "ORACLE_DISPUTED"
+	EventTypeOracleExternalIngested = "ORACLE_EXTERNAL_INGESTED"
+)
+
+// OracleEvent represents an oracle domain event
+type OracleEvent struct {
+	EventID          uuid.UUID             `json:"event_id"`
+	OracleResultID   uuid.UUID             `json:"oracle_result_id"`
+	MatchID          *uuid.UUID            `json:"match_id,omitempty"`
+	ExternalMatchID  string                `json:"external_match_id,omitempty"`
+	GameID           string                `json:"game_id"`
+	Status           string                `json:"status"`
+	EventType        string                `json:"event_type"`
+	ConfidenceLevel  int                   `json:"confidence_level"`
+	OverallAgreement float64               `json:"overall_agreement"`
+	SourceType       string                `json:"source_type,omitempty"`
+	SourceProvider   string                `json:"source_provider,omitempty"`
+	ChainPublications []OracleChainPubInfo `json:"chain_publications,omitempty"`
+	Timestamp        int64                 `json:"timestamp"`
+	Metadata         map[string]string     `json:"metadata,omitempty"`
+}
+
+// OracleChainPubInfo represents chain publication info in events
+type OracleChainPubInfo struct {
+	ChainID int    `json:"chain_id"`
+	TxHash  string `json:"tx_hash"`
+	Status  string `json:"status"`
+}
+
+// GetAllOracleTopics returns all oracle-related topics
+func GetAllOracleTopics() []string {
+	return []string{
+		TopicOracleConsensusReached,
+		TopicOraclePublished,
+		TopicOracleFinalized,
+		TopicOracleDisputed,
+		TopicOracleExternalIngested,
+	}
+}
+
+// --- Tournament Event Topics ---
+
+const (
+	TopicTournamentEvents = "tournament.events"
+)
+
+// PublishTournamentEvent publishes a generic tournament lifecycle event
+func (p *EventPublisher) PublishTournamentEvent(ctx context.Context, key string, event interface{}) error {
+	if p.client == nil {
+		return nil
+	}
+
+	msg := &Message{
+		Key:       key,
+		Value:     event,
+		Timestamp: time.Now(),
+		Headers: map[string]string{
+			"domain": "tournament",
+		},
+	}
+
+	return p.client.Publish(ctx, TopicTournamentEvents, msg)
 }

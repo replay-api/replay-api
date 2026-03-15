@@ -21,7 +21,7 @@ type AuditTrailMongoDBRepository struct {
 
 // NewAuditTrailMongoDBRepository creates a new audit trail repository
 func NewAuditTrailMongoDBRepository(client *mongo.Client, dbName string) *AuditTrailMongoDBRepository {
-	repo := mongodb.NewMongoDBRepository[*billing_entities.AuditTrailEntry](client, dbName, &billing_entities.AuditTrailEntry{}, "audit_trail", "AuditTrailEntry")
+	repo := mongodb.NewMongoDBRepository(client, dbName, &billing_entities.AuditTrailEntry{}, "audit_trail", "AuditTrailEntry")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":             true,

@@ -7,9 +7,9 @@ import (
 	dem "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs"
 	evt "github.com/markus-wa/demoinfocs-golang/v4/pkg/demoinfocs/events"
 	state "github.com/replay-api/replay-api/pkg/app/cs/state"
+	"github.com/replay-api/replay-api/pkg/domain/replay/entities"
 	replay_common "github.com/replay-api/replay-common/pkg/replay"
 	fps_events "github.com/replay-api/replay-common/pkg/replay/events/game/fps"
-	"github.com/replay-api/replay-api/pkg/domain/replay/entities"
 
 	// replay_entity "github.com/replay-api/replay-api/pkg/domain/replay/entities"
 
@@ -43,9 +43,10 @@ func WeaponFire(p dem.Parser, matchContext *state.CS2MatchContext, out chan *ent
 			shooterSteamID := strconv.FormatUint(event.Shooter.SteamID64, 10)
 			shooterName := event.Shooter.Name
 			shooterTeam := ""
-			if event.Shooter.Team == 3 {
+			switch event.Shooter.Team {
+			case 3:
 				shooterTeam = "CT"
-			} else if event.Shooter.Team == 2 {
+			case 2:
 				shooterTeam = "T"
 			}
 			

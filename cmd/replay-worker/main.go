@@ -19,6 +19,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	shared "github.com/resource-ownership/go-common/pkg/common"
 
+	replay_common "github.com/replay-api/replay-common/pkg/replay"
 	replay_in "github.com/replay-api/replay-api/pkg/domain/replay/ports/in"
 	"github.com/replay-api/replay-api/pkg/infra/ioc"
 	"github.com/replay-api/replay-api/pkg/infra/kafka"
@@ -177,8 +178,16 @@ func (h *healthServer) serve(port int) *http.Server {
 
 // --- Main ---
 
+// systemContext creates a context with system-level RLS credentials.
+func systemContext(parent context.Context) context.Context {
+	ctx := context.WithValue(parent, shared.TenantIDKey, replay_common.TeamPROTenantID)
+	ctx = context.WithValue(ctx, shared.ClientIDKey, replay_common.TeamPROAppClientID)
+	ctx = context.WithValue(ctx, shared.UserIDKey, replay_common.TeamPROAppClientID)
+	return ctx
+}
+
 func main() {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(systemContext(context.Background()))
 	defer cancel()
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
@@ -267,15 +276,47 @@ func main() {
 
 	consumer.RegisterHandler(kafka.TopicReplaysUploaded, handler.handle)
 
+	// --- Analytics Event Consumer ---
+	// Processes entity.viewed events and computes aggregations into
+	// view_statistics and viewer_insights MongoDB collections.
+	var analyticsConsumerConfig *kafka.AnalyticsEventConsumerConfig
+	if err := c.Resolve(&analyticsConsumerConfig); err != nil {
+		slog.Warn("Analytics consumer config not available, skipping analytics aggregation", "error", err)
+	}
+
+	var analyticsConsumer *kafka.AnalyticsEventConsumer
+	if analyticsConsumerConfig != nil {
+		analyticsConsumer = kafka.NewAnalyticsEventConsumer(kafkaClient, analyticsConsumerConfig)
+		slog.Info("Analytics event consumer initialized",
+			"group_id", analyticsConsumerConfig.GroupID,
+			"topic", kafka.TopicAnalyticsEntityViewed,
+		)
+	}
+
 	// Mark as ready
 	health.setReady(true)
 	health.setDetail("status", "consuming")
 	slog.Info("Replay worker ready, listening for uploaded replays...")
 
-	// Start consuming (blocks until ctx cancelled)
+	// Start analytics consumer in a goroutine (non-blocking)
+	if analyticsConsumer != nil {
+		go func() {
+			slog.Info("Starting analytics event consumer...")
+			if err := analyticsConsumer.Start(ctx); err != nil && ctx.Err() == nil {
+				slog.Error("Analytics consumer error", "error", err)
+			}
+		}()
+	}
+
+	// Start replay consuming (blocks until ctx cancelled)
 	if err := consumer.Start(ctx); err != nil && ctx.Err() == nil {
 		slog.Error("Consumer error", "error", err)
 		os.Exit(1)
+	}
+
+	// Cleanup
+	if analyticsConsumer != nil {
+		_ = analyticsConsumer.Close()
 	}
 
 	slog.Info("Replay worker shutdown complete")

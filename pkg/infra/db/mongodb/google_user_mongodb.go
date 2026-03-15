@@ -11,7 +11,7 @@ type GoogleUserRepository struct {
 }
 
 func NewGoogleUserMongoDBRepository(client *mongo.Client, dbName string, entityType google_entities.GoogleUser, collectionName string) *GoogleUserRepository {
-	repo := mongodb.NewMongoDBRepository[google_entities.GoogleUser](client, dbName, entityType, collectionName, "GoogleUser")
+	repo := mongodb.NewMongoDBRepository(client, dbName, entityType, collectionName, "GoogleUser")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":            true,

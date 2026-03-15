@@ -20,6 +20,20 @@ MessageTypePlayerLeft         = "player_left"
 MessageTypeReadyStatusChanged = "ready_status_changed"
 MessageTypePrizePoolUpdate    = "prize_pool_update"
 MessageTypeMatchStarting      = "match_starting"
+
+// Ready check / confirmation flow message types
+MessageTypeReadyCheckStarted    = "ready_check_started"
+MessageTypeReadinessConfirmed   = "readiness_confirmed"
+MessageTypeReadinessDeclined    = "readiness_declined"
+MessageTypeReadyCheckTimeout    = "ready_check_timeout"
+MessageTypeAllPlayersReady      = "all_players_ready"
+MessageTypeGameConnectionInfo   = "game_connection_info"
+
+// Notification message types
+MessageTypeNotification         = "notification"
+MessageTypeNotificationRead     = "notification_read"
+MessageTypeNotificationDeleted  = "notification_deleted"
+MessageTypeSubscribeNotifications = "subscribe_notifications"
 )
 
 // WebSocketMessage is the wire protocol format
@@ -27,6 +41,7 @@ type WebSocketMessage struct {
 	Type      string          `json:"type"`
 	LobbyID   *uuid.UUID      `json:"lobby_id,omitempty"`
 	PoolID    *uuid.UUID      `json:"pool_id,omitempty"`
+	UserID    *uuid.UUID      `json:"user_id,omitempty"`
 	Payload   json.RawMessage `json:"payload"`
 	Timestamp int64           `json:"timestamp"`
 }
@@ -44,6 +59,7 @@ type Client struct {
 type WebSocketHub struct {
 	clients    map[uuid.UUID]*Client
 	lobbyRooms map[uuid.UUID]map[uuid.UUID]*Client
+	userRooms  map[uuid.UUID]map[uuid.UUID]*Client // userID → set of clients for that user
 	register   chan *Client
 	unregister chan *Client
 	broadcast  chan *WebSocketMessage
@@ -54,6 +70,7 @@ func NewWebSocketHub() *WebSocketHub {
 	return &WebSocketHub{
 		clients:    make(map[uuid.UUID]*Client),
 		lobbyRooms: make(map[uuid.UUID]map[uuid.UUID]*Client),
+		userRooms:  make(map[uuid.UUID]map[uuid.UUID]*Client),
 		register:   make(chan *Client, 256),
 		unregister: make(chan *Client, 256),
 		broadcast:  make(chan *WebSocketMessage, 1024),
@@ -123,7 +140,18 @@ func (h *WebSocketHub) broadcastMessage(message *WebSocketMessage) {
 h.mu.RLock()
 defer h.mu.RUnlock()
 
-if message.LobbyID != nil {
+if message.UserID != nil {
+// User-scoped message — send to all clients belonging to that user
+if clients, exists := h.userRooms[*message.UserID]; exists {
+for _, client := range clients {
+select {
+case client.Send <- message:
+default:
+slog.Warn("Client send buffer full", "client_id", client.ID)
+}
+}
+}
+} else if message.LobbyID != nil {
 if clients, exists := h.lobbyRooms[*message.LobbyID]; exists {
 for _, client := range clients {
 select {
@@ -142,6 +170,48 @@ slog.Warn("Client send buffer full", "client_id", client.ID)
 }
 }
 }
+}
+
+// RegisterUserClient adds a client to the user's notification room
+func (h *WebSocketHub) RegisterUserClient(userID uuid.UUID, client *Client) {
+h.mu.Lock()
+defer h.mu.Unlock()
+
+h.clients[client.ID] = client
+if _, exists := h.userRooms[userID]; !exists {
+h.userRooms[userID] = make(map[uuid.UUID]*Client)
+}
+h.userRooms[userID][client.ID] = client
+
+slog.Info("WebSocket notification client connected", "client_id", client.ID, "user_id", userID)
+}
+
+// UnregisterUserClient removes a client from the user's notification room
+func (h *WebSocketHub) UnregisterUserClient(userID uuid.UUID, client *Client) {
+h.mu.Lock()
+defer h.mu.Unlock()
+
+if _, exists := h.clients[client.ID]; exists {
+delete(h.clients, client.ID)
+delete(h.userRooms[userID], client.ID)
+if len(h.userRooms[userID]) == 0 {
+delete(h.userRooms, userID)
+}
+close(client.Send)
+slog.Info("WebSocket notification client disconnected", "client_id", client.ID, "user_id", userID)
+}
+}
+
+// BroadcastToUser sends a message to all clients belonging to a specific user
+func (h *WebSocketHub) BroadcastToUser(userID uuid.UUID, eventType string, payload json.RawMessage) {
+message := &WebSocketMessage{
+Type:      eventType,
+UserID:    &userID,
+Payload:   payload,
+Timestamp: time.Now().Unix(),
+}
+
+h.broadcast <- message
 }
 
 // BroadcastLobbyUpdate sends lobby state to all subscribed clients

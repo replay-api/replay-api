@@ -15,7 +15,7 @@ type BadgeRepository struct {
 }
 
 func NewBadgeRepository(client *mongo.Client, dbName string, entityType replay_entity.Badge, collectionName string) *BadgeRepository {
-	repo := mongodb.NewMongoDBRepository[replay_entity.Badge](client, dbName, entityType, collectionName, "Badge")
+	repo := mongodb.NewMongoDBRepository(client, dbName, entityType, collectionName, "Badge")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":            true,

@@ -60,6 +60,11 @@ func NewMatchQueryService(matchReader replay_out.MatchMetadataReader) replay_in.
 		"VisibilityType":  true,               // Visibility type
 		"CreatedAt":       true,               // Match creation timestamp
 		"UpdatedAt":       true,               // Last update timestamp
+		"Source":          true,               // Match source (replay, ocr_stream, youtube_vod, demo, etc.)
+		"ExternalMatchID": true,               // External system match ID
+		"Slug":            true,               // Reconciliation slug
+		"PlayedAt":        true,               // When the match was played
+		"LinkedMatchIDs":  true,               // Linked/reconciled match IDs
 	}
 
 	// ReadableFields: Fields included in API responses
@@ -85,6 +90,11 @@ func NewMatchQueryService(matchReader replay_out.MatchMetadataReader) replay_in.
 		"VisibilityType":  true,               // Include visibility type
 		"CreatedAt":       true,
 		"UpdatedAt":       true,
+		"Source":          true,               // Include match source
+		"ExternalMatchID": true,               // Include external match ID
+		"Slug":            true,               // Include reconciliation slug
+		"PlayedAt":        true,               // Include played at timestamp
+		"LinkedMatchIDs":  true,               // Include linked match IDs
 	}
 
 	service := &shared.BaseQueryService[replay_entity.Match]{
@@ -99,7 +109,7 @@ func NewMatchQueryService(matchReader replay_out.MatchMetadataReader) replay_in.
 		SortableFields: []string{"CreatedAt", "UpdatedAt"},
 
 		// FilterableFields: For exact-match filtering
-		FilterableFields: []string{"GameID", "Status", "NetworkID"},
+		FilterableFields: []string{"GameID", "Status", "NetworkID", "Source", "Slug"},
 
 		MaxPageSize: 100,
 		Audience:    shared.UserAudienceIDKey,

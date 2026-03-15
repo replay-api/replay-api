@@ -31,6 +31,18 @@ const (
 	AuditEventBalanceFreeze    AuditEventType = "BALANCE_FREEZE"
 	AuditEventBalanceUnfreeze  AuditEventType = "BALANCE_UNFREEZE"
 
+	// Bitcoin/Exchange Events
+	AuditEventBTCBuy             AuditEventType = "BTC_BUY"
+	AuditEventBTCSell            AuditEventType = "BTC_SELL"
+	AuditEventBTCWithdrawal      AuditEventType = "BTC_WITHDRAWAL"
+	AuditEventBTCDeposit         AuditEventType = "BTC_DEPOSIT"
+	AuditEventLightningPayment   AuditEventType = "LIGHTNING_PAYMENT"
+	AuditEventLightningReceive   AuditEventType = "LIGHTNING_RECEIVE"
+	AuditEventExchangeRateUpdate AuditEventType = "EXCHANGE_RATE_UPDATE"
+	AuditEventQuoteCreated       AuditEventType = "QUOTE_CREATED"
+	AuditEventQuoteExpired       AuditEventType = "QUOTE_EXPIRED"
+	AuditEventExchangeOrderFilled AuditEventType = "EXCHANGE_ORDER_FILLED"
+
 	// Security Events
 	AuditEventLoginSuccess     AuditEventType = "LOGIN_SUCCESS"
 	AuditEventLoginFailed      AuditEventType = "LOGIN_FAILED"

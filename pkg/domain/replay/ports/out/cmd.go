@@ -20,6 +20,14 @@ type GameEventWriter interface {
 type MatchMetadataWriter interface {
 	Create(createCtx context.Context, match replay_entity.Match) error
 	CreateMany(createCtx context.Context, matches []replay_entity.Match) error
+	Update(ctx context.Context, match replay_entity.Match) error
+	// FindOneAndUpsertBySlug atomically finds a match by slug or creates it if not found.
+	// Returns the existing or newly created match, whether it was created, and any error.
+	// Uses MongoDB FindOneAndUpdate with $setOnInsert for TOCTOU-safe atomic upsert.
+	FindOneAndUpsertBySlug(ctx context.Context, slug string, match replay_entity.Match) (existing *replay_entity.Match, created bool, err error)
+	// AppendSourceConfirmation atomically appends a source confirmation to a match
+	// and updates conflict detection fields. Uses $push instead of full document $set.
+	AppendSourceConfirmation(ctx context.Context, matchID uuid.UUID, confirmation replay_entity.SourceConfirmation, needsReview bool, conflictDetails string) error
 }
 
 type PlayerMetadataWriter interface {

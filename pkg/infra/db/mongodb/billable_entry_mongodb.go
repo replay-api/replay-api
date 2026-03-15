@@ -25,7 +25,7 @@ func (repo *BillableEntryRepository) Find(ctx context.Context, filter interface{
 }
 
 func NewBillableEntryRepository(client *mongo.Client, dbName string, entityType billing_entities.BillableEntry, collectionName string) *BillableEntryRepository {
-	repo := mongodb.NewMongoDBRepository[billing_entities.BillableEntry](client, dbName, entityType, collectionName, "BillableEntry")
+	repo := mongodb.NewMongoDBRepository(client, dbName, entityType, collectionName, "BillableEntry")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":             true,

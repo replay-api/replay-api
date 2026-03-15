@@ -69,7 +69,15 @@ func (usecase *ProcessReplayFileUseCase) Exec(ctx context.Context, replayFileID 
 
 	match := e.NewCS2MatchWithOwner(replayFile.ResourceOwner, replayFile.ID)
 
-	file, err := usecase.ReplayContentReader.GetByID(ctx, replayFileID)
+	// For reference replays (duplicates uploaded by different users), use the original replay ID
+	// to look up blob content, since the blob is stored under the original replay's ID
+	contentID := replayFileID
+	if replayFile.OriginalReplayID != nil && *replayFile.OriginalReplayID != uuid.Nil {
+		contentID = *replayFile.OriginalReplayID
+		slog.InfoContext(ctx, "using original replay ID for content retrieval", "replayFileID", replayFileID, "originalReplayID", contentID)
+	}
+
+	file, err := usecase.ReplayContentReader.GetByID(ctx, contentID)
 	if err != nil {
 		slog.ErrorContext(ctx, "error getting replay file content data", "err", err)
 		return nil, err

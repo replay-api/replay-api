@@ -32,7 +32,10 @@ const MaxDailyPrizeWinnings = 50.00
 type UserWallet struct {
 	shared.BaseEntity   `bson:"baseentity"`
 	EVMAddress          wallet_vo.EVMAddress                    `json:"evm_address" bson:"evm_address"`
+	BTCAddress          *wallet_vo.BTCAddress                   `json:"btc_address,omitempty" bson:"btc_address,omitempty"`
+	LightningNodePubKey string                                  `json:"lightning_node_pubkey,omitempty" bson:"lightning_node_pubkey,omitempty"`
 	Balances            map[wallet_vo.Currency]wallet_vo.Amount `json:"balances" bson:"balances"`
+	BTCBalance          wallet_vo.BtcAmount                     `json:"btc_balance" bson:"btc_balance"`
 	PendingTransactions []uuid.UUID                             `json:"pending_transactions" bson:"pending_transactions"`
 	TotalDeposited      wallet_vo.Amount                        `json:"total_deposited" bson:"total_deposited"`
 	TotalWithdrawn      wallet_vo.Amount                        `json:"total_withdrawn" bson:"total_withdrawn"`
@@ -56,6 +59,7 @@ func NewUserWallet(resourceOwner shared.ResourceOwner, evmAddress wallet_vo.EVMA
 		BaseEntity:          baseEntity,
 		EVMAddress:          evmAddress,
 		Balances:            make(map[wallet_vo.Currency]wallet_vo.Amount),
+		BTCBalance:          wallet_vo.NewBtcAmountFromSatoshis(0),
 		PendingTransactions: []uuid.UUID{},
 		TotalDeposited:      wallet_vo.NewAmount(0),
 		TotalWithdrawn:      wallet_vo.NewAmount(0),
@@ -72,6 +76,54 @@ func NewUserWallet(resourceOwner shared.ResourceOwner, evmAddress wallet_vo.EVMA
 	wallet.Balances[wallet_vo.CurrencyUSDT] = wallet_vo.NewAmount(0)
 
 	return wallet, nil
+}
+
+// GetBTCBalance returns the Bitcoin balance as a BtcAmount
+func (w *UserWallet) GetBTCBalance() wallet_vo.BtcAmount {
+	return w.BTCBalance
+}
+
+// DepositBTC adds Bitcoin to the wallet
+func (w *UserWallet) DepositBTC(amount wallet_vo.BtcAmount) error {
+	if amount.IsNegative() || amount.IsZero() {
+		return fmt.Errorf("BTC deposit amount must be positive, got: %s", amount.String())
+	}
+	if w.IsLocked {
+		return fmt.Errorf("wallet is locked: %s", w.LockReason)
+	}
+	w.BTCBalance = w.BTCBalance.Add(amount)
+	w.Version++
+	w.UpdatedAt = time.Now()
+	return nil
+}
+
+// WithdrawBTC removes Bitcoin from the wallet
+func (w *UserWallet) WithdrawBTC(amount wallet_vo.BtcAmount) error {
+	if amount.IsNegative() || amount.IsZero() {
+		return fmt.Errorf("BTC withdrawal amount must be positive, got: %s", amount.String())
+	}
+	if w.IsLocked {
+		return fmt.Errorf("wallet is locked: %s", w.LockReason)
+	}
+	if w.BTCBalance.LessThan(amount) {
+		return fmt.Errorf("insufficient BTC balance: have %s, need %s", w.BTCBalance.String(), amount.String())
+	}
+	w.BTCBalance = w.BTCBalance.Subtract(amount)
+	w.Version++
+	w.UpdatedAt = time.Now()
+	return nil
+}
+
+// SetBTCAddress sets the Bitcoin address for this wallet
+func (w *UserWallet) SetBTCAddress(addr wallet_vo.BTCAddress) {
+	w.BTCAddress = &addr
+	w.UpdatedAt = time.Now()
+}
+
+// SetLightningPubKey sets the Lightning node public key
+func (w *UserWallet) SetLightningPubKey(pubkey string) {
+	w.LightningNodePubKey = pubkey
+	w.UpdatedAt = time.Now()
 }
 
 // GetBalance returns the balance for a specific currency

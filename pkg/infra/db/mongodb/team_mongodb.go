@@ -16,7 +16,7 @@ type TeamRepository struct {
 }
 
 func NewTeamRepository(client *mongo.Client, dbName string, entityType replay_entity.Team, collectionName string) *TeamRepository {
-	repo := mongodb.NewMongoDBRepository[replay_entity.Team](client, dbName, entityType, collectionName, "Team")
+	repo := mongodb.NewMongoDBRepository(client, dbName, entityType, collectionName, "Team")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":                 true,

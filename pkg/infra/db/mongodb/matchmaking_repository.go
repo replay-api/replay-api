@@ -26,7 +26,7 @@ type MatchmakingSessionRepository struct {
 
 // NewMatchmakingSessionRepository creates a new repository instance
 func NewMatchmakingSessionRepository(client *mongo.Client, dbName string) *MatchmakingSessionRepository {
-	repo := mongodb.NewMongoDBRepository[matchmaking_entities.MatchmakingSession](client, dbName, matchmaking_entities.MatchmakingSession{}, matchmakingSessionsCollection, "MatchmakingSession")
+	repo := mongodb.NewMongoDBRepository(client, dbName, matchmaking_entities.MatchmakingSession{}, matchmakingSessionsCollection, "MatchmakingSession")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":            true,
@@ -246,7 +246,7 @@ type MatchmakingPoolRepository struct {
 
 // NewMatchmakingPoolRepository creates a new repository instance
 func NewMatchmakingPoolRepository(client *mongo.Client, dbName string) *MatchmakingPoolRepository {
-	repo := mongodb.NewMongoDBRepository[matchmaking_entities.MatchmakingPool](client, dbName, matchmaking_entities.MatchmakingPool{}, matchmakingPoolsCollection, "MatchmakingPool")
+	repo := mongodb.NewMongoDBRepository(client, dbName, matchmaking_entities.MatchmakingPool{}, matchmakingPoolsCollection, "MatchmakingPool")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":             true,

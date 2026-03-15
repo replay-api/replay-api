@@ -1,0 +1,71 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# OCR Worker Dockerfile
+# YouTube stream OCR score extraction + oracle ingestion
+# Includes: Go binary + Python3/PaddleOCR + streamlink + ffmpeg
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Build stage (Go binary)
+FROM golang:1.25-alpine AS builder
+
+WORKDIR /app
+
+# Install build dependencies
+RUN apk add --no-cache git ca-certificates tzdata
+
+# Copy go mod files for dependency caching
+COPY replay-api/go.mod replay-api/go.sum ./replay-api/
+COPY replay-common/go.mod ./replay-common/
+COPY resource-ownership/go-common/go.mod ./resource-ownership/go-common/
+COPY resource-ownership/go-mongodb/go.mod ./resource-ownership/go-mongodb/
+
+# Download dependencies
+WORKDIR /app/replay-api
+RUN go mod download
+
+# Copy source code
+WORKDIR /app
+COPY replay-api/ ./replay-api/
+COPY replay-common/ ./replay-common/
+COPY resource-ownership/ ./resource-ownership/
+
+# Build the OCR worker binary
+WORKDIR /app/replay-api
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/ocr-worker ./cmd/ocr-worker
+
+# Runtime stage — needs Python, streamlink, ffmpeg
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    tzdata \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+RUN pip install --no-cache-dir \
+    paddlepaddle \
+    paddleocr \
+    Pillow \
+    numpy \
+    streamlink
+
+# Copy Go binary from builder
+COPY --from=builder /app/ocr-worker /app/ocr-worker
+
+# Copy PaddleOCR wrapper script
+COPY replay-api/scripts/paddleocr_wrapper.py /app/scripts/paddleocr_wrapper.py
+
+# Non-root user for security
+RUN useradd -r -s /bin/false appuser && chown -R appuser:appuser /app
+USER appuser
+
+# Health + Metrics ports
+EXPOSE 8082 9091
+
+ENV PADDLEOCR_SCRIPT_PATH=/app/scripts/paddleocr_wrapper.py
+ENV PADDLEOCR_PYTHON_PATH=python3
+
+CMD ["./ocr-worker"]

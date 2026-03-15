@@ -1,0 +1,51 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Game Discovery Worker Dockerfile
+# Polls external APIs for recently completed matches and triggers import pipeline
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Build stage (Go binary)
+FROM golang:1.25-alpine AS builder
+
+WORKDIR /app
+
+# Install build dependencies
+RUN apk add --no-cache git ca-certificates tzdata
+
+# Copy go mod files for dependency caching
+COPY replay-api/go.mod replay-api/go.sum ./replay-api/
+COPY replay-common/go.mod ./replay-common/
+COPY resource-ownership/go-common/go.mod ./resource-ownership/go-common/
+COPY resource-ownership/go-mongodb/go.mod ./resource-ownership/go-mongodb/
+
+# Download dependencies
+WORKDIR /app/replay-api
+RUN go mod download
+
+# Copy source code
+WORKDIR /app
+COPY replay-api/ ./replay-api/
+COPY replay-common/ ./replay-common/
+COPY resource-ownership/ ./resource-ownership/
+
+# Build the game-discovery-worker binary
+WORKDIR /app/replay-api
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/game-discovery-worker ./cmd/game-discovery-worker
+
+# Runtime stage — lightweight (Go binary only)
+FROM alpine:latest
+
+WORKDIR /app
+
+RUN apk --no-cache add ca-certificates tzdata
+
+# Copy Go binary from builder
+COPY --from=builder /app/game-discovery-worker /app/game-discovery-worker
+
+# Non-root user for security
+RUN adduser -D -s /bin/false appuser && chown -R appuser:appuser /app
+USER appuser
+
+# Health + Metrics ports
+EXPOSE 8083 9092
+
+CMD ["./game-discovery-worker"]

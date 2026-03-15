@@ -20,7 +20,7 @@ type MongoWalletRepository struct {
 
 func NewMongoWalletRepository(mongoClient *mongo.Client, dbName string) wallet_out.WalletRepository {
 	entityType := wallet_entities.UserWallet{}
-	repo := mongodb.NewMongoDBRepository[wallet_entities.UserWallet](mongoClient, dbName, entityType, "wallets", "UserWallet")
+	repo := mongodb.NewMongoDBRepository(mongoClient, dbName, entityType, "wallets", "UserWallet")
 
 	// Note: DO NOT include both "ResourceOwner" and its sub-fields (UserID, TenantID, etc.)
 	// in queryable fields - this causes MongoDB projection path collisions.

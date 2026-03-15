@@ -19,7 +19,7 @@ type RIDTokenRepository struct {
 
 func NewRIDTokenRepository(client *mongo.Client, dbName string, entityType iam_entity.RIDToken, collectionName string) *RIDTokenRepository {
 	// TODO: create Factory for encapsulating this and reducing bloat/repetition of some fields like queryableFields, mappingCache.. this needs a facade for a clearer instantiation
-	repo := mongodb.NewMongoDBRepository[iam_entity.RIDToken](client, dbName, entityType, collectionName, "RIDToken")
+	repo := mongodb.NewMongoDBRepository(client, dbName, entityType, collectionName, "RIDToken")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":            true,

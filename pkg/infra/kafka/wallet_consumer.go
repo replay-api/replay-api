@@ -6,10 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/google/uuid"
 	wallet_in "github.com/replay-api/replay-api/pkg/domain/wallet/ports/in"
 	wallet_out "github.com/replay-api/replay-api/pkg/domain/wallet/ports/out"
-	shared "github.com/resource-ownership/go-common/pkg/common"
 	"github.com/segmentio/kafka-go"
 )
 
@@ -342,11 +340,4 @@ func (wc *WalletConsumer) Start(ctx context.Context) error {
 // Close closes the wallet consumer
 func (wc *WalletConsumer) Close() error {
 	return wc.consumer.Close()
-}
-
-// setWalletResourceOwnerContext sets the resource owner context for wallet operations
-func setWalletResourceOwnerContext(ctx context.Context, userID uuid.UUID) context.Context {
-	ctx = context.WithValue(ctx, shared.UserIDKey, userID)
-	ctx = context.WithValue(ctx, shared.AuthenticatedKey, true)
-	return ctx
 }

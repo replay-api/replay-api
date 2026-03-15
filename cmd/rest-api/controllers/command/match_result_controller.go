@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/golobby/container/v3"
@@ -98,6 +99,9 @@ func (c *MatchResultCommandController) SubmitMatchResultHandler(apiContext conte
 			return
 		}
 
+		// Limit request body to 1MB to prevent abuse
+		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+
 		var req SubmitMatchResultRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "invalid request body", http.StatusBadRequest)
@@ -162,7 +166,11 @@ func (c *MatchResultCommandController) SubmitMatchResultHandler(apiContext conte
 		result, err := c.commandHandler.SubmitMatchResult(r.Context(), cmd)
 		if err != nil {
 			slog.ErrorContext(r.Context(), "failed to submit match result", "error", err)
-			http.Error(w, `{"success":false,"error":"Failed to submit match result"}`, http.StatusBadRequest)
+			if isForbiddenError(err) {
+				writeJSONError(w, sanitizeForbiddenError(err), http.StatusForbidden)
+				return
+			}
+			writeJSONError(w, "Failed to submit match result", http.StatusBadRequest)
 			return
 		}
 
@@ -201,7 +209,11 @@ func (c *MatchResultCommandController) VerifyMatchResultHandler(apiContext conte
 
 		if err := c.commandHandler.VerifyMatchResult(r.Context(), cmd); err != nil {
 			slog.ErrorContext(r.Context(), "failed to verify match result", "error", err)
-			http.Error(w, `{"success":false,"error":"Failed to verify result"}`, http.StatusBadRequest)
+			if isForbiddenError(err) {
+				writeJSONError(w, sanitizeForbiddenError(err), http.StatusForbidden)
+				return
+			}
+			writeJSONError(w, "Failed to verify result", http.StatusBadRequest)
 			return
 		}
 
@@ -238,7 +250,11 @@ func (c *MatchResultCommandController) DisputeMatchResultHandler(apiContext cont
 
 		if err := c.commandHandler.DisputeMatchResult(r.Context(), cmd); err != nil {
 			slog.ErrorContext(r.Context(), "failed to dispute match result", "error", err)
-			http.Error(w, `{"success":false,"error":"Failed to submit dispute"}`, http.StatusBadRequest)
+			if isForbiddenError(err) {
+				writeJSONError(w, sanitizeForbiddenError(err), http.StatusForbidden)
+				return
+			}
+			writeJSONError(w, "Failed to submit dispute", http.StatusBadRequest)
 			return
 		}
 
@@ -282,7 +298,11 @@ func (c *MatchResultCommandController) ConciliateMatchResultHandler(apiContext c
 
 		if err := c.commandHandler.ConciliateMatchResult(r.Context(), cmd); err != nil {
 			slog.ErrorContext(r.Context(), "failed to conciliate match result", "error", err)
-			http.Error(w, `{"success":false,"error":"Failed to conciliate"}`, http.StatusBadRequest)
+			if isForbiddenError(err) {
+				writeJSONError(w, sanitizeForbiddenError(err), http.StatusForbidden)
+				return
+			}
+			writeJSONError(w, "Failed to conciliate", http.StatusBadRequest)
 			return
 		}
 
@@ -312,7 +332,11 @@ func (c *MatchResultCommandController) FinalizeMatchResultHandler(apiContext con
 
 		if err := c.commandHandler.FinalizeMatchResult(r.Context(), cmd); err != nil {
 			slog.ErrorContext(r.Context(), "failed to finalize match result", "error", err)
-			http.Error(w, `{"success":false,"error":"Failed to finalize result"}`, http.StatusBadRequest)
+			if isForbiddenError(err) {
+				writeJSONError(w, sanitizeForbiddenError(err), http.StatusForbidden)
+				return
+			}
+			writeJSONError(w, "Failed to finalize result", http.StatusBadRequest)
 			return
 		}
 
@@ -349,7 +373,11 @@ func (c *MatchResultCommandController) CancelMatchResultHandler(apiContext conte
 
 		if err := c.commandHandler.CancelMatchResult(r.Context(), cmd); err != nil {
 			slog.ErrorContext(r.Context(), "failed to cancel match result", "error", err)
-			http.Error(w, `{"success":false,"error":"Failed to cancel match"}`, http.StatusBadRequest)
+			if isForbiddenError(err) {
+				writeJSONError(w, sanitizeForbiddenError(err), http.StatusForbidden)
+				return
+			}
+			writeJSONError(w, "Failed to cancel match", http.StatusBadRequest)
 			return
 		}
 
@@ -413,4 +441,38 @@ func parsePlayerResults(reqs []PlayerResultReq) ([]scores_entities.PlayerResult,
 		}
 	}
 	return results, nil
+}
+
+// isForbiddenError checks if the error is a permission/authorization error
+func isForbiddenError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "forbidden:") || strings.Contains(msg, "insufficient permissions")
+}
+
+// sanitizeForbiddenError returns a safe error message for 403 responses
+// without leaking internal details like user IDs or tournament IDs
+func sanitizeForbiddenError(err error) string {
+	msg := err.Error()
+	if strings.Contains(msg, "forbidden:") {
+		// Extract the part after "forbidden:" which is the user-facing message
+		parts := strings.SplitN(msg, "forbidden:", 2)
+		if len(parts) == 2 {
+			return "Forbidden:" + parts[1]
+		}
+	}
+	return "Forbidden: insufficient permissions"
+}
+
+// writeJSONError writes a standardized JSON error response
+func writeJSONError(w http.ResponseWriter, message string, statusCode int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": false,
+		"error":   message,
+		"code":    http.StatusText(statusCode),
+	})
 }

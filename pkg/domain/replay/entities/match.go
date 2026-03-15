@@ -2,6 +2,7 @@ package entities
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -40,18 +41,53 @@ const (
 	MatchSourceExternalAPI MatchSource = "external_api"
 	// MatchSourceManual - Match manually created by user/admin
 	MatchSourceManual MatchSource = "manual"
+	// MatchSourceOCRStream - Match imported from live stream OCR analysis
+	MatchSourceOCRStream MatchSource = "ocr_stream"
+	// MatchSourceOCRScreenshot - Match imported from user-uploaded screenshot OCR
+	MatchSourceOCRScreenshot MatchSource = "ocr_screenshot"
+	// MatchSourceYouTubeVOD - Match imported from YouTube VOD OCR analysis
+	MatchSourceYouTubeVOD MatchSource = "youtube_vod"
+	// MatchSourceDemo - Match imported from demo file analysis
+	MatchSourceDemo MatchSource = "demo"
 )
 
-// AggregteRoot
+// ReconciliationOutcome indicates the result of a reconciliation attempt
+type ReconciliationOutcome string
+
+const (
+	ReconciliationCreated             ReconciliationOutcome = "created"
+	ReconciliationReconciled          ReconciliationOutcome = "reconciled"
+	ReconciliationReconciledConflict  ReconciliationOutcome = "reconciled_with_conflict"
+	ReconciliationReconciledDateShift ReconciliationOutcome = "reconciled_date_variant"
+	ReconciliationReconciledExtID     ReconciliationOutcome = "reconciled_via_external_id"
+)
+
+// SourceConfirmation records a single source's contribution to a match record.
+// Each time the same match is discovered from a different source, a new confirmation
+// is appended. This provides full provenance tracking and enables conflict detection.
+type SourceConfirmation struct {
+	Source          MatchSource `json:"source" bson:"source"`
+	ExternalMatchID string      `json:"external_match_id,omitempty" bson:"external_match_id,omitempty"`
+	Provider        string      `json:"provider,omitempty" bson:"provider,omitempty"`
+	TeamAName       string      `json:"team_a_name,omitempty" bson:"team_a_name,omitempty"`
+	TeamBName       string      `json:"team_b_name,omitempty" bson:"team_b_name,omitempty"`
+	TeamAScore      int         `json:"team_a_score" bson:"team_a_score"`
+	TeamBScore      int         `json:"team_b_score" bson:"team_b_score"`
+	MapName         string      `json:"map_name,omitempty" bson:"map_name,omitempty"`
+	ConfirmedAt     time.Time   `json:"confirmed_at" bson:"confirmed_at"`
+	Confidence      float64     `json:"confidence" bson:"confidence"`
+}
+
+// AggregateRoot
 type Match struct {
 	shared.BaseEntity `json:",inline" bson:",inline"`
 	RegionID          replay_common.RegionIDKey `json:"region_id" bson:"region_id"`
 	ReplayFileID      uuid.UUID                 `json:"replay_file_id" bson:"replay_file_id"`
 	GameID            replay_common.GameIDKey   `json:"game_id" bson:"game_id"`
 	MapName           string                    `json:"map_name,omitempty" bson:"map_name,omitempty"`
-	Duration          float64                   `json:"duration,omitempty" bson:"duration,omitempty"` // Duration in seconds
-	PlayedAt          time.Time                 `json:"played_at,omitempty" bson:"played_at,omitempty"` // When the match was played
-	Mode              string                    `json:"mode,omitempty" bson:"mode,omitempty"`         // e.g., "competitive", "casual"
+	Duration          float64                   `json:"duration,omitempty" bson:"duration,omitempty"`
+	PlayedAt          time.Time                 `json:"played_at,omitempty" bson:"played_at,omitempty"`
+	Mode              string                    `json:"mode,omitempty" bson:"mode,omitempty"`
 	Status            MatchStatus               `json:"status,omitempty" bson:"status,omitempty"`
 	ServerName        string                    `json:"server_name,omitempty" bson:"server_name,omitempty"`
 	Scoreboard        Scoreboard                `json:"scoreboard" bson:"scoreboard"`
@@ -59,14 +95,79 @@ type Match struct {
 	EventCount        int                       `json:"event_count" bson:"event_count"`
 	Visibility        MatchVisibility           `json:"visibility" bson:"visibility"`
 	ShareTokens       []ShareToken              `json:"share_tokens" bson:"share_tokens"`
-	// Source tracking: how was this match created?
-	Source        MatchSource `json:"source" bson:"source"`                                       // Source of match data (replay, matchmaking, external_api, manual)
-	LinkedReplayID *uuid.UUID `json:"linked_replay_id,omitempty" bson:"linked_replay_id,omitempty"` // For matchmaking matches, links to associated replay if available
-	ExternalMatchID string    `json:"external_match_id,omitempty" bson:"external_match_id,omitempty"` // External system match ID (e.g., FACEIT match ID, Valve match ID)
+	// Source tracking
+	Source          MatchSource `json:"source" bson:"source"`
+	LinkedReplayID  *uuid.UUID  `json:"linked_replay_id,omitempty" bson:"linked_replay_id,omitempty"`
+	ExternalMatchID string      `json:"external_match_id,omitempty" bson:"external_match_id,omitempty"`
+	Slug            string      `json:"slug,omitempty" bson:"slug,omitempty"`
+	LinkedMatchIDs  []uuid.UUID `json:"linked_match_ids,omitempty" bson:"linked_match_ids,omitempty"`
+	// Multi-source provenance & conflict detection
+	SourceConfirmations []SourceConfirmation `json:"source_confirmations,omitempty" bson:"source_confirmations,omitempty"`
+	NeedsReview         bool                 `json:"needs_review,omitempty" bson:"needs_review,omitempty"`
+	ConflictDetails     string               `json:"conflict_details,omitempty" bson:"conflict_details,omitempty"`
 }
 
 func (m Match) GetID() uuid.UUID {
 	return m.ID
+}
+
+// AddSourceConfirmation appends a source confirmation and detects conflicts.
+// Returns true if a conflict was detected (scores disagree with existing confirmations).
+func (m *Match) AddSourceConfirmation(sc SourceConfirmation) bool {
+	// Check for duplicate source
+	for _, existing := range m.SourceConfirmations {
+		if existing.Source == sc.Source && existing.ExternalMatchID == sc.ExternalMatchID {
+			return false // Already confirmed from this exact source
+		}
+	}
+
+	m.SourceConfirmations = append(m.SourceConfirmations, sc)
+
+	// Detect score conflicts across confirmations
+	if len(m.SourceConfirmations) > 1 {
+		return m.detectConflicts()
+	}
+
+	return false
+}
+
+// detectConflicts checks whether any source confirmations have conflicting scores.
+// Only compares confirmations that both have non-zero scores.
+func (m *Match) detectConflicts() bool {
+	type scoreKey struct{ a, b int }
+	scores := make(map[scoreKey][]string)
+
+	for _, sc := range m.SourceConfirmations {
+		if sc.TeamAScore == 0 && sc.TeamBScore == 0 {
+			continue
+		}
+		key := scoreKey{sc.TeamAScore, sc.TeamBScore}
+		scores[key] = append(scores[key], fmt.Sprintf("%s(%s)", sc.Source, sc.Provider))
+	}
+
+	if len(scores) > 1 {
+		details := "Score conflict detected: "
+		first := true
+		for score, sources := range scores {
+			if !first {
+				details += " vs "
+			}
+			srcList := ""
+			for i, s := range sources {
+				if i > 0 {
+					srcList += ", "
+				}
+				srcList += s
+			}
+			details += fmt.Sprintf("%d-%d from [%s]", score.a, score.b, srcList)
+			first = false
+		}
+		m.NeedsReview = true
+		m.ConflictDetails = details
+		return true
+	}
+
+	return false
 }
 
 type Scoreboard struct {
@@ -169,6 +270,85 @@ func NewMatchFromExternalAPI(resourceOwner shared.ResourceOwner, gameID replay_c
 	}
 }
 
+// NewMatchFromOCRImport creates an enriched match from OCR/import pipeline data.
+// Unlike NewMatchFromExternalAPI, this populates team names, map, scores, and played_at from the source data.
+func NewMatchFromOCRImport(
+	resourceOwner shared.ResourceOwner,
+	gameID replay_common.GameIDKey,
+	source MatchSource,
+	externalMatchID string,
+	slug string,
+	teamAName string,
+	teamBName string,
+	teamAScore int,
+	teamBScore int,
+	mapName string,
+	playedAt time.Time,
+) *Match {
+	entity := shared.NewUnrestrictedEntity(resourceOwner)
+
+	teams := make([]Team, 0, 2)
+	if teamAName != "" {
+		teams = append(teams, Team{
+			BaseEntity:         shared.NewUnrestrictedEntity(resourceOwner),
+			Name:               teamAName,
+			CurrentDisplayName: teamAName,
+		})
+	}
+	if teamBName != "" {
+		teams = append(teams, Team{
+			BaseEntity:         shared.NewUnrestrictedEntity(resourceOwner),
+			Name:               teamBName,
+			CurrentDisplayName: teamBName,
+		})
+	}
+
+	var scoreboard Scoreboard
+	if len(teams) == 2 {
+		scoreboard = Scoreboard{
+			TeamScoreboards: []TeamScoreboard{
+				{Team: teams[0], TeamScore: teamAScore},
+				{Team: teams[1], TeamScore: teamBScore},
+			},
+		}
+	}
+
+	// Canonicalize map name for storage
+	canonMap := CanonicalizeMapName(mapName)
+	if canonMap == "" {
+		canonMap = mapName
+	}
+
+	m := &Match{
+		BaseEntity:      entity,
+		GameID:          gameID,
+		Source:          source,
+		ExternalMatchID: externalMatchID,
+		Slug:            slug,
+		MapName:         canonMap,
+		PlayedAt:        playedAt,
+		Teams:           teams,
+		Scoreboard:      scoreboard,
+		Status:          MatchStatusCompleted,
+		// Initial source confirmation
+		SourceConfirmations: []SourceConfirmation{
+			{
+				Source:          source,
+				ExternalMatchID: externalMatchID,
+				TeamAName:       teamAName,
+				TeamBName:       teamBName,
+				TeamAScore:      teamAScore,
+				TeamBScore:      teamBScore,
+				MapName:         canonMap,
+				ConfirmedAt:     time.Now().UTC(),
+				Confidence:      1.0,
+			},
+		},
+	}
+
+	return m
+}
+
 // LinkReplay links a replay file to a matchmaking or external API match
 func (m *Match) LinkReplay(replayID uuid.UUID) {
 	m.LinkedReplayID = &replayID
@@ -178,6 +358,31 @@ func (m *Match) LinkReplay(replayID uuid.UUID) {
 // HasReplay returns true if the match has an associated replay file
 func (m *Match) HasReplay() bool {
 	return m.ReplayFileID != uuid.Nil || (m.LinkedReplayID != nil && *m.LinkedReplayID != uuid.Nil)
+}
+
+// LinkMatch links another match to this one for reconciliation purposes
+func (m *Match) LinkMatch(matchID uuid.UUID) {
+	for _, id := range m.LinkedMatchIDs {
+		if id == matchID {
+			return // Already linked
+		}
+	}
+	m.LinkedMatchIDs = append(m.LinkedMatchIDs, matchID)
+}
+
+// MatchSourceFromOracleSource maps an OracleSourceType to the corresponding MatchSource.
+// This is used during import to determine the correct MatchSource based on the data provider.
+func MatchSourceFromOracleSource(oracleSource string) MatchSource {
+	switch oracleSource {
+	case "ocr_stream":
+		return MatchSourceOCRStream
+	case "ocr_screenshot":
+		return MatchSourceOCRScreenshot
+	case "pandascore", "steam_web_api", "faceit_data_api", "sportsdataio", "grid", "abios":
+		return MatchSourceExternalAPI
+	default:
+		return MatchSourceExternalAPI
+	}
 }
 
 // FinalScoreboardPayload contains the final match scoreboard data

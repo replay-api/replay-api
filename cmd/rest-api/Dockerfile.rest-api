@@ -1,36 +1,32 @@
-# build
-FROM golang:1.23.4-alpine AS build
+# Build stage — context must be the workspace root
+FROM golang:1.25-alpine AS build
 RUN apk add --no-cache tzdata ca-certificates git
 WORKDIR /workspace
 
-# Copy all modules for replace directives
-COPY ../resource-ownership/go-common ./resource-ownership/go-common
-COPY ../resource-ownership/go-mongodb ./resource-ownership/go-mongodb
-COPY ../replay-common ./replay-common
-# Copy the current directory (replay-api) to workspace
-COPY . .
+# Copy dependency modules first (cache layer)
+COPY resource-ownership/go-common ./resource-ownership/go-common
+COPY resource-ownership/go-mongodb ./resource-ownership/go-mongodb
+COPY replay-common ./replay-common
+COPY replay-api ./replay-api
 
 WORKDIR /workspace/replay-api
-RUN go mod tidy && go mod download
+RUN go mod download
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o replay-api-http-service ./cmd/rest-api
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o rpc-api ./cmd/rpc-api || true
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o seed ./cmd/cli/seed/main.go || true
-RUN mkdir -p /workspace/replay-api/replay_files
-RUN mkdir -p /workspace/replay-api/coverage
 
-# runtime - using scratch for minimal image size
-FROM scratch AS runtime
-COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=build /usr/share/zoneinfo /usr/share/zoneinfo
+# Runtime — minimal image
+FROM alpine:3.20 AS runtime
+RUN apk --no-cache add ca-certificates tzdata
+RUN addgroup -g 10001 -S appgroup && adduser -u 10001 -S appuser -G appgroup
 WORKDIR /app
 COPY --from=build /workspace/replay-api/replay-api-http-service ./
 COPY --from=build /workspace/replay-api/rpc-api ./rpc-api
 COPY --from=build /workspace/replay-api/seed ./seed
-COPY --from=build /workspace/replay-api/replay_files ./replay_files
-COPY --from=build /workspace/replay-api/coverage ./coverage
+RUN mkdir -p /app/replay_files /app/coverage /tmp && \
+    chown -R appuser:appgroup /app /tmp
+USER appuser
 
-# Environment variables
 ENV TZ=UTC
-
 EXPOSE 8080
 ENTRYPOINT ["./replay-api-http-service"]

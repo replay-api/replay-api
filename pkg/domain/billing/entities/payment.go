@@ -6,6 +6,8 @@ type Payment struct {
 	shared.BaseEntity
 	PayableID                string            `json:"payable_id" bson:"payable_id"`
 	Reference                string            `json:"reference" bson:"reference"`
+	// TODO(security): Migrate to int64 cents to avoid floating-point precision errors.
+	// Requires MongoDB migration + API contract update. See C-04 in security audit.
 	Amount                   float64           `json:"amount" bson:"amount"`
 	Currency                 string            `json:"currency" bson:"currency"`
 	Option                   PaymentOptionType `json:"option" bson:"option"`
