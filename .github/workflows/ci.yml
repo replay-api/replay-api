@@ -414,7 +414,6 @@ jobs:
         with:
           images: |
             ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_NAMESPACE }}/replay-api
-            leetgaming/replay-api
           tags: |
             type=sha,prefix=
             type=ref,event=branch
