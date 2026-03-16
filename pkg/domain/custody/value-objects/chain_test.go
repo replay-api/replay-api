@@ -151,6 +151,8 @@ func TestSupportedChains(t *testing.T) {
 		ChainBase:            true,
 		ChainArbitrum:        true,
 		ChainEthereumMainnet: true,
+		ChainBitcoinMainnet:  true,
+		ChainLightning:       true,
 	}
 
 	for _, chain := range chains {
