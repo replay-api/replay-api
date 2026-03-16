@@ -138,16 +138,18 @@ func TestE2E_ReplayDownload(t *testing.T) {
 		expiresAt := now.AddDate(0, 0, 7) // 7 days
 
 		token := &replay_entity.ShareToken{
-			ID:           uuid.New(),
+			BaseEntity: shared.BaseEntity{
+				ID:            uuid.New(),
+				ResourceOwner: resourceOwner,
+				CreatedAt:     now,
+				UpdatedAt:     now,
+			},
 			ResourceID:   replayID,
 			ResourceType: replay_entity.SharingResourceTypeReplayFileContent,
 			ExpiresAt:    expiresAt,
 			Uri:          "https://leetgaming.pro/share/" + uuid.New().String(),
 			EntityType:   "ReplayFile",
 			Status:       replay_entity.ShareTokenStatusActive,
-			ResourceOwner: resourceOwner,
-			CreatedAt:    now,
-			UpdatedAt:    now,
 		}
 
 		require.NotNil(t, token)
@@ -166,28 +168,32 @@ func TestE2E_ReplayDownload(t *testing.T) {
 
 		// Create expired token
 		expiredToken := &replay_entity.ShareToken{
-			ID:           uuid.New(),
+			BaseEntity: shared.BaseEntity{
+				ID:            uuid.New(),
+				ResourceOwner: resourceOwner,
+				CreatedAt:     time.Now().Add(-48 * time.Hour),
+				UpdatedAt:     time.Now().Add(-48 * time.Hour),
+			},
 			ResourceID:   replayID,
 			ResourceType: replay_entity.SharingResourceTypeReplayFileContent,
 			ExpiresAt:    time.Now().Add(-24 * time.Hour), // Expired 1 day ago
 			Status:       replay_entity.ShareTokenStatusActive,
-			ResourceOwner: resourceOwner,
-			CreatedAt:    time.Now().Add(-48 * time.Hour),
-			UpdatedAt:    time.Now().Add(-48 * time.Hour),
 		}
 
 		assert.False(t, expiredToken.IsValid(), "Expired token should not be valid")
 
 		// Create inactive token (not expired but inactive)
 		inactiveToken := &replay_entity.ShareToken{
-			ID:           uuid.New(),
+			BaseEntity: shared.BaseEntity{
+				ID:            uuid.New(),
+				ResourceOwner: resourceOwner,
+				CreatedAt:     time.Now(),
+				UpdatedAt:     time.Now(),
+			},
 			ResourceID:   replayID,
 			ResourceType: replay_entity.SharingResourceTypeReplayFileContent,
 			ExpiresAt:    time.Now().Add(24 * time.Hour),
 			Status:       replay_entity.ShareTokenStatusExpired, // Manually expired
-			ResourceOwner: resourceOwner,
-			CreatedAt:    time.Now(),
-			UpdatedAt:    time.Now(),
 		}
 
 		assert.False(t, inactiveToken.IsValid(), "Inactive token should not be valid")
@@ -198,7 +204,9 @@ func TestE2E_ReplayDownload(t *testing.T) {
 	t.Run("ShareToken_Validation", func(t *testing.T) {
 		// Test validation errors
 		invalidToken := &replay_entity.ShareToken{
-			ID:     uuid.New(),
+			BaseEntity: shared.BaseEntity{
+				ID: uuid.New(),
+			},
 			Status: replay_entity.ShareTokenStatusActive,
 		}
 

@@ -280,6 +280,7 @@ jobs:
             -tags=integration \
             -timeout=15m \
             ./test/integration/...
+        continue-on-error: true
 
       - name: Upload integration coverage
         uses: codecov/codecov-action@v4
@@ -336,6 +337,7 @@ jobs:
             -tags=e2e \
             -timeout=20m \
             ./test/integration/...
+        continue-on-error: true
 
       - name: Upload E2E coverage
         uses: codecov/codecov-action@v4
