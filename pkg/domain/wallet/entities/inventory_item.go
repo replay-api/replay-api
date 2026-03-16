@@ -143,11 +143,6 @@ func NewInventoryItem(
 	}
 }
 
-// GetID returns the item ID
-func (i InventoryItem) GetID() uuid.UUID {
-	return i.ID
-}
-
 // TransferOwnership transfers the item to a new owner
 func (i *InventoryItem) TransferOwnership(newOwnerType InventoryOwnerType, newOwnerID uuid.UUID) error {
 	if !i.Transferable {

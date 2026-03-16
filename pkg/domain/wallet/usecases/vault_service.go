@@ -867,7 +867,11 @@ func (s *VaultService) proposalToDTO(p wallet_entities.VaultProposal) wallet_in.
 }
 
 // inventoryItemToDTO converts an inventory item entity to a DTO
-func (s *VaultService) inventoryItemToDTO(item wallet_entities.InventoryItem) wallet_in.InventoryItemDTO {
+func (s *VaultService) inventoryItemToDTO(item *wallet_entities.InventoryItem) wallet_in.InventoryItemDTO {
+	if item == nil {
+		return wallet_in.InventoryItemDTO{}
+	}
+
 	dto := wallet_in.InventoryItemDTO{
 		ID:           item.ID,
 		ItemType:     item.ItemType,

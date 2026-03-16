@@ -51,7 +51,7 @@ type InventoryItemRepository interface {
 	Delete(ctx context.Context, id uuid.UUID) error
 
 	// FindByOwner returns items owned by a specific user or team vault
-	FindByOwner(ctx context.Context, ownerType wallet_entities.InventoryOwnerType, ownerID uuid.UUID, limit, offset int) ([]wallet_entities.InventoryItem, int64, error)
+	FindByOwner(ctx context.Context, ownerType wallet_entities.InventoryOwnerType, ownerID uuid.UUID, limit, offset int) ([]*wallet_entities.InventoryItem, int64, error)
 
 	// FindByNFTContract finds an item by its on-chain NFT identifiers
 	FindByNFTContract(ctx context.Context, chainID int, contractAddress, tokenID string) (*wallet_entities.InventoryItem, error)

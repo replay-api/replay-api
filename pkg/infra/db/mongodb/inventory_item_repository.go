@@ -23,8 +23,7 @@ type MongoInventoryItemRepository struct {
 
 // NewMongoInventoryItemRepository creates a new InventoryItem MongoDB repository
 func NewMongoInventoryItemRepository(mongoClient *mongo.Client, dbName string) wallet_out.InventoryItemRepository {
-	entityType := wallet_entities.InventoryItem{}
-	repo := mongodb.NewMongoDBRepository(mongoClient, dbName, entityType, "inventory_items", "InventoryItem")
+	repo := mongodb.NewMongoDBRepositoryForType[wallet_entities.InventoryItem](mongoClient, dbName, "inventory_items", "InventoryItem")
 
 	repo.InitQueryableFields(map[string]bool{
 		"ID":            true,
@@ -115,7 +114,7 @@ func (r *MongoInventoryItemRepository) Update(ctx context.Context, item *wallet_
 	return nil
 }
 
-func (r *MongoInventoryItemRepository) FindByOwner(ctx context.Context, ownerType wallet_entities.InventoryOwnerType, ownerID uuid.UUID, limit, offset int) ([]wallet_entities.InventoryItem, int64, error) {
+func (r *MongoInventoryItemRepository) FindByOwner(ctx context.Context, ownerType wallet_entities.InventoryOwnerType, ownerID uuid.UUID, limit, offset int) ([]*wallet_entities.InventoryItem, int64, error) {
 	filter := bson.M{
 		"owner_type": ownerType,
 		"owner_id":   ownerID,
@@ -136,7 +135,7 @@ func (r *MongoInventoryItemRepository) FindByOwner(ctx context.Context, ownerTyp
 	}
 	defer cursor.Close(ctx)
 
-	var items []wallet_entities.InventoryItem
+	var items []*wallet_entities.InventoryItem
 	if err := cursor.All(ctx, &items); err != nil {
 		return nil, 0, fmt.Errorf("failed to decode inventory items: %w", err)
 	}
