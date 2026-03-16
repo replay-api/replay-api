@@ -4893,7 +4893,7 @@ func InjectMongoDB(c container.Container) error {
 		err := c.Resolve(&kafkaClient)
 		if err != nil || kafkaClient == nil {
 			slog.Warn("Kafka client not available for MessagingEventPublisher, messaging events will not be published.", "err", err)
-			return nil, nil
+			return kafka.NewNoopMessagingEventPublisher(), nil
 		}
 
 		return kafka.NewMessagingEventPublisherAdapter(kafkaClient), nil
