@@ -355,7 +355,7 @@ func (ctrl *MatchmakingController) calculateQueuePositionFromDB(ctx context.Cont
 	}
 
 	// Get all active sessions with same preferences
-	sessions, err := ctrl.sessionQuerySvc.FindActiveSessions(ctx, prefs.GameID, prefs.GameMode, prefs.Region, &prefs.Tier, nil, nil, nil, 1000, 0)
+	sessions, err := ctrl.sessionQuerySvc.FindActiveSessions(ctx, prefs.GameID, prefs.GameMode, prefs.Region, &prefs.Tier, nil, nil, nil, 200, 0)
 
 	if err != nil {
 		slog.Error("Failed to get active sessions for queue position", "err", err)
@@ -401,7 +401,7 @@ func (ctrl *MatchmakingController) calculateQueuePositionForSession(ctx context.
 func (ctrl *MatchmakingController) generatePoolStats(ctx context.Context, gameID, gameMode, region string) PoolStatsResponse {
 	// Try to get real data from database
 	if ctrl.sessionQuerySvc != nil {
-		sessions, err := ctrl.sessionQuerySvc.FindActiveSessions(ctx, gameID, gameMode, region, nil, nil, nil, nil, 1000, 0)
+		sessions, err := ctrl.sessionQuerySvc.FindActiveSessions(ctx, gameID, gameMode, region, nil, nil, nil, nil, 200, 0)
 
 		if err == nil && len(sessions) > 0 {
 			// Calculate real statistics

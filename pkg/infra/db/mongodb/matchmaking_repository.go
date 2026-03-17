@@ -46,6 +46,8 @@ func NewMatchmakingSessionRepository(client *mongo.Client, dbName string) *Match
 		"GameMode": true,
 		"Region":   true,
 		"Tier":     true,
+		// Metadata for ready_check details
+		"Metadata": true,
 	}, map[string]string{
 		"ID":            "_id",
 		"PlayerID":      "player_id",
@@ -64,6 +66,8 @@ func NewMatchmakingSessionRepository(client *mongo.Client, dbName string) *Match
 		"GameMode": "preferences.game_mode",
 		"Region":   "preferences.region",
 		"Tier":     "preferences.tier",
+		// Metadata for ready_check details
+		"Metadata": "metadata",
 	})
 
 	return &MatchmakingSessionRepository{

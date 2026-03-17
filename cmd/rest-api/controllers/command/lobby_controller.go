@@ -103,9 +103,9 @@ func (ctrl *LobbyController) CreateLobbyHandler(apiContext context.Context) http
 			InviteOnly:       req.InviteOnly,
 		}
 
-		lobby, err := ctrl.lobbyCommand.CreateLobby(apiContext, cmd)
+		lobby, err := ctrl.lobbyCommand.CreateLobby(r.Context(), cmd)
 		if err != nil {
-			slog.ErrorContext(apiContext, "failed to create lobby", "error", err)
+			slog.ErrorContext(r.Context(), "failed to create lobby", "error", err)
 			http.Error(w, `{"success":false,"error":"Failed to create lobby"}`, http.StatusInternalServerError)
 			return
 		}
@@ -160,9 +160,9 @@ func (ctrl *LobbyController) JoinLobbyHandler(apiContext context.Context) http.H
 			MMR:      req.MMR,
 		}
 
-		err = ctrl.lobbyCommand.JoinLobby(apiContext, cmd)
+		err = ctrl.lobbyCommand.JoinLobby(r.Context(), cmd)
 		if err != nil {
-			slog.ErrorContext(apiContext, "failed to join lobby", "lobby_id", lobbyID, "player_id", playerID, "error", err)
+			slog.ErrorContext(r.Context(), "failed to join lobby", "lobby_id", lobbyID, "player_id", playerID, "error", err)
 			http.Error(w, `{"success":false,"error":"Failed to join lobby"}`, http.StatusBadRequest)
 			return
 		}
@@ -209,9 +209,9 @@ func (ctrl *LobbyController) LeaveLobbyHandler(apiContext context.Context) http.
 			PlayerID: playerID, // From auth context, NOT from query string
 		}
 
-		err = ctrl.lobbyCommand.LeaveLobby(apiContext, cmd)
+		err = ctrl.lobbyCommand.LeaveLobby(r.Context(), cmd)
 		if err != nil {
-			slog.ErrorContext(apiContext, "failed to leave lobby", "lobby_id", lobbyID, "player_id", playerID, "error", err)
+			slog.ErrorContext(r.Context(), "failed to leave lobby", "lobby_id", lobbyID, "player_id", playerID, "error", err)
 			http.Error(w, `{"success":false,"error":"Failed to leave lobby"}`, http.StatusBadRequest)
 			return
 		}
@@ -267,9 +267,9 @@ func (ctrl *LobbyController) SetPlayerReadyHandler(apiContext context.Context) h
 			IsReady:  reqBody.IsReady,
 		}
 
-		err = ctrl.lobbyCommand.SetPlayerReady(apiContext, cmd)
+		err = ctrl.lobbyCommand.SetPlayerReady(r.Context(), cmd)
 		if err != nil {
-			slog.ErrorContext(apiContext, "failed to set player ready", "lobby_id", lobbyID, "player_id", playerID, "error", err)
+			slog.ErrorContext(r.Context(), "failed to set player ready", "lobby_id", lobbyID, "player_id", playerID, "error", err)
 			http.Error(w, `{"success":false,"error":"Failed to update ready status"}`, http.StatusBadRequest)
 			return
 		}
@@ -306,9 +306,9 @@ func (ctrl *LobbyController) StartMatchHandler(apiContext context.Context) http.
 			return
 		}
 
-		matchID, err := ctrl.lobbyCommand.StartMatch(apiContext, lobbyID)
+		matchID, err := ctrl.lobbyCommand.StartMatch(r.Context(), lobbyID)
 		if err != nil {
-			slog.ErrorContext(apiContext, "failed to start match", "lobby_id", lobbyID, "error", err)
+			slog.ErrorContext(r.Context(), "failed to start match", "lobby_id", lobbyID, "error", err)
 			http.Error(w, `{"success":false,"error":"Failed to start match"}`, http.StatusBadRequest)
 			return
 		}
@@ -363,9 +363,9 @@ func (ctrl *LobbyController) CancelLobbyHandler(apiContext context.Context) http
 			reqBody.Reason = "cancelled by creator"
 		}
 
-		err = ctrl.lobbyCommand.CancelLobby(apiContext, lobbyID, reqBody.Reason)
+		err = ctrl.lobbyCommand.CancelLobby(r.Context(), lobbyID, reqBody.Reason)
 		if err != nil {
-			slog.ErrorContext(apiContext, "failed to cancel lobby", "lobby_id", lobbyID, "error", err)
+			slog.ErrorContext(r.Context(), "failed to cancel lobby", "lobby_id", lobbyID, "error", err)
 			http.Error(w, `{"success":false,"error":"Failed to cancel lobby"}`, http.StatusBadRequest)
 			return
 		}

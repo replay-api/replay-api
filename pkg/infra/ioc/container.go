@@ -4235,7 +4235,9 @@ func InjectMongoDB(c container.Container) error {
 	err = c.Singleton(func() (matchmaking_in.JoinMatchmakingQueueCommandHandler, error) {
 		var billableOperationHandler billing_in.BillableOperationCommandHandler
 		var sessionRepo matchmaking_out.MatchmakingSessionRepository
+		var lobbyRepo matchmaking_out.LobbyRepository
 		var eventPublisher *kafka.EventPublisher
+		var wsHub *websocket.WebSocketHub
 
 		if err := c.Resolve(&billableOperationHandler); err != nil {
 			slog.Error("Failed to resolve BillableOperationCommandHandler for JoinMatchmakingQueueUseCase.", "err", err)
@@ -4245,12 +4247,20 @@ func InjectMongoDB(c container.Container) error {
 			slog.Error("Failed to resolve MatchmakingSessionRepository for JoinMatchmakingQueueUseCase.", "err", err)
 			return nil, err
 		}
+		if err := c.Resolve(&lobbyRepo); err != nil {
+			slog.Error("Failed to resolve LobbyRepository for JoinMatchmakingQueueUseCase.", "err", err)
+			return nil, err
+		}
 		if err := c.Resolve(&eventPublisher); err != nil {
 			slog.Error("Failed to resolve EventPublisher for JoinMatchmakingQueueUseCase.", "err", err)
 			return nil, err
 		}
+		if err := c.Resolve(&wsHub); err != nil {
+			slog.Warn("Failed to resolve WebSocketHub for JoinMatchmakingQueueUseCase (notifications disabled).", "err", err)
+			// non-fatal: matching works without WebSocket
+		}
 
-		return matchmaking_usecases.NewJoinMatchmakingQueueUseCase(billableOperationHandler, sessionRepo, eventPublisher), nil
+		return matchmaking_usecases.NewJoinMatchmakingQueueUseCase(billableOperationHandler, sessionRepo, lobbyRepo, eventPublisher, wsHub), nil
 	})
 	if err != nil {
 		slog.Error("Failed to load JoinMatchmakingQueueCommandHandler.", "err", err)

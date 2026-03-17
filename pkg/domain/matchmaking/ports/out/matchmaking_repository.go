@@ -22,6 +22,9 @@ type MatchmakingSessionRepository interface {
 	// GetByPlayerID retrieves active sessions for a player
 	GetByPlayerID(ctx context.Context, playerID uuid.UUID) ([]*matchmaking_entities.MatchmakingSession, error)
 
+	// GetActiveSessions retrieves sessions matching the specified filters
+	GetActiveSessions(ctx context.Context, filters SessionFilters) ([]*matchmaking_entities.MatchmakingSession, error)
+
 	// UpdateStatus updates the session status
 	UpdateStatus(ctx context.Context, id uuid.UUID, status matchmaking_entities.SessionStatus) error
 

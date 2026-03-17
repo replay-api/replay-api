@@ -86,7 +86,10 @@ func (r *MongoLobbyRepository) Save(ctx context.Context, lobby *matchmaking_enti
 }
 
 func (r *MongoLobbyRepository) FindByID(ctx context.Context, id uuid.UUID) (*matchmaking_entities.MatchmakingLobby, error) {
-	return r.MongoDBRepository.GetByID(ctx, id)
+	// Use GetByIDUnsafe because lobbies are shared resources accessed by multiple players
+	// from different groups/tenants. Player authorization is enforced at the domain level
+	// by checking PlayerSlots membership.
+	return r.MongoDBRepository.GetByIDUnsafe(ctx, id)
 }
 
 func (r *MongoLobbyRepository) FindByCreatorID(ctx context.Context, creatorID uuid.UUID) ([]*matchmaking_entities.MatchmakingLobby, error) {
@@ -157,7 +160,7 @@ func (r *MongoLobbyRepository) Update(ctx context.Context, lobby *matchmaking_en
 
 	lobby.UpdatedAt = time.Now().UTC()
 
-	_, err := r.MongoDBRepository.Update(ctx, lobby)
+	_, err := r.MongoDBRepository.UpdateUnsafe(ctx, lobby)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update lobby", "lobby_id", lobby.ID, "error", err)
 		return fmt.Errorf("failed to update lobby: %w", err)

@@ -259,6 +259,11 @@ type LobbyEvent struct {
 
 // PublishLobbyEvent publishes a lobby event
 func (p *EventPublisher) PublishLobbyEvent(ctx context.Context, event *LobbyEvent) error {
+	// In development mode, client may be nil - skip publishing
+	if p.client == nil {
+		return nil
+	}
+
 	event.EventID = uuid.New()
 	if event.CreatedAt == 0 {
 		event.CreatedAt = time.Now().UnixMilli()

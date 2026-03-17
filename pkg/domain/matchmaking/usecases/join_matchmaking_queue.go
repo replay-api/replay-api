@@ -2,8 +2,10 @@ package matchmaking_usecases
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"math"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,6 +16,8 @@ import (
 	matchmaking_in "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/in"
 	matchmaking_out "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/out"
 	kafka "github.com/replay-api/replay-api/pkg/infra/kafka"
+	matchmaking_vo "github.com/replay-api/replay-api/pkg/domain/matchmaking/value-objects"
+	ws "github.com/replay-api/replay-api/pkg/infra/websocket"
 )
 
 // JoinMatchmakingQueueUseCase handles player joining the ranked matchmaking queue.
@@ -43,22 +47,30 @@ import (
 //   - BillableOperationCommandHandler: Validates/tracks usage against subscription limits
 //   - MatchmakingSessionRepository: Session persistence
 //   - EventPublisher: Publishes matchmaking events to Kafka
+//   - WebSocketHub: Notifies matched players in real-time
+//   - LobbyRepository: Creates lobbies for matched players
 type JoinMatchmakingQueueUseCase struct {
 	billableOperationHandler billing_in.BillableOperationCommandHandler
 	sessionRepository        matchmaking_out.MatchmakingSessionRepository
+	lobbyRepository          matchmaking_out.LobbyRepository
 	eventPublisher           *kafka.EventPublisher
+	wsHub                    *ws.WebSocketHub
 }
 
 // NewJoinMatchmakingQueueUseCase creates a new join queue usecase
 func NewJoinMatchmakingQueueUseCase(
 	billableOperationHandler billing_in.BillableOperationCommandHandler,
 	sessionRepository matchmaking_out.MatchmakingSessionRepository,
+	lobbyRepository matchmaking_out.LobbyRepository,
 	eventPublisher *kafka.EventPublisher,
+	wsHub *ws.WebSocketHub,
 ) matchmaking_in.JoinMatchmakingQueueCommandHandler {
 	return &JoinMatchmakingQueueUseCase{
 		billableOperationHandler: billableOperationHandler,
 		sessionRepository:        sessionRepository,
+		lobbyRepository:          lobbyRepository,
 		eventPublisher:           eventPublisher,
+		wsHub:                    wsHub,
 	}
 }
 
@@ -172,11 +184,13 @@ func (uc *JoinMatchmakingQueueUseCase) Exec(ctx context.Context, cmd matchmaking
 			MMR:       cmd.PlayerMMR,
 			EventType: kafka.EventTypeQueueJoined,
 			Metadata: map[string]string{
-				"session_id":   session.ID.String(),
-				"game_mode":   cmd.GameMode,
+				"session_id":  session.ID.String(),
+				"game_mode":  cmd.GameMode,
 				"team_format": string(cmd.TeamFormat),
-				"squad_id":    cmd.SquadID.String(),
 			},
+		}
+		if cmd.SquadID != nil {
+			queueEvent.Metadata["squad_id"] = cmd.SquadID.String()
 		}
 		if cmd.PlayerRole != nil {
 			queueEvent.Metadata["player_role"] = *cmd.PlayerRole
@@ -186,6 +200,16 @@ func (uc *JoinMatchmakingQueueUseCase) Exec(ctx context.Context, cmd matchmaking
 			slog.WarnContext(ctx, "failed to publish queue joined event", "error", err, "player_id", cmd.PlayerID)
 		}
 	}
+
+	// attempt immediate match: find a compatible queued session
+	// Build a background context with resource owner info (the HTTP request context gets cancelled)
+	matchCtx := context.Background()
+	ro := shared.GetResourceOwner(ctx)
+	matchCtx = context.WithValue(matchCtx, shared.TenantIDKey, ro.TenantID)
+	matchCtx = context.WithValue(matchCtx, shared.ClientIDKey, ro.ClientID)
+	matchCtx = context.WithValue(matchCtx, shared.GroupIDKey, ro.GroupID)
+	matchCtx = context.WithValue(matchCtx, shared.UserIDKey, ro.UserID)
+	go uc.tryMatch(matchCtx, session)
 
 	// billing execution AFTER successful operation
 	_, _, err = uc.billableOperationHandler.Exec(ctx, billingCmd)
@@ -204,4 +228,150 @@ func (uc *JoinMatchmakingQueueUseCase) Exec(ctx context.Context, cmd matchmaking
 	)
 
 	return session, nil
+}
+
+// tryMatch attempts to find a compatible opponent for the given session.
+// Runs asynchronously after queue join to avoid blocking the HTTP response.
+// Matching criteria: same game, same game mode, same region, MMR within 500 range.
+func (uc *JoinMatchmakingQueueUseCase) tryMatch(ctx context.Context, newSession *matchmaking_entities.MatchmakingSession) {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Error("panic in tryMatch", "recover", r)
+		}
+	}()
+
+	status := matchmaking_entities.StatusQueued
+	candidates, err := uc.sessionRepository.GetActiveSessions(ctx, matchmaking_out.SessionFilters{
+		GameID:   newSession.Preferences.GameID,
+		GameMode: newSession.Preferences.GameMode,
+		Region:   newSession.Preferences.Region,
+		Status:   &status,
+		Limit:    50,
+	})
+	if err != nil {
+		slog.Error("tryMatch: failed to get active sessions", "error", err)
+		return
+	}
+
+	const maxMMRDelta = 500
+	var bestMatch *matchmaking_entities.MatchmakingSession
+	bestDelta := math.MaxInt32
+
+	for _, candidate := range candidates {
+		if candidate.ID == newSession.ID {
+			continue // skip self
+		}
+		if candidate.PlayerID == newSession.PlayerID {
+			continue
+		}
+		delta := int(math.Abs(float64(candidate.PlayerMMR - newSession.PlayerMMR)))
+		if delta <= maxMMRDelta && delta < bestDelta {
+			bestMatch = candidate
+			bestDelta = delta
+		}
+	}
+
+	if bestMatch == nil {
+		slog.Info("tryMatch: no compatible match found yet",
+			"session_id", newSession.ID,
+			"player_id", newSession.PlayerID,
+			"candidates", len(candidates))
+		return
+	}
+
+	slog.Info("tryMatch: match found!",
+		"session_a", newSession.ID, "player_a", newSession.PlayerID,
+		"session_b", bestMatch.ID, "player_b", bestMatch.PlayerID,
+		"mmr_delta", bestDelta)
+
+	// Create a lobby for the matched players
+	matchID := uuid.New()
+	resourceOwner := shared.GetResourceOwner(ctx)
+
+	lobby := &matchmaking_entities.MatchmakingLobby{
+		BaseEntity:       shared.NewEntity(resourceOwner),
+		CreatorID:        newSession.PlayerID,
+		GameID:           newSession.Preferences.GameID,
+		Region:           newSession.Preferences.Region,
+		Tier:             string(newSession.Preferences.Tier),
+		DistributionRule: matchmaking_vo.DistributionRuleWinnerTakesAll,
+		MaxPlayers:       2,
+		PlayerSlots: []matchmaking_entities.PlayerSlot{
+			{SlotNumber: 1, PlayerID: &newSession.PlayerID, IsReady: false, JoinedAt: time.Now().UTC(), MMR: &newSession.PlayerMMR},
+			{SlotNumber: 2, PlayerID: &bestMatch.PlayerID, IsReady: false, JoinedAt: time.Now().UTC(), MMR: &bestMatch.PlayerMMR},
+		},
+		Status:       matchmaking_entities.LobbyStatusReadyCheck,
+		AutoFill:     false,
+		InviteOnly:   false,
+		ReadyTimeout: 30 * time.Second,
+	}
+
+	now := time.Now().UTC()
+	lobby.ReadyCheckStart = &now
+
+	if err := uc.lobbyRepository.Save(ctx, lobby); err != nil {
+		slog.Error("tryMatch: failed to save lobby", "error", err, "match_id", matchID)
+		return
+	}
+
+	// Update both sessions to matched status
+	for _, sess := range []*matchmaking_entities.MatchmakingSession{newSession, bestMatch} {
+		sess.Status = matchmaking_entities.StatusReadyCheck
+		sess.MatchID = &lobby.ID
+		matchedAt := time.Now().UTC()
+		sess.MatchedAt = &matchedAt
+		if sess.Metadata == nil {
+			sess.Metadata = make(map[string]any)
+		}
+		sess.Metadata["lobby_id"] = lobby.ID.String()
+		sess.Metadata["ready_check_started_at"] = now.Format(time.RFC3339)
+		sess.Metadata["ready_check_players"] = []string{
+			newSession.PlayerID.String(),
+			bestMatch.PlayerID.String(),
+		}
+		if err := uc.sessionRepository.Save(ctx, sess); err != nil {
+			slog.Error("tryMatch: failed to update session", "error", err, "session_id", sess.ID)
+		}
+	}
+
+	slog.Info("tryMatch: lobby created, sessions updated to ready_check",
+		"lobby_id", lobby.ID,
+		"player_a", newSession.PlayerID,
+		"player_b", bestMatch.PlayerID)
+
+	// Notify matched players via WebSocket
+	if uc.wsHub != nil {
+		matchPayload := map[string]interface{}{
+			"lobby_id":   lobby.ID.String(),
+			"match_type": "ranked_1v1",
+			"game_id":    newSession.Preferences.GameID,
+			"region":     newSession.Preferences.Region,
+			"players": []map[string]interface{}{
+				{"player_id": newSession.PlayerID.String(), "mmr": newSession.PlayerMMR},
+				{"player_id": bestMatch.PlayerID.String(), "mmr": bestMatch.PlayerMMR},
+			},
+			"ready_timeout_seconds": 30,
+		}
+
+		payloadBytes, _ := json.Marshal(matchPayload)
+
+		for _, playerID := range []uuid.UUID{newSession.PlayerID, bestMatch.PlayerID} {
+			uc.wsHub.BroadcastToUser(playerID, "match_found", payloadBytes)
+		}
+	}
+
+	// Publish match-found Kafka event
+	if uc.eventPublisher != nil {
+		lobbyEvent := &kafka.LobbyEvent{
+			LobbyID:   lobby.ID,
+			EventType: kafka.EventTypeLobbyCreated,
+			PlayerIDs: []uuid.UUID{newSession.PlayerID, bestMatch.PlayerID},
+			GameType:  newSession.Preferences.GameID,
+			Region:    newSession.Preferences.Region,
+			AvgMMR:    (newSession.PlayerMMR + bestMatch.PlayerMMR) / 2,
+		}
+		if err := uc.eventPublisher.PublishLobbyEvent(ctx, lobbyEvent); err != nil {
+			slog.Warn("tryMatch: failed to publish lobby event", "error", err)
+		}
+	}
 }
