@@ -16,7 +16,7 @@ data:
 
   # CORS Configuration (supports multiple origins for E2E testing)
   CORS_ALLOWED_ORIGIN: "http://localhost:3030"
-  CORS_ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:3030,http://localhost:30300,http://web-frontend-service:3030,https://leetgaming.pro,https://www.leetgaming.pro"
+  CORS_ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:3030,http://localhost:30300,https://leetgaming.pro,https://www.leetgaming.pro"
 
   # Authentication (must match frontend)
   STEAM_VHASH_SOURCE: "82DA0F0D0135FEA0F5DDF6F96528B48A"
