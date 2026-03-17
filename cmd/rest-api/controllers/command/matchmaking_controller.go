@@ -306,6 +306,28 @@ func (ctrl *MatchmakingController) GetSessionStatusHandler(apiContext context.Co
 			response["match_id"] = session.MatchID.String()
 		}
 
+		// Add lobby_id from metadata if present (set during ready check or lobby creation)
+		if lobbyID, ok := session.Metadata["lobby_id"]; ok {
+			response["lobby_id"] = lobbyID
+		}
+
+		// Add ready_check details when in ready_check status
+		if session.Status == matchmaking_entities.StatusReadyCheck {
+			readyCheck := map[string]any{
+				"timeout_seconds": 30,
+			}
+			if lobbyID, ok := session.Metadata["lobby_id"]; ok {
+				readyCheck["lobby_id"] = lobbyID
+			}
+			if players, ok := session.Metadata["ready_check_players"]; ok {
+				readyCheck["players"] = players
+			}
+			if startedAt, ok := session.Metadata["ready_check_started_at"]; ok {
+				readyCheck["started_at"] = startedAt
+			}
+			response["ready_check"] = readyCheck
+		}
+
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(response)
 	}

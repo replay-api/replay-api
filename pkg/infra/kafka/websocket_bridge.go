@@ -129,7 +129,7 @@ func (b *WebSocketBridge) handleReadyCheckEvent(ctx context.Context, msg *kafka.
 	switch event.EventType {
 	case EventTypeReadyCheckStarted:
 		for _, playerID := range event.PlayerIDs {
-			if err := b.updateSessionStatus(ctx, playerID, matchmaking_entities.StatusMatched); err != nil {
+			if err := b.updateSessionStatus(ctx, playerID, matchmaking_entities.StatusReadyCheck); err != nil {
 				slog.Warn("Failed to update session status for player", "player_id", playerID, "error", err)
 			}
 		}

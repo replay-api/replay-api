@@ -21,12 +21,13 @@ const (
 type SessionStatus string
 
 const (
-	StatusQueued    SessionStatus = "queued"
-	StatusSearching SessionStatus = "searching"
-	StatusMatched   SessionStatus = "matched"
-	StatusReady     SessionStatus = "ready"
-	StatusCancelled SessionStatus = "cancelled"
-	StatusExpired   SessionStatus = "expired"
+	StatusQueued     SessionStatus = "queued"
+	StatusSearching  SessionStatus = "searching"
+	StatusReadyCheck SessionStatus = "ready_check"
+	StatusMatched    SessionStatus = "matched"
+	StatusReady      SessionStatus = "ready"
+	StatusCancelled  SessionStatus = "cancelled"
+	StatusExpired    SessionStatus = "expired"
 )
 
 // MatchPreferences represents player's match preferences
@@ -75,7 +76,7 @@ func (m *MatchmakingSession) IsExpired() bool {
 
 // CanMatch checks if session is in a matchable state
 func (m *MatchmakingSession) CanMatch() bool {
-	return m.Status == StatusQueued || m.Status == StatusSearching
+	return m.Status == StatusQueued || m.Status == StatusSearching || m.Status == StatusReadyCheck
 }
 
 // GetTierPriority returns numeric priority based on tier
