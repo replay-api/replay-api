@@ -215,5 +215,70 @@ func (r *MongoLobbyRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
+// SetPlayerReadyAtomic atomically sets a player's ready status using findOneAndUpdate
+// with positional array filters. Returns the updated lobby.
+func (r *MongoLobbyRepository) SetPlayerReadyAtomic(ctx context.Context, lobbyID uuid.UUID, playerID uuid.UUID, isReady bool) (*matchmaking_entities.MatchmakingLobby, error) {
+	filter := bson.M{
+		"_id":                    lobbyID,
+		"player_slots.player_id": playerID,
+	}
+
+	update := bson.M{
+		"$set": bson.M{
+			"player_slots.$[elem].is_ready": isReady,
+			"updated_at":                    time.Now().UTC(),
+		},
+	}
+
+	arrayFilters := options.ArrayFilters{
+		Filters: []interface{}{
+			bson.M{"elem.player_id": playerID},
+		},
+	}
+
+	opts := options.FindOneAndUpdate().
+		SetArrayFilters(arrayFilters).
+		SetReturnDocument(options.After)
+
+	var lobby matchmaking_entities.MatchmakingLobby
+	err := r.MongoDBRepository.Collection().FindOneAndUpdate(ctx, filter, update, opts).Decode(&lobby)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, fmt.Errorf("lobby %s not found or player %s not in lobby", lobbyID, playerID)
+		}
+		return nil, fmt.Errorf("failed to atomically set player ready: %w", err)
+	}
+
+	slog.InfoContext(ctx, "player ready set atomically", "lobby_id", lobbyID, "player_id", playerID, "is_ready", isReady)
+	return &lobby, nil
+}
+
+// TransitionStatus atomically transitions lobby status using CAS (compare-and-set).
+// Returns true if the transition was applied, false if status didn't match expectedStatus.
+func (r *MongoLobbyRepository) TransitionStatus(ctx context.Context, lobbyID uuid.UUID, expectedStatus, newStatus matchmaking_entities.LobbyStatus, extraUpdates map[string]interface{}) (bool, error) {
+	filter := bson.M{
+		"_id":    lobbyID,
+		"status": string(expectedStatus),
+	}
+
+	setFields := bson.M{
+		"status":     string(newStatus),
+		"updated_at": time.Now().UTC(),
+	}
+	for k, v := range extraUpdates {
+		setFields[k] = v
+	}
+
+	result, err := r.MongoDBRepository.Collection().UpdateOne(ctx, filter, bson.M{"$set": setFields})
+	if err != nil {
+		return false, fmt.Errorf("failed to transition lobby status: %w", err)
+	}
+
+	if result.MatchedCount > 0 {
+		slog.InfoContext(ctx, "lobby status transitioned", "lobby_id", lobbyID, "from", expectedStatus, "to", newStatus)
+	}
+	return result.MatchedCount > 0, nil
+}
+
 // Ensure MongoLobbyRepository implements LobbyRepository interface
 var _ matchmaking_out.LobbyRepository = (*MongoLobbyRepository)(nil)

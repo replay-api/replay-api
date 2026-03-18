@@ -319,24 +319,34 @@ func (uc *JoinMatchmakingQueueUseCase) tryMatch(ctx context.Context, newSession 
 		return
 	}
 
-	// Update both sessions to matched status
-	for _, sess := range []*matchmaking_entities.MatchmakingSession{newSession, bestMatch} {
-		sess.Status = matchmaking_entities.StatusReadyCheck
-		sess.MatchID = &lobby.ID
-		matchedAt := time.Now().UTC()
-		sess.MatchedAt = &matchedAt
-		if sess.Metadata == nil {
-			sess.Metadata = make(map[string]any)
-		}
-		sess.Metadata["lobby_id"] = lobby.ID.String()
-		sess.Metadata["ready_check_started_at"] = now.Format(time.RFC3339)
-		sess.Metadata["ready_check_players"] = []string{
-			newSession.PlayerID.String(),
-			bestMatch.PlayerID.String(),
-		}
-		if err := uc.sessionRepository.Save(ctx, sess); err != nil {
-			slog.Error("tryMatch: failed to update session", "error", err, "session_id", sess.ID)
-		}
+	// Atomically claim both sessions with CAS to prevent double-booking
+	claimExtras := map[string]interface{}{
+		"match_id":                        lobby.ID,
+		"matched_at":                      now,
+		"metadata.lobby_id":               lobby.ID.String(),
+		"metadata.ready_check_started_at": now.Format(time.RFC3339),
+		"metadata.ready_check_players":    []string{newSession.PlayerID.String(), bestMatch.PlayerID.String()},
+	}
+
+	// Claim session A (the new session)
+	okA, err := uc.sessionRepository.CompareAndSetStatus(ctx, newSession.ID,
+		matchmaking_entities.StatusQueued, matchmaking_entities.StatusReadyCheck, claimExtras)
+	if err != nil || !okA {
+		slog.Warn("tryMatch: failed to claim session A (already claimed?)", "session_id", newSession.ID, "error", err)
+		_ = uc.lobbyRepository.Delete(ctx, lobby.ID)
+		return
+	}
+
+	// Claim session B (the best match)
+	okB, err := uc.sessionRepository.CompareAndSetStatus(ctx, bestMatch.ID,
+		matchmaking_entities.StatusQueued, matchmaking_entities.StatusReadyCheck, claimExtras)
+	if err != nil || !okB {
+		slog.Warn("tryMatch: failed to claim session B — rolling back session A", "session_id", bestMatch.ID, "error", err)
+		_, _ = uc.sessionRepository.CompareAndSetStatus(ctx, newSession.ID,
+			matchmaking_entities.StatusReadyCheck, matchmaking_entities.StatusQueued,
+			map[string]interface{}{"match_id": nil, "matched_at": nil, "metadata": nil})
+		_ = uc.lobbyRepository.Delete(ctx, lobby.ID)
+		return
 	}
 
 	slog.Info("tryMatch: lobby created, sessions updated to ready_check",

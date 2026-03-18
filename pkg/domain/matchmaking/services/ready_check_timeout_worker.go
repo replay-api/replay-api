@@ -75,18 +75,22 @@ func (w *ReadyCheckTimeoutWorker) handleExpiredLobby(ctx context.Context, lobby 
 		"lobby_id", lobby.ID,
 		"ready_check_end", lobby.ReadyCheckEnd)
 
-	playerIDs := lobby.GetPlayerIDs()
-
-	// Cancel the lobby
-	if err := lobby.Cancel("ready_check_timeout"); err != nil {
+	// Atomic CAS: only cancel if still in ready_check (prevents overwriting started → cancelled)
+	ok, err := w.lobbyRepo.TransitionStatus(ctx, lobby.ID,
+		matchmaking_entities.LobbyStatusReadyCheck,
+		matchmaking_entities.LobbyStatusCancelled,
+		map[string]interface{}{"cancel_reason": "ready_check_timeout"},
+	)
+	if err != nil {
 		slog.Error("ReadyCheckTimeoutWorker: failed to cancel lobby", "lobby_id", lobby.ID, "error", err)
 		return
 	}
-
-	if err := w.lobbyRepo.Update(ctx, lobby); err != nil {
-		slog.Error("ReadyCheckTimeoutWorker: failed to update cancelled lobby", "lobby_id", lobby.ID, "error", err)
+	if !ok {
+		slog.Info("ReadyCheckTimeoutWorker: lobby already transitioned (no-op)", "lobby_id", lobby.ID)
 		return
 	}
+
+	playerIDs := lobby.GetPlayerIDs()
 
 	// Re-queue players who were ready (they didn't cause the timeout)
 	_, notReadyPlayers := lobby.CheckReadyStatus()
@@ -111,10 +115,11 @@ func (w *ReadyCheckTimeoutWorker) handleExpiredLobby(ctx context.Context, lobby 
 					}
 					sess.Metadata["timeout_reason"] = "did_not_accept_ready_check"
 				} else {
-					// Player was ready → re-queue them
+					// Player was ready → re-queue them with extended expiry
 					sess.Status = matchmaking_entities.StatusQueued
 					sess.MatchID = nil
 					sess.MatchedAt = nil
+					sess.ExpiresAt = time.Now().Add(10 * time.Minute)
 					if sess.Metadata == nil {
 						sess.Metadata = make(map[string]any)
 					}
@@ -138,7 +143,12 @@ func (w *ReadyCheckTimeoutWorker) handleExpiredLobby(ctx context.Context, lobby 
 		w.wsHub.BroadcastToUser(pid, "ready_check_timeout", payloadBytes)
 	}
 
-	w.wsHub.BroadcastLobbyUpdate(lobby.ID, lobby)
+	// Re-read lobby for accurate broadcast
+	updatedLobby, _ := w.lobbyRepo.FindByID(ctx, lobby.ID)
+	if updatedLobby == nil {
+		updatedLobby = lobby
+	}
+	w.wsHub.BroadcastLobbyUpdate(lobby.ID, updatedLobby)
 
 	slog.Info("ReadyCheckTimeoutWorker: lobby cancelled and players notified",
 		"lobby_id", lobby.ID,

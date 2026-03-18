@@ -16,6 +16,14 @@ type LobbyRepository interface {
 	FindExpiredReadyChecks(ctx context.Context) ([]*matchmaking_entities.MatchmakingLobby, error)
 	Update(ctx context.Context, lobby *matchmaking_entities.MatchmakingLobby) error
 	Delete(ctx context.Context, id uuid.UUID) error
+
+	// SetPlayerReadyAtomic atomically sets a player's ready status.
+	// Returns the updated lobby. Avoids lost-update races.
+	SetPlayerReadyAtomic(ctx context.Context, lobbyID uuid.UUID, playerID uuid.UUID, isReady bool) (*matchmaking_entities.MatchmakingLobby, error)
+
+	// TransitionStatus atomically transitions lobby status using CAS.
+	// Returns true if applied, false if current status didn't match.
+	TransitionStatus(ctx context.Context, lobbyID uuid.UUID, expectedStatus, newStatus matchmaking_entities.LobbyStatus, extraUpdates map[string]interface{}) (bool, error)
 }
 
 // PrizePoolRepository defines persistence operations for prize pools

@@ -300,6 +300,32 @@ func (r *MatchmakingSessionRepository) DeleteExpired(ctx context.Context) (int64
 	return result.DeletedCount, nil
 }
 
+// CompareAndSetStatus atomically transitions status using CAS.
+// Returns true if the transition was applied (expectedStatus matched).
+func (r *MatchmakingSessionRepository) CompareAndSetStatus(ctx context.Context, id uuid.UUID, expectedStatus, newStatus matchmaking_entities.SessionStatus, extraUpdates map[string]interface{}) (bool, error) {
+	collection := r.MongoDBRepository.Collection()
+
+	filter := bson.M{
+		"_id":    id,
+		"status": string(expectedStatus),
+	}
+
+	setFields := bson.M{
+		"status":     string(newStatus),
+		"updated_at": time.Now(),
+	}
+	for k, v := range extraUpdates {
+		setFields[k] = v
+	}
+
+	result, err := collection.UpdateOne(ctx, filter, bson.M{"$set": setFields})
+	if err != nil {
+		return false, fmt.Errorf("failed to CAS session status: %w", err)
+	}
+
+	return result.MatchedCount > 0, nil
+}
+
 // MatchmakingPoolRepository implements MongoDB persistence for matchmaking pools
 type MatchmakingPoolRepository struct {
 	mongodb.MongoDBRepository[matchmaking_entities.MatchmakingPool]

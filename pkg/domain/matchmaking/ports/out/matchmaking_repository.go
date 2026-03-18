@@ -30,6 +30,10 @@ type MatchmakingSessionRepository interface {
 
 	// Delete removes a session
 	Delete(ctx context.Context, id uuid.UUID) error
+
+	// CompareAndSetStatus atomically transitions status using CAS.
+	// Returns true if applied (expectedStatus matched).
+	CompareAndSetStatus(ctx context.Context, id uuid.UUID, expectedStatus, newStatus matchmaking_entities.SessionStatus, extraUpdates map[string]interface{}) (bool, error)
 }
 
 // SessionFilters defines filters for querying sessions

@@ -207,17 +207,10 @@ func (s *LobbyOrchestrationService) LeaveLobby(ctx context.Context, cmd matchmak
 }
 
 func (s *LobbyOrchestrationService) SetPlayerReady(ctx context.Context, cmd matchmaking_in.SetPlayerReadyCommand) error {
-	lobby, err := s.lobbyRepo.FindByID(ctx, cmd.LobbyID)
+	// Atomically set the player's ready flag — avoids lost-update race
+	lobby, err := s.lobbyRepo.SetPlayerReadyAtomic(ctx, cmd.LobbyID, cmd.PlayerID, cmd.IsReady)
 	if err != nil {
-		return fmt.Errorf("lobby not found: %w", err)
-	}
-
-	if err := lobby.SetPlayerReady(cmd.PlayerID, cmd.IsReady); err != nil {
 		return fmt.Errorf("failed to set ready: %w", err)
-	}
-
-	if err := s.lobbyRepo.Update(ctx, lobby); err != nil {
-		return fmt.Errorf("failed to update lobby: %w", err)
 	}
 
 	slog.InfoContext(ctx, "Player ready status changed", "lobby_id", cmd.LobbyID, "player_id", cmd.PlayerID, "is_ready", cmd.IsReady)
@@ -227,11 +220,10 @@ func (s *LobbyOrchestrationService) SetPlayerReady(ctx context.Context, cmd matc
 	if cmd.IsReady && lobby.Status == matchmaking_entities.LobbyStatusReadyCheck {
 		allReady, _ := lobby.CheckReadyStatus()
 		if allReady {
-			slog.InfoContext(ctx, "All players ready — auto-starting match", "lobby_id", cmd.LobbyID)
+			slog.InfoContext(ctx, "All players ready \u2014 auto-starting match", "lobby_id", cmd.LobbyID)
 			matchID, err := s.startMatchForLobby(ctx, lobby)
 			if err != nil {
 				slog.ErrorContext(ctx, "Auto-start match failed (non-fatal)", "lobby_id", cmd.LobbyID, "error", err)
-				// Return nil — the ready status was saved; auto-start failure is best-effort
 			} else {
 				slog.InfoContext(ctx, "Match auto-started", "lobby_id", cmd.LobbyID, "match_id", matchID)
 			}
@@ -241,12 +233,21 @@ func (s *LobbyOrchestrationService) SetPlayerReady(ctx context.Context, cmd matc
 	return nil
 }
 
-// startMatchForLobby transitions a lobby to started state (supports matchmaking lobbies without prize pools)
+// startMatchForLobby transitions a lobby to started state using atomic CAS transitions
 func (s *LobbyOrchestrationService) startMatchForLobby(ctx context.Context, lobby *matchmaking_entities.MatchmakingLobby) (uuid.UUID, error) {
 	matchID := uuid.New()
 
-	if err := lobby.StartMatch(matchID); err != nil {
-		return uuid.Nil, fmt.Errorf("failed to start match: %w", err)
+	// Atomic CAS: ready_check → starting (prevents timeout worker from overwriting)
+	ok, err := s.lobbyRepo.TransitionStatus(ctx, lobby.ID,
+		matchmaking_entities.LobbyStatusReadyCheck,
+		matchmaking_entities.LobbyStatusStarting,
+		map[string]interface{}{"match_id": matchID},
+	)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("failed to transition to starting: %w", err)
+	}
+	if !ok {
+		return uuid.Nil, fmt.Errorf("lobby %s is no longer in ready_check (concurrent transition)", lobby.ID)
 	}
 
 	// Prize pool lock is best-effort: matchmaking-created lobbies may not have one
@@ -261,16 +262,17 @@ func (s *LobbyOrchestrationService) startMatchForLobby(ctx context.Context, lobb
 		slog.InfoContext(ctx, "No prize pool for lobby (matchmaking lobby)", "lobby_id", lobby.ID)
 	}
 
-	if err := s.lobbyRepo.Update(ctx, lobby); err != nil {
-		return uuid.Nil, fmt.Errorf("failed to update lobby: %w", err)
+	// Atomic CAS: starting → started
+	ok, err = s.lobbyRepo.TransitionStatus(ctx, lobby.ID,
+		matchmaking_entities.LobbyStatusStarting,
+		matchmaking_entities.LobbyStatusStarted,
+		nil,
+	)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("failed to transition to started: %w", err)
 	}
-
-	if err := lobby.MarkMatchStarted(); err != nil {
-		return uuid.Nil, fmt.Errorf("failed to mark match started: %w", err)
-	}
-
-	if err := s.lobbyRepo.Update(ctx, lobby); err != nil {
-		return uuid.Nil, fmt.Errorf("failed to persist match started: %w", err)
+	if !ok {
+		slog.WarnContext(ctx, "Lobby no longer in starting state", "lobby_id", lobby.ID)
 	}
 
 	// Update matchmaking sessions to StatusMatched
@@ -297,6 +299,12 @@ func (s *LobbyOrchestrationService) startMatchForLobby(ctx context.Context, lobb
 		}
 	}
 
+	// Re-read lobby for accurate broadcast (in-memory object has stale status)
+	updatedLobby, _ := s.lobbyRepo.FindByID(ctx, lobby.ID)
+	if updatedLobby == nil {
+		updatedLobby = lobby
+	}
+
 	// Broadcast all_players_ready + match started to each player
 	playerIDs := lobby.GetPlayerIDs()
 	payload := map[string]interface{}{
@@ -309,7 +317,7 @@ func (s *LobbyOrchestrationService) startMatchForLobby(ctx context.Context, lobb
 	for _, pid := range playerIDs {
 		s.wsHub.BroadcastToUser(pid, "all_players_ready", payloadBytes)
 	}
-	s.wsHub.BroadcastLobbyUpdate(lobby.ID, lobby)
+	s.wsHub.BroadcastLobbyUpdate(lobby.ID, updatedLobby)
 
 	return matchID, nil
 }
