@@ -2,6 +2,7 @@ package matchmaking_services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 
@@ -20,6 +21,7 @@ import (
 type LobbyOrchestrationService struct {
 	lobbyRepo     matchmaking_out.LobbyRepository
 	prizePoolRepo matchmaking_out.PrizePoolRepository
+	sessionRepo   matchmaking_out.MatchmakingSessionRepository
 	walletCommand wallet_in.WalletCommand
 	wsHub         *ws.WebSocketHub
 }
@@ -27,12 +29,14 @@ type LobbyOrchestrationService struct {
 func NewLobbyOrchestrationService(
 lobbyRepo matchmaking_out.LobbyRepository,
 prizePoolRepo matchmaking_out.PrizePoolRepository,
+sessionRepo matchmaking_out.MatchmakingSessionRepository,
 walletCommand wallet_in.WalletCommand,
 wsHub *ws.WebSocketHub,
 ) matchmaking_in.LobbyCommand {
 	return &LobbyOrchestrationService{
 		lobbyRepo:     lobbyRepo,
 		prizePoolRepo: prizePoolRepo,
+		sessionRepo:   sessionRepo,
 		walletCommand: walletCommand,
 		wsHub:         wsHub,
 	}
@@ -219,7 +223,95 @@ func (s *LobbyOrchestrationService) SetPlayerReady(ctx context.Context, cmd matc
 	slog.InfoContext(ctx, "Player ready status changed", "lobby_id", cmd.LobbyID, "player_id", cmd.PlayerID, "is_ready", cmd.IsReady)
 	s.wsHub.BroadcastLobbyUpdate(cmd.LobbyID, lobby)
 
+	// Auto-transition: if all players are ready and lobby is in ready_check, start the match
+	if cmd.IsReady && lobby.Status == matchmaking_entities.LobbyStatusReadyCheck {
+		allReady, _ := lobby.CheckReadyStatus()
+		if allReady {
+			slog.InfoContext(ctx, "All players ready — auto-starting match", "lobby_id", cmd.LobbyID)
+			matchID, err := s.startMatchForLobby(ctx, lobby)
+			if err != nil {
+				slog.ErrorContext(ctx, "Auto-start match failed (non-fatal)", "lobby_id", cmd.LobbyID, "error", err)
+				// Return nil — the ready status was saved; auto-start failure is best-effort
+			} else {
+				slog.InfoContext(ctx, "Match auto-started", "lobby_id", cmd.LobbyID, "match_id", matchID)
+			}
+		}
+	}
+
 	return nil
+}
+
+// startMatchForLobby transitions a lobby to started state (supports matchmaking lobbies without prize pools)
+func (s *LobbyOrchestrationService) startMatchForLobby(ctx context.Context, lobby *matchmaking_entities.MatchmakingLobby) (uuid.UUID, error) {
+	matchID := uuid.New()
+
+	if err := lobby.StartMatch(matchID); err != nil {
+		return uuid.Nil, fmt.Errorf("failed to start match: %w", err)
+	}
+
+	// Prize pool lock is best-effort: matchmaking-created lobbies may not have one
+	prizePool, ppErr := s.prizePoolRepo.FindByMatchID(ctx, lobby.ID)
+	if ppErr == nil && prizePool != nil {
+		if lockErr := prizePool.Lock(); lockErr != nil {
+			slog.WarnContext(ctx, "Failed to lock prize pool (non-fatal)", "lobby_id", lobby.ID, "error", lockErr)
+		} else {
+			_ = s.prizePoolRepo.Update(ctx, prizePool)
+		}
+	} else {
+		slog.InfoContext(ctx, "No prize pool for lobby (matchmaking lobby)", "lobby_id", lobby.ID)
+	}
+
+	if err := s.lobbyRepo.Update(ctx, lobby); err != nil {
+		return uuid.Nil, fmt.Errorf("failed to update lobby: %w", err)
+	}
+
+	if err := lobby.MarkMatchStarted(); err != nil {
+		return uuid.Nil, fmt.Errorf("failed to mark match started: %w", err)
+	}
+
+	if err := s.lobbyRepo.Update(ctx, lobby); err != nil {
+		return uuid.Nil, fmt.Errorf("failed to persist match started: %w", err)
+	}
+
+	// Update matchmaking sessions to StatusMatched
+	if s.sessionRepo != nil {
+		for _, playerID := range lobby.GetPlayerIDs() {
+			sessions, err := s.sessionRepo.GetByPlayerID(ctx, playerID)
+			if err != nil {
+				slog.WarnContext(ctx, "Failed to get sessions for player", "player_id", playerID, "error", err)
+				continue
+			}
+			for _, sess := range sessions {
+				if sess.MatchID != nil && *sess.MatchID == lobby.ID && sess.Status == matchmaking_entities.StatusReadyCheck {
+					sess.Status = matchmaking_entities.StatusMatched
+					if sess.Metadata == nil {
+						sess.Metadata = make(map[string]any)
+					}
+					sess.Metadata["match_id"] = matchID.String()
+					sess.Metadata["match_started"] = true
+					if err := s.sessionRepo.Save(ctx, sess); err != nil {
+						slog.WarnContext(ctx, "Failed to update session to matched", "session_id", sess.ID, "error", err)
+					}
+				}
+			}
+		}
+	}
+
+	// Broadcast all_players_ready + match started to each player
+	playerIDs := lobby.GetPlayerIDs()
+	payload := map[string]interface{}{
+		"lobby_id": lobby.ID.String(),
+		"match_id": matchID.String(),
+		"status":   "started",
+		"players":  len(playerIDs),
+	}
+	payloadBytes, _ := json.Marshal(payload)
+	for _, pid := range playerIDs {
+		s.wsHub.BroadcastToUser(pid, "all_players_ready", payloadBytes)
+	}
+	s.wsHub.BroadcastLobbyUpdate(lobby.ID, lobby)
+
+	return matchID, nil
 }
 
 func (s *LobbyOrchestrationService) StartReadyCheck(ctx context.Context, cmd matchmaking_in.StartReadyCheckCommand) error {
@@ -327,6 +419,62 @@ func (s *LobbyOrchestrationService) CancelLobby(ctx context.Context, lobbyID uui
 
 	slog.InfoContext(ctx, "Lobby cancelled", "lobby_id", lobbyID, "reason", reason)
 	s.wsHub.BroadcastLobbyUpdate(lobbyID, lobby)
+
+	return nil
+}
+
+func (s *LobbyOrchestrationService) InviteToLobby(ctx context.Context, cmd matchmaking_in.InviteToLobbyCommand) error {
+	lobby, err := s.lobbyRepo.FindByID(ctx, cmd.LobbyID)
+	if err != nil {
+		return fmt.Errorf("lobby not found: %w", err)
+	}
+
+	// Validate inviter is actually in the lobby
+	inviterInLobby := false
+	for _, slot := range lobby.PlayerSlots {
+		if slot.PlayerID != nil && *slot.PlayerID == cmd.InviterID {
+			inviterInLobby = true
+			break
+		}
+	}
+	if !inviterInLobby {
+		return fmt.Errorf("inviter is not in the lobby")
+	}
+
+	// Validate lobby is not full
+	if lobby.IsFull() {
+		return fmt.Errorf("lobby is full")
+	}
+
+	// Validate lobby is in a state that allows invites
+	if lobby.Status != matchmaking_entities.LobbyStatusOpen {
+		return fmt.Errorf("lobby is not accepting invites (status: %s)", lobby.Status)
+	}
+
+	// Validate invitee is not already in the lobby
+	for _, slot := range lobby.PlayerSlots {
+		if slot.PlayerID != nil && *slot.PlayerID == cmd.InviteeID {
+			return fmt.Errorf("player is already in the lobby")
+		}
+	}
+
+	// Broadcast invite notification to the invitee via WebSocket
+	invitePayload := map[string]interface{}{
+		"lobby_id":    lobby.ID.String(),
+		"inviter_id":  cmd.InviterID.String(),
+		"game_id":     lobby.GameID,
+		"region":      lobby.Region,
+		"tier":        lobby.Tier,
+		"max_players": lobby.MaxPlayers,
+		"players":     lobby.GetPlayerCount(),
+	}
+	payloadBytes, _ := json.Marshal(invitePayload)
+	s.wsHub.BroadcastToUser(cmd.InviteeID, "lobby_invite", payloadBytes)
+
+	slog.InfoContext(ctx, "Lobby invite sent",
+		"lobby_id", cmd.LobbyID,
+		"inviter", cmd.InviterID,
+		"invitee", cmd.InviteeID)
 
 	return nil
 }

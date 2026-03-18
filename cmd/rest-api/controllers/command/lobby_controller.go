@@ -381,3 +381,72 @@ func (ctrl *LobbyController) CancelLobbyHandler(apiContext context.Context) http
 		slog.InfoContext(apiContext, "lobby cancelled", "lobby_id", lobbyID)
 	}
 }
+
+// InviteToLobbyHandler handles POST /api/lobbies/{lobby_id}/invite
+func (ctrl *LobbyController) InviteToLobbyHandler(apiContext context.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		// SECURITY: Derive inviter ID from authenticated context
+		ctx := r.Context()
+		authenticated, ok := ctx.Value(shared.AuthenticatedKey).(bool)
+		if !ok || !authenticated {
+			http.Error(w, `{"success":false,"error":"Authentication required"}`, http.StatusUnauthorized)
+			return
+		}
+		inviterID, ok := ctx.Value(shared.UserIDKey).(uuid.UUID)
+		if !ok || inviterID == uuid.Nil {
+			http.Error(w, `{"success":false,"error":"User identity not found"}`, http.StatusUnauthorized)
+			return
+		}
+
+		vars := mux.Vars(r)
+		lobbyID, err := uuid.Parse(vars["lobby_id"])
+		if err != nil {
+			http.Error(w, "invalid lobby_id", http.StatusBadRequest)
+			return
+		}
+
+		var reqBody struct {
+			InviteeID string `json:"invitee_id"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&reqBody); err != nil {
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		inviteeID, err := uuid.Parse(reqBody.InviteeID)
+		if err != nil {
+			http.Error(w, `{"success":false,"error":"Invalid invitee_id"}`, http.StatusBadRequest)
+			return
+		}
+
+		cmd := matchmaking_in.InviteToLobbyCommand{
+			LobbyID:   lobbyID,
+			InviterID: inviterID,
+			InviteeID: inviteeID,
+		}
+
+		if err := cmd.Validate(); err != nil {
+			http.Error(w, `{"success":false,"error":"`+err.Error()+`"}`, http.StatusBadRequest)
+			return
+		}
+
+		err = ctrl.lobbyCommand.InviteToLobby(r.Context(), cmd)
+		if err != nil {
+			slog.ErrorContext(r.Context(), "failed to invite to lobby", "lobby_id", lobbyID, "invitee", inviteeID, "error", err)
+			http.Error(w, `{"success":false,"error":"Failed to send invite"}`, http.StatusBadRequest)
+			return
+		}
+
+		response := LobbyActionResponse{
+			Success: true,
+			Message: "invite sent",
+			LobbyID: lobbyID.String(),
+		}
+
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(response)
+		slog.InfoContext(apiContext, "lobby invite sent", "lobby_id", lobbyID, "invitee", inviteeID)
+	}
+}

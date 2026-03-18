@@ -143,6 +143,9 @@ func (uc *JoinMatchmakingQueueUseCase) Exec(ctx context.Context, cmd matchmaking
 
 	resourceOwner := shared.GetResourceOwner(ctx)
 
+	// Dynamic queue estimation: check how many compatible players are already queued
+	estimatedWait := uc.estimateWaitTime(ctx, cmd)
+
 	session := &matchmaking_entities.MatchmakingSession{
 		BaseEntity: shared.NewEntity(resourceOwner),
 		PlayerID:   cmd.PlayerID,
@@ -160,7 +163,7 @@ func (uc *JoinMatchmakingQueueUseCase) Exec(ctx context.Context, cmd matchmaking
 		Status:        matchmaking_entities.StatusQueued,
 		PlayerMMR:     cmd.PlayerMMR,
 		QueuedAt:      now,
-		EstimatedWait: 180, // Default 3 minutes, actual estimation done by match-making-api
+		EstimatedWait: estimatedWait,
 		ExpiresAt:     expiresAt,
 		Metadata: map[string]any{
 			"team_format": cmd.TeamFormat,
@@ -224,7 +227,7 @@ func (uc *JoinMatchmakingQueueUseCase) Exec(ctx context.Context, cmd matchmaking
 		"game_mode", cmd.GameMode,
 		"team_format", cmd.TeamFormat,
 		"mmr", cmd.PlayerMMR,
-		"estimated_wait", 180,
+		"estimated_wait", estimatedWait,
 	)
 
 	return session, nil
@@ -307,7 +310,9 @@ func (uc *JoinMatchmakingQueueUseCase) tryMatch(ctx context.Context, newSession 
 	}
 
 	now := time.Now().UTC()
+	endTime := now.Add(lobby.ReadyTimeout)
 	lobby.ReadyCheckStart = &now
+	lobby.ReadyCheckEnd = &endTime
 
 	if err := uc.lobbyRepository.Save(ctx, lobby); err != nil {
 		slog.Error("tryMatch: failed to save lobby", "error", err, "match_id", matchID)
@@ -374,4 +379,39 @@ func (uc *JoinMatchmakingQueueUseCase) tryMatch(ctx context.Context, newSession 
 			slog.Warn("tryMatch: failed to publish lobby event", "error", err)
 		}
 	}
+}
+
+// estimateWaitTime computes a dynamic wait estimate based on the number of
+// compatible queued players.  When at least one other player is already
+// queued the estimate is very short (instant match likely); otherwise it
+// falls back to a conservative default.
+func (uc *JoinMatchmakingQueueUseCase) estimateWaitTime(ctx context.Context, cmd matchmaking_in.JoinMatchmakingQueueCommand) int {
+	const defaultWait = 120 // 2 minutes if nobody else is queued
+	const fastWait = 10     // 10 seconds when match is likely
+
+	status := matchmaking_entities.StatusQueued
+	candidates, err := uc.sessionRepository.GetActiveSessions(ctx, matchmaking_out.SessionFilters{
+		GameID:   cmd.GameID,
+		GameMode: cmd.GameMode,
+		Region:   cmd.Region,
+		Status:   &status,
+		Limit:    10,
+	})
+	if err != nil {
+		slog.WarnContext(ctx, "estimateWaitTime: query failed, using default", "error", err)
+		return defaultWait
+	}
+
+	// Exclude self (the session isn't saved yet but there could be stale sessions for this player)
+	count := 0
+	for _, c := range candidates {
+		if c.PlayerID != cmd.PlayerID {
+			count++
+		}
+	}
+
+	if count >= 1 {
+		return fastWait
+	}
+	return defaultWait
 }

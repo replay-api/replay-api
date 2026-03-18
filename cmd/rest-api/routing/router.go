@@ -391,6 +391,7 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	r.HandleFunc("/api/lobbies/{lobby_id}/leave", lobbyController.LeaveLobbyHandler(ctx)).Methods("DELETE")
 	r.HandleFunc("/api/lobbies/{lobby_id}/ready", lobbyController.SetPlayerReadyHandler(ctx)).Methods("PUT")
 	r.HandleFunc("/api/lobbies/{lobby_id}/start", lobbyController.StartMatchHandler(ctx)).Methods("POST")
+	r.HandleFunc("/api/lobbies/{lobby_id}/invite", lobbyController.InviteToLobbyHandler(ctx)).Methods("POST")
 	r.HandleFunc("/api/lobbies/{lobby_id}", lobbyController.CancelLobbyHandler(ctx)).Methods("DELETE")
 
 	// WebSocket for real-time lobby updates

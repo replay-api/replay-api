@@ -13,6 +13,8 @@ import (
 	"github.com/replay-api/replay-api/cmd/rest-api/routing"
 	jobs "github.com/replay-api/replay-api/pkg/app/jobs"
 	billing_out "github.com/replay-api/replay-api/pkg/domain/billing/ports/out"
+	matchmaking_out "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/out"
+	matchmaking_services "github.com/replay-api/replay-api/pkg/domain/matchmaking/services"
 	wallet_in "github.com/replay-api/replay-api/pkg/domain/wallet/ports/in"
 	wallet_out "github.com/replay-api/replay-api/pkg/domain/wallet/ports/out"
 	mongodb "github.com/replay-api/replay-api/pkg/infra/db/mongodb"
@@ -89,6 +91,19 @@ func main() {
 	}
 	go prizeJob.Run(ctx)
 	slog.InfoContext(ctx, "Prize distribution job started")
+
+	// Start Ready Check Timeout Worker
+	var lobbyRepo matchmaking_out.LobbyRepository
+	var sessionRepo matchmaking_out.MatchmakingSessionRepository
+	if err := c.Resolve(&lobbyRepo); err != nil {
+		slog.WarnContext(ctx, "Failed to resolve LobbyRepository for timeout worker (non-fatal)", "error", err)
+	} else if err := c.Resolve(&sessionRepo); err != nil {
+		slog.WarnContext(ctx, "Failed to resolve MatchmakingSessionRepository for timeout worker (non-fatal)", "error", err)
+	} else {
+		readyCheckWorker := matchmaking_services.NewReadyCheckTimeoutWorker(lobbyRepo, sessionRepo, wsHub)
+		go readyCheckWorker.Run(ctx)
+		slog.InfoContext(ctx, "Ready check timeout worker started")
+	}
 
 	// Start Billing Consumer (if Kafka is available)
 	startBillingConsumer(ctx, c)

@@ -17,6 +17,7 @@ type LobbyCommand interface {
 	StartReadyCheck(ctx context.Context, cmd StartReadyCheckCommand) error
 	StartMatch(ctx context.Context, lobbyID uuid.UUID) (uuid.UUID, error)
 	CancelLobby(ctx context.Context, lobbyID uuid.UUID, reason string) error
+	InviteToLobby(ctx context.Context, cmd InviteToLobbyCommand) error
 }
 
 // PrizePoolCommand defines operations for prize pool management
@@ -201,6 +202,30 @@ func (c *DistributePrizesCommand) Validate() error {
 	}
 	if len(c.RankedPlayerIDs) == 0 {
 		return errors.New("ranked_player_ids is required")
+	}
+	return nil
+}
+
+// InviteToLobbyCommand request to invite a player to a lobby
+type InviteToLobbyCommand struct {
+	LobbyID   uuid.UUID
+	InviterID uuid.UUID
+	InviteeID uuid.UUID
+}
+
+// Validate validates the InviteToLobbyCommand
+func (c *InviteToLobbyCommand) Validate() error {
+	if c.LobbyID == uuid.Nil {
+		return errors.New("lobby_id is required")
+	}
+	if c.InviterID == uuid.Nil {
+		return errors.New("inviter_id is required")
+	}
+	if c.InviteeID == uuid.Nil {
+		return errors.New("invitee_id is required")
+	}
+	if c.InviterID == c.InviteeID {
+		return errors.New("cannot invite yourself")
 	}
 	return nil
 }

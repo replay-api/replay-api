@@ -3948,6 +3948,7 @@ func InjectMongoDB(c container.Container) error {
 	err = c.Singleton(func() (matchmaking_in.LobbyCommand, error) {
 		var lobbyRepo matchmaking_out.LobbyRepository
 		var poolRepo matchmaking_out.PrizePoolRepository
+		var sessionRepo matchmaking_out.MatchmakingSessionRepository
 		var walletCmd wallet_in.WalletCommand
 		var wsHub *websocket.WebSocketHub
 
@@ -3961,6 +3962,11 @@ func InjectMongoDB(c container.Container) error {
 			return nil, err
 		}
 
+		if err := c.Resolve(&sessionRepo); err != nil {
+			slog.Error("Failed to resolve matchmaking_out.MatchmakingSessionRepository for LobbyOrchestrationService.", "err", err)
+			return nil, err
+		}
+
 		if err := c.Resolve(&walletCmd); err != nil {
 			slog.Error("Failed to resolve wallet_in.WalletCommand for LobbyOrchestrationService.", "err", err)
 			return nil, err
@@ -3971,7 +3977,7 @@ func InjectMongoDB(c container.Container) error {
 			return nil, err
 		}
 
-		return matchmaking_services.NewLobbyOrchestrationService(lobbyRepo, poolRepo, walletCmd, wsHub), nil
+		return matchmaking_services.NewLobbyOrchestrationService(lobbyRepo, poolRepo, sessionRepo, walletCmd, wsHub), nil
 	})
 
 	if err != nil {

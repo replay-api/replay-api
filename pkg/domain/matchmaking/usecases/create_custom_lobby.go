@@ -131,3 +131,8 @@ func (uc *CreateCustomLobbyUseCase) StartMatch(ctx context.Context, lobbyID uuid
 func (uc *CreateCustomLobbyUseCase) CancelLobby(ctx context.Context, lobbyID uuid.UUID, reason string) error {
 	return fmt.Errorf("not implemented in this usecase")
 }
+
+// InviteToLobby - placeholder
+func (uc *CreateCustomLobbyUseCase) InviteToLobby(ctx context.Context, cmd matchmaking_in.InviteToLobbyCommand) error {
+	return fmt.Errorf("not implemented in this usecase")
+}

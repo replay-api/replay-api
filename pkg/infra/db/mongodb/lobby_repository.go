@@ -170,6 +170,34 @@ func (r *MongoLobbyRepository) Update(ctx context.Context, lobby *matchmaking_en
 	return nil
 }
 
+func (r *MongoLobbyRepository) FindExpiredReadyChecks(ctx context.Context) ([]*matchmaking_entities.MatchmakingLobby, error) {
+	now := time.Now().UTC()
+	filter := bson.M{
+		"status":          matchmaking_entities.LobbyStatusReadyCheck,
+		"ready_check_end": bson.M{"$lte": now},
+	}
+
+	findOptions := options.Find().SetLimit(50)
+	cursor, err := r.MongoDBRepository.Collection().Find(ctx, filter, findOptions)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find expired ready checks", "error", err)
+		return nil, fmt.Errorf("failed to find expired ready checks: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	lobbies := make([]*matchmaking_entities.MatchmakingLobby, 0)
+	for cursor.Next(ctx) {
+		var lobby matchmaking_entities.MatchmakingLobby
+		if err := cursor.Decode(&lobby); err != nil {
+			slog.ErrorContext(ctx, "failed to decode expired lobby", "error", err)
+			continue
+		}
+		lobbies = append(lobbies, &lobby)
+	}
+
+	return lobbies, nil
+}
+
 func (r *MongoLobbyRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	filter := bson.M{"_id": id}
 
