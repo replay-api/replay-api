@@ -115,6 +115,7 @@ func (r *MatchmakingSessionRepository) GetByPlayerID(ctx context.Context, player
 			"$in": []string{
 				string(matchmaking_entities.StatusQueued),
 				string(matchmaking_entities.StatusSearching),
+				string(matchmaking_entities.StatusReadyCheck),
 			},
 		},
 	}
