@@ -25,7 +25,7 @@ db.plans.insertMany([
     baseentity: {
       _id: PLAN_FREE_ID,
       visibility_level: 4,
-      visibility_type: 8,
+      visibility_type: 1,
       resource_owner: {
         tenant_id: SYSTEM_TENANT_ID,
         client_id: SYSTEM_CLIENT_ID,
@@ -322,7 +322,7 @@ db.plans.insertMany([
     baseentity: {
       _id: PLAN_PRO_ID,
       visibility_level: 4,
-      visibility_type: 8,
+      visibility_type: 1,
       resource_owner: {
         tenant_id: SYSTEM_TENANT_ID,
         client_id: SYSTEM_CLIENT_ID,
@@ -619,7 +619,7 @@ db.plans.insertMany([
     baseentity: {
       _id: PLAN_TEAM_ID,
       visibility_level: 4,
-      visibility_type: 8,
+      visibility_type: 1,
       resource_owner: {
         tenant_id: SYSTEM_TENANT_ID,
         client_id: SYSTEM_CLIENT_ID,
@@ -938,7 +938,7 @@ db.plans.insertMany([
     baseentity: {
       _id: PLAN_ORGANIZER_ID,
       visibility_level: 4,
-      visibility_type: 8,
+      visibility_type: 1,
       resource_owner: {
         tenant_id: SYSTEM_TENANT_ID,
         client_id: SYSTEM_CLIENT_ID,
