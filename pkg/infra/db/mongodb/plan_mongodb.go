@@ -84,7 +84,11 @@ func (repo *PlanRepository) GetDefaultFreePlan(ctx context.Context) (*billing_en
 		{Key: "display_priority_score", Value: -1},
 		{Key: "baseentity.created_at", Value: -1},
 	})
-	err := repo.MongoDBRepository.FindOneWithRLS(ctx, bson.M{
+	// Plans are system-level entities accessible to all users.
+	// Bypass RLS (FindOne instead of FindOneWithRLS) because the plan's
+	// resource_owner may use the system tenant/visibility which doesn't
+	// match the requesting user's context.
+	err := repo.MongoDBRepository.FindOne(ctx, bson.M{
 		"is_free":      true,
 		"is_active":    true,
 		"is_legacy":    false,

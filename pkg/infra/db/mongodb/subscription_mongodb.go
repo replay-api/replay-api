@@ -92,6 +92,7 @@ func (r *SubscriptionRepository) Search(ctx context.Context, s shared.Search) ([
 }
 
 func (r *SubscriptionRepository) GetCurrentSubscription(ctx context.Context, rxn shared.ResourceOwner) (*billing_entities.Subscription, error) {
+	// Build a search that also matches lifetime subscriptions (end_at == null)
 	search := shared.NewSearchByValues(ctx, []shared.SearchableValue{
 		{
 			Field:    "Status",
@@ -102,11 +103,6 @@ func (r *SubscriptionRepository) GetCurrentSubscription(ctx context.Context, rxn
 			Field:    "StartDate",
 			Values:   []interface{}{time.Now()},
 			Operator: shared.LessThanOperator,
-		},
-		{
-			Field:    "EndDate",
-			Values:   []interface{}{time.Now()},
-			Operator: shared.GreaterThanOperator,
 		},
 		{
 			Field: "UserID",

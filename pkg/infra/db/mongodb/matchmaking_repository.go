@@ -2,6 +2,8 @@ package db
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -70,8 +72,49 @@ func NewMatchmakingSessionRepository(client *mongo.Client, dbName string) *Match
 		"Metadata": "metadata",
 	})
 
-	return &MatchmakingSessionRepository{
+	r := &MatchmakingSessionRepository{
 		MongoDBRepository: *repo,
+	}
+
+	go r.createIndexes()
+
+	return r
+}
+
+func (r *MatchmakingSessionRepository) createIndexes() {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	indexes := []mongo.IndexModel{
+		{
+			Keys: bson.D{
+				{Key: "player_id", Value: 1},
+				{Key: "status", Value: 1},
+			},
+			Options: options.Index().SetName("idx_sessions_player_status"),
+		},
+		{
+			Keys: bson.D{
+				{Key: "status", Value: 1},
+				{Key: "preferences.game_id", Value: 1},
+				{Key: "preferences.region", Value: 1},
+			},
+			Options: options.Index().SetName("idx_sessions_status_game_region"),
+		},
+		{
+			Keys: bson.D{
+				{Key: "expires_at", Value: 1},
+				{Key: "status", Value: 1},
+			},
+			Options: options.Index().SetName("idx_sessions_expires_status"),
+		},
+	}
+
+	_, err := r.MongoDBRepository.Collection().Indexes().CreateMany(ctx, indexes)
+	if err != nil {
+		slog.Error("failed to create matchmaking session indexes", "error", err)
+	} else {
+		slog.Info("matchmaking session indexes created successfully")
 	}
 }
 
@@ -219,8 +262,14 @@ func (r *MatchmakingSessionRepository) UpdateStatus(ctx context.Context, id uuid
 		update["$set"].(bson.M)["matched_at"] = now
 	}
 
-	_, err := collection.UpdateOne(ctx, bson.M{"_id": id}, update)
-	return err
+	result, err := collection.UpdateOne(ctx, bson.M{"_id": id}, update)
+	if err != nil {
+		return err
+	}
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("matchmaking session %s not found", id)
+	}
+	return nil
 }
 
 // Delete removes a session
@@ -230,12 +279,19 @@ func (r *MatchmakingSessionRepository) Delete(ctx context.Context, id uuid.UUID)
 	return err
 }
 
-// DeleteExpired removes expired sessions
+// DeleteExpired removes expired sessions that are still in queue/searching status.
+// Matched/completed sessions are preserved regardless of expiry.
 func (r *MatchmakingSessionRepository) DeleteExpired(ctx context.Context) (int64, error) {
 	collection := r.MongoDBRepository.Collection()
 
 	result, err := collection.DeleteMany(ctx, bson.M{
 		"expires_at": bson.M{"$lte": time.Now()},
+		"status": bson.M{
+			"$in": []string{
+				string(matchmaking_entities.StatusQueued),
+				string(matchmaking_entities.StatusSearching),
+			},
+		},
 	})
 	if err != nil {
 		return 0, err
@@ -273,8 +329,35 @@ func NewMatchmakingPoolRepository(client *mongo.Client, dbName string) *Matchmak
 		"UpdatedAt":      "updated_at",
 	})
 
-	return &MatchmakingPoolRepository{
+	r := &MatchmakingPoolRepository{
 		MongoDBRepository: *repo,
+	}
+
+	go r.createIndexes()
+
+	return r
+}
+
+func (r *MatchmakingPoolRepository) createIndexes() {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	indexes := []mongo.IndexModel{
+		{
+			Keys: bson.D{
+				{Key: "game_id", Value: 1},
+				{Key: "game_mode", Value: 1},
+				{Key: "region", Value: 1},
+			},
+			Options: options.Index().SetName("idx_pools_game_mode_region").SetUnique(true),
+		},
+	}
+
+	_, err := r.MongoDBRepository.Collection().Indexes().CreateMany(ctx, indexes)
+	if err != nil {
+		slog.Error("failed to create matchmaking pool indexes", "error", err)
+	} else {
+		slog.Info("matchmaking pool indexes created successfully")
 	}
 }
 
@@ -339,8 +422,14 @@ func (r *MatchmakingPoolRepository) UpdateStats(ctx context.Context, poolID uuid
 		},
 	}
 
-	_, err := collection.UpdateOne(ctx, bson.M{"_id": poolID}, update)
-	return err
+	result, err := collection.UpdateOne(ctx, bson.M{"_id": poolID}, update)
+	if err != nil {
+		return err
+	}
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("matchmaking pool %s not found", poolID)
+	}
+	return nil
 }
 
 // GetAllActive retrieves all active pools

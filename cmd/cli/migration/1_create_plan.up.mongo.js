@@ -11,9 +11,10 @@ const PLAN_PRO_ID = UUID('00000000-0000-0000-0001-000000000002');
 const PLAN_TEAM_ID = UUID('00000000-0000-0000-0001-000000000003');
 const PLAN_ORGANIZER_ID = UUID('00000000-0000-0000-0001-000000000004');
 
-// System resource owner for plans
-const SYSTEM_TENANT_ID = UUID('00000000-0000-0000-0000-000000000001');
-const SYSTEM_CLIENT_ID = UUID('00000000-0000-0000-0000-000000000002');
+// System resource owner for plans — must match TeamPROTenantID and TeamPROAppClientID
+// from replay-common/pkg/replay/types.go so RLS tenant isolation works correctly.
+const SYSTEM_TENANT_ID = UUID('a3a80810-f91c-4391-9eff-6d47a13bebde');
+const SYSTEM_CLIENT_ID = UUID('ff96c01f-a741-4429-a0cd-2868d408c42f');
 const SYSTEM_USER_ID = UUID('00000000-0000-0000-0000-000000000003');
 
 db.plans.insertMany([
