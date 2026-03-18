@@ -230,12 +230,18 @@ func (ctrl *PaymentController) GetUserPaymentsHandler(apiContext context.Context
 		}
 
 		// Convert DTOs to response format
-		response := make([]PaymentResponse, len(result.Payments))
+		payments := make([]PaymentResponse, len(result.Payments))
 		for i, dto := range result.Payments {
-			response[i] = dtoToResponse(&dto)
+			payments[i] = dtoToResponse(&dto)
 		}
 
-		_ = json.NewEncoder(w).Encode(response)
+		// Return structured response matching frontend PaymentsResult type
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"payments":    payments,
+			"total_count": result.TotalCount,
+			"limit":       result.Limit,
+			"offset":      result.Offset,
+		})
 	}
 }
 
