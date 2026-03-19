@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
@@ -75,9 +76,42 @@ type PlanResponse struct {
 	PriceAmount          float64                         `json:"price_amount"`          // Monthly price (deprecated, use prices)
 	PriceCurrency        string                          `json:"price_currency"`        // Default currency
 	BillingInterval      string                          `json:"billing_interval"`      // Default billing interval
-	Prices               map[string]PriceInfo            `json:"prices"`                // Pricing for all billing periods
+	Prices               map[string]PriceInfo            `json:"prices"`                // Pricing for default/requested currency
+	AllPrices            map[string][]PriceInfo          `json:"all_prices"`            // All currency prices per billing period
+	Regions              []string                        `json:"regions"`               // Regions this plan is available in (empty = all)
+	Languages            []string                        `json:"languages,omitempty"`   // Supported languages
 	Features             []string                        `json:"features"`
 	DisplayPriorityScore int                             `json:"display_priority_score"`
+}
+
+// regionToCurrency maps region codes to their default currency.
+// Used to filter multi-currency prices for a specific region.
+var regionToCurrency = map[string]string{
+	"NA":    "USD",
+	"BR":    "BRL",
+	"EU":    "EUR",
+	"LATAM": "MXN",
+	"ASIA":  "CNY",
+}
+
+// findPriceForCurrency returns the price matching the given currency from a price list.
+// Falls back to USD, then the first available price.
+func findPriceForCurrency(prices []billing_entities.Price, currency string) *billing_entities.Price {
+	for i, p := range prices {
+		if strings.EqualFold(p.Currency, currency) {
+			return &prices[i]
+		}
+	}
+	// Fallback: try USD
+	for i, p := range prices {
+		if strings.EqualFold(p.Currency, "USD") {
+			return &prices[i]
+		}
+	}
+	if len(prices) > 0 {
+		return &prices[0]
+	}
+	return nil
 }
 
 // GetCurrentSubscriptionHandler handles GET /subscriptions/current
@@ -340,6 +374,9 @@ func NewPlanQueryController(c container.Container) *PlanQueryController {
 
 // ListAvailablePlansHandler handles GET /plans
 // Returns all available plans (public endpoint)
+// Query params:
+//   - region: filter prices by region (NA, BR, EU, LATAM, ASIA). Returns all currencies if omitted.
+//   - currency: filter prices by currency code (USD, BRL, EUR, MXN, CNY). Takes precedence over region.
 func (c *PlanQueryController) ListAvailablePlansHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -358,6 +395,16 @@ func (c *PlanQueryController) ListAvailablePlansHandler(w http.ResponseWriter, r
 		return
 	}
 
+	// Determine target currency from query params
+	requestedCurrency := ""
+	if currency := r.URL.Query().Get("currency"); currency != "" {
+		requestedCurrency = strings.ToUpper(currency)
+	} else if region := r.URL.Query().Get("region"); region != "" {
+		if cur, ok := regionToCurrency[strings.ToUpper(region)]; ok {
+			requestedCurrency = cur
+		}
+	}
+
 	// Convert to response format
 	response := make([]PlanResponse, 0, len(plans))
 	for _, plan := range plans {
@@ -371,19 +418,44 @@ func (c *PlanQueryController) ListAvailablePlansHandler(w http.ResponseWriter, r
 			DisplayPriorityScore: plan.DisplayPriorityScore,
 			Features:             getPlanFeatures(plan),
 			Prices:               make(map[string]PriceInfo),
+			AllPrices:            make(map[string][]PriceInfo),
+			Regions:              plan.Regions,
+			Languages:            plan.Languages,
 		}
 
-		// Build prices map for all billing periods
+		// Build all_prices (every currency per period) and prices (filtered or default)
 		for period, prices := range plan.Prices {
-			if len(prices) > 0 {
-				priceInfo := PriceInfo{
-					Amount:        prices[0].Amount,
-					Currency:      prices[0].Currency,
-					TotalDiscount: prices[0].TotalDiscount,
+			// Build all_prices array for this period
+			allPricesForPeriod := make([]PriceInfo, 0, len(prices))
+			for _, p := range prices {
+				pi := PriceInfo{
+					Amount:        p.Amount,
+					Currency:      p.Currency,
+					TotalDiscount: p.TotalDiscount,
 				}
-				// Calculate yearly total for yearly billing
 				if period == billing_entities.BillingPeriodYearly {
-					priceInfo.YearlyTotal = prices[0].Amount * 12
+					pi.YearlyTotal = p.Amount * 12
+				}
+				allPricesForPeriod = append(allPricesForPeriod, pi)
+			}
+			pr.AllPrices[string(period)] = allPricesForPeriod
+
+			// Build filtered prices map (single currency per period)
+			var selectedPrice *billing_entities.Price
+			if requestedCurrency != "" {
+				selectedPrice = findPriceForCurrency(prices, requestedCurrency)
+			} else if len(prices) > 0 {
+				selectedPrice = findPriceForCurrency(prices, "USD")
+			}
+
+			if selectedPrice != nil {
+				priceInfo := PriceInfo{
+					Amount:        selectedPrice.Amount,
+					Currency:      selectedPrice.Currency,
+					TotalDiscount: selectedPrice.TotalDiscount,
+				}
+				if period == billing_entities.BillingPeriodYearly {
+					priceInfo.YearlyTotal = selectedPrice.Amount * 12
 				}
 				pr.Prices[string(period)] = priceInfo
 			}
@@ -391,9 +463,17 @@ func (c *PlanQueryController) ListAvailablePlansHandler(w http.ResponseWriter, r
 
 		// Set default price info (monthly as default for backwards compatibility)
 		if prices, ok := plan.Prices[billing_entities.BillingPeriodMonthly]; ok && len(prices) > 0 {
-			pr.PriceAmount = prices[0].Amount
-			pr.PriceCurrency = prices[0].Currency
-			pr.BillingInterval = string(billing_entities.BillingPeriodMonthly)
+			defaultPrice := findPriceForCurrency(prices, func() string {
+				if requestedCurrency != "" {
+					return requestedCurrency
+				}
+				return "USD"
+			}())
+			if defaultPrice != nil {
+				pr.PriceAmount = defaultPrice.Amount
+				pr.PriceCurrency = defaultPrice.Currency
+				pr.BillingInterval = string(billing_entities.BillingPeriodMonthly)
+			}
 		}
 
 		response = append(response, pr)
@@ -447,18 +527,52 @@ func (c *PlanQueryController) GetPlanByIDHandler(w http.ResponseWriter, r *http.
 		DisplayPriorityScore: plan.DisplayPriorityScore,
 		Features:             getPlanFeatures(plan),
 		Prices:               make(map[string]PriceInfo),
+		AllPrices:            make(map[string][]PriceInfo),
+		Regions:              plan.Regions,
+		Languages:            plan.Languages,
 	}
 
-	// Build prices map for all billing periods
+	// Determine target currency from query params
+	requestedCurrency := ""
+	if currency := r.URL.Query().Get("currency"); currency != "" {
+		requestedCurrency = strings.ToUpper(currency)
+	} else if region := r.URL.Query().Get("region"); region != "" {
+		if cur, ok := regionToCurrency[strings.ToUpper(region)]; ok {
+			requestedCurrency = cur
+		}
+	}
+
+	// Build all_prices and filtered prices
 	for period, prices := range plan.Prices {
-		if len(prices) > 0 {
-			priceInfo := PriceInfo{
-				Amount:        prices[0].Amount,
-				Currency:      prices[0].Currency,
-				TotalDiscount: prices[0].TotalDiscount,
+		allPricesForPeriod := make([]PriceInfo, 0, len(prices))
+		for _, p := range prices {
+			pi := PriceInfo{
+				Amount:        p.Amount,
+				Currency:      p.Currency,
+				TotalDiscount: p.TotalDiscount,
 			}
 			if period == billing_entities.BillingPeriodYearly {
-				priceInfo.YearlyTotal = prices[0].Amount * 12
+				pi.YearlyTotal = p.Amount * 12
+			}
+			allPricesForPeriod = append(allPricesForPeriod, pi)
+		}
+		response.AllPrices[string(period)] = allPricesForPeriod
+
+		var selectedPrice *billing_entities.Price
+		if requestedCurrency != "" {
+			selectedPrice = findPriceForCurrency(prices, requestedCurrency)
+		} else if len(prices) > 0 {
+			selectedPrice = findPriceForCurrency(prices, "USD")
+		}
+
+		if selectedPrice != nil {
+			priceInfo := PriceInfo{
+				Amount:        selectedPrice.Amount,
+				Currency:      selectedPrice.Currency,
+				TotalDiscount: selectedPrice.TotalDiscount,
+			}
+			if period == billing_entities.BillingPeriodYearly {
+				priceInfo.YearlyTotal = selectedPrice.Amount * 12
 			}
 			response.Prices[string(period)] = priceInfo
 		}
@@ -466,9 +580,17 @@ func (c *PlanQueryController) GetPlanByIDHandler(w http.ResponseWriter, r *http.
 
 	// Get price info if available (use monthly as default)
 	if prices, ok := plan.Prices[billing_entities.BillingPeriodMonthly]; ok && len(prices) > 0 {
-		response.PriceAmount = prices[0].Amount
-		response.PriceCurrency = prices[0].Currency
-		response.BillingInterval = string(billing_entities.BillingPeriodMonthly)
+		defaultPrice := findPriceForCurrency(prices, func() string {
+			if requestedCurrency != "" {
+				return requestedCurrency
+			}
+			return "USD"
+		}())
+		if defaultPrice != nil {
+			response.PriceAmount = defaultPrice.Amount
+			response.PriceCurrency = defaultPrice.Currency
+			response.BillingInterval = string(billing_entities.BillingPeriodMonthly)
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
