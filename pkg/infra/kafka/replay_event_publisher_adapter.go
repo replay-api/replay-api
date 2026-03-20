@@ -21,6 +21,10 @@ func NewReplayEventPublisherAdapter(publisher *EventPublisher) replay_out.Replay
 
 // PublishReplayUploaded publishes an event when a replay file is uploaded
 func (a *ReplayEventPublisherAdapter) PublishReplayUploaded(ctx context.Context, replayFile *replay_entity.ReplayFile) error {
+	if a.publisher == nil {
+		return nil
+	}
+
 	event := &ReplayUploadedEvent{
 		ReplayFileID: replayFile.ID,
 		GameID:       string(replayFile.GameID),
@@ -39,6 +43,10 @@ func (a *ReplayEventPublisherAdapter) PublishReplayUploaded(ctx context.Context,
 
 // PublishReplayProcessing publishes progress events during replay processing
 func (a *ReplayEventPublisherAdapter) PublishReplayProcessing(ctx context.Context, replayFileID uuid.UUID, stage string, progress int, eventCount int, playerCount int) error {
+	if a.publisher == nil {
+		return nil
+	}
+
 	eventType := EventTypeReplayProcessing
 	if progress >= 100 {
 		eventType = EventTypeReplayProgress
@@ -58,6 +66,10 @@ func (a *ReplayEventPublisherAdapter) PublishReplayProcessing(ctx context.Contex
 
 // PublishReplayCompleted publishes an event when replay processing completes successfully
 func (a *ReplayEventPublisherAdapter) PublishReplayCompleted(ctx context.Context, replayFile *replay_entity.ReplayFile, matchID uuid.UUID, eventCount int, playerCount int, processingDurationMs int64) error {
+	if a.publisher == nil {
+		return nil
+	}
+
 	event := &ReplayCompletedEvent{
 		ReplayFileID:  replayFile.ID,
 		MatchID:       matchID,
@@ -76,6 +88,10 @@ func (a *ReplayEventPublisherAdapter) PublishReplayCompleted(ctx context.Context
 
 // PublishReplayFailed publishes an event when replay processing fails
 func (a *ReplayEventPublisherAdapter) PublishReplayFailed(ctx context.Context, replayFile *replay_entity.ReplayFile, stage string, errorType string, errorMessage string, retryable bool, retryCount int) error {
+	if a.publisher == nil {
+		return nil
+	}
+
 	event := &ReplayFailedEvent{
 		ReplayFileID: replayFile.ID,
 		GameID:       string(replayFile.GameID),

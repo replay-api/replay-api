@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	matchmaking_entities "github.com/replay-api/replay-api/pkg/domain/matchmaking/entities"
@@ -213,8 +215,21 @@ func (s *LobbyOrchestrationService) SetPlayerReady(ctx context.Context, cmd matc
 		return fmt.Errorf("failed to set ready: %w", err)
 	}
 
+	readyCount := 0
+	totalCount := 0
+	for _, slot := range lobby.PlayerSlots {
+		if slot.PlayerID == nil {
+			continue
+		}
+		totalCount++
+		if slot.IsReady {
+			readyCount++
+		}
+	}
+
 	slog.InfoContext(ctx, "Player ready status changed", "lobby_id", cmd.LobbyID, "player_id", cmd.PlayerID, "is_ready", cmd.IsReady)
 	s.wsHub.BroadcastLobbyUpdate(cmd.LobbyID, lobby)
+	s.broadcastReadinessUpdate(cmd.LobbyID, cmd.PlayerID, cmd.IsReady, readyCount, totalCount)
 
 	// Auto-transition: if all players are ready and lobby is in ready_check, start the match
 	if cmd.IsReady && lobby.Status == matchmaking_entities.LobbyStatusReadyCheck {
@@ -307,6 +322,12 @@ func (s *LobbyOrchestrationService) startMatchForLobby(ctx context.Context, lobb
 
 	// Broadcast all_players_ready + match started to each player
 	playerIDs := lobby.GetPlayerIDs()
+	connectionInfo := buildGameConnectionInfoPayload(updatedLobby, matchID)
+	if updatedLobby != nil {
+		if err := s.lobbyRepo.Update(ctx, updatedLobby); err != nil {
+			slog.WarnContext(ctx, "Failed to persist generated connection info", "lobby_id", updatedLobby.ID, "error", err)
+		}
+	}
 	payload := map[string]interface{}{
 		"lobby_id": lobby.ID.String(),
 		"match_id": matchID.String(),
@@ -314,8 +335,24 @@ func (s *LobbyOrchestrationService) startMatchForLobby(ctx context.Context, lobb
 		"players":  len(playerIDs),
 	}
 	payloadBytes, _ := json.Marshal(payload)
+	lobbyPayload := &ws.WebSocketMessage{
+		Type:      ws.MessageTypeAllPlayersReady,
+		LobbyID:   &lobby.ID,
+		Payload:   payloadBytes,
+		Timestamp: updatedLobby.UpdatedAt.Unix(),
+	}
+	s.wsHub.BroadcastRaw(lobbyPayload)
+	connectionPayloadBytes, _ := json.Marshal(connectionInfo)
+	connectionPayload := &ws.WebSocketMessage{
+		Type:      ws.MessageTypeGameConnectionInfo,
+		LobbyID:   &lobby.ID,
+		Payload:   connectionPayloadBytes,
+		Timestamp: updatedLobby.UpdatedAt.Unix(),
+	}
+	s.wsHub.BroadcastRaw(connectionPayload)
 	for _, pid := range playerIDs {
 		s.wsHub.BroadcastToUser(pid, "all_players_ready", payloadBytes)
+		s.wsHub.BroadcastToUser(pid, ws.MessageTypeGameConnectionInfo, connectionPayloadBytes)
 	}
 	s.wsHub.BroadcastLobbyUpdate(lobby.ID, updatedLobby)
 
@@ -392,37 +429,46 @@ func (s *LobbyOrchestrationService) CancelLobby(ctx context.Context, lobbyID uui
 	}
 
 	prizePool, err := s.prizePoolRepo.FindByMatchID(ctx, lobbyID)
+	hasPrizePool := err == nil && prizePool != nil
 	if err != nil {
-		return fmt.Errorf("prize pool not found: %w", err)
+		slog.InfoContext(ctx, "No prize pool for lobby cancellation", "lobby_id", lobbyID, "reason", reason)
 	}
 
 	if err := lobby.Cancel(reason); err != nil {
 		return fmt.Errorf("failed to cancel lobby: %w", err)
 	}
 
-	if err := prizePool.Cancel(reason); err != nil {
-		return fmt.Errorf("failed to cancel prize pool: %w", err)
+	if hasPrizePool {
+		if err := prizePool.Cancel(reason); err != nil {
+			return fmt.Errorf("failed to cancel prize pool: %w", err)
+		}
 	}
 
 	// Refund all players
-	for playerID, contribution := range prizePool.PlayerContributions {
-		refundCmd := wallet_in.RefundCommand{
-			UserID:   playerID,
-			Currency: string(prizePool.Currency),
-			Amount:   contribution.ToFloat(),
-			Reason:   fmt.Sprintf("lobby cancelled: %s", reason),
-		}
-		if err := s.walletCommand.Refund(ctx, refundCmd); err != nil {
-			slog.ErrorContext(ctx, "Failed to refund player", "player_id", playerID, "error", err)
+	if hasPrizePool {
+		for playerID, contribution := range prizePool.PlayerContributions {
+			refundCmd := wallet_in.RefundCommand{
+				UserID:   playerID,
+				Currency: string(prizePool.Currency),
+				Amount:   contribution.ToFloat(),
+				Reason:   fmt.Sprintf("lobby cancelled: %s", reason),
+			}
+			if err := s.walletCommand.Refund(ctx, refundCmd); err != nil {
+				slog.ErrorContext(ctx, "Failed to refund player", "player_id", playerID, "error", err)
+			}
 		}
 	}
+
+	s.handleMatchmakingSessionCancellation(ctx, lobby, reason)
 
 	if err := s.lobbyRepo.Update(ctx, lobby); err != nil {
 		return fmt.Errorf("failed to update lobby: %w", err)
 	}
 
-	if err := s.prizePoolRepo.Update(ctx, prizePool); err != nil {
-		return fmt.Errorf("failed to update prize pool: %w", err)
+	if hasPrizePool {
+		if err := s.prizePoolRepo.Update(ctx, prizePool); err != nil {
+			return fmt.Errorf("failed to update prize pool: %w", err)
+		}
 	}
 
 	slog.InfoContext(ctx, "Lobby cancelled", "lobby_id", lobbyID, "reason", reason)
@@ -525,4 +571,107 @@ func getEntryFeeByTier(tier string) float64 {
 		return fee
 	}
 	return 0.00
+}
+
+func (s *LobbyOrchestrationService) broadcastReadinessUpdate(lobbyID uuid.UUID, playerID uuid.UUID, isReady bool, readyCount, totalCount int) {
+	if s.wsHub == nil {
+		return
+	}
+
+	status := "declined"
+	messageType := ws.MessageTypeReadinessDeclined
+	if isReady {
+		status = "confirmed"
+		messageType = ws.MessageTypeReadinessConfirmed
+	}
+
+	payload := map[string]interface{}{
+		"lobby_id":        lobbyID.String(),
+		"player_id":       playerID.String(),
+		"status":          status,
+		"confirmed_count": readyCount,
+		"total_count":     totalCount,
+	}
+	payloadBytes, _ := json.Marshal(payload)
+	s.wsHub.BroadcastRaw(&ws.WebSocketMessage{
+		Type:      messageType,
+		LobbyID:   &lobbyID,
+		Payload:   payloadBytes,
+		Timestamp: time.Now().Unix(),
+	})
+}
+
+func (s *LobbyOrchestrationService) handleMatchmakingSessionCancellation(ctx context.Context, lobby *matchmaking_entities.MatchmakingLobby, reason string) {
+	if s.sessionRepo == nil || lobby == nil {
+		return
+	}
+
+	declinedPlayerID := uuid.Nil
+	if strings.HasPrefix(reason, "player_declined:") {
+		declinedRaw := strings.TrimPrefix(reason, "player_declined:")
+		parsed, err := uuid.Parse(declinedRaw)
+		if err == nil {
+			declinedPlayerID = parsed
+		}
+	}
+
+	for _, playerID := range lobby.GetPlayerIDs() {
+		sessions, err := s.sessionRepo.GetByPlayerID(ctx, playerID)
+		if err != nil {
+			slog.WarnContext(ctx, "Failed to get sessions for cancelled lobby", "player_id", playerID, "error", err)
+			continue
+		}
+
+		for _, sess := range sessions {
+			if sess.MatchID == nil || *sess.MatchID != lobby.ID || sess.Status != matchmaking_entities.StatusReadyCheck {
+				continue
+			}
+
+			if sess.Metadata == nil {
+				sess.Metadata = make(map[string]any)
+			}
+			sess.Metadata["lobby_id"] = nil
+			sess.Metadata["cancel_reason"] = reason
+
+			if declinedPlayerID != uuid.Nil && playerID == declinedPlayerID {
+				sess.Status = matchmaking_entities.StatusCancelled
+				sess.Metadata["declined_ready_check"] = true
+			} else {
+				sess.Status = matchmaking_entities.StatusQueued
+				sess.MatchID = nil
+				sess.MatchedAt = nil
+				sess.Metadata["requeued_reason"] = reason
+			}
+
+			if err := s.sessionRepo.Save(ctx, sess); err != nil {
+				slog.WarnContext(ctx, "Failed to update session during cancellation", "session_id", sess.ID, "error", err)
+			}
+		}
+	}
+}
+
+func buildGameConnectionInfoPayload(lobby *matchmaking_entities.MatchmakingLobby, matchID uuid.UUID) map[string]interface{} {
+	matchCode := strings.ToUpper(matchID.String()[:8])
+	deepLink := fmt.Sprintf("leetgaming://matches/%s/join?code=%s", matchID.String(), matchCode)
+
+	if lobby != nil {
+		if lobby.Metadata == nil {
+			lobby.Metadata = make(map[string]any)
+		}
+		lobby.Metadata["match_code"] = matchCode
+		lobby.Metadata["deep_link"] = deepLink
+	}
+
+	return map[string]interface{}{
+		"lobby_id":     lobby.ID.String(),
+		"match_id":     matchID.String(),
+		"game_id":      lobby.GameID,
+		"region":       lobby.Region,
+		"server_url":   fmt.Sprintf("https://join.leetgaming.pro/matches/%s", matchID.String()),
+		"port":         27015,
+		"passcode":     matchCode,
+		"qr_code_data": deepLink,
+		"deep_link":    deepLink,
+		"instructions": "Open the match link or scan the QR code to join the server.",
+	}
 }

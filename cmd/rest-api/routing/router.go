@@ -387,9 +387,14 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 
 	// Prize Pool Lobby API
 	r.HandleFunc("/api/lobbies", lobbyController.CreateLobbyHandler(ctx)).Methods("POST")
+	r.HandleFunc("/api/lobbies/{lobby_id}", lobbyController.GetLobbyHandler(ctx)).Methods("GET")
 	r.HandleFunc("/api/lobbies/{lobby_id}/join", lobbyController.JoinLobbyHandler(ctx)).Methods("POST")
 	r.HandleFunc("/api/lobbies/{lobby_id}/leave", lobbyController.LeaveLobbyHandler(ctx)).Methods("DELETE")
 	r.HandleFunc("/api/lobbies/{lobby_id}/ready", lobbyController.SetPlayerReadyHandler(ctx)).Methods("PUT")
+	r.HandleFunc("/api/lobbies/{lobby_id}/commitments", lobbyController.GetCommitmentSummaryHandler(ctx)).Methods("GET")
+	r.HandleFunc("/api/lobbies/{lobby_id}/commitments/confirm", lobbyController.ConfirmReadinessHandler(ctx)).Methods("POST")
+	r.HandleFunc("/api/lobbies/{lobby_id}/commitments/decline", lobbyController.DeclineReadinessHandler(ctx)).Methods("POST")
+	r.HandleFunc("/api/lobbies/{lobby_id}/connection-info", lobbyController.GetGameConnectionInfoHandler(ctx)).Methods("GET")
 	r.HandleFunc("/api/lobbies/{lobby_id}/start", lobbyController.StartMatchHandler(ctx)).Methods("POST")
 	r.HandleFunc("/api/lobbies/{lobby_id}/invite", lobbyController.InviteToLobbyHandler(ctx)).Methods("POST")
 	r.HandleFunc("/api/lobbies/{lobby_id}", lobbyController.CancelLobbyHandler(ctx)).Methods("DELETE")

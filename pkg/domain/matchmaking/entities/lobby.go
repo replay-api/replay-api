@@ -51,6 +51,7 @@ type MatchmakingLobby struct {
 	ReadyCheckEnd    *time.Time    `json:"ready_check_end,omitempty" bson:"ready_check_end,omitempty"`
 	MatchID          *uuid.UUID    `json:"match_id,omitempty" bson:"match_id,omitempty"`
 	CancelReason     string        `json:"cancel_reason,omitempty" bson:"cancel_reason,omitempty"`
+	Metadata         map[string]any `json:"metadata,omitempty" bson:"metadata,omitempty"`
 	
 	// Settings
 	AutoFill         bool          `json:"auto_fill" bson:"auto_fill"`         // Fill empty slots with matchmaking
@@ -105,6 +106,7 @@ func NewMatchmakingLobby(
 		MaxPlayers:       maxPlayers,
 		PlayerSlots:      slots,
 		Status:           LobbyStatusOpen,
+		Metadata:         map[string]any{},
 		AutoFill:         autoFill,
 		InviteOnly:       inviteOnly,
 		ReadyTimeout:     60 * time.Second,

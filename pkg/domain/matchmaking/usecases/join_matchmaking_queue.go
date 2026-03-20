@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"sort"
 	"time"
 
 	"github.com/google/uuid"
@@ -257,8 +258,10 @@ func (uc *JoinMatchmakingQueueUseCase) tryMatch(ctx context.Context, newSession 
 	}
 
 	const maxMMRDelta = 500
-	var bestMatch *matchmaking_entities.MatchmakingSession
-	bestDelta := math.MaxInt32
+	teamFormat := getSessionTeamFormat(newSession)
+	requiredPlayers := teamFormat.GetTotalPlayers()
+	selectedSessions := []*matchmaking_entities.MatchmakingSession{newSession}
+	compatibleCandidates := make([]*matchmaking_entities.MatchmakingSession, 0, len(candidates))
 
 	for _, candidate := range candidates {
 		if candidate.ID == newSession.ID {
@@ -267,28 +270,78 @@ func (uc *JoinMatchmakingQueueUseCase) tryMatch(ctx context.Context, newSession 
 		if candidate.PlayerID == newSession.PlayerID {
 			continue
 		}
+		if getSessionTeamFormat(candidate) != teamFormat {
+			continue
+		}
 		delta := int(math.Abs(float64(candidate.PlayerMMR - newSession.PlayerMMR)))
-		if delta <= maxMMRDelta && delta < bestDelta {
-			bestMatch = candidate
-			bestDelta = delta
+		if delta <= maxMMRDelta {
+			compatibleCandidates = append(compatibleCandidates, candidate)
 		}
 	}
 
-	if bestMatch == nil {
-		slog.Info("tryMatch: no compatible match found yet",
+	sort.SliceStable(compatibleCandidates, func(i, j int) bool {
+		leftDelta := math.Abs(float64(compatibleCandidates[i].PlayerMMR - newSession.PlayerMMR))
+		rightDelta := math.Abs(float64(compatibleCandidates[j].PlayerMMR - newSession.PlayerMMR))
+		if leftDelta == rightDelta {
+			return compatibleCandidates[i].QueuedAt.Before(compatibleCandidates[j].QueuedAt)
+		}
+		return leftDelta < rightDelta
+	})
+
+	for _, candidate := range compatibleCandidates {
+		if len(selectedSessions) >= requiredPlayers {
+			break
+		}
+		selectedSessions = append(selectedSessions, candidate)
+	}
+
+	if len(selectedSessions) < requiredPlayers {
+		slog.Info("tryMatch: insufficient compatible players for team format",
 			"session_id", newSession.ID,
 			"player_id", newSession.PlayerID,
-			"candidates", len(candidates))
+			"team_format", teamFormat,
+			"required_players", requiredPlayers,
+			"compatible_candidates", len(compatibleCandidates)+1)
 		return
 	}
 
-	slog.Info("tryMatch: match found!",
-		"session_a", newSession.ID, "player_a", newSession.PlayerID,
-		"session_b", bestMatch.ID, "player_b", bestMatch.PlayerID,
-		"mmr_delta", bestDelta)
+	playerIDs := make([]uuid.UUID, 0, len(selectedSessions))
+	readyCheckPlayers := make([]string, 0, len(selectedSessions))
+	playerPayloads := make([]map[string]interface{}, 0, len(selectedSessions))
+	playerSlots := make([]matchmaking_entities.PlayerSlot, 0, len(selectedSessions))
+	avgMMR := 0
+	now := time.Now().UTC()
+
+	for index, session := range selectedSessions {
+		displayName := fmt.Sprintf("Player %d", index+1)
+		playerIDs = append(playerIDs, session.PlayerID)
+		readyCheckPlayers = append(readyCheckPlayers, session.PlayerID.String())
+		playerPayloads = append(playerPayloads, map[string]interface{}{
+			"player_id":    session.PlayerID.String(),
+			"display_name": displayName,
+			"status":       "pending",
+			"mmr":          session.PlayerMMR,
+			"slot":         index + 1,
+		})
+		playerSlots = append(playerSlots, matchmaking_entities.PlayerSlot{
+			SlotNumber: index + 1,
+			PlayerID:   &session.PlayerID,
+			IsReady:    false,
+			JoinedAt:   now,
+			MMR:        &session.PlayerMMR,
+		})
+		avgMMR += session.PlayerMMR
+	}
+
+	avgMMR = avgMMR / len(selectedSessions)
+
+	slog.Info("tryMatch: match group assembled",
+		"team_format", teamFormat,
+		"required_players", requiredPlayers,
+		"selected_players", len(selectedSessions),
+		"lobby_creator", newSession.PlayerID)
 
 	// Create a lobby for the matched players
-	matchID := uuid.New()
 	resourceOwner := shared.GetResourceOwner(ctx)
 
 	lobby := &matchmaking_entities.MatchmakingLobby{
@@ -298,79 +351,80 @@ func (uc *JoinMatchmakingQueueUseCase) tryMatch(ctx context.Context, newSession 
 		Region:           newSession.Preferences.Region,
 		Tier:             string(newSession.Preferences.Tier),
 		DistributionRule: matchmaking_vo.DistributionRuleWinnerTakesAll,
-		MaxPlayers:       2,
-		PlayerSlots: []matchmaking_entities.PlayerSlot{
-			{SlotNumber: 1, PlayerID: &newSession.PlayerID, IsReady: false, JoinedAt: time.Now().UTC(), MMR: &newSession.PlayerMMR},
-			{SlotNumber: 2, PlayerID: &bestMatch.PlayerID, IsReady: false, JoinedAt: time.Now().UTC(), MMR: &bestMatch.PlayerMMR},
+		MaxPlayers:       requiredPlayers,
+		PlayerSlots:      playerSlots,
+		Status:           matchmaking_entities.LobbyStatusReadyCheck,
+		Metadata: map[string]any{
+			"team_format":                 string(teamFormat),
+			"ready_check_players":         playerPayloads,
+			"ready_check_expected_players": requiredPlayers,
+			"declined_players":            []string{},
 		},
-		Status:       matchmaking_entities.LobbyStatusReadyCheck,
-		AutoFill:     false,
-		InviteOnly:   false,
-		ReadyTimeout: 30 * time.Second,
+		AutoFill:         false,
+		InviteOnly:       false,
+		ReadyTimeout:     30 * time.Second,
 	}
 
-	now := time.Now().UTC()
 	endTime := now.Add(lobby.ReadyTimeout)
 	lobby.ReadyCheckStart = &now
 	lobby.ReadyCheckEnd = &endTime
 
 	if err := uc.lobbyRepository.Save(ctx, lobby); err != nil {
-		slog.Error("tryMatch: failed to save lobby", "error", err, "match_id", matchID)
+		slog.Error("tryMatch: failed to save lobby", "error", err, "lobby_id", lobby.ID)
 		return
 	}
 
 	// Atomically claim both sessions with CAS to prevent double-booking
 	claimExtras := map[string]interface{}{
-		"match_id":                        lobby.ID,
-		"matched_at":                      now,
-		"metadata.lobby_id":               lobby.ID.String(),
-		"metadata.ready_check_started_at": now.Format(time.RFC3339),
-		"metadata.ready_check_players":    []string{newSession.PlayerID.String(), bestMatch.PlayerID.String()},
+		"match_id":                             lobby.ID,
+		"matched_at":                           now,
+		"metadata.lobby_id":                    lobby.ID.String(),
+		"metadata.ready_check_started_at":      now.Format(time.RFC3339),
+		"metadata.ready_check_players":         playerPayloads,
+		"metadata.team_format":                 string(teamFormat),
+		"metadata.ready_check_expected_players": requiredPlayers,
 	}
 
-	// Claim session A (the new session)
-	okA, err := uc.sessionRepository.CompareAndSetStatus(ctx, newSession.ID,
-		matchmaking_entities.StatusQueued, matchmaking_entities.StatusReadyCheck, claimExtras)
-	if err != nil || !okA {
-		slog.Warn("tryMatch: failed to claim session A (already claimed?)", "session_id", newSession.ID, "error", err)
-		_ = uc.lobbyRepository.Delete(ctx, lobby.ID)
-		return
-	}
-
-	// Claim session B (the best match)
-	okB, err := uc.sessionRepository.CompareAndSetStatus(ctx, bestMatch.ID,
-		matchmaking_entities.StatusQueued, matchmaking_entities.StatusReadyCheck, claimExtras)
-	if err != nil || !okB {
-		slog.Warn("tryMatch: failed to claim session B — rolling back session A", "session_id", bestMatch.ID, "error", err)
-		_, _ = uc.sessionRepository.CompareAndSetStatus(ctx, newSession.ID,
-			matchmaking_entities.StatusReadyCheck, matchmaking_entities.StatusQueued,
-			map[string]interface{}{"match_id": nil, "matched_at": nil, "metadata": nil})
-		_ = uc.lobbyRepository.Delete(ctx, lobby.ID)
-		return
+	claimedSessions := make([]*matchmaking_entities.MatchmakingSession, 0, len(selectedSessions))
+	for _, session := range selectedSessions {
+		ok, claimErr := uc.sessionRepository.CompareAndSetStatus(ctx, session.ID,
+			matchmaking_entities.StatusQueued, matchmaking_entities.StatusReadyCheck, claimExtras)
+		if claimErr != nil || !ok {
+			slog.Warn("tryMatch: failed to claim session for ready check",
+				"session_id", session.ID,
+				"player_id", session.PlayerID,
+				"error", claimErr)
+			for _, claimed := range claimedSessions {
+				_, _ = uc.sessionRepository.CompareAndSetStatus(ctx, claimed.ID,
+					matchmaking_entities.StatusReadyCheck, matchmaking_entities.StatusQueued,
+					map[string]interface{}{"match_id": nil, "matched_at": nil, "metadata": nil})
+			}
+			_ = uc.lobbyRepository.Delete(ctx, lobby.ID)
+			return
+		}
+		claimedSessions = append(claimedSessions, session)
 	}
 
 	slog.Info("tryMatch: lobby created, sessions updated to ready_check",
 		"lobby_id", lobby.ID,
-		"player_a", newSession.PlayerID,
-		"player_b", bestMatch.PlayerID)
+		"team_format", teamFormat,
+		"player_count", len(playerIDs))
 
 	// Notify matched players via WebSocket
 	if uc.wsHub != nil {
 		matchPayload := map[string]interface{}{
-			"lobby_id":   lobby.ID.String(),
-			"match_type": "ranked_1v1",
-			"game_id":    newSession.Preferences.GameID,
-			"region":     newSession.Preferences.Region,
-			"players": []map[string]interface{}{
-				{"player_id": newSession.PlayerID.String(), "mmr": newSession.PlayerMMR},
-				{"player_id": bestMatch.PlayerID.String(), "mmr": bestMatch.PlayerMMR},
-			},
+			"lobby_id":              lobby.ID.String(),
+			"match_type":            fmt.Sprintf("ranked_%s", teamFormat),
+			"game_id":               newSession.Preferences.GameID,
+			"region":                newSession.Preferences.Region,
+			"team_format":           string(teamFormat),
+			"players":               playerPayloads,
 			"ready_timeout_seconds": 30,
 		}
 
 		payloadBytes, _ := json.Marshal(matchPayload)
 
-		for _, playerID := range []uuid.UUID{newSession.PlayerID, bestMatch.PlayerID} {
+		for _, playerID := range playerIDs {
 			uc.wsHub.BroadcastToUser(playerID, "match_found", payloadBytes)
 		}
 	}
@@ -380,10 +434,10 @@ func (uc *JoinMatchmakingQueueUseCase) tryMatch(ctx context.Context, newSession 
 		lobbyEvent := &kafka.LobbyEvent{
 			LobbyID:   lobby.ID,
 			EventType: kafka.EventTypeLobbyCreated,
-			PlayerIDs: []uuid.UUID{newSession.PlayerID, bestMatch.PlayerID},
+			PlayerIDs: playerIDs,
 			GameType:  newSession.Preferences.GameID,
 			Region:    newSession.Preferences.Region,
-			AvgMMR:    (newSession.PlayerMMR + bestMatch.PlayerMMR) / 2,
+			AvgMMR:    avgMMR,
 		}
 		if err := uc.eventPublisher.PublishLobbyEvent(ctx, lobbyEvent); err != nil {
 			slog.Warn("tryMatch: failed to publish lobby event", "error", err)
@@ -398,6 +452,7 @@ func (uc *JoinMatchmakingQueueUseCase) tryMatch(ctx context.Context, newSession 
 func (uc *JoinMatchmakingQueueUseCase) estimateWaitTime(ctx context.Context, cmd matchmaking_in.JoinMatchmakingQueueCommand) int {
 	const defaultWait = 120 // 2 minutes if nobody else is queued
 	const fastWait = 10     // 10 seconds when match is likely
+	const moderateWait = 45
 
 	status := matchmaking_entities.StatusQueued
 	candidates, err := uc.sessionRepository.GetActiveSessions(ctx, matchmaking_out.SessionFilters{
@@ -420,8 +475,39 @@ func (uc *JoinMatchmakingQueueUseCase) estimateWaitTime(ctx context.Context, cmd
 		}
 	}
 
-	if count >= 1 {
+	requiredOpponents := cmd.TeamFormat.GetTotalPlayers() - 1
+	halfway := requiredOpponents / 2
+
+	if count >= requiredOpponents {
 		return fastWait
 	}
+	if halfway > 0 && count >= halfway {
+		return moderateWait
+	}
 	return defaultWait
+}
+
+func getSessionTeamFormat(session *matchmaking_entities.MatchmakingSession) matchmaking_in.TeamFormat {
+	if session == nil || session.Metadata == nil {
+		return matchmaking_in.TeamFormat1v1
+	}
+
+	value, ok := session.Metadata["team_format"]
+	if !ok {
+		return matchmaking_in.TeamFormat1v1
+	}
+
+	switch typed := value.(type) {
+	case matchmaking_in.TeamFormat:
+		if typed.IsValid() {
+			return typed
+		}
+	case string:
+		format := matchmaking_in.TeamFormat(typed)
+		if format.IsValid() {
+			return format
+		}
+	}
+
+	return matchmaking_in.TeamFormat1v1
 }
