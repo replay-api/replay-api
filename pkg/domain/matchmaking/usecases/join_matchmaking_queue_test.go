@@ -21,7 +21,9 @@ func TestJoinMatchmakingQueue_Success(t *testing.T) {
 	usecase := matchmaking_usecases.NewJoinMatchmakingQueueUseCase(
 		mockBilling,
 		mockSessionRepo,
+		nil, // lobbyRepository - not needed for this test
 		nil, // eventPublisher - not needed for this test
+		nil, // wsHub - not needed for this test
 	)
 
 	ctx := context.Background()
@@ -44,6 +46,9 @@ func TestJoinMatchmakingQueue_Success(t *testing.T) {
 
 	// mock no existing sessions
 	mockSessionRepo.On("GetByPlayerID", mock.Anything, playerID).Return([]*matchmaking_entities.MatchmakingSession{}, nil)
+
+	// mock wait time estimation (GetActiveSessions called internally)
+	mockSessionRepo.On("GetActiveSessions", mock.Anything, mock.Anything).Return([]*matchmaking_entities.MatchmakingSession{}, nil)
 
 	// mock billing validation
 	mockBilling.On("Validate", mock.Anything, mock.Anything).Return(nil)
@@ -72,7 +77,9 @@ func TestJoinMatchmakingQueue_Unauthenticated(t *testing.T) {
 	usecase := matchmaking_usecases.NewJoinMatchmakingQueueUseCase(
 		mockBilling,
 		mockSessionRepo,
+		nil, // lobbyRepository - not needed for this test
 		nil, // eventPublisher
+		nil, // wsHub
 	)
 
 	ctx := context.Background()
@@ -100,7 +107,9 @@ func TestJoinMatchmakingQueue_AlreadyInQueue(t *testing.T) {
 	usecase := matchmaking_usecases.NewJoinMatchmakingQueueUseCase(
 		mockBilling,
 		mockSessionRepo,
+		nil, // lobbyRepository - not needed for this test
 		nil, // eventPublisher
+		nil, // wsHub
 	)
 
 	ctx := context.Background()

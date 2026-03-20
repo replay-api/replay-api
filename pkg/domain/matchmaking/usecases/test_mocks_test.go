@@ -79,6 +79,27 @@ func (m *MockLobbyRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	return args.Error(0)
 }
 
+func (m *MockLobbyRepository) FindExpiredReadyChecks(ctx context.Context) ([]*matchmaking_entities.MatchmakingLobby, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*matchmaking_entities.MatchmakingLobby), args.Error(1)
+}
+
+func (m *MockLobbyRepository) SetPlayerReadyAtomic(ctx context.Context, lobbyID uuid.UUID, playerID uuid.UUID, isReady bool) (*matchmaking_entities.MatchmakingLobby, error) {
+	args := m.Called(ctx, lobbyID, playerID, isReady)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*matchmaking_entities.MatchmakingLobby), args.Error(1)
+}
+
+func (m *MockLobbyRepository) TransitionStatus(ctx context.Context, lobbyID uuid.UUID, expectedStatus, newStatus matchmaking_entities.LobbyStatus, extraUpdates map[string]interface{}) (bool, error) {
+	args := m.Called(ctx, lobbyID, expectedStatus, newStatus, extraUpdates)
+	return args.Bool(0), args.Error(1)
+}
+
 // MockMatchmakingSessionRepository implements matchmaking_out.MatchmakingSessionRepository
 type MockMatchmakingSessionRepository struct {
 	mock.Mock
@@ -126,6 +147,11 @@ func (m *MockMatchmakingSessionRepository) Delete(ctx context.Context, id uuid.U
 func (m *MockMatchmakingSessionRepository) DeleteExpired(ctx context.Context) (int64, error) {
 	args := m.Called(ctx)
 	return args.Get(0).(int64), args.Error(1)
+}
+
+func (m *MockMatchmakingSessionRepository) CompareAndSetStatus(ctx context.Context, id uuid.UUID, expectedStatus, newStatus matchmaking_entities.SessionStatus, extraUpdates map[string]interface{}) (bool, error) {
+	args := m.Called(ctx, id, expectedStatus, newStatus, extraUpdates)
+	return args.Bool(0), args.Error(1)
 }
 
 func (m *MockMatchmakingSessionRepository) Search(ctx context.Context, s shared.Search) ([]matchmaking_entities.MatchmakingSession, error) {
