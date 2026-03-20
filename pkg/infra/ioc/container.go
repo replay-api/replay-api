@@ -147,6 +147,10 @@ import (
 	iam_use_cases "github.com/replay-api/replay-api/pkg/domain/iam/use_cases"
 	replay_use_cases "github.com/replay-api/replay-api/pkg/domain/replay/use_cases"
 	steam_use_cases "github.com/replay-api/replay-api/pkg/domain/steam/use_cases"
+
+	// post-quantum cryptography
+	security_out "github.com/replay-api/replay-api/pkg/domain/security/ports/out"
+	pq_crypto "github.com/replay-api/replay-api/pkg/infra/crypto/pq"
 )
 
 type ContainerBuilder struct {
@@ -1435,8 +1439,10 @@ func (b *ContainerBuilder) WithKafkaConsumer() *ContainerBuilder {
 }
 
 func (b *ContainerBuilder) WithKafka() *ContainerBuilder {
-	// Dummy method for RPC API - Kafka is disabled for local development
-	return b
+	// Register the same publisher bindings used by other services. They degrade
+	// to no-op adapters when Kafka is not configured, which keeps RPC startup
+	// working in local environments.
+	return b.WithEventPublisher()
 }
 
 func (b *ContainerBuilder) WithEventPublisher() *ContainerBuilder {
@@ -1486,7 +1492,7 @@ func (b *ContainerBuilder) WithEventPublisher() *ContainerBuilder {
 		err := c.Resolve(&eventPublisher)
 		if err != nil {
 			slog.Warn("Failed to resolve EventPublisher for ReplayEventPublisher adapter - continuing without it", "err", err)
-			return nil, nil
+			return kafka.NewReplayEventPublisherAdapter(nil), nil
 		}
 		return kafka.NewReplayEventPublisherAdapter(eventPublisher), nil
 	})
@@ -2198,6 +2204,28 @@ func InjectMongoDB(c container.Container) error {
 
 	if err != nil {
 		slog.Error("Failed to load PasswordHasher.", "err", err)
+		panic(err)
+	}
+
+	// Post-quantum cryptography — NIST FIPS 203/204/205
+	// ML-KEM-768 (FIPS 203): replaces ECDH/RSA key exchange for inter-service session keys
+	// and score attestation session key establishment.
+	err = c.Singleton(func() (security_out.PostQuantumKeyEncapsulator, error) {
+		return pq_crypto.NewMlKemAdapter(), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load PostQuantumKeyEncapsulator (ML-KEM-768).", "err", err)
+		panic(err)
+	}
+
+	// ML-DSA-65 (FIPS 204): primary post-quantum signer for score attestations & prize pools.
+	err = c.Singleton(func() (security_out.PostQuantumSigner, error) {
+		return pq_crypto.NewMlDsaAdapter(), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load PostQuantumSigner (ML-DSA-65).", "err", err)
 		panic(err)
 	}
 
@@ -3646,7 +3674,7 @@ func InjectMongoDB(c container.Container) error {
 		var kafkaClient *kafka.Client
 		if err := c.Resolve(&kafkaClient); err != nil {
 			slog.Warn("Kafka client not available for ExchangeEventPublisher — exchange events will not be published", "err", err)
-			return nil, nil
+			return kafka.NewExchangeEventPublisherAdapter(nil), nil
 		}
 		return kafka.NewExchangeEventPublisherAdapter(kafkaClient), nil
 	})
@@ -4148,7 +4176,7 @@ func InjectMongoDB(c container.Container) error {
 
 		if err := c.Resolve(&eventPub); err != nil {
 			slog.Warn("EventPublisher not available for TournamentEventPublisher", "err", err)
-			return nil, nil
+			return kafka.NewTournamentEventPublisherAdapter(nil), nil
 		}
 
 		return kafka.NewTournamentEventPublisherAdapter(eventPub), nil
@@ -4783,11 +4811,11 @@ func InjectMongoDB(c container.Container) error {
 
 		if err := c.Resolve(&mongoClient); err != nil {
 			slog.Warn("MongoDB not available for TeamNameResolver", "err", err)
-			return nil, nil
+			return noopTeamResolver{}, nil
 		}
 		if err := c.Resolve(&config); err != nil {
 			slog.Warn("Config not available for TeamNameResolver", "err", err)
-			return nil, nil
+			return noopTeamResolver{}, nil
 		}
 
 		db := mongoClient.Database(config.MongoDB.DBName)
