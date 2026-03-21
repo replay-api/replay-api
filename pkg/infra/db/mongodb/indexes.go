@@ -149,7 +149,7 @@ func GetAllIndexes() []IndexDefinition {
 			Collection: "wallets",
 			Name:       "idx_wallets_user_id",
 			Keys: bson.D{
-				{Key: "user_id", Value: 1},
+				{Key: "baseentity.resource_owner.user_id", Value: 1},
 			},
 			Options: options.Index().
 				SetUnique(true), // One wallet per user
