@@ -49,3 +49,27 @@ type PostQuantumSigner interface {
 	// Algorithm returns the human-readable algorithm identifier.
 	Algorithm() string
 }
+
+// PostQuantumArchivalSigner is a distinct port for cold-path, archival-only
+// post-quantum signing (SLH-DSA-SHA2-256s, NIST FIPS 205).
+//
+// Registered separately from PostQuantumSigner to allow both ML-DSA-65 and
+// SLH-DSA-SHA2-256s to coexist in the IoC container without interface collision.
+//
+// IMPORTANT: SLH-DSA signing takes ~1 s per operation. Only inject this on
+// cold-path archival or audit-log call sites — never on hot request paths.
+type PostQuantumArchivalSigner interface {
+	// GenerateKeyPair produces a fresh signing key pair.
+	// Returns (verificationKeyBytes, signingKeyBytes) i.e. (pubkey, privkey).
+	GenerateKeyPair(ctx context.Context) (verifyKey, signingKey []byte, err error)
+
+	// Sign produces a post-quantum signature over the payload using the private key.
+	Sign(ctx context.Context, payload, signingKey []byte) (signature []byte, err error)
+
+	// Verify returns true iff the signature was produced by the holder of the
+	// private key corresponding to verifyKey over the exact payload.
+	Verify(ctx context.Context, payload, signature, verifyKey []byte) bool
+
+	// Algorithm returns the human-readable algorithm identifier.
+	Algorithm() string
+}

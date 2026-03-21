@@ -2229,6 +2229,18 @@ func InjectMongoDB(c container.Container) error {
 		panic(err)
 	}
 
+	// SLH-DSA-SHA2-256s (FIPS 205): stateless hash-based archival signer.
+	// Registered as PostQuantumArchivalSigner to avoid interface key collision with ML-DSA-65.
+	// Use only on cold-path archival / audit-log call sites — signing takes ~1 s.
+	err = c.Singleton(func() (security_out.PostQuantumArchivalSigner, error) {
+		return pq_crypto.NewSlhDsaAdapter(), nil
+	})
+
+	if err != nil {
+		slog.Error("Failed to load PostQuantumArchivalSigner (SLH-DSA-SHA2-256s).", "err", err)
+		panic(err)
+	}
+
 	// Email verification infrastructure
 	err = c.Singleton(func() (auth_out.EmailVerificationRepository, error) {
 		var client *mongo.Client
