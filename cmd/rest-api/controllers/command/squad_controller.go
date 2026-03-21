@@ -41,12 +41,14 @@ func (ctrl *SquadController) CreateSquadHandler(apiContext context.Context) http
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Methods", "POST")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Content-Type", "application/json")
 
 		var createSquadCommand squad_in.CreateOrUpdatedSquadCommand
 		err := json.NewDecoder(r.Body).Decode(&createSquadCommand)
 		if err != nil {
 			slog.ErrorContext(r.Context(), "Failed to decode request", "err", err)
 			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid request body"})
 			return
 		}
 
@@ -56,34 +58,54 @@ func (ctrl *SquadController) CreateSquadHandler(apiContext context.Context) http
 				"error", err,
 				"squad_name", createSquadCommand.Name,
 				"slug_uri", createSquadCommand.SlugURI)
-			if err.Error() == "Unauthorized" {
-				w.WriteHeader(http.StatusUnauthorized)
-			} else if strings.Contains(err.Error(), "already exists") {
-				w.WriteHeader(http.StatusConflict)
-				errorJSON := map[string]string{
-					"code":  "CONFLICT",
-					"error": "A squad with this identifier already exists",
-				}
 
-				err = json.NewEncoder(w).Encode(errorJSON)
-				if err != nil {
-					slog.ErrorContext(r.Context(), "Failed to encode response", "error", err)
-				}
-			} else if strings.Contains(err.Error(), "not found") {
+			errMsg := err.Error()
+
+			if errMsg == "Unauthorized" || strings.Contains(errMsg, "unauthorized") {
+				w.WriteHeader(http.StatusUnauthorized)
+				_ = json.NewEncoder(w).Encode(map[string]string{
+					"code":  "UNAUTHORIZED",
+					"error": "Authentication required",
+				})
+			} else if strings.Contains(errMsg, "already exists") {
+				w.WriteHeader(http.StatusConflict)
+				_ = json.NewEncoder(w).Encode(map[string]string{
+					"code":  "CONFLICT",
+					"error": "A squad with this name or URL already exists",
+				})
+			} else if strings.Contains(errMsg, "not found") {
 				w.WriteHeader(http.StatusNotFound)
-				errorJSON := map[string]string{
+				_ = json.NewEncoder(w).Encode(map[string]string{
 					"code":  "NOT_FOUND",
 					"error": "The requested resource was not found",
-				}
-
-				err = json.NewEncoder(w).Encode(errorJSON)
-				if err != nil {
-					slog.ErrorContext(r.Context(), "Failed to encode response", "error", err)
-				}
+				})
+			} else if strings.Contains(errMsg, "slugURI") || strings.Contains(errMsg, "slug") {
+				w.WriteHeader(http.StatusBadRequest)
+				_ = json.NewEncoder(w).Encode(map[string]string{
+					"code":  "INVALID_SLUG",
+					"error": errMsg,
+				})
+			} else if strings.Contains(errMsg, "exceeds the limit") || strings.Contains(errMsg, "subscription") || strings.Contains(errMsg, "billing") || strings.Contains(errMsg, "plan") {
+				w.WriteHeader(http.StatusPaymentRequired)
+				_ = json.NewEncoder(w).Encode(map[string]string{
+					"code":  "SUBSCRIPTION_LIMIT",
+					"error": "Squad creation limit reached for your current plan. Please upgrade your subscription.",
+				})
 			} else {
 				w.WriteHeader(http.StatusInternalServerError)
+				_ = json.NewEncoder(w).Encode(map[string]string{
+					"code":  "INTERNAL_ERROR",
+					"error": "An unexpected error occurred while creating the squad. Please try again.",
+				})
 			}
 			return
+		}
+
+		w.WriteHeader(http.StatusCreated)
+		if err = json.NewEncoder(w).Encode(squad); err != nil {
+			slog.ErrorContext(r.Context(), "Failed to encode response",
+				"error", err,
+				"squad_id", squad.ID)
 		}
 
 		slog.InfoContext(r.Context(), "Squad created successfully",
@@ -92,17 +114,6 @@ func (ctrl *SquadController) CreateSquadHandler(apiContext context.Context) http
 			"slug_uri", squad.SlugURI,
 			"group_id", squad.ResourceOwner.GroupID,
 			"user_id", r.Context().Value(shared.UserIDKey))
-
-		err = json.NewEncoder(w).Encode(squad)
-		if err != nil {
-			slog.ErrorContext(r.Context(), "Failed to encode response",
-				"error", err,
-				"squad_id", squad.ID)
-			return
-		}
-
-		w.WriteHeader(http.StatusCreated)
-		w.Header().Set("Content-Type", "application/json")
 	}
 }
 
