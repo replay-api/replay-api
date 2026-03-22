@@ -42,6 +42,13 @@ func (m *ResourceContextMiddleware) Handler(next http.Handler) http.Handler {
 
 		rid := r.Header.Get(controllers.ResourceOwnerIDHeaderKey)
 		if rid == "" {
+			// WebSocket connections cannot send custom headers from browsers.
+			// For /ws/ paths, accept RID from query parameter as fallback.
+			if strings.HasPrefix(r.URL.Path, "/ws/") {
+				rid = r.URL.Query().Get("rid")
+			}
+		}
+		if rid == "" {
 			// Check if this is a replay upload request - allow guest uploads
 			isReplayUpload := strings.Contains(r.URL.Path, "/games/") && strings.Contains(r.URL.Path, "/replays") && r.Method == "POST" && !strings.Contains(r.URL.Path, "/replays/")
 			slog.InfoContext(ctx, "checking replay upload", "path", r.URL.Path, "method", r.Method, "isReplayUpload", isReplayUpload)
