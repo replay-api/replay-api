@@ -61,3 +61,25 @@ type ShareTokenCommand interface {
 	// UpdateToken updates share token properties
 	Update(ctx context.Context, token *replay_entity.ShareToken) error
 }
+
+// --- Chunked Upload Commands ---
+
+// InitiateChunkedUploadCommand starts a new chunked upload session for a large replay file.
+type InitiateChunkedUploadCommand interface {
+	Exec(ctx context.Context, gameID string, fileName string, fileSize int64, opts *replay_entity.ReplayFileOptions) (*replay_entity.ChunkedUpload, error)
+}
+
+// UploadChunkCommand uploads a single chunk of a replay file.
+type UploadChunkCommand interface {
+	Exec(ctx context.Context, uploadID uuid.UUID, partNumber int32, data io.ReadSeeker) (*replay_entity.ChunkResult, error)
+}
+
+// CompleteChunkedUploadCommand finalizes a chunked upload and triggers processing.
+type CompleteChunkedUploadCommand interface {
+	Exec(ctx context.Context, uploadID uuid.UUID) (*replay_entity.ReplayFile, error)
+}
+
+// AbortChunkedUploadCommand cancels an in-progress chunked upload and cleans up.
+type AbortChunkedUploadCommand interface {
+	Exec(ctx context.Context, uploadID uuid.UUID) error
+}

@@ -88,8 +88,9 @@ func (ctlr *FileController) UploadHandler(apiContext context.Context) http.Handl
 		// CORS headers are handled by middleware - don't override them here
 		// w.Header().Set("Access-Control-Allow-Methods", "POST")
 		// w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		// r.Body = http.MaxBytesReader(w, r.Body, 32<<57)
-		_ = r.ParseMultipartForm(32 << 50)
+		// Limit memory buffering to 10MB; excess spills to disk temp files
+		r.Body = http.MaxBytesReader(w, r.Body, 500<<20) // 500MB max body
+		_ = r.ParseMultipartForm(10 << 20)
 
 		reqContext := context.WithValue(r.Context(), shared.GameIDParamKey, r.FormValue("game_id"))
 

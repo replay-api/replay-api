@@ -73,7 +73,47 @@ func EnvironmentConfig() (common.Config, error) {
 			Certificate: os.Getenv("MONGO_CERT"),
 			DBName:      os.Getenv("MONGODB_DATABASE"),
 		},
+		S3: buildS3Config(),
 	}
 
 	return config, nil
+}
+
+// buildS3Config constructs S3-compatible storage configuration from environment variables.
+// Uses MinIO in local/Kind environments, real S3 in production.
+func buildS3Config() common.S3Config {
+	endpoint := os.Getenv("S3_ENDPOINT")
+	if endpoint == "" {
+		endpoint = "http://minio-service:9000" // default for Kind cluster
+	}
+
+	accessKey := os.Getenv("S3_ACCESS_KEY")
+	if accessKey == "" {
+		accessKey = "leetgaming"
+	}
+
+	secretKey := os.Getenv("S3_SECRET_KEY")
+	if secretKey == "" {
+		secretKey = "leetgaming-dev-secret"
+	}
+
+	bucket := os.Getenv("S3_BUCKET")
+	if bucket == "" {
+		bucket = "replays"
+	}
+
+	region := os.Getenv("S3_REGION")
+	if region == "" {
+		region = "us-east-1"
+	}
+
+	return common.S3Config{
+		Endpoint:       endpoint,
+		AccessKeyID:    accessKey,
+		SecretAccessKey: secretKey,
+		Bucket:         bucket,
+		Region:         region,
+		UsePathStyle:   true, // Required for MinIO
+		S3Endpoint:     endpoint,
+	}
 }

@@ -97,7 +97,10 @@ func (usecase *ProcessReplayFileUseCase) Exec(ctx context.Context, replayFileID 
 
 	entitiesMap := make(map[shared.ResourceType][]interface{})
 
-	gameEvents := make([]*e.GameEvent, 0)
+	// Batch event buffer — flush every CHUNK_SIZE events to avoid unbounded memory
+	const eventBatchSize = 500
+	var eventBatch []*e.GameEvent
+	var totalEventsWritten int
 	
 	// Store final scoreboard data when captured
 	var finalScoreboard *FinalScoreboardPayload
@@ -110,7 +113,18 @@ func (usecase *ProcessReplayFileUseCase) Exec(ctx context.Context, replayFileID 
 			slog.InfoContext(ctx, "event", "event.Type", event.Type)
 			match.EventCount++
 
-			gameEvents = append(gameEvents, event)
+			// Accumulate event for batch write
+			eventBatch = append(eventBatch, event)
+
+			// Flush batch when full
+			if len(eventBatch) >= eventBatchSize {
+				if flushErr := usecase.EventWriter.CreateMany(ctx, eventBatch); flushErr != nil {
+					slog.ErrorContext(ctx, "error flushing event batch", "err", flushErr, "batchSize", len(eventBatch))
+				} else {
+					totalEventsWritten += len(eventBatch)
+				}
+				eventBatch = make([]*e.GameEvent, 0, eventBatchSize)
+			}
 
 			// Extract match details from MatchStart event
 			if event.Type == fps_events.Event_MatchStartID {
@@ -163,6 +177,17 @@ func (usecase *ProcessReplayFileUseCase) Exec(ctx context.Context, replayFileID 
 				entitiesMap[k] = append(entitiesMap[k], v...)
 			}
 		}
+
+		// Flush remaining events
+		if len(eventBatch) > 0 {
+			if flushErr := usecase.EventWriter.CreateMany(ctx, eventBatch); flushErr != nil {
+				slog.ErrorContext(ctx, "error flushing final event batch", "err", flushErr, "batchSize", len(eventBatch))
+			} else {
+				totalEventsWritten += len(eventBatch)
+			}
+			eventBatch = nil
+		}
+		slog.InfoContext(ctx, "total events written to DB", "totalEventsWritten", totalEventsWritten)
 	}()
 
 	err = usecase.Parser.Parse(ctx, match.ID, file, eventsChan)
@@ -252,12 +277,7 @@ func (usecase *ProcessReplayFileUseCase) Exec(ctx context.Context, replayFileID 
 		return nil, err
 	}
 
-	err = usecase.EventWriter.CreateMany(ctx, gameEvents)
-
-	if err != nil {
-		slog.ErrorContext(ctx, "error writing GameEvents", "err", err, "len(gameEvents)", len(gameEvents))
-		return nil, err
-	}
+	// Events are already written in batches during parsing (streaming writes)
 
 	// Update Metadata Status
 	replayFile.Status = e.ReplayFileStatusCompleted

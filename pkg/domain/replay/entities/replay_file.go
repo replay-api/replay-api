@@ -9,11 +9,13 @@ import (
 type ReplayFileStatus string
 
 const (
-	ReplayFileStatusPending    ReplayFileStatus = "Pending"
-	ReplayFileStatusProcessing ReplayFileStatus = "Processing"
-	ReplayFileStatusFailed     ReplayFileStatus = "Failed"
-	ReplayFileStatusCompleted  ReplayFileStatus = "Completed"
-	ReplayFileStatusDeleted    ReplayFileStatus = "Deleted"
+	ReplayFileStatusPending     ReplayFileStatus = "Pending"
+	ReplayFileStatusProcessing  ReplayFileStatus = "Processing"
+	ReplayFileStatusParsed      ReplayFileStatus = "Parsed"      // Demo parsed, events written, awaiting aggregation
+	ReplayFileStatusAggregating ReplayFileStatus = "Aggregating"  // Computing match/player stats
+	ReplayFileStatusFailed      ReplayFileStatus = "Failed"
+	ReplayFileStatusCompleted   ReplayFileStatus = "Completed"
+	ReplayFileStatusDeleted     ReplayFileStatus = "Deleted"
 )
 
 // ReplayFileOptions contains optional parameters for creating a replay file

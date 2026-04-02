@@ -289,6 +289,18 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 	// Replay API (upload)
 	r.HandleFunc(Replay, fileController.UploadHandler(ctx)).Methods("POST")
 	r.HandleFunc(Replay, OptionsHandler).Methods("OPTIONS") // TODO: remover
+
+	// Chunked upload API (for large files >4.5MB)
+	chunkedUploadController := cmd_controllers.NewChunkedUploadController(container)
+	r.HandleFunc("/games/{game_id}/replays/upload/init", chunkedUploadController.InitiateUploadHandler(ctx)).Methods("POST")
+	r.HandleFunc("/games/{game_id}/replays/upload/init", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/games/{game_id}/replays/upload/{upload_id}/parts/{part_number}", chunkedUploadController.UploadChunkHandler(ctx)).Methods("PUT")
+	r.HandleFunc("/games/{game_id}/replays/upload/{upload_id}/parts/{part_number}", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/games/{game_id}/replays/upload/{upload_id}/complete", chunkedUploadController.CompleteUploadHandler(ctx)).Methods("POST")
+	r.HandleFunc("/games/{game_id}/replays/upload/{upload_id}/complete", OptionsHandler).Methods("OPTIONS")
+	r.HandleFunc("/games/{game_id}/replays/upload/{upload_id}", chunkedUploadController.AbortUploadHandler(ctx)).Methods("DELETE")
+	r.HandleFunc("/games/{game_id}/replays/upload/{upload_id}", OptionsHandler).Methods("OPTIONS")
+
 	r.HandleFunc("/games/{game_id}/replays/{id}", replayFileQueryController.GetReplayFileHandler).Methods("GET")
 	r.HandleFunc("/games/{game_id}/replays/{id}", fileController.UpdateReplayMetadata(ctx)).Methods("PUT")
 	r.HandleFunc("/games/{game_id}/replays/{id}", fileController.DeleteReplayFile(ctx)).Methods("DELETE")

@@ -44,6 +44,53 @@ type ReplayFileContentWriter interface {
 	Put(createCtx context.Context, replayFileID uuid.UUID, reader io.ReadSeeker) (string, error)
 }
 
+// ChunkedUploadManager handles multipart/chunked uploads for large replay files.
+// Implementations map to S3 multipart upload API or equivalent.
+type ChunkedUploadManager interface {
+	// InitiateMultipartUpload starts a new chunked upload session.
+	// Returns an uploadID that must be used for subsequent part uploads.
+	InitiateMultipartUpload(ctx context.Context, replayFileID uuid.UUID) (uploadID string, err error)
+
+	// UploadPart uploads a single chunk. partNumber is 1-based.
+	// Returns an ETag identifying the uploaded part (needed for completion).
+	UploadPart(ctx context.Context, replayFileID uuid.UUID, uploadID string, partNumber int32, data io.ReadSeeker) (etag string, err error)
+
+	// CompleteMultipartUpload finalizes the upload, assembling all parts into the final object.
+	// parts must contain all previously uploaded part numbers and their ETags.
+	CompleteMultipartUpload(ctx context.Context, replayFileID uuid.UUID, uploadID string, parts []UploadCompletePart) (internalURI string, err error)
+
+	// AbortMultipartUpload cancels an in-progress upload and cleans up any uploaded parts.
+	AbortMultipartUpload(ctx context.Context, replayFileID uuid.UUID, uploadID string) error
+}
+
+// UploadCompletePart represents a completed part for multipart upload finalization.
+type UploadCompletePart struct {
+	PartNumber int32  `json:"part_number"`
+	ETag       string `json:"etag"`
+}
+
+// StreamingContentWriter extends ReplayFileContentWriter with non-seekable stream support.
+type StreamingContentWriter interface {
+	ReplayFileContentWriter
+	// PutStream uploads content from a non-seekable reader with known size.
+	PutStream(ctx context.Context, replayFileID uuid.UUID, reader io.Reader, size int64) (string, error)
+}
+
+// ChunkedUploadWriter persists chunked upload session state.
+type ChunkedUploadWriter interface {
+	Create(ctx context.Context, upload *replay_entity.ChunkedUpload) error
+	Update(ctx context.Context, upload *replay_entity.ChunkedUpload) error
+	Delete(ctx context.Context, uploadID uuid.UUID) error
+	// AddPart atomically appends a chunk result to the upload's parts list.
+	// Returns an error if the part number was already uploaded (duplicate guard).
+	AddPart(ctx context.Context, uploadID uuid.UUID, part replay_entity.ChunkResult) error
+}
+
+// ChunkedUploadReader retrieves chunked upload session state.
+type ChunkedUploadReader interface {
+	GetByID(ctx context.Context, uploadID uuid.UUID) (*replay_entity.ChunkedUpload, error)
+}
+
 type ShareTokenWriter interface {
 	Create(ctx context.Context, token *replay_entity.ShareToken) error
 	Update(ctx context.Context, token *replay_entity.ShareToken) error

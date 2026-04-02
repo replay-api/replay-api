@@ -37,10 +37,13 @@ type Config struct {
 }
 
 type S3Config struct {
-	S3Endpoint string
-	// AccessKeyID     string
-	Region string
-	Bucket string
+	Endpoint        string
+	AccessKeyID     string
+	SecretAccessKey  string
+	Region          string
+	Bucket          string
+	UsePathStyle    bool   // Required for MinIO compatibility
+	S3Endpoint      string // Deprecated: use Endpoint instead
 }
 
 type KafkaConfig struct {

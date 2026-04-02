@@ -18,6 +18,9 @@ import (
 	db "github.com/replay-api/replay-api/pkg/infra/db/mongodb"
 	"github.com/resource-ownership/go-mongodb/pkg/mongodb"
 
+	// object storage
+	storage "github.com/replay-api/replay-api/pkg/infra/storage"
+
 	// messageBroker (kafka/rabbit)
 	kafka "github.com/replay-api/replay-api/pkg/infra/kafka"
 
@@ -561,7 +564,14 @@ func (b *ContainerBuilder) WithInboundPorts() *ContainerBuilder {
 			return nil, err
 		}
 
-		return replay_use_cases.NewUploadAndProcessReplayFileUseCase(uploadReplayFileCommand, processReplayFileCommand, updateReplayFileHeaderCommand), nil
+		var metadataWriter replay_out.ReplayFileMetadataWriter
+		err = c.Resolve(&metadataWriter)
+		if err != nil {
+			slog.Error("Failed to resolve ReplayFileMetadataWriter for UploadAndProcessReplayFileCommand.", "err", err)
+			return nil, err
+		}
+
+		return replay_use_cases.NewUploadAndProcessReplayFileUseCase(uploadReplayFileCommand, processReplayFileCommand, updateReplayFileHeaderCommand, metadataWriter), nil
 	})
 
 	if err != nil {
@@ -1952,58 +1962,227 @@ func InjectMongoDB(c container.Container) error {
 	// 	panic(err)
 	// }
 
-	err = c.Singleton(func() (replay_out.ReplayFileContentWriter, error) {
-		var client *mongo.Client
-
-		err := c.Resolve(&client)
+	// S3-compatible storage adapter (MinIO in local/Kind, real S3 in production)
+	err = c.Singleton(func() (*storage.S3ContentAdapter, error) {
+		var cfg common.Config
+		err := c.Resolve(&cfg)
 		if err != nil {
-			slog.Error("Failed to resolve mongo.Client for ReplayFileContentWriter.", "err", err)
+			slog.Error("Failed to resolve config for S3ContentAdapter.", "err", err)
 			return nil, err
 		}
 
-		var config common.Config
-
-		err = c.Resolve(&config)
+		adapter, err := storage.NewS3ContentAdapter(cfg.S3)
 		if err != nil {
-			slog.Error("Failed to resolve config for replay_out.ReplayFileContentWriter.", "err", err)
+			slog.Error("Failed to create S3ContentAdapter.", "err", err)
 			return nil, err
 		}
 
-		// return s3.NewS3Adapter(config.S3), nil
-		// return local_files.NewLocalFileAdapter(), nil
-		return db.NewReplayFileContentRepository(client, config.MongoDB.DBName), nil
+		slog.Info("S3ContentAdapter initialized",
+			"endpoint", cfg.S3.Endpoint,
+			"bucket", cfg.S3.Bucket)
+		return adapter, nil
 	})
-
 	if err != nil {
-		slog.Error("Failed to load S3Adapter.", "err", err)
+		slog.Error("Failed to load S3ContentAdapter.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (replay_out.ReplayFileContentWriter, error) {
+		var adapter *storage.S3ContentAdapter
+		err := c.Resolve(&adapter)
+		if err != nil {
+			slog.Error("Failed to resolve S3ContentAdapter for ReplayFileContentWriter.", "err", err)
+			return nil, err
+		}
+		return adapter, nil
+	})
+	if err != nil {
+		slog.Error("Failed to load ReplayFileContentWriter.", "err", err)
 		panic(err)
 	}
 
 	err = c.Singleton(func() (replay_out.ReplayFileContentReader, error) {
-		var config common.Config
-
-		err := c.Resolve(&config)
+		var adapter *storage.S3ContentAdapter
+		err := c.Resolve(&adapter)
 		if err != nil {
-			slog.Error("Failed to resolve config for ReplayFileContentReader.", "err", err)
+			slog.Error("Failed to resolve S3ContentAdapter for ReplayFileContentReader.", "err", err)
 			return nil, err
 		}
-
-		// return blob.NewS3Adapter(config.S3), nil
-		// return local_files.NewLocalFileAdapter(), nil
-
-		var client *mongo.Client
-
-		err = c.Resolve(&client)
-		if err != nil {
-			slog.Error("Failed to resolve mongo.Client for ReplayFileContentReader.", "err", err)
-			return nil, err
-		}
-
-		return db.NewReplayFileContentRepository(client, config.MongoDB.DBName), nil
+		return adapter, nil
 	})
-
 	if err != nil {
-		slog.Error("Failed to load S3Adapter.")
+		slog.Error("Failed to load ReplayFileContentReader.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (replay_out.ChunkedUploadManager, error) {
+		var adapter *storage.S3ContentAdapter
+		err := c.Resolve(&adapter)
+		if err != nil {
+			slog.Error("Failed to resolve S3ContentAdapter for ChunkedUploadManager.", "err", err)
+			return nil, err
+		}
+		return adapter, nil
+	})
+	if err != nil {
+		slog.Error("Failed to load ChunkedUploadManager.", "err", err)
+		panic(err)
+	}
+
+	// --- Chunked Upload Repository (MongoDB) ---
+	err = c.Singleton(func() (replay_out.ChunkedUploadWriter, error) {
+		var client *mongo.Client
+		if err := c.Resolve(&client); err != nil {
+			return nil, err
+		}
+		var cfg common.Config
+		if err := c.Resolve(&cfg); err != nil {
+			return nil, err
+		}
+		repo := db.NewChunkedUploadRepository(client, cfg.MongoDB.DBName)
+		return repo, nil
+	})
+	if err != nil {
+		slog.Error("Failed to load ChunkedUploadWriter.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (replay_out.ChunkedUploadReader, error) {
+		var client *mongo.Client
+		if err := c.Resolve(&client); err != nil {
+			return nil, err
+		}
+		var cfg common.Config
+		if err := c.Resolve(&cfg); err != nil {
+			return nil, err
+		}
+		repo := db.NewChunkedUploadRepository(client, cfg.MongoDB.DBName)
+		return repo, nil
+	})
+	if err != nil {
+		slog.Error("Failed to load ChunkedUploadReader.", "err", err)
+		panic(err)
+	}
+
+	// --- Chunked Upload Use Cases ---
+	err = c.Singleton(func() (replay_in.InitiateChunkedUploadCommand, error) {
+		var uploadManager replay_out.ChunkedUploadManager
+		if err := c.Resolve(&uploadManager); err != nil {
+			return nil, err
+		}
+		var uploadWriter replay_out.ChunkedUploadWriter
+		if err := c.Resolve(&uploadWriter); err != nil {
+			return nil, err
+		}
+		var metadataWriter replay_out.ReplayFileMetadataWriter
+		if err := c.Resolve(&metadataWriter); err != nil {
+			return nil, err
+		}
+		return &replay_use_cases.InitiateChunkedUploadUseCase{
+			UploadManager:  uploadManager,
+			UploadWriter:   uploadWriter,
+			MetadataWriter: metadataWriter,
+		}, nil
+	})
+	if err != nil {
+		slog.Error("Failed to load InitiateChunkedUploadCommand.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (replay_in.UploadChunkCommand, error) {
+		var uploadManager replay_out.ChunkedUploadManager
+		if err := c.Resolve(&uploadManager); err != nil {
+			return nil, err
+		}
+		var uploadReader replay_out.ChunkedUploadReader
+		if err := c.Resolve(&uploadReader); err != nil {
+			return nil, err
+		}
+		var uploadWriter replay_out.ChunkedUploadWriter
+		if err := c.Resolve(&uploadWriter); err != nil {
+			return nil, err
+		}
+		return &replay_use_cases.UploadChunkUseCase{
+			UploadManager: uploadManager,
+			UploadReader:  uploadReader,
+			UploadWriter:  uploadWriter,
+		}, nil
+	})
+	if err != nil {
+		slog.Error("Failed to load UploadChunkCommand.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (replay_in.CompleteChunkedUploadCommand, error) {
+		var uploadManager replay_out.ChunkedUploadManager
+		if err := c.Resolve(&uploadManager); err != nil {
+			return nil, err
+		}
+		var uploadReader replay_out.ChunkedUploadReader
+		if err := c.Resolve(&uploadReader); err != nil {
+			return nil, err
+		}
+		var uploadWriter replay_out.ChunkedUploadWriter
+		if err := c.Resolve(&uploadWriter); err != nil {
+			return nil, err
+		}
+		var metadataWriter replay_out.ReplayFileMetadataWriter
+		if err := c.Resolve(&metadataWriter); err != nil {
+			return nil, err
+		}
+		var metadataReader replay_out.ReplayFileMetadataReader
+		if err := c.Resolve(&metadataReader); err != nil {
+			return nil, err
+		}
+		var eventPublisher replay_out.ReplayEventPublisher
+		if err := c.Resolve(&eventPublisher); err != nil {
+			slog.Warn("ReplayEventPublisher not available for CompleteChunkedUploadCommand", "err", err)
+		}
+		return &replay_use_cases.CompleteChunkedUploadUseCase{
+			UploadManager:  uploadManager,
+			UploadReader:   uploadReader,
+			UploadWriter:   uploadWriter,
+			MetadataWriter: metadataWriter,
+			MetadataReader: metadataReader,
+			EventPublisher: eventPublisher,
+		}, nil
+	})
+	if err != nil {
+		slog.Error("Failed to load CompleteChunkedUploadCommand.", "err", err)
+		panic(err)
+	}
+
+	err = c.Singleton(func() (replay_in.AbortChunkedUploadCommand, error) {
+		var uploadManager replay_out.ChunkedUploadManager
+		if err := c.Resolve(&uploadManager); err != nil {
+			return nil, err
+		}
+		var uploadReader replay_out.ChunkedUploadReader
+		if err := c.Resolve(&uploadReader); err != nil {
+			return nil, err
+		}
+		var uploadWriter replay_out.ChunkedUploadWriter
+		if err := c.Resolve(&uploadWriter); err != nil {
+			return nil, err
+		}
+		var metadataWriter replay_out.ReplayFileMetadataWriter
+		if err := c.Resolve(&metadataWriter); err != nil {
+			return nil, err
+		}
+		var metadataReader replay_out.ReplayFileMetadataReader
+		if err := c.Resolve(&metadataReader); err != nil {
+			return nil, err
+		}
+		return &replay_use_cases.AbortChunkedUploadUseCase{
+			UploadManager:  uploadManager,
+			UploadReader:   uploadReader,
+			UploadWriter:   uploadWriter,
+			MetadataWriter: metadataWriter,
+			MetadataReader: metadataReader,
+		}, nil
+	})
+	if err != nil {
+		slog.Error("Failed to load AbortChunkedUploadCommand.", "err", err)
 		panic(err)
 	}
 

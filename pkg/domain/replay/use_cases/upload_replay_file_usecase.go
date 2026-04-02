@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"hash"
 	"io"
 	"log/slog"
 
@@ -34,6 +35,19 @@ func NewUploadReplayFileUseCase(metadataReader replay_out.ReplayFileMetadataRead
 func calculateContentHash(content []byte) string {
 	hash := sha256.Sum256(content)
 	return hex.EncodeToString(hash[:])
+}
+
+// streamingHash reads content through a SHA256 hasher and returns the buffered bytes + hex hash.
+// This avoids reading the file twice (once for hash, once for upload) while keeping memory bounded
+// to a single copy of the file content.
+func streamingHash(reader io.Reader) ([]byte, string, error) {
+	h := sha256.New()
+	var buf bytes.Buffer
+	tee := io.TeeReader(reader, h)
+	if _, err := io.Copy(&buf, tee); err != nil {
+		return nil, "", err
+	}
+	return buf.Bytes(), hex.EncodeToString(h.(hash.Hash).Sum(nil)), nil
 }
 
 // Exec uploads a replay file and creates associated metadata with default options.
@@ -73,17 +87,14 @@ func (usecase *UploadReplayFileUseCase) ExecWithOptions(ctx context.Context, rea
 		slog.InfoContext(ctx, "authenticated user replay upload", "resourceOwner", resourceOwner)
 	}
 
-	file, err := io.ReadAll(reader)
+	// Stream content through SHA256 hasher — single-pass read, no double buffering
+	file, contentHash, err := streamingHash(reader)
 	if err != nil {
 		slog.ErrorContext(ctx, "error reading replay file", "err", err)
 		return nil, err
 	}
 
-	slog.InfoContext(ctx, "uploading replay file", "size", len(file))
-
-	// Calculate content hash for deduplication
-	contentHash := calculateContentHash(file)
-	slog.InfoContext(ctx, "calculated content hash", "hash", contentHash)
+	slog.InfoContext(ctx, "uploading replay file", "size", len(file), "hash", contentHash)
 
 	// Check for existing replay with same content hash (deduplication)
 	existingReplay, err := usecase.MetadataReader.FindByContentHash(ctx, contentHash)
