@@ -59,18 +59,19 @@ func NewPlayerProfileQueryService(eventReader squad_out.PlayerProfileReader) squ
 	// These are the fields that external clients can use to filter/search.
 	// SECURITY: Only fields with `true` are exposed in the API schema.
 	queryableFields := map[string]bool{
-		"ID":              true,               // Primary key - always queryable
-		"GameID":          true,               // Filter by game (e.g., CS2, Valorant)
-		"Nickname":        true,               // Player display name - text search
-		"SlugURI":         true,               // URL-friendly identifier
-		"Avatar":          true,               // Avatar URL
-		"Roles":           true,               // Player roles (e.g., IGL, AWPer)
-		"Description":     true,               // Player bio - text search
-		"VisibilityLevel": true,               // Public/Private/Friends
-		"VisibilityType":  true,               // Visibility type enum
-		"ResourceOwner":   true,               // Allow querying by owner
-		"CreatedAt":       true,               // Creation timestamp
-		"UpdatedAt":       true,               // Last update timestamp
+		"ID":              true, // Primary key - always queryable
+		"GameID":          true, // Filter by game (e.g., CS2, Valorant)
+		"Nickname":        true, // Player display name - text search
+		"SlugURI":         true, // URL-friendly identifier
+		"Avatar":          true, // Avatar URL
+		"Roles":           true, // Player roles (e.g., IGL, AWPer)
+		"Description":     true, // Player bio - text search
+		"VisibilityLevel": true, // Public/Private/Friends
+		"VisibilityType":  true, // Visibility type enum
+		"UserID":          true, // Filter by owner user ID (for /players/me)
+		"GroupID":         true, // Filter by owner group ID
+		"CreatedAt":       true, // Creation timestamp
+		"UpdatedAt":       true, // Last update timestamp
 	}
 
 	// ReadableFields defines which fields are included in API responses.

@@ -173,12 +173,12 @@ func (c *EmailController) LoginEmailUser(apiContext context.Context) http.Handle
 			return
 		}
 
-		email := strings.ToLower(strings.TrimSpace(req.Email))
+		emailAddr := strings.ToLower(strings.TrimSpace(req.Email))
 
-		emailUser, ridToken, err := c.LoginEmailUserCommand.Exec(r.Context(), email, req.Password, req.VHash)
+		emailUser, ridToken, err := c.LoginEmailUserCommand.Exec(r.Context(), emailAddr, req.Password, req.VHash)
 
 		if err != nil {
-			slog.ErrorContext(r.Context(), "error logging in email user", "err", err, "email", email)
+			slog.ErrorContext(r.Context(), "error logging in email user", "err", err, "email", emailAddr)
 			
 			// Check for specific error types
 			switch err.(type) {
@@ -192,7 +192,7 @@ func (c *EmailController) LoginEmailUser(apiContext context.Context) http.Handle
 		}
 
 		if ridToken == nil {
-			slog.ErrorContext(r.Context(), "error logging in email user - ridToken is nil", "email", email)
+			slog.ErrorContext(r.Context(), "error logging in email user - ridToken is nil", "email", emailAddr)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}

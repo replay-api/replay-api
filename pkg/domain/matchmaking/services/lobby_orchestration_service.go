@@ -106,53 +106,61 @@ func (s *LobbyOrchestrationService) JoinLobby(ctx context.Context, cmd matchmaki
 	// Step 3: Calculate entry fee by tier
 	entryFee := getEntryFeeByTier(lobby.Tier)
 
-	// Step 4: Deduct entry fee from wallet (with rollback support)
-	walletCmd := wallet_in.DeductEntryFeeCommand{
-		UserID:   cmd.PlayerID,
-		Currency: string(prizePool.Currency),
-		Amount:   entryFee,
-	}
+	// Step 4: Deduct entry fee from wallet (with rollback support) — skip for free tier
+	if entryFee > 0 {
+		walletCmd := wallet_in.DeductEntryFeeCommand{
+			UserID:   cmd.PlayerID,
+			Currency: string(prizePool.Currency),
+			Amount:   entryFee,
+		}
 
-	if err := s.walletCommand.DeductEntryFee(ctx, walletCmd); err != nil {
-		return fmt.Errorf("insufficient balance: %w", err)
+		if err := s.walletCommand.DeductEntryFee(ctx, walletCmd); err != nil {
+			return fmt.Errorf("insufficient balance: %w", err)
+		}
 	}
 
 	// Step 5: Add player to lobby
 	if err := lobby.AddPlayer(cmd.PlayerID, cmd.MMR); err != nil {
 		// Rollback: refund entry fee
-		refundCmd := wallet_in.RefundCommand{
-			UserID:   cmd.PlayerID,
-			Currency: string(prizePool.Currency),
-			Amount:   entryFee,
-			Reason:   "failed to join lobby",
+		if entryFee > 0 {
+			refundCmd := wallet_in.RefundCommand{
+				UserID:   cmd.PlayerID,
+				Currency: string(prizePool.Currency),
+				Amount:   entryFee,
+				Reason:   "failed to join lobby",
+			}
+			_ = s.walletCommand.Refund(ctx, refundCmd)
 		}
-		_ = s.walletCommand.Refund(ctx, refundCmd)
 		return fmt.Errorf("failed to add player: %w", err)
 	}
 
-	// Step 6: Add contribution to prize pool
-	prizePoolAmount := wallet_vo.NewAmount(entryFee)
+	// Step 6: Add contribution to prize pool (skip for free tier)
+	if entryFee > 0 {
+		prizePoolAmount := wallet_vo.NewAmount(entryFee)
 
-	if err := prizePool.AddPlayerContribution(cmd.PlayerID, prizePoolAmount); err != nil {
-		// Rollback: remove from lobby + refund
-		_ = lobby.RemovePlayer(cmd.PlayerID)
-		_ = s.lobbyRepo.Update(ctx, lobby)
-		refundCmd := wallet_in.RefundCommand{
-			UserID:   cmd.PlayerID,
-			Currency: string(prizePool.Currency),
-			Amount:   entryFee,
-			Reason:   "failed to add prize contribution",
+		if err := prizePool.AddPlayerContribution(cmd.PlayerID, prizePoolAmount); err != nil {
+			// Rollback: remove from lobby + refund
+			_ = lobby.RemovePlayer(cmd.PlayerID)
+			_ = s.lobbyRepo.Update(ctx, lobby)
+			refundCmd := wallet_in.RefundCommand{
+				UserID:   cmd.PlayerID,
+				Currency: string(prizePool.Currency),
+				Amount:   entryFee,
+				Reason:   "failed to add prize contribution",
+			}
+			_ = s.walletCommand.Refund(ctx, refundCmd)
+			return fmt.Errorf("failed to add prize contribution: %w", err)
 		}
-		_ = s.walletCommand.Refund(ctx, refundCmd)
-		return fmt.Errorf("failed to add prize contribution: %w", err)
 	}
 
 	// Step 7: Persist changes
 	if err := s.lobbyRepo.Update(ctx, lobby); err != nil {
 		return fmt.Errorf("failed to update lobby: %w", err)
 	}
-	if err := s.prizePoolRepo.Update(ctx, prizePool); err != nil {
-		return fmt.Errorf("failed to update prize pool: %w", err)
+	if entryFee > 0 {
+		if err := s.prizePoolRepo.Update(ctx, prizePool); err != nil {
+			return fmt.Errorf("failed to update prize pool: %w", err)
+		}
 	}
 
 	slog.InfoContext(ctx, "Player joined lobby", "lobby_id", cmd.LobbyID, "player_id", cmd.PlayerID)
@@ -230,6 +238,20 @@ func (s *LobbyOrchestrationService) SetPlayerReady(ctx context.Context, cmd matc
 	slog.InfoContext(ctx, "Player ready status changed", "lobby_id", cmd.LobbyID, "player_id", cmd.PlayerID, "is_ready", cmd.IsReady)
 	s.wsHub.BroadcastLobbyUpdate(cmd.LobbyID, lobby)
 	s.broadcastReadinessUpdate(cmd.LobbyID, cmd.PlayerID, cmd.IsReady, readyCount, totalCount)
+
+	// Auto-transition: if lobby is open and full, move to ready_check
+	if cmd.IsReady && lobby.Status == matchmaking_entities.LobbyStatusOpen && totalCount >= lobby.MaxPlayers {
+		if err := lobby.StartReadyCheck(); err != nil {
+			slog.WarnContext(ctx, "Auto ready-check transition failed (non-fatal)", "lobby_id", cmd.LobbyID, "error", err)
+		} else {
+			if err := s.lobbyRepo.Update(ctx, lobby); err != nil {
+				slog.ErrorContext(ctx, "Failed to persist ready-check transition", "lobby_id", cmd.LobbyID, "error", err)
+			} else {
+				slog.InfoContext(ctx, "Auto-transitioned to ready_check", "lobby_id", cmd.LobbyID)
+				s.wsHub.BroadcastLobbyUpdate(cmd.LobbyID, lobby)
+			}
+		}
+	}
 
 	// Auto-transition: if all players are ready and lobby is in ready_check, start the match
 	if cmd.IsReady && lobby.Status == matchmaking_entities.LobbyStatusReadyCheck {

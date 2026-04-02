@@ -34,7 +34,8 @@ func NewStripeAdapter() *StripeAdapter {
 
 	webhookSecret := os.Getenv("STRIPE_WEBHOOK_SECRET")
 	if webhookSecret == "" || webhookSecret == "whsec_changeme" {
-		panic("STRIPE_WEBHOOK_SECRET environment variable is required and must not be the placeholder value")
+		slog.Warn("STRIPE_WEBHOOK_SECRET environment variable is not set or is the placeholder value. Stripe webhooks will not work.")
+		webhookSecret = "whsec_disabled"
 	}
 
 	return &StripeAdapter{

@@ -828,7 +828,14 @@ func (b *ContainerBuilder) WithInboundPorts() *ContainerBuilder {
 			return nil, err
 		}
 
-		return email_use_cases.NewLoginEmailUserUseCase(emailUserReader, vHashWriter, passwordHasher, createRIDToken), nil
+		var emailUserWriter email_out.EmailUserWriter
+		err = c.Resolve(&emailUserWriter)
+		if err != nil {
+			slog.Error("Failed to resolve EmailUserWriter for LoginEmailUserCommand.", "err", err)
+			return nil, err
+		}
+
+		return email_use_cases.NewLoginEmailUserUseCase(emailUserReader, emailUserWriter, vHashWriter, passwordHasher, createRIDToken), nil
 	})
 
 	if err != nil {

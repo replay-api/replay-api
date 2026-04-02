@@ -76,10 +76,19 @@ func (r *MongoPrizePoolRepository) Save(ctx context.Context, pool *matchmaking_e
 
 	pool.UpdatedAt = time.Now().UTC()
 
-	_, err := r.MongoDBRepository.Update(ctx, pool)
+	// Try Create first; if duplicate key, fall back to Update
+	_, err := r.MongoDBRepository.Create(ctx, pool)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to save prize pool", "pool_id", pool.ID, "error", err)
-		return fmt.Errorf("failed to save prize pool: %w", err)
+		if mongo.IsDuplicateKeyError(err) {
+			_, err = r.MongoDBRepository.Update(ctx, pool)
+			if err != nil {
+				slog.ErrorContext(ctx, "failed to update prize pool", "pool_id", pool.ID, "error", err)
+				return fmt.Errorf("failed to save prize pool: %w", err)
+			}
+		} else {
+			slog.ErrorContext(ctx, "failed to create prize pool", "pool_id", pool.ID, "error", err)
+			return fmt.Errorf("failed to save prize pool: %w", err)
+		}
 	}
 
 	slog.InfoContext(ctx, "prize pool saved successfully", "pool_id", pool.ID, "total_amount", pool.TotalAmount)

@@ -247,10 +247,10 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 
 	// onboarding/steam
 	r.HandleFunc(OnboardSteam, OptionsHandler).Methods("OPTIONS")
-	r.HandleFunc(OnboardSteam, oauthRateLimiter.Handler(steamController.OnboardSteamUser(ctx))).Methods("POST")
+	r.Handle(OnboardSteam, oauthRateLimiter.Handler(steamController.OnboardSteamUser(ctx))).Methods("POST")
 
 	r.HandleFunc(OnboardGoogle, OptionsHandler).Methods("OPTIONS")
-	r.HandleFunc(OnboardGoogle, oauthRateLimiter.Handler(googleController.OnboardGoogleUser(ctx))).Methods("POST")
+	r.Handle(OnboardGoogle, oauthRateLimiter.Handler(googleController.OnboardGoogleUser(ctx))).Methods("POST")
 
 	// onboarding/email
 	r.HandleFunc(OnboardEmail, OptionsHandler).Methods("OPTIONS")

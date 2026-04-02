@@ -45,6 +45,12 @@ func NewEmailUserMongoDBRepository(client *mongo.Client, dbName string, entityTy
 	}
 }
 
+// Update satisfies the EmailUserWriter interface (returns error only, discards updated entity)
+func (r *EmailUserRepository) Update(ctx context.Context, user *email_entities.EmailUser) error {
+	_, err := r.MongoDBRepository.Update(ctx, user)
+	return err
+}
+
 // MarkEmailVerified sets email_verified to true for the user with the given ID
 func (r *EmailUserRepository) MarkEmailVerified(ctx context.Context, userID uuid.UUID) error {
 	filter := bson.M{"resource_owner.user_id": userID}

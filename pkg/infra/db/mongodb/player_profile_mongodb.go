@@ -29,7 +29,8 @@ func NewPlayerProfileRepository(client *mongo.Client, dbName string, entityType 
 		"Description":     true,
 		"VisibilityLevel": true,
 		"VisibilityType":  true,
-		"ResourceOwner":   true,
+		"UserID":          true,
+		"GroupID":         true,
 		"CreatedAt":       true,
 		"UpdatedAt":       true,
 	}, map[string]string{
