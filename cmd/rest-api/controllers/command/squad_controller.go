@@ -11,6 +11,7 @@ import (
 	"github.com/golobby/container/v3"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	squad_entities "github.com/replay-api/replay-api/pkg/domain/squad/entities"
 	squad_in "github.com/replay-api/replay-api/pkg/domain/squad/ports/in"
 	squad_out "github.com/replay-api/replay-api/pkg/domain/squad/ports/out"
 	squad_value_objects "github.com/replay-api/replay-api/pkg/domain/squad/value-objects"
@@ -35,6 +36,20 @@ func NewSquadController(container container.Container) *SquadController {
 		container:                 container,
 		createSquadCommandHandler: createSquadCommandHandler,
 	}
+}
+
+// resolveSquadByIDOrSlug looks up a squad by UUID or slug_uri.
+// Returns the search results and any error.
+func resolveSquadByIDOrSlug(ctx context.Context, squadReader squad_out.SquadReader, idOrSlug string) ([]squad_entities.Squad, error) {
+	var search shared.Search
+	idUUID, err := uuid.Parse(idOrSlug)
+	if err == nil {
+		valueParams := []shared.SearchableValue{{Field: "ID", Values: []interface{}{idUUID}, Operator: shared.EqualsOperator}}
+		search = shared.NewSearchByValues(ctx, valueParams, shared.SearchResultOptions{Limit: 1}, shared.UserAudienceIDKey)
+	} else {
+		search = squad_entities.NewSearchBySlugURI(ctx, idOrSlug)
+	}
+	return squadReader.Search(ctx, search)
 }
 
 func (ctrl *SquadController) CreateSquadHandler(apiContext context.Context) http.HandlerFunc {
@@ -397,6 +412,7 @@ func (ctrl *SquadController) UpdateMemberRoleHandler(apiContext context.Context)
 }
 
 // GetSquadHandler handles GET /squads/{id}
+// Supports lookup by UUID or slug_uri
 func (ctrl *SquadController) GetSquadHandler(apiContext context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
@@ -413,14 +429,7 @@ func (ctrl *SquadController) GetSquadHandler(apiContext context.Context) http.Ha
 			return
 		}
 
-		idUUID, err := uuid.Parse(squadID)
-		if err != nil {
-			http.Error(w, "invalid squad_id format", http.StatusBadRequest)
-			return
-		}
-		valueParams := []shared.SearchableValue{{Field: "ID", Values: []interface{}{idUUID}, Operator: shared.EqualsOperator}}
-		search := shared.NewSearchByValues(r.Context(), valueParams, shared.SearchResultOptions{Limit: 1}, shared.UserAudienceIDKey)
-		results, err := squadReader.Search(r.Context(), search)
+		results, err := resolveSquadByIDOrSlug(r.Context(), squadReader, squadID)
 		if err != nil {
 			http.Error(w, "error fetching squad", http.StatusInternalServerError)
 			return
@@ -468,14 +477,7 @@ func (ctrl *SquadController) UpdateSquadHandler(apiContext context.Context) http
 			return
 		}
 
-		idUUID, err := uuid.Parse(squadID)
-		if err != nil {
-			http.Error(w, "invalid squad_id format", http.StatusBadRequest)
-			return
-		}
-		valueParams := []shared.SearchableValue{{Field: "ID", Values: []interface{}{idUUID}, Operator: shared.EqualsOperator}}
-		search := shared.NewSearchByValues(r.Context(), valueParams, shared.SearchResultOptions{Limit: 1}, shared.UserAudienceIDKey)
-		results, err := squadReader.Search(r.Context(), search)
+		results, err := resolveSquadByIDOrSlug(r.Context(), squadReader, squadID)
 		if err != nil || len(results) == 0 {
 			http.Error(w, "squad not found", http.StatusNotFound)
 			return
@@ -536,10 +538,21 @@ func (ctrl *SquadController) DeleteSquadHandler(apiContext context.Context) http
 			return
 		}
 
+		// Resolve UUID: if squadID is already a UUID use it directly,
+		// otherwise look up the squad by slug to get its UUID.
 		squadUUID, err := uuid.Parse(squadID)
 		if err != nil {
-			http.Error(w, "invalid squad_id format", http.StatusBadRequest)
-			return
+			var squadReader squad_out.SquadReader
+			if resolveErr := ctrl.container.Resolve(&squadReader); resolveErr != nil {
+				http.Error(w, "service unavailable", http.StatusServiceUnavailable)
+				return
+			}
+			results, lookupErr := resolveSquadByIDOrSlug(r.Context(), squadReader, squadID)
+			if lookupErr != nil || len(results) == 0 {
+				http.Error(w, "squad not found", http.StatusNotFound)
+				return
+			}
+			squadUUID = results[0].ID
 		}
 
 		if err := squadWriter.Delete(r.Context(), squadUUID); err != nil {
