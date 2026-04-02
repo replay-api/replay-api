@@ -127,3 +127,17 @@ func NewEmailUserCreationError(msg string) *EmailUserCreationError {
 func (e *EmailUserCreationError) Error() string {
 	return e.msg
 }
+
+type AccountLockedError struct {
+	msg string
+}
+
+func NewAccountLockedError() *AccountLockedError {
+	return &AccountLockedError{
+		msg: "account is temporarily locked due to too many failed login attempts",
+	}
+}
+
+func (e *AccountLockedError) Error() string {
+	return e.msg
+}

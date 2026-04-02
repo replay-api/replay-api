@@ -26,6 +26,7 @@ type StreamMonitorConfig struct {
 	ScoreboardRegion       *oracle_out.Region     `json:"scoreboard_region,omitempty"`
 	TeamAHint              string                 `json:"team_a_hint,omitempty"` // Optional - helps OCR team matching
 	TeamBHint              string                 `json:"team_b_hint,omitempty"`
+	IsVOD                  bool                   `json:"is_vod,omitempty"` // Skip liveness check for VODs
 }
 
 // StreamMonitor orchestrates frame capture, OCR, parsing, and ingestion
@@ -64,6 +65,7 @@ func NewStreamMonitor(
 
 // MonitorStream continuously monitors a stream, extracting scores at the configured interval.
 // Blocks until the context is cancelled or the stream ends.
+// For VODs (config.IsVOD=true), captures a single frame and exits after successful ingestion.
 func (m *StreamMonitor) MonitorStream(ctx context.Context, config StreamMonitorConfig) error {
 	interval := time.Duration(config.CaptureIntervalSeconds) * time.Second
 	if interval < 3*time.Second {
@@ -78,7 +80,12 @@ func (m *StreamMonitor) MonitorStream(ctx context.Context, config StreamMonitorC
 		slog.String("game_id", string(config.GameID)),
 		slog.String("external_match_id", config.ExternalMatchID),
 		slog.Int("interval_sec", int(interval.Seconds())),
+		slog.Bool("is_vod", config.IsVOD),
 	)
+
+	// For VODs, limit retries — the video content is static
+	const maxVODAttempts = 5
+	vodAttempts := 0
 
 	for {
 		select {
@@ -98,8 +105,27 @@ func (m *StreamMonitor) MonitorStream(ctx context.Context, config StreamMonitorC
 					slog.String("error", err.Error()),
 					slog.Int64("total_errors", m.Errors),
 				)
-				// Don't stop on individual frame failures
+
+				if config.IsVOD {
+					vodAttempts++
+					if vodAttempts >= maxVODAttempts {
+						slog.InfoContext(ctx, "VOD processing exhausted attempts",
+							slog.String("stream_url", config.StreamURL),
+							slog.Int("attempts", vodAttempts),
+						)
+						return fmt.Errorf("VOD processing failed after %d attempts", vodAttempts)
+					}
+				}
 				continue
+			}
+
+			// For VODs, exit after first successful score detection
+			if config.IsVOD && m.ScoresDetected > 0 {
+				slog.InfoContext(ctx, "VOD processing complete — score detected",
+					slog.String("stream_url", config.StreamURL),
+					slog.Int64("scores_detected", m.ScoresDetected),
+				)
+				return nil
 			}
 		}
 	}
@@ -107,13 +133,15 @@ func (m *StreamMonitor) MonitorStream(ctx context.Context, config StreamMonitorC
 
 // processFrame captures a single frame, runs OCR, and ingests if the score changed
 func (m *StreamMonitor) processFrame(ctx context.Context, config StreamMonitorConfig) error {
-	// Step 1: Check if stream is still live
-	live, err := m.streamCapture.IsStreamLive(ctx, config.StreamURL)
-	if err != nil {
-		return fmt.Errorf("stream liveness check failed: %w", err)
-	}
-	if !live {
-		return fmt.Errorf("stream is not live")
+	// Step 1: Check if stream is still live (skip for VODs — they are never "live")
+	if !config.IsVOD {
+		live, err := m.streamCapture.IsStreamLive(ctx, config.StreamURL)
+		if err != nil {
+			return fmt.Errorf("stream liveness check failed: %w", err)
+		}
+		if !live {
+			return fmt.Errorf("stream is not live")
+		}
 	}
 
 	// Step 2: Capture frame

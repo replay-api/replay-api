@@ -8,6 +8,7 @@ import (
 
 type EmailUserWriter interface {
 	Create(ctx context.Context, user *email_entities.EmailUser) (*email_entities.EmailUser, error)
+	Update(ctx context.Context, user *email_entities.EmailUser) error
 }
 
 type VHashWriter interface {

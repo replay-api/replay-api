@@ -27,6 +27,7 @@ Used for key encapsulation — the step where two parties establish a shared sec
 Uses Go 1.24's `crypto/mlkem` standard library package — no external dependency.
 
 Key sizes:
+
 - Public (encapsulation) key: 1184 bytes
 - Private seed (decapsulation key): 64 bytes — store only this, not the expanded key
 - Shared secret: 32 bytes
@@ -56,11 +57,11 @@ Also backed by `circl`, scheme name `SLH-DSA-SHA2-256s`.
 
 The three algorithms are exposed through distinct interfaces in `pkg/domain/security/ports/out/pq.go`:
 
-| Interface | Algorithm | Use when |
-|---|---|---|
-| `PostQuantumKeyEncapsulator` | ML-KEM-768 | Establishing shared secrets between services |
-| `PostQuantumSigner` | ML-DSA-65 | Signing competitive results, prize pool state |
-| `PostQuantumArchivalSigner` | SLH-DSA-SHA2-256s | Archival records, audit logs, regulatory proofs |
+| Interface                    | Algorithm         | Use when                                        |
+| ---------------------------- | ----------------- | ----------------------------------------------- |
+| `PostQuantumKeyEncapsulator` | ML-KEM-768        | Establishing shared secrets between services    |
+| `PostQuantumSigner`          | ML-DSA-65         | Signing competitive results, prize pool state   |
+| `PostQuantumArchivalSigner`  | SLH-DSA-SHA2-256s | Archival records, audit logs, regulatory proofs |
 
 ML-DSA and SLH-DSA share the same method signatures, so they deliberately use two different interfaces. This prevents the IoC container from having a collision between them and also makes it explicit at the call site which one you're injecting — you cannot accidentally inject the slow archival signer into a real-time path.
 
@@ -127,10 +128,10 @@ Set in `middleware.ts`. This signals to clients, API gateways, and compliance sc
 
 ## Dependencies
 
-| Package | Version | Purpose |
-|---|---|---|
-| `crypto/mlkem` | Go 1.24 stdlib | ML-KEM-768 — no external dep |
-| `github.com/cloudflare/circl` | v1.6.3 | ML-DSA-65 and SLH-DSA-SHA2-256s |
+| Package                       | Version        | Purpose                         |
+| ----------------------------- | -------------- | ------------------------------- |
+| `crypto/mlkem`                | Go 1.24 stdlib | ML-KEM-768 — no external dep    |
+| `github.com/cloudflare/circl` | v1.6.3         | ML-DSA-65 and SLH-DSA-SHA2-256s |
 
 `circl` is a direct dependency (imported by `ml_dsa_adapter.go` and `slh_dsa_adapter.go`).
 

@@ -50,7 +50,8 @@ RUN pip install --no-cache-dir \
     paddleocr \
     Pillow \
     numpy \
-    streamlink
+    streamlink \
+    yt-dlp
 
 # Copy Go binary from builder
 COPY --from=builder /app/ocr-worker /app/ocr-worker

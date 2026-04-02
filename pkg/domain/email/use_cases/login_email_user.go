@@ -3,6 +3,7 @@ package email_use_cases
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	shared "github.com/resource-ownership/go-common/pkg/common"
 	"github.com/replay-api/replay-api/pkg/domain/email"
@@ -15,6 +16,7 @@ import (
 
 type LoginEmailUserUseCase struct {
 	EmailUserReader    email_out.EmailUserReader
+	EmailUserWriter    email_out.EmailUserWriter
 	VHashWriter        email_out.VHashWriter
 	PasswordHasher     email_out.PasswordHasher
 	CreateRIDToken     iam_in.CreateRIDTokenCommand
@@ -63,11 +65,35 @@ func (usecase *LoginEmailUserUseCase) Exec(ctx context.Context, emailAddr string
 
 	emailUser := &emailUsers[0]
 
+	// Check if account is locked
+	if emailUser.IsLocked() {
+		slog.WarnContext(ctx, "login attempt on locked account", "email", emailAddr, "locked_until", emailUser.LockedUntil)
+		return nil, nil, email.NewAccountLockedError()
+	}
+
 	// Verify password
 	err = usecase.PasswordHasher.ComparePassword(ctx, emailUser.PasswordHash, password)
 	if err != nil {
 		slog.ErrorContext(ctx, "invalid password", "email", emailAddr)
+		
+		// Record failed login attempt
+		emailUser.RecordFailedLogin(5, 15*time.Minute) // 5 attempts, 15 minute lockout
+		
+		// Update the user in database
+		updateErr := usecase.EmailUserWriter.Update(ctx, emailUser)
+		if updateErr != nil {
+			slog.ErrorContext(ctx, "failed to update user after failed login", "err", updateErr, "email", emailAddr)
+		}
+		
 		return nil, nil, email.NewInvalidPasswordError()
+	}
+
+	// Successful login - reset failed attempts
+	emailUser.ResetFailedLoginAttempts()
+	updateErr := usecase.EmailUserWriter.Update(ctx, emailUser)
+	if updateErr != nil {
+		slog.ErrorContext(ctx, "failed to reset failed login attempts", "err", updateErr, "email", emailAddr)
+		// Don't fail the login for this
 	}
 
 	// Create new RID token
@@ -88,12 +114,14 @@ func (usecase *LoginEmailUserUseCase) Exec(ctx context.Context, emailAddr string
 
 func NewLoginEmailUserUseCase(
 	emailUserReader email_out.EmailUserReader,
+	emailUserWriter email_out.EmailUserWriter,
 	vHashWriter email_out.VHashWriter,
 	passwordHasher email_out.PasswordHasher,
 	createRIDToken iam_in.CreateRIDTokenCommand,
 ) email_in.LoginEmailUserCommand {
 	return &LoginEmailUserUseCase{
 		EmailUserReader:    emailUserReader,
+		EmailUserWriter:    emailUserWriter,
 		VHashWriter:        vHashWriter,
 		PasswordHasher:     passwordHasher,
 		CreateRIDToken:     createRIDToken,

@@ -112,9 +112,9 @@ import (
 	analytics_out "github.com/replay-api/replay-api/pkg/domain/analytics/ports/out"
 	analytics_usecases "github.com/replay-api/replay-api/pkg/domain/analytics/usecases"
 
-	pricefeed "github.com/replay-api/replay-api/pkg/infra/adapters/pricefeed"
 	coinbase "github.com/replay-api/replay-api/pkg/infra/adapters/coinbase"
 	kraken "github.com/replay-api/replay-api/pkg/infra/adapters/kraken"
+	pricefeed "github.com/replay-api/replay-api/pkg/infra/adapters/pricefeed"
 
 	shared "github.com/resource-ownership/go-common/pkg/common"
 

@@ -336,6 +336,7 @@ func main() {
 
 	// Create OCR infrastructure
 	streamCapture := oracle_ocr.NewStreamlinkCapture(cfg.StreamQuality)
+	vodCapture := oracle_ocr.NewVodCapture()
 	ocrEngine := oracle_ocr.NewPaddleOCRAdapter(cfg.PaddleOCRPythonPath, cfg.PaddleOCRScriptPath, cfg.PaddleOCRUseGPU)
 	scoreParser := oracle_services.NewOCRScoreParser()
 
@@ -381,7 +382,16 @@ func main() {
 
 	// Wire the newMonitorFn to create real stream monitors
 	api.newMonitorFn = func(config oracle_entities.OCRStreamConfig) (*oracle_services.StreamMonitor, oracle_services.StreamMonitorConfig) {
-		monitor := oracle_services.NewStreamMonitor(streamCapture, ocrEngine, teamResolver, scoreParser, commandHandler)
+		// Use VodCapture for YouTube VODs, StreamlinkCapture for live streams
+		isVOD := config.StreamPlatform == oracle_entities.StreamPlatformYouTube
+		var capture oracle_out.StreamCapturePort
+		if isVOD {
+			capture = vodCapture
+		} else {
+			capture = streamCapture
+		}
+
+		monitor := oracle_services.NewStreamMonitor(capture, ocrEngine, teamResolver, scoreParser, commandHandler)
 
 		var region *oracle_out.Region
 		if config.ScoreboardRegion != nil {
@@ -401,6 +411,7 @@ func main() {
 			ScoreboardRegion:       region,
 			TeamAHint:              config.TeamAHint,
 			TeamBHint:              config.TeamBHint,
+			IsVOD:                  isVOD,
 		}
 
 		return monitor, monitorConfig

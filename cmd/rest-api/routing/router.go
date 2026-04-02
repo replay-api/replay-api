@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/golobby/container/v3"
 	"github.com/gorilla/mux"
@@ -117,6 +118,8 @@ const (
 func NewRouter(ctx context.Context, container container.Container) http.Handler {
 	// middleware
 	resourceContextMiddleware := middlewares.NewResourceContextMiddleware(&container)
+	// Rate limiting for OAuth endpoints: 5 requests per minute per IP
+	oauthRateLimiter := middlewares.NewRateLimitMiddlewareWithConfig(5, time.Minute)
 
 	// metadataController := controllers.NewMetadataController(container)
 	fileController := cmd_controllers.NewFileController(container)
@@ -244,10 +247,10 @@ func NewRouter(ctx context.Context, container container.Container) http.Handler 
 
 	// onboarding/steam
 	r.HandleFunc(OnboardSteam, OptionsHandler).Methods("OPTIONS")
-	r.HandleFunc(OnboardSteam, steamController.OnboardSteamUser(ctx)).Methods("POST")
+	r.HandleFunc(OnboardSteam, oauthRateLimiter.Handler(steamController.OnboardSteamUser(ctx))).Methods("POST")
 
 	r.HandleFunc(OnboardGoogle, OptionsHandler).Methods("OPTIONS")
-	r.HandleFunc(OnboardGoogle, googleController.OnboardGoogleUser(ctx)).Methods("POST")
+	r.HandleFunc(OnboardGoogle, oauthRateLimiter.Handler(googleController.OnboardGoogleUser(ctx))).Methods("POST")
 
 	// onboarding/email
 	r.HandleFunc(OnboardEmail, OptionsHandler).Methods("OPTIONS")

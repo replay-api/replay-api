@@ -66,6 +66,7 @@ $RECYCLE.BIN/
 .mongodb
 .localstack
 .blob
+.coverage/
 docker-compose.dev.yml
 ./docker-compose.dev.yml
 .env
@@ -87,3 +88,12 @@ main
 replay-api
 /seed
 !cmd/cli/seed/
+rest-api
+rpc-api
+replay-worker
+oracle-worker
+ocr-worker
+game-discovery-worker
+replay-api-http-service
+minimal-api
+migrate-indexes

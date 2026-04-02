@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/golobby/container/v3"
+	"github.com/replay-api/replay-api/pkg/domain/email"
 	email_entities "github.com/replay-api/replay-api/pkg/domain/email/entities"
 	email_in "github.com/replay-api/replay-api/pkg/domain/email/ports/in"
 )
@@ -178,8 +179,16 @@ func (c *EmailController) LoginEmailUser(apiContext context.Context) http.Handle
 
 		if err != nil {
 			slog.ErrorContext(r.Context(), "error logging in email user", "err", err, "email", email)
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
+			
+			// Check for specific error types
+			switch err.(type) {
+			case *email.AccountLockedError:
+				http.Error(w, "Account locked due to too many failed attempts", http.StatusTooManyRequests)
+				return
+			default:
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
 		}
 
 		if ridToken == nil {

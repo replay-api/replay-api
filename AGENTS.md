@@ -316,3 +316,30 @@ fetch('/api/v1/squads');
 4. Does this operation require resource ownership validation?
 5. Should this emit a Kafka event?
 6. Am I using the SDK client in the frontend?
+
+## WebMCP Implementation Workflow (Required)
+
+When adding or changing any API capability in replay-api:
+
+1. Map the capability to WebMCP primitive(s):
+- mutation -> tool
+- read/query -> resource
+- real-time stream -> canonical SSE resource
+
+2. Preserve existing auth/security behavior:
+- RID context requirements
+- API key requirements for system operations
+- request signing requirements for sensitive financial operations
+
+3. Keep migration non-breaking:
+- maintain REST and WebSocket compatibility while WebMCP mappings are introduced
+
+4. Update governance artifacts in same change:
+- `../docs/api/webmcp-capability-inventory.yaml`
+- `../docs/api/WEBMCP-CONFORMANCE-MATRIX.md`
+
+5. Add required tests:
+- schema and validation tests
+- auth and ownership tests
+- error normalization tests
+- parity tests against legacy behavior for critical paths
