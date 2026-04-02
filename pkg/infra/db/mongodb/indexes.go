@@ -727,6 +727,101 @@ func GetAllIndexes() []IndexDefinition {
 			},
 			Options: options.Index(),
 		},
+
+		// Ledger Entries Indexes (wallet financial audit trail)
+		{
+			Collection: "ledger_entries",
+			Name:       "idx_ledger_entries_idempotency_key",
+			Keys: bson.D{
+				{Key: "idempotency_key", Value: 1},
+			},
+			Options: options.Index().
+				SetUnique(true).
+				SetSparse(true), // Prevents duplicate financial operations
+		},
+		{
+			Collection: "ledger_entries",
+			Name:       "idx_ledger_entries_account_created",
+			Keys: bson.D{
+				{Key: "account_id", Value: 1},
+				{Key: "created_at", Value: -1},
+			},
+			Options: options.Index(),
+		},
+		{
+			Collection: "ledger_entries",
+			Name:       "idx_ledger_entries_transaction_id",
+			Keys: bson.D{
+				{Key: "transaction_id", Value: 1},
+			},
+			Options: options.Index(),
+		},
+		{
+			Collection: "ledger_entries",
+			Name:       "idx_ledger_entries_account_currency",
+			Keys: bson.D{
+				{Key: "account_id", Value: 1},
+				{Key: "currency", Value: 1},
+			},
+			Options: options.Index(),
+		},
+		{
+			Collection: "ledger_entries",
+			Name:       "idx_ledger_entries_created_at",
+			Keys: bson.D{
+				{Key: "created_at", Value: -1},
+			},
+			Options: options.Index(),
+		},
+		{
+			Collection: "ledger_entries",
+			Name:       "idx_ledger_entries_source_ip_created",
+			Keys: bson.D{
+				{Key: "metadata.source_ip", Value: 1},
+				{Key: "created_at", Value: -1},
+			},
+			Options: options.Index().
+				SetSparse(true), // Fraud tracking — only entries with source_ip
+		},
+
+		// Idempotent Operations Indexes (deduplication with auto-cleanup)
+		{
+			Collection: "idempotent_operations",
+			Name:       "idx_idempotent_operations_key",
+			Keys: bson.D{
+				{Key: "key", Value: 1},
+			},
+			Options: options.Index().
+				SetUnique(true),
+		},
+		{
+			Collection: "idempotent_operations",
+			Name:       "idx_idempotent_operations_expires_at",
+			Keys: bson.D{
+				{Key: "expires_at", Value: 1},
+			},
+			Options: options.Index().
+				SetExpireAfterSeconds(0), // TTL index — auto-cleanup expired operations
+		},
+
+		// Ledger Accounts Indexes
+		{
+			Collection: "ledger_accounts",
+			Name:       "idx_ledger_accounts_wallet_id",
+			Keys: bson.D{
+				{Key: "wallet_id", Value: 1},
+			},
+			Options: options.Index(),
+		},
+		{
+			Collection: "ledger_accounts",
+			Name:       "idx_ledger_accounts_type_currency",
+			Keys: bson.D{
+				{Key: "account_type", Value: 1},
+				{Key: "currency", Value: 1},
+			},
+			Options: options.Index(),
+		},
 	}
 }
 

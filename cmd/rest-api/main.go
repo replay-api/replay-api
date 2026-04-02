@@ -227,23 +227,26 @@ func startWalletConsumer(ctx context.Context, c container.Container) {
 		return
 	}
 
-	// Get wallet dependencies
+	// Get wallet dependencies — all are REQUIRED for financial operations
 	var walletRepo wallet_out.WalletRepository
 	var ledgerRepo wallet_out.LedgerRepository
 	var walletCommand wallet_in.WalletCommand
 	var eventPublisher *kafka.EventPublisher
 
 	if err := c.Resolve(&walletRepo); err != nil {
-		slog.WarnContext(ctx, "WalletRepository not available for wallet consumer", "error", err)
+		slog.ErrorContext(ctx, "WalletRepository not available — wallet consumer will NOT start", "error", err)
+		return
 	}
 	if err := c.Resolve(&ledgerRepo); err != nil {
-		slog.WarnContext(ctx, "LedgerRepository not available for wallet consumer", "error", err)
+		slog.ErrorContext(ctx, "LedgerRepository not available — wallet consumer will NOT start", "error", err)
+		return
 	}
 	if err := c.Resolve(&walletCommand); err != nil {
-		slog.WarnContext(ctx, "WalletCommand not available for wallet consumer", "error", err)
+		slog.ErrorContext(ctx, "WalletCommand not available — wallet consumer will NOT start", "error", err)
+		return
 	}
 	if err := c.Resolve(&eventPublisher); err != nil {
-		slog.WarnContext(ctx, "EventPublisher not available for wallet consumer", "error", err)
+		slog.WarnContext(ctx, "EventPublisher not available for wallet consumer (non-critical)", "error", err)
 	}
 
 	// Create wallet consumer

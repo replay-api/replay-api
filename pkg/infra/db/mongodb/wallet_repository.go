@@ -158,7 +158,7 @@ func (r *MongoWalletRepository) Update(ctx context.Context, wallet *wallet_entit
 
 	wallet.UpdatedAt = time.Now().UTC()
 
-	collection := r.MongoDBRepository.GetCollection()
+	collection := r.MongoDBRepository.Collection()
 
 	filter := bson.M{
 		"_id":     wallet.GetID(),

@@ -21,6 +21,10 @@ const CHUNK_SIZE = 10
 type FinalScoreboardPayload = e.FinalScoreboardPayload
 type PlayerScoreboardData = e.PlayerScoreboardDataEntry
 
+// ScoreSubmissionCallback defines the callback interface for submitting scores
+// from replay processing. This avoids a direct dependency on the scores domain.
+type ScoreSubmissionCallback func(ctx context.Context, match *e.Match, replayFileID uuid.UUID) error
+
 type ProcessReplayFileUseCase struct {
 	ReplayMetadataReader replay_out.ReplayFileMetadataReader
 	ReplayContentReader  replay_out.ReplayFileContentReader
@@ -32,6 +36,9 @@ type ProcessReplayFileUseCase struct {
 
 	Parser      replay_out.ReplayParser
 	EventWriter replay_out.GameEventWriter
+
+	// Optional: callback to submit scores to the scores domain after processing
+	OnMatchProcessed ScoreSubmissionCallback
 }
 
 func NewProcessReplayFileUseCase(metadataReader replay_out.ReplayFileMetadataReader, contentReader replay_out.ReplayFileContentReader, metadataWriter replay_out.ReplayFileMetadataWriter, contentWriter replay_out.ReplayFileContentWriter, parser replay_out.ReplayParser, eventWriter replay_out.GameEventWriter, playerMetadataWriter replay_out.PlayerMetadataWriter, matchMetadataWriter replay_out.MatchMetadataWriter) *ProcessReplayFileUseCase {
@@ -262,6 +269,22 @@ func (usecase *ProcessReplayFileUseCase) Exec(ctx context.Context, replayFileID 
 	}
 
 	slog.InfoContext(ctx, "Replay file processed", "ReplayFileID", replayFileID)
+
+	// Bridge to scores domain: submit match result from replay data
+	if usecase.OnMatchProcessed != nil {
+		if err := usecase.OnMatchProcessed(ctx, match, replayFileID); err != nil {
+			slog.WarnContext(ctx, "failed to submit replay scores (non-fatal)",
+				slog.String("match_id", match.ID.String()),
+				slog.String("replay_file_id", replayFileID.String()),
+				slog.String("error", err.Error()),
+			)
+			// Non-fatal: match is already saved, score submission can be retried
+		} else {
+			slog.InfoContext(ctx, "Replay scores submitted to scores domain",
+				slog.String("match_id", match.ID.String()),
+			)
+		}
+	}
 
 	return match, nil
 }
