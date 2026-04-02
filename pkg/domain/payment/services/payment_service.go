@@ -72,9 +72,10 @@ func (s *PaymentService) CreatePaymentIntent(ctx context.Context, cmd payment_in
 			return nil, fmt.Errorf("wallet does not belong to user")
 		}
 	} else {
-		slog.WarnContext(ctx, "SECURITY WARNING: wallet query service not available, skipping wallet ownership verification",
+		slog.ErrorContext(ctx, "SECURITY: wallet query service not available, refusing payment intent creation",
 			"user_id", cmd.UserID,
 			"wallet_id", cmd.WalletID)
+		return nil, fmt.Errorf("wallet ownership verification unavailable")
 	}
 
 	// Create payment entity
@@ -176,14 +177,17 @@ func (s *PaymentService) ConfirmPayment(ctx context.Context, cmd payment_in.Conf
 		// Credit wallet for deposits
 		if payment.Type == payment_entities.PaymentTypeDeposit {
 			if err := s.creditWallet(ctx, payment); err != nil {
-				slog.ErrorContext(ctx, "failed to credit wallet after successful payment",
+				slog.ErrorContext(ctx, "failed to credit wallet after successful payment — marking credit_pending",
 					"payment_id", payment.ID,
 					"error", err)
-				// Payment succeeded but wallet credit failed - needs manual intervention
 				if payment.Metadata == nil {
 					payment.Metadata = make(map[string]any)
 				}
 				payment.Metadata["wallet_credit_error"] = err.Error()
+				payment.Metadata["wallet_credit_status"] = "pending_retry"
+				// Save payment with error metadata so webhook can retry
+				_ = s.paymentRepo.Update(ctx, payment)
+				return nil, fmt.Errorf("payment confirmed but wallet credit failed: %w", err)
 			}
 		}
 	}
@@ -250,7 +254,20 @@ func (s *PaymentService) RefundPayment(ctx context.Context, cmd payment_in.Refun
 		return nil, fmt.Errorf("failed to update payment: %w", err)
 	}
 
-	// TODO: Debit wallet for refunded deposits
+	// Debit wallet for refunded deposits to prevent money duplication
+	if payment.Type == payment_entities.PaymentTypeDeposit {
+		if err := s.debitWalletForRefund(ctx, payment, refundAmount); err != nil {
+			slog.ErrorContext(ctx, "CRITICAL: refund processed but wallet debit failed — manual intervention required",
+				"payment_id", payment.ID,
+				"refund_amount", refundAmount,
+				"error", err)
+			if payment.Metadata == nil {
+				payment.Metadata = make(map[string]any)
+			}
+			payment.Metadata["wallet_debit_error"] = err.Error()
+			_ = s.paymentRepo.Update(ctx, payment)
+		}
+	}
 
 	slog.InfoContext(ctx, "payment refunded",
 		"payment_id", payment.ID,
@@ -315,13 +332,19 @@ func (s *PaymentService) ProcessWebhook(ctx context.Context, cmd payment_in.Proc
 		return fmt.Errorf("failed to parse webhook: %w", err)
 	}
 
+	// Nil event means the event type was acknowledged but not handled (e.g. unknown event type)
+	if event == nil {
+		return nil
+	}
+
 	// Find payment by provider payment ID
 	payment, err := s.paymentRepo.FindByProviderPaymentID(ctx, event.ProviderPaymentID)
 	if err != nil {
-		slog.WarnContext(ctx, "payment not found for webhook event",
+		slog.WarnContext(ctx, "payment not found for webhook event — Stripe will retry",
 			"provider_payment_id", event.ProviderPaymentID,
 			"event_type", event.EventType)
-		return nil // Don't error - payment might not exist yet
+		// Return error so Stripe retries the webhook (race: payment record may not exist yet)
+		return fmt.Errorf("payment not found for provider ID %s, will retry", event.ProviderPaymentID)
 	}
 
 	// Update payment based on event
@@ -369,6 +392,8 @@ func (s *PaymentService) ProcessWebhook(ctx context.Context, cmd payment_in.Proc
 }
 
 // creditWallet credits the user's wallet after successful deposit
+// Uses payment.ID as idempotency key to prevent double-credit when both
+// ConfirmPayment and webhook fire for the same payment
 func (s *PaymentService) creditWallet(ctx context.Context, payment *payment_entities.Payment) error {
 	if s.walletService == nil {
 		return fmt.Errorf("wallet service not configured")
@@ -381,14 +406,34 @@ func (s *PaymentService) creditWallet(ctx context.Context, payment *payment_enti
 	}
 
 	// Credit wallet with net amount (after fees)
+	// CRITICAL: IdempotencyKey uses payment.ID to prevent double-credit
+	// when both ConfirmPayment() and Stripe webhook process the same payment
 	depositCmd := wallet_in.DepositCommand{
-		UserID:   payment.UserID,
-		Amount:   float64(payment.NetAmount) / 100, // Convert from cents
-		Currency: payment.Currency,
-		TxHash:   payment.ProviderPaymentID,
+		UserID:         payment.UserID,
+		Amount:         float64(payment.NetAmount) / 100, // Convert from cents
+		Currency:       payment.Currency,
+		TxHash:         payment.ProviderPaymentID,
+		IdempotencyKey: fmt.Sprintf("payment-deposit-%s", payment.ID.String()),
 	}
 
 	return s.walletService.Deposit(ctx, depositCmd)
+}
+
+// debitWalletForRefund debits the user's wallet when a deposit is refunded
+// This prevents money duplication where user keeps wallet balance + gets card refund
+func (s *PaymentService) debitWalletForRefund(ctx context.Context, payment *payment_entities.Payment, refundAmount int64) error {
+	if s.walletService == nil {
+		return fmt.Errorf("wallet service not configured")
+	}
+
+	withdrawCmd := wallet_in.WithdrawCommand{
+		UserID:         payment.UserID,
+		Amount:         float64(refundAmount) / 100, // Convert from cents
+		Currency:       payment.Currency,
+		IdempotencyKey: fmt.Sprintf("payment-refund-%s", payment.ID.String()),
+	}
+
+	return s.walletService.Withdraw(ctx, withdrawCmd)
 }
 
 // Ensure PaymentService implements PaymentCommand

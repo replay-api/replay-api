@@ -2,6 +2,7 @@ package ioc
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"time"
@@ -157,47 +158,50 @@ type ContainerBuilder struct {
 	Container container.Container
 }
 
-// NoOpWalletCommand provides a no-op implementation of WalletCommand for basic functionality
+// NoOpWalletCommand provides a no-op implementation of WalletCommand
+// All methods return errors to prevent silent money loss when wallet infrastructure is unavailable
 type NoOpWalletCommand struct{}
 
+var errWalletUnavailable = fmt.Errorf("wallet service unavailable: infrastructure dependencies not resolved")
+
 func (n *NoOpWalletCommand) CreateWallet(ctx context.Context, cmd wallet_in.CreateWalletCommand) (*wallet_entities.UserWallet, error) {
-	slog.Debug("[NoOpWalletCommand] CreateWallet called", "user_id", cmd.UserID)
-	return nil, nil
+	slog.Error("[NoOpWalletCommand] CreateWallet called — wallet infrastructure unavailable", "user_id", cmd.UserID)
+	return nil, errWalletUnavailable
 }
 
 func (n *NoOpWalletCommand) Deposit(ctx context.Context, cmd wallet_in.DepositCommand) error {
-	slog.Debug("[NoOpWalletCommand] Deposit called", "user_id", cmd.UserID, "amount", cmd.Amount)
-	return nil
+	slog.Error("[NoOpWalletCommand] Deposit called — wallet infrastructure unavailable", "user_id", cmd.UserID, "amount", cmd.Amount)
+	return errWalletUnavailable
 }
 
 func (n *NoOpWalletCommand) Withdraw(ctx context.Context, cmd wallet_in.WithdrawCommand) error {
-	slog.Debug("[NoOpWalletCommand] Withdraw called", "user_id", cmd.UserID, "amount", cmd.Amount)
-	return nil
+	slog.Error("[NoOpWalletCommand] Withdraw called — wallet infrastructure unavailable", "user_id", cmd.UserID, "amount", cmd.Amount)
+	return errWalletUnavailable
 }
 
 func (n *NoOpWalletCommand) DeductEntryFee(ctx context.Context, cmd wallet_in.DeductEntryFeeCommand) error {
-	slog.Debug("[NoOpWalletCommand] DeductEntryFee called", "user_id", cmd.UserID, "amount", cmd.Amount)
-	return nil
+	slog.Error("[NoOpWalletCommand] DeductEntryFee called — wallet infrastructure unavailable", "user_id", cmd.UserID, "amount", cmd.Amount)
+	return errWalletUnavailable
 }
 
 func (n *NoOpWalletCommand) AddPrize(ctx context.Context, cmd wallet_in.AddPrizeCommand) error {
-	slog.Debug("[NoOpWalletCommand] AddPrize called", "user_id", cmd.UserID, "amount", cmd.Amount)
-	return nil
+	slog.Error("[NoOpWalletCommand] AddPrize called — wallet infrastructure unavailable", "user_id", cmd.UserID, "amount", cmd.Amount)
+	return errWalletUnavailable
 }
 
 func (n *NoOpWalletCommand) Refund(ctx context.Context, cmd wallet_in.RefundCommand) error {
-	slog.Debug("[NoOpWalletCommand] Refund called", "user_id", cmd.UserID, "amount", cmd.Amount)
-	return nil
+	slog.Error("[NoOpWalletCommand] Refund called — wallet infrastructure unavailable", "user_id", cmd.UserID, "amount", cmd.Amount)
+	return errWalletUnavailable
 }
 
 func (n *NoOpWalletCommand) DebitWallet(ctx context.Context, cmd wallet_in.DebitWalletCommand) (*wallet_entities.WalletTransaction, error) {
-	slog.Debug("[NoOpWalletCommand] DebitWallet called", "user_id", cmd.UserID, "amount", cmd.Amount)
-	return nil, nil
+	slog.Error("[NoOpWalletCommand] DebitWallet called — wallet infrastructure unavailable", "user_id", cmd.UserID, "amount", cmd.Amount)
+	return nil, errWalletUnavailable
 }
 
 func (n *NoOpWalletCommand) CreditWallet(ctx context.Context, cmd wallet_in.CreditWalletCommand) (*wallet_entities.WalletTransaction, error) {
-	slog.Debug("[NoOpWalletCommand] CreditWallet called", "user_id", cmd.UserID, "amount", cmd.Amount)
-	return nil, nil
+	slog.Error("[NoOpWalletCommand] CreditWallet called — wallet infrastructure unavailable", "user_id", cmd.UserID, "amount", cmd.Amount)
+	return nil, errWalletUnavailable
 }
 
 func NewContainerBuilder() *ContainerBuilder {

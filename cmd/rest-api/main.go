@@ -15,6 +15,9 @@ import (
 	billing_out "github.com/replay-api/replay-api/pkg/domain/billing/ports/out"
 	matchmaking_out "github.com/replay-api/replay-api/pkg/domain/matchmaking/ports/out"
 	matchmaking_services "github.com/replay-api/replay-api/pkg/domain/matchmaking/services"
+	scores_in "github.com/replay-api/replay-api/pkg/domain/scores/ports/in"
+	scores_out "github.com/replay-api/replay-api/pkg/domain/scores/ports/out"
+	scores_services "github.com/replay-api/replay-api/pkg/domain/scores/services"
 	wallet_in "github.com/replay-api/replay-api/pkg/domain/wallet/ports/in"
 	wallet_out "github.com/replay-api/replay-api/pkg/domain/wallet/ports/out"
 	mongodb "github.com/replay-api/replay-api/pkg/infra/db/mongodb"
@@ -110,6 +113,9 @@ func main() {
 
 	// Start Wallet Consumer (if Kafka is available)
 	startWalletConsumer(ctx, c)
+
+	// Start Matchmaking Result Consumer (if Kafka is available)
+	startMatchmakingResultConsumer(ctx, c)
 
 	router := routing.NewRouter(ctx, c)
 
@@ -263,4 +269,58 @@ func startWalletConsumer(ctx context.Context, c container.Container) {
 	}()
 
 	slog.InfoContext(ctx, "Wallet consumer started successfully")
+}
+
+// startMatchmakingResultConsumer starts the matchmaking result Kafka consumer
+// to ingest match results into the scores domain
+func startMatchmakingResultConsumer(ctx context.Context, c container.Container) {
+	kafkaEnabled := os.Getenv("KAFKA_ENABLED")
+	if kafkaEnabled != "true" {
+		slog.InfoContext(ctx, "Kafka matchmaking result consumer disabled (KAFKA_ENABLED != true)")
+		return
+	}
+
+	var kafkaClient *kafka.Client
+	if err := c.Resolve(&kafkaClient); err != nil {
+		slog.WarnContext(ctx, "Kafka client not available, matchmaking result consumer will not start", "error", err)
+		return
+	}
+
+	if kafkaClient == nil {
+		slog.InfoContext(ctx, "Kafka client is nil, matchmaking result consumer will not start")
+		return
+	}
+
+	// Resolve scores domain dependencies
+	var matchResultRepo scores_out.MatchResultRepository
+	var commandHandler scores_in.MatchResultCommandHandler
+
+	if err := c.Resolve(&matchResultRepo); err != nil {
+		slog.WarnContext(ctx, "MatchResultRepository not available for matchmaking consumer", "error", err)
+		return
+	}
+	if err := c.Resolve(&commandHandler); err != nil {
+		slog.WarnContext(ctx, "MatchResultCommandHandler not available for matchmaking consumer", "error", err)
+		return
+	}
+
+	// Create the ingestion service
+	ingestionService := scores_services.NewMatchmakingIngestionService(matchResultRepo, commandHandler)
+
+	// Create consumer
+	groupID := os.Getenv("KAFKA_MATCHMAKING_RESULT_CONSUMER_GROUP")
+	if groupID == "" {
+		groupID = "scores-matchmaking-result-consumer"
+	}
+
+	matchmakingConsumer := kafka.NewMatchResultConsumer(kafkaClient, groupID, ingestionService.ProcessMatchEvent)
+
+	go func() {
+		slog.InfoContext(ctx, "Starting matchmaking result Kafka consumer", "group_id", groupID)
+		if err := matchmakingConsumer.Start(ctx); err != nil {
+			slog.ErrorContext(ctx, "Matchmaking result consumer error", "error", err)
+		}
+	}()
+
+	slog.InfoContext(ctx, "Matchmaking result consumer started successfully")
 }

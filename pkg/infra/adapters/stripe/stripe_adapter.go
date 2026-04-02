@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/stripe/stripe-go/v76"
@@ -23,12 +24,21 @@ type StripeAdapter struct {
 }
 
 // NewStripeAdapter creates a new Stripe adapter
+// Panics if required environment variables are not set
 func NewStripeAdapter() *StripeAdapter {
 	// Set Stripe API key from environment
 	stripe.Key = os.Getenv("STRIPE_SECRET_KEY")
+	if stripe.Key == "" {
+		panic("STRIPE_SECRET_KEY environment variable is required but not set")
+	}
+
+	webhookSecret := os.Getenv("STRIPE_WEBHOOK_SECRET")
+	if webhookSecret == "" || webhookSecret == "whsec_changeme" {
+		panic("STRIPE_WEBHOOK_SECRET environment variable is required and must not be the placeholder value")
+	}
 
 	return &StripeAdapter{
-		webhookSecret: os.Getenv("STRIPE_WEBHOOK_SECRET"),
+		webhookSecret: webhookSecret,
 	}
 }
 
@@ -235,7 +245,10 @@ func (s *StripeAdapter) ParseWebhook(payload []byte, signature string) (*payment
 		webhookEvent.Status = payment_entities.PaymentStatusRefunded
 
 	default:
-		return nil, fmt.Errorf("unhandled Stripe event type: %s", event.Type)
+		// Log unhandled event types but acknowledge receipt to prevent Stripe from retrying indefinitely
+		slog.Warn("unhandled Stripe event type — acknowledged but not processed",
+			"event_type", string(event.Type))
+		return nil, nil
 	}
 
 	return webhookEvent, nil

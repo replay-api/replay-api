@@ -60,7 +60,7 @@ func NewSearchByName(ctx context.Context, name string) shared.Search {
 
 	visibility := shared.SearchVisibilityOptions{
 		RequestSource:    shared.GetResourceOwner(ctx),
-		IntendedAudience: shared.ClientApplicationAudienceIDKey,
+		IntendedAudience: shared.UserAudienceIDKey,
 	}
 
 	result := shared.SearchResultOptions{

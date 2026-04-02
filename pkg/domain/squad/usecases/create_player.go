@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/google/uuid"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
@@ -142,6 +143,16 @@ func (uc *CreatePlayerUseCase) Exec(c context.Context, cmd squad_in.CreatePlayer
 	player, err = uc.PlayerWriter.Create(c, player)
 
 	if err != nil {
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "duplicate key") {
+			if strings.Contains(errMsg, "slug_uri") {
+				return nil, shared.NewErrAlreadyExists(replay_common.ResourceTypePlayerProfile, "SlugURI", cmd.SlugURI)
+			}
+			if strings.Contains(errMsg, "nickname") {
+				return nil, shared.NewErrAlreadyExists(replay_common.ResourceTypePlayerProfile, "Nickname", cmd.Nickname)
+			}
+			return nil, shared.NewErrAlreadyExists(replay_common.ResourceTypePlayerProfile, "SlugURI or Nickname", cmd.SlugURI)
+		}
 		slog.ErrorContext(c, "create player profile failed", "err", err)
 		return nil, fmt.Errorf("unable to create player profile")
 	}

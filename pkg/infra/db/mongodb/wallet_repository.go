@@ -149,12 +149,34 @@ func (r *MongoWalletRepository) Update(ctx context.Context, wallet *wallet_entit
 		return fmt.Errorf("wallet ID cannot be nil")
 	}
 
+	// Optimistic concurrency control: only update if version matches
+	// Prevents race conditions when concurrent deposits/withdrawals hit the same wallet
+	previousVersion := wallet.Version - 1 // Version was already incremented by domain operation
+	if previousVersion < 1 {
+		previousVersion = 0
+	}
+
 	wallet.UpdatedAt = time.Now().UTC()
 
-	_, err := r.MongoDBRepository.Update(ctx, wallet)
+	collection := r.MongoDBRepository.GetCollection()
+
+	filter := bson.M{
+		"_id":     wallet.GetID(),
+		"version": previousVersion,
+	}
+
+	result, err := collection.ReplaceOne(ctx, filter, wallet)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update wallet", "wallet_id", wallet.ID, "error", err)
 		return fmt.Errorf("failed to update wallet: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		slog.WarnContext(ctx, "wallet update failed due to version conflict (concurrent modification)",
+			"wallet_id", wallet.ID,
+			"expected_version", previousVersion,
+			"current_version", wallet.Version)
+		return fmt.Errorf("wallet update conflict: concurrent modification detected, please retry")
 	}
 
 	slog.InfoContext(ctx, "wallet updated successfully", "wallet_id", wallet.ID, "evm_address", wallet.EVMAddress.String())

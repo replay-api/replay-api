@@ -245,6 +245,22 @@ func GetAllIndexes() []IndexDefinition {
 			},
 			Options: options.Index(),
 		},
+		{
+			Collection: "player_profiles",
+			Name:       "idx_profiles_slug_uri_unique",
+			Keys: bson.D{
+				{Key: "slug_uri", Value: 1},
+			},
+			Options: options.Index().SetSparse(true).SetUnique(true),
+		},
+		{
+			Collection: "player_profiles",
+			Name:       "idx_profiles_nickname_unique",
+			Keys: bson.D{
+				{Key: "nickname", Value: 1},
+			},
+			Options: options.Index().SetSparse(true).SetUnique(true),
+		},
 
 		// Squads Indexes
 		{
@@ -262,6 +278,22 @@ func GetAllIndexes() []IndexDefinition {
 				{Key: "members.player_id", Value: 1},
 			},
 			Options: options.Index(),
+		},
+		{
+			Collection: "squads",
+			Name:       "idx_squads_slug_uri_unique",
+			Keys: bson.D{
+				{Key: "slug_uri", Value: 1},
+			},
+			Options: options.Index().SetSparse(true).SetUnique(true),
+		},
+		{
+			Collection: "squads",
+			Name:       "idx_squads_name_unique",
+			Keys: bson.D{
+				{Key: "name", Value: 1},
+			},
+			Options: options.Index().SetSparse(true).SetUnique(true),
 		},
 
 		// Replay Files Indexes - Optimized for searchable framework with resource ownership

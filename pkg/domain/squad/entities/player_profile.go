@@ -81,7 +81,7 @@ func NewSearchByNickname(ctx context.Context, nickname string) shared.Search {
 
 	visibility := shared.SearchVisibilityOptions{
 		RequestSource:    shared.GetResourceOwner(ctx),
-		IntendedAudience: shared.ClientApplicationAudienceIDKey,
+		IntendedAudience: shared.UserAudienceIDKey,
 	}
 
 	result := shared.SearchResultOptions{
@@ -116,7 +116,7 @@ func NewSearchByID(ctx context.Context, id uuid.UUID) shared.Search {
 
 	visibility := shared.SearchVisibilityOptions{
 		RequestSource:    shared.GetResourceOwner(ctx),
-		IntendedAudience: shared.ClientApplicationAudienceIDKey,
+		IntendedAudience: shared.UserAudienceIDKey,
 	}
 
 	result := shared.SearchResultOptions{
@@ -158,7 +158,7 @@ func NewNicknameAndSlugExistenceCheck(ctx context.Context, id uuid.UUID, nicknam
 
 	visibility := shared.SearchVisibilityOptions{
 		RequestSource:    shared.GetResourceOwner(ctx),
-		IntendedAudience: shared.ClientApplicationAudienceIDKey,
+		IntendedAudience: shared.UserAudienceIDKey,
 	}
 
 	result := shared.SearchResultOptions{
@@ -193,7 +193,7 @@ func NewSearchBySlugURI(ctx context.Context, slugURI string) shared.Search {
 
 	visibility := shared.SearchVisibilityOptions{
 		RequestSource:    shared.GetResourceOwner(ctx),
-		IntendedAudience: shared.ClientApplicationAudienceIDKey,
+		IntendedAudience: shared.UserAudienceIDKey,
 	}
 
 	result := shared.SearchResultOptions{

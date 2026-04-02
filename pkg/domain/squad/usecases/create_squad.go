@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/google/uuid"
 	billing_entities "github.com/replay-api/replay-api/pkg/domain/billing/entities"
@@ -249,6 +250,16 @@ func (uc *CreateSquadUseCase) Exec(ctx context.Context, cmd squad_in.CreateOrUpd
 	squad, err = uc.SquadWriter.Create(ctx, squad)
 
 	if err != nil {
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "duplicate key") {
+			if strings.Contains(errMsg, "slug_uri") {
+				return nil, shared.NewErrAlreadyExists(replay_common.ResourceTypeSquad, "SlugURI", cmd.SlugURI)
+			}
+			if strings.Contains(errMsg, "name") {
+				return nil, shared.NewErrAlreadyExists(replay_common.ResourceTypeSquad, "Name", cmd.Name)
+			}
+			return nil, shared.NewErrAlreadyExists(replay_common.ResourceTypeSquad, "SlugURI or Name", cmd.SlugURI)
+		}
 		return nil, err
 	}
 

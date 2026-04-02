@@ -3,6 +3,7 @@ package cmd_controllers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -28,15 +29,18 @@ type PaymentController struct {
 func NewPaymentController(container container.Container) *PaymentController {
 	ctrl := &PaymentController{container: container}
 
-	// Resolve dependencies
+	// Resolve dependencies — panic on failure to match wallet controller pattern
 	if err := container.Resolve(&ctrl.paymentService); err != nil {
 		slog.Error("Failed to resolve PaymentCommand", "err", err)
+		panic(fmt.Sprintf("PaymentController: failed to resolve PaymentCommand: %v", err))
 	}
 	if err := container.Resolve(&ctrl.paymentQuery); err != nil {
 		slog.Error("Failed to resolve PaymentQuery", "err", err)
+		panic(fmt.Sprintf("PaymentController: failed to resolve PaymentQuery: %v", err))
 	}
 	if err := container.Resolve(&ctrl.paymentRepo); err != nil {
 		slog.Error("Failed to resolve PaymentRepository", "err", err)
+		panic(fmt.Sprintf("PaymentController: failed to resolve PaymentRepository: %v", err))
 	}
 
 	return ctrl
