@@ -60,6 +60,7 @@ import (
 
 	scores_in "github.com/replay-api/replay-api/pkg/domain/scores/ports/in"
 	scores_out "github.com/replay-api/replay-api/pkg/domain/scores/ports/out"
+	scores_services "github.com/replay-api/replay-api/pkg/domain/scores/services"
 	scores_usecases "github.com/replay-api/replay-api/pkg/domain/scores/usecases"
 	scores_adapter "github.com/replay-api/replay-api/pkg/infra/adapters/scores"
 
@@ -468,6 +469,44 @@ func (b *ContainerBuilder) WithInboundPorts() *ContainerBuilder {
 	if err != nil {
 		slog.Error("Failed to load ProcessReplayFileCommand.")
 		panic(err)
+	}
+
+	// Wire ReplayScoreBridge callback for automatic score submission after replay processing
+	{
+		var processCmd replay_in.ProcessReplayFileCommand
+		if err := c.Resolve(&processCmd); err != nil {
+			slog.Warn("Failed to resolve ProcessReplayFileCommand for ReplayScoreBridge wiring", "err", err)
+		} else if useCase, ok := processCmd.(*replay_use_cases.ProcessReplayFileUseCase); ok {
+			var repo scores_out.MatchResultRepository
+			var eventPub scores_out.ScoreEventPublisher
+			var prizeGateway scores_out.PrizeDistributionGateway
+			var scoresCmdHandler scores_in.MatchResultCommandHandler
+
+			resolveErr := false
+			if err := c.Resolve(&repo); err != nil {
+				slog.Warn("MatchResultRepository not available for ReplayScoreBridge", "err", err)
+				resolveErr = true
+			}
+			if err := c.Resolve(&eventPub); err != nil {
+				slog.Warn("ScoreEventPublisher not available for ReplayScoreBridge", "err", err)
+				resolveErr = true
+			}
+			if err := c.Resolve(&prizeGateway); err != nil {
+				slog.Warn("PrizeDistributionGateway not available for ReplayScoreBridge", "err", err)
+				resolveErr = true
+			}
+			if err := c.Resolve(&scoresCmdHandler); err != nil {
+				slog.Warn("MatchResultCommandHandler not available for ReplayScoreBridge", "err", err)
+				resolveErr = true
+			}
+
+			if !resolveErr {
+				verificationSvc := scores_services.NewScoreVerificationService(repo, eventPub, prizeGateway, scoresCmdHandler)
+				bridge := scores_services.NewReplayScoreBridge(verificationSvc)
+				useCase.OnMatchProcessed = bridge.OnMatchProcessed
+				slog.Info("ReplayScoreBridge wired to ProcessReplayFileUseCase")
+			}
+		}
 	}
 
 	err = c.Singleton(func() (replay_in.UpdateReplayFileHeaderCommand, error) {
